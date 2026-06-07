@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Modules\Tenants\Api\Ats.Modules.Tenants.Api.csproj" />
+    <ProjectReference Include="..\Modules\Tenants\Infrastructure\Ats.Modules.Tenants.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Jobs\Api\Ats.Modules.Jobs.Api.csproj" />
+    <ProjectReference Include="..\Modules\Jobs\Infrastructure\Ats.Modules.Jobs.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Applications\Api\Ats.Modules.Applications.Api.csproj" />
+    <ProjectReference Include="..\Modules\Applications\Infrastructure\Ats.Modules.Applications.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Interviews\Api\Ats.Modules.Interviews.Api.csproj" />
+    <ProjectReference Include="..\Modules\Interviews\Infrastructure\Ats.Modules.Interviews.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Notifications\Api\Ats.Modules.Notifications.Api.csproj" />
+    <ProjectReference Include="..\Modules\Notifications\Infrastructure\Ats.Modules.Notifications.Infrastructure.csproj" />
+    <ProjectReference Include="..\Shared\Ats.Shared.Infrastructure\Ats.Shared.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
