@@ -1,5 +1,6 @@
 using Ats.Modules.Tenants.Application;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Tenants.Infrastructure;
 
@@ -12,13 +13,18 @@ public sealed class TenantResolutionMiddleware
         _next = next;
     }
 
-    public async Task InvokeAsync(HttpContext context, ITenantContext tenantContext)
+    public async Task InvokeAsync(HttpContext context, ITenantContext tenantContext, TenantsDbContext db)
     {
         var slug = ExtractSlug(context.Request.Path);
 
         if (slug is not null && tenantContext is TenantContext concrete)
         {
-            concrete.SetTenant(Guid.Empty, slug);
+            var tenant = await db.Tenants
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(t => t.Slug == slug);
+
+            if (tenant is not null)
+                concrete.SetTenant(tenant.Id, tenant.Slug);
         }
 
         await _next(context);

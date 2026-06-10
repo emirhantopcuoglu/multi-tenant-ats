@@ -1,5 +1,5 @@
+using System.Reflection;
 using Ats.Modules.Tenants.Domain;
-using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -42,6 +42,18 @@ public sealed class TenantsDbContext : IdentityDbContext<ApplicationUser, Identi
             entity.HasIndex(t => t.TokenHash);
         });
 
-        builder.ApplyTenantFilter(_currentTenant);
+        // Register filter via instance method so EF Core 9 treats _currentTenant as a
+        // context accessor (re-evaluated per execution) rather than a compile-time constant.
+        var applyFilter = GetType()
+            .GetMethod(nameof(SetTenantFilter), BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+        foreach (var entityType in builder.Model.GetEntityTypes()
+            .Where(t => typeof(ITenantScoped).IsAssignableFrom(t.ClrType)))
+        {
+            applyFilter.MakeGenericMethod(entityType.ClrType).Invoke(this, [builder]);
+        }
     }
+
+    private void SetTenantFilter<T>(ModelBuilder builder) where T : class, ITenantScoped
+        => builder.Entity<T>().HasQueryFilter(e => (Guid?)e.TenantId == _currentTenant.TenantId);
 }
