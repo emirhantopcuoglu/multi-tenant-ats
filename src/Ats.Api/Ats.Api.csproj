@@ -24,6 +24,7 @@
     <ProjectReference Include="..\Modules\Notifications\Api\Ats.Modules.Notifications.Api.csproj" />
     <ProjectReference Include="..\Modules\Notifications\Infrastructure\Ats.Modules.Notifications.Infrastructure.csproj" />
     <ProjectReference Include="..\Shared\Ats.Shared.Infrastructure\Ats.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\Shared\Ats.Shared.Kernel\Ats.Shared.Kernel.csproj" />
   </ItemGroup>
 
 </Project>

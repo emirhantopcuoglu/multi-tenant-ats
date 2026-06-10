@@ -1,4 +1,6 @@
 using Ats.Modules.Tenants.Domain;
+using Ats.Shared.Infrastructure;
+using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -7,9 +9,12 @@ namespace Ats.Modules.Tenants.Infrastructure;
 
 public sealed class TenantsDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
 {
-    public TenantsDbContext(DbContextOptions<TenantsDbContext> options)
+    private readonly ICurrentTenant _currentTenant;
+
+    public TenantsDbContext(DbContextOptions<TenantsDbContext> options, ICurrentTenant currentTenant)
         : base(options)
     {
+        _currentTenant = currentTenant;
     }
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
@@ -36,5 +41,7 @@ public sealed class TenantsDbContext : IdentityDbContext<ApplicationUser, Identi
             entity.Property(t => t.TokenHash).IsRequired();
             entity.HasIndex(t => t.TokenHash);
         });
+
+        builder.ApplyTenantFilter(_currentTenant);
     }
 }

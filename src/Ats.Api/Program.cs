@@ -1,12 +1,14 @@
 using System.Text;
 using Ats.Modules.Tenants.Application;
-using Scalar.AspNetCore;
 using Ats.Modules.Tenants.Domain;
 using Ats.Modules.Tenants.Infrastructure;
+using Ats.Shared.Infrastructure;
+using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,17 +18,23 @@ builder.Services.AddOpenApi();
 builder.Services.Configure<JwtOptions>(
     builder.Configuration.GetSection(JwtOptions.SectionName));
 
-builder.Services.AddDbContext<TenantsDbContext>(options =>
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("Postgres"),
-        npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "tenants")));
+builder.Services.AddScoped<TenantContext>();
+builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
+builder.Services.AddScoped<ICurrentTenant>(sp => sp.GetRequiredService<TenantContext>());
+builder.Services.AddScoped<TenantSaveChangesInterceptor>();
+
+builder.Services.AddDbContext<TenantsDbContext>((sp, options) =>
+    options
+        .UseNpgsql(
+            builder.Configuration.GetConnectionString("Postgres"),
+            npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "tenants"))
+        .AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>()));
 
 builder.Services
     .AddIdentityCore<ApplicationUser>()
     .AddRoles<IdentityRole<Guid>>()
     .AddEntityFrameworkStores<TenantsDbContext>();
 
-builder.Services.AddScoped<ITenantContext, TenantContext>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
