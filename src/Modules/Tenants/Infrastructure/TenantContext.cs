@@ -1,8 +1,9 @@
 using Ats.Modules.Tenants.Application;
+using Ats.Shared.Kernel;
 
 namespace Ats.Modules.Tenants.Infrastructure;
 
-public sealed class TenantContext : ITenantContext
+public sealed class TenantContext : ITenantContext, ICurrentTenant
 {
     public Guid? TenantId { get; private set; }
     public string? TenantSlug { get; private set; }

@@ -1,3 +1,4 @@
+using Ats.Shared.Kernel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
@@ -14,6 +15,11 @@ public sealed class TenantsDbContextFactory : IDesignTimeDbContextFactory<Tenant
             .UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "tenants"))
             .Options;
 
-        return new TenantsDbContext(options);
+        return new TenantsDbContext(options, new NullCurrentTenant());
     }
+}
+
+internal sealed class NullCurrentTenant : ICurrentTenant
+{
+    public Guid? TenantId => null;
 }
