@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Ats.Modules.Tenants.Application;
 using Ats.Modules.Tenants.Domain;
+using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -27,16 +28,16 @@ public sealed class AuthService : IAuthService
         _jwtOptions = jwtOptions.Value;
     }
 
-    public async Task<AuthResult> RegisterAsync(
+    public async Task<Result<AuthResult>> RegisterAsync(
         string companyName, string slug, string email, string password, string firstName, string lastName)
     {
         var slugTaken = await _db.Tenants.AnyAsync(t => t.Slug == slug);
         if (slugTaken)
-            throw new InvalidOperationException($"Slug '{slug}' is already taken.");
+            return Result.Failure<AuthResult>(AuthErrors.RegistrationFailed($"Slug '{slug}' is already taken."));
 
         var emailTaken = await _userManager.FindByEmailAsync(email) is not null;
         if (emailTaken)
-            throw new InvalidOperationException($"Email '{email}' is already registered.");
+            return Result.Failure<AuthResult>(AuthErrors.RegistrationFailed($"Email '{email}' is already registered."));
 
         var tenant = Tenant.Create(companyName, slug);
         _db.Tenants.Add(tenant);
@@ -52,53 +53,56 @@ public sealed class AuthService : IAuthService
             CreatedAtUtc = DateTime.UtcNow
         };
 
-        var result = await _userManager.CreateAsync(user, password);
-        if (!result.Succeeded)
-            throw new InvalidOperationException(
-                string.Join("; ", result.Errors.Select(e => e.Description)));
+        var identityResult = await _userManager.CreateAsync(user, password);
+        if (!identityResult.Succeeded)
+            return Result.Failure<AuthResult>(
+                AuthErrors.RegistrationFailed(string.Join("; ", identityResult.Errors.Select(e => e.Description))));
 
-        return await IssueTokensAsync(user);
+        var tokens = await IssueTokensAsync(user);
+        return Result.Success(tokens);
     }
 
-    public async Task<AuthResult> LoginAsync(string email, string password)
+    public async Task<Result<AuthResult>> LoginAsync(string email, string password)
     {
         var user = await _userManager.FindByEmailAsync(email);
         if (user is null || !await _userManager.CheckPasswordAsync(user, password))
-            throw new UnauthorizedAccessException("Invalid credentials.");
+            return Result.Failure<AuthResult>(AuthErrors.InvalidCredentials);
 
-        return await IssueTokensAsync(user);
+        var tokens = await IssueTokensAsync(user);
+        return Result.Success(tokens);
     }
 
-    public async Task<AuthResult> RefreshAsync(string refreshToken)
+    public async Task<Result<AuthResult>> RefreshAsync(string refreshToken)
     {
         var hash = Hash(refreshToken);
-        var stored = await _db.RefreshTokens
-            .FirstOrDefaultAsync(t => t.TokenHash == hash);
+        var stored = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash);
 
         if (stored is null || !stored.IsActive)
-            throw new UnauthorizedAccessException("Invalid refresh token.");
+            return Result.Failure<AuthResult>(AuthErrors.InvalidRefreshToken);
 
         var user = await _userManager.FindByIdAsync(stored.UserId.ToString());
         if (user is null)
-            throw new UnauthorizedAccessException("User not found.");
+            return Result.Failure<AuthResult>(AuthErrors.UserNotFound);
 
         stored.Revoke();
         await _db.SaveChangesAsync();
 
-        return await IssueTokensAsync(user);
+        var tokens = await IssueTokensAsync(user);
+        return Result.Success(tokens);
     }
 
-    public async Task LogoutAsync(string refreshToken)
+    public async Task<Result> LogoutAsync(string refreshToken)
     {
         var hash = Hash(refreshToken);
-        var stored = await _db.RefreshTokens
-            .FirstOrDefaultAsync(t => t.TokenHash == hash);
+        var stored = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash);
 
         if (stored is not null && stored.IsActive)
         {
             stored.Revoke();
             await _db.SaveChangesAsync();
         }
+
+        return Result.Success();
     }
 
     private async Task<AuthResult> IssueTokensAsync(ApplicationUser user)
