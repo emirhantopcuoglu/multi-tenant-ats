@@ -1,5 +1,8 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using Asp.Versioning;
+using Ats.Modules.Jobs.Application;
+using Ats.Modules.Jobs.Infrastructure;
 using Ats.Modules.Tenants.Application;
 using Ats.Modules.Tenants.Domain;
 using Ats.Modules.Tenants.Infrastructure;
@@ -14,7 +17,10 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 builder.Services.AddOpenApi(options =>
 {
@@ -65,6 +71,16 @@ builder.Services.AddDbContext<TenantsDbContext>((sp, options) =>
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "tenants"))
         .AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>()));
 
+builder.Services.AddDbContext<JobsDbContext>((sp, options) =>
+    options
+        .UseNpgsql(
+            builder.Configuration.GetConnectionString("Postgres"),
+            npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "jobs"))
+        .AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>()));
+
+builder.Services.AddScoped<IJobsDbContext>(sp => sp.GetRequiredService<JobsDbContext>());
+builder.Services.AddJobsApplication();
+
 builder.Services
     .AddIdentityCore<ApplicationUser>()
     .AddRoles<IdentityRole<Guid>>()
@@ -108,6 +124,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthentication();
+app.UseMiddleware<TenantClaimResolutionMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 

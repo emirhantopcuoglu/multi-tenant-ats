@@ -1,0 +1,62 @@
+using System.Reflection;
+using Ats.Modules.Jobs.Application;
+using Ats.Modules.Jobs.Domain;
+using Ats.Shared.Kernel;
+using Microsoft.EntityFrameworkCore;
+
+namespace Ats.Modules.Jobs.Infrastructure;
+
+public sealed class JobsDbContext : DbContext, IJobsDbContext
+{
+    private readonly ICurrentTenant _currentTenant;
+
+    public JobsDbContext(DbContextOptions<JobsDbContext> options, ICurrentTenant currentTenant)
+        : base(options)
+    {
+        _currentTenant = currentTenant;
+    }
+
+    public DbSet<Job> Jobs => Set<Job>();
+
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        builder.HasDefaultSchema("jobs");
+
+        builder.Entity<Job>(entity =>
+        {
+            entity.HasKey(j => j.Id);
+            entity.Property(j => j.Title).IsRequired().HasMaxLength(200);
+            entity.Property(j => j.Description).IsRequired();
+            entity.Property(j => j.Department).HasMaxLength(100);
+            entity.Property(j => j.Location).HasMaxLength(200);
+            entity.Property(j => j.Slug).IsRequired().HasMaxLength(250);
+            entity.Property(j => j.EmploymentType).HasConversion<string>();
+            entity.Property(j => j.ExperienceLevel).HasConversion<string>();
+            entity.Property(j => j.Status).HasConversion<string>();
+            entity.HasIndex(j => new { j.TenantId, j.Slug }).IsUnique();
+            entity.HasIndex(j => new { j.TenantId, j.Status });
+
+            entity.OwnsOne(j => j.SalaryRange, sr =>
+            {
+                sr.Property(p => p.Min).HasColumnName("SalaryMin");
+                sr.Property(p => p.Max).HasColumnName("SalaryMax");
+                sr.Property(p => p.Currency).HasColumnName("SalaryCurrency").HasMaxLength(3);
+            });
+        });
+
+        // Register the filter via an instance method so EF Core treats _currentTenant as a
+        // context accessor (re-evaluated per query) rather than baking the first scope's
+        // value into the cached model. A captured delegate would leak across tenants.
+        var applyFilter = GetType()
+            .GetMethod(nameof(SetTenantFilter), BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+        foreach (var entityType in builder.Model.GetEntityTypes()
+            .Where(t => typeof(ITenantScoped).IsAssignableFrom(t.ClrType)))
+        {
+            applyFilter.MakeGenericMethod(entityType.ClrType).Invoke(this, [builder]);
+        }
+    }
+
+    private void SetTenantFilter<T>(ModelBuilder builder) where T : class, ITenantScoped
+        => builder.Entity<T>().HasQueryFilter(e => (Guid?)e.TenantId == _currentTenant.TenantId);
+}
