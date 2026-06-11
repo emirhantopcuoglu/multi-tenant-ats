@@ -1,10 +1,12 @@
+using Asp.Versioning;
 using Ats.Modules.Tenants.Application;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ats.Modules.Tenants.Api;
 
 [ApiController]
-[Route("api/auth")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/auth")]
 public sealed class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
@@ -22,44 +24,32 @@ public sealed class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterRequest request)
     {
-        try
-        {
-            var result = await _authService.RegisterAsync(
-                request.CompanyName, request.Slug, request.Email, request.Password, request.FirstName, request.LastName);
-            return Ok(result);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        var result = await _authService.RegisterAsync(
+            request.CompanyName, request.Slug, request.Email, request.Password, request.FirstName, request.LastName);
+
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : BadRequest(new { result.Error.Code, result.Error.Message });
     }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
-        try
-        {
-            var result = await _authService.LoginAsync(request.Email, request.Password);
-            return Ok(result);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(401, new { error = ex.Message });
-        }
+        var result = await _authService.LoginAsync(request.Email, request.Password);
+
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : Unauthorized(new { result.Error.Code, result.Error.Message });
     }
 
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh(RefreshRequest request)
     {
-        try
-        {
-            var result = await _authService.RefreshAsync(request.RefreshToken);
-            return Ok(result);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(401, new { error = ex.Message });
-        }
+        var result = await _authService.RefreshAsync(request.RefreshToken);
+
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : Unauthorized(new { result.Error.Code, result.Error.Message });
     }
 
     [HttpPost("logout")]
