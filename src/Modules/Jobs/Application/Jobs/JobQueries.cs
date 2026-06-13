@@ -78,3 +78,40 @@ public sealed class ListJobsHandler : IQueryHandler<ListJobsQuery, PagedResult<J
         return Result.Success(new PagedResult<JobDto>(items, page, pageSize, totalCount));
     }
 }
+
+// ---- ListPublicJobs (no auth, only Published) ----
+// Unlike the recruiter query, status is fixed to Published — the public never sees
+// drafts. Tenant scoping is still automatic via the global query filter (no explicit
+// WHERE TenantId here); EF appends it from the resolved tenant context.
+public sealed record ListPublicJobsQuery(int Page = 1, int PageSize = 20)
+    : IQuery<PagedResult<JobDto>>;
+
+public sealed class ListPublicJobsHandler : IQueryHandler<ListPublicJobsQuery, PagedResult<JobDto>>
+{
+    private readonly IJobsDbContext _db;
+    public ListPublicJobsHandler(IJobsDbContext db) => _db = db;
+
+    public async Task<Result<PagedResult<JobDto>>> Handle(ListPublicJobsQuery query, CancellationToken ct)
+    {
+        var page = query.Page < 1 ? 1 : query.Page;
+        var pageSize = query.PageSize is < 1 or > 100 ? 20 : query.PageSize;
+
+        var jobs = _db.Jobs
+            .AsNoTracking()
+            .Where(j => j.Status == JobStatus.Published);
+
+        var totalCount = await jobs.CountAsync(ct);
+
+        var items = await jobs
+            .OrderByDescending(j => j.PublishedAtUtc)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(j => new JobDto(
+                j.Id, j.Title, j.Department, j.Location,
+                j.EmploymentType.ToString(), j.ExperienceLevel.ToString(), j.Status.ToString(),
+                j.Slug, j.CreatedAtUtc))
+            .ToListAsync(ct);
+
+        return Result.Success(new PagedResult<JobDto>(items, page, pageSize, totalCount));
+    }
+}
