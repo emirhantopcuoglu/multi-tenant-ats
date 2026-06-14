@@ -62,24 +62,32 @@ builder.Services
 builder.Services.Configure<JwtOptions>(
     builder.Configuration.GetSection(JwtOptions.SectionName));
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+
 builder.Services.AddScoped<TenantContext>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
 builder.Services.AddScoped<ICurrentTenant>(sp => sp.GetRequiredService<TenantContext>());
 builder.Services.AddScoped<TenantSaveChangesInterceptor>();
+builder.Services.AddScoped<AuditableSaveChangesInterceptor>();
 
 builder.Services.AddDbContext<TenantsDbContext>((sp, options) =>
     options
         .UseNpgsql(
             builder.Configuration.GetConnectionString("Postgres"),
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "tenants"))
-        .AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>()));
+        .AddInterceptors(
+            sp.GetRequiredService<TenantSaveChangesInterceptor>(),
+            sp.GetRequiredService<AuditableSaveChangesInterceptor>()));
 
 builder.Services.AddDbContext<JobsDbContext>((sp, options) =>
     options
         .UseNpgsql(
             builder.Configuration.GetConnectionString("Postgres"),
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "jobs"))
-        .AddInterceptors(sp.GetRequiredService<TenantSaveChangesInterceptor>()));
+        .AddInterceptors(
+            sp.GetRequiredService<TenantSaveChangesInterceptor>(),
+            sp.GetRequiredService<AuditableSaveChangesInterceptor>()));
 
 builder.Services.AddScoped<IJobsDbContext>(sp => sp.GetRequiredService<JobsDbContext>());
 builder.Services.AddJobsApplication();

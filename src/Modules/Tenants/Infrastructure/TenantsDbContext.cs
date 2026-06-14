@@ -65,6 +65,10 @@ public sealed class TenantsDbContext : IdentityDbContext<ApplicationUser, Identi
         }
     }
 
-    private void SetTenantFilter<T>(ModelBuilder builder) where T : class, ITenantScoped
-        => builder.Entity<T>().HasQueryFilter(e => (Guid?)e.TenantId == _currentTenant.TenantId);
+    // Combined global filter: hide rows of other tenants AND soft-deleted rows. EF Core
+    // allows only one query filter per entity, so both conditions live in one predicate.
+    // Written as a literal lambda in an instance method so EF re-evaluates _currentTenant
+    // per query (a captured delegate would bake the first scope's tenant into the model).
+    private void SetTenantFilter<T>(ModelBuilder builder) where T : class, ITenantScoped, ISoftDeletable
+        => builder.Entity<T>().HasQueryFilter(e => !e.IsDeleted && (Guid?)e.TenantId == _currentTenant.TenantId);
 }
