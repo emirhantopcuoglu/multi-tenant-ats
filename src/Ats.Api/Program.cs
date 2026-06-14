@@ -40,6 +40,9 @@ builder.Services.AddOpenApi(options =>
     });
 });
 
+// Order matters: the validation handler runs first and only handles
+// ValidationException; everything else falls through to the catch-all.
+builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
