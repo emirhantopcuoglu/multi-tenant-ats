@@ -73,6 +73,36 @@ public sealed class CloseJobHandler : ICommandHandler<CloseJobCommand, bool>
     }
 }
 
+// ---- Archive ----
+public sealed record ArchiveJobCommand(Guid JobId) : ICommand<bool>;
+
+public sealed class ArchiveJobValidator : AbstractValidator<ArchiveJobCommand>
+{
+    public ArchiveJobValidator() => RuleFor(x => x.JobId).NotEmpty();
+}
+
+public sealed class ArchiveJobHandler : ICommandHandler<ArchiveJobCommand, bool>
+{
+    private readonly IJobsDbContext _db;
+    public ArchiveJobHandler(IJobsDbContext db) => _db = db;
+
+    public async Task<Result<bool>> Handle(ArchiveJobCommand command, CancellationToken ct)
+    {
+        var job = await _db.Jobs.FirstOrDefaultAsync(j => j.Id == command.JobId, ct);
+        if (job is null)
+            return Result.Failure<bool>(JobErrors.NotFound);
+
+        try { job.Archive(); }
+        catch (InvalidOperationException ex)
+        {
+            return Result.Failure<bool>(JobErrors.InvalidOperation(ex.Message));
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return Result.Success(true);
+    }
+}
+
 // ---- Update ----
 public sealed record UpdateJobCommand(
     Guid JobId,
