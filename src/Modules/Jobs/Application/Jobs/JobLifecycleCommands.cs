@@ -1,5 +1,6 @@
 using Ats.Modules.Jobs.Domain;
 using Ats.Shared.Kernel;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Jobs.Application.Jobs;
@@ -14,6 +15,11 @@ public static class JobErrors
 
 // ---- Publish ----
 public sealed record PublishJobCommand(Guid JobId) : ICommand<bool>;
+
+public sealed class PublishJobValidator : AbstractValidator<PublishJobCommand>
+{
+    public PublishJobValidator() => RuleFor(x => x.JobId).NotEmpty();
+}
 
 public sealed class PublishJobHandler : ICommandHandler<PublishJobCommand, bool>
 {
@@ -39,6 +45,11 @@ public sealed class PublishJobHandler : ICommandHandler<PublishJobCommand, bool>
 
 // ---- Close ----
 public sealed record CloseJobCommand(Guid JobId) : ICommand<bool>;
+
+public sealed class CloseJobValidator : AbstractValidator<CloseJobCommand>
+{
+    public CloseJobValidator() => RuleFor(x => x.JobId).NotEmpty();
+}
 
 public sealed class CloseJobHandler : ICommandHandler<CloseJobCommand, bool>
 {
@@ -74,6 +85,18 @@ public sealed record UpdateJobCommand(
     decimal? SalaryMin,
     decimal? SalaryMax,
     string? SalaryCurrency) : ICommand<bool>;
+
+public sealed class UpdateJobValidator : AbstractValidator<UpdateJobCommand>
+{
+    public UpdateJobValidator()
+    {
+        RuleFor(x => x.JobId).NotEmpty();
+        RuleFor(x => x.Title).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.Description).NotEmpty();
+        RuleFor(x => x.SalaryCurrency)
+            .NotEmpty().When(x => x.SalaryMin.HasValue || x.SalaryMax.HasValue);
+    }
+}
 
 public sealed class UpdateJobHandler : ICommandHandler<UpdateJobCommand, bool>
 {
