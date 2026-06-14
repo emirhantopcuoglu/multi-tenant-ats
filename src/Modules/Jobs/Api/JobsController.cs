@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Asp.Versioning;
 using Ats.Modules.Jobs.Application.Jobs;
 using MediatR;
@@ -20,8 +21,19 @@ public sealed class JobsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create(CreateJobCommand command)
+    public async Task<IActionResult> Create(CreateJobBody body)
     {
+        // The author is the authenticated caller, never a client-supplied value.
+        // The JWT 'sub' claim is mapped to NameIdentifier by the default inbound
+        // claim mapping, so we read it from there.
+        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var createdBy))
+            return Unauthorized();
+
+        var command = new CreateJobCommand(
+            body.Title, body.Description, body.Department, body.Location,
+            body.EmploymentType, body.ExperienceLevel,
+            body.SalaryMin, body.SalaryMax, body.SalaryCurrency, createdBy);
+
         var result = await _sender.Send(command);
         return result.IsSuccess
             ? CreatedAtAction(nameof(GetById), new { id = result.Value }, new { id = result.Value })
@@ -76,6 +88,14 @@ public sealed class JobsController : ControllerBase
             ? NoContent()
             : BadRequest(new { result.Error.Code, result.Error.Message });
     }
+
+    // Request shape for creation: deliberately omits CreatedBy so the client
+    // cannot spoof authorship. The controller fills it from the JWT.
+    public sealed record CreateJobBody(
+        string Title, string Description, string Department, string Location,
+        Ats.Modules.Jobs.Domain.EmploymentType EmploymentType,
+        Ats.Modules.Jobs.Domain.ExperienceLevel ExperienceLevel,
+        decimal? SalaryMin, decimal? SalaryMax, string? SalaryCurrency);
 
     public sealed record UpdateJobBody(
         string Title, string Description, string Department, string Location,
