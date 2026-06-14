@@ -58,6 +58,9 @@ public sealed class AuthService : IAuthService
             return Result.Failure<AuthResult>(
                 AuthErrors.RegistrationFailed(string.Join("; ", identityResult.Errors.Select(e => e.Description))));
 
+        // The user who registers a tenant is its founder and therefore its administrator.
+        await _userManager.AddToRoleAsync(user, Roles.Admin);
+
         var tokens = await IssueTokensAsync(user);
         return Result.Success(tokens);
     }

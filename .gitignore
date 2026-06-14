@@ -486,3 +486,6 @@ $RECYCLE.BIN/
 .env
 .env.*
 !.env.example
+
+# Local Claude Code agent/IDE settings — never commit
+.claude/
