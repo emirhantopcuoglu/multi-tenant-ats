@@ -1,6 +1,6 @@
 using Asp.Versioning;
 using Ats.Modules.Tenants.Application;
-using Ats.Modules.Tenants.Domain;
+using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -22,7 +22,7 @@ public sealed class InvitationsController : ControllerBase
     public sealed record AcceptRequest(string Token, string Password, string FirstName, string LastName);
 
     [HttpPost]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Policy = Policies.CanManageUsers)]
     public async Task<IActionResult> Invite(InviteRequest request)
     {
         var result = await _invitations.InviteAsync(request.Email, request.Role);
