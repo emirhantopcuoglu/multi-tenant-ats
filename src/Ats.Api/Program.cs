@@ -92,6 +92,13 @@ builder.Services
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+builder.Services.Configure<EmailOptions>(
+    builder.Configuration.GetSection(EmailOptions.SectionName));
+builder.Services.Configure<InvitationOptions>(
+    builder.Configuration.GetSection(InvitationOptions.SectionName));
+builder.Services.AddScoped<IEmailSender, MailKitEmailSender>();
+builder.Services.AddScoped<IInvitationService, InvitationService>();
+
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()!;
 
 builder.Services
@@ -113,6 +120,12 @@ builder.Services
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+    await RoleSeeder.SeedAsync(roleManager);
+}
 
 app.UseExceptionHandler();
 

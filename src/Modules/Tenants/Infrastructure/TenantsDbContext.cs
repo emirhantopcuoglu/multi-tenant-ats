@@ -21,6 +21,8 @@ public sealed class TenantsDbContext : IdentityDbContext<ApplicationUser, Identi
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    public DbSet<Invitation> Invitations => Set<Invitation>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -40,6 +42,15 @@ public sealed class TenantsDbContext : IdentityDbContext<ApplicationUser, Identi
             entity.HasKey(t => t.Id);
             entity.Property(t => t.TokenHash).IsRequired();
             entity.HasIndex(t => t.TokenHash);
+        });
+
+        builder.Entity<Invitation>(entity =>
+        {
+            entity.HasKey(i => i.Id);
+            entity.Property(i => i.Email).IsRequired().HasMaxLength(256);
+            entity.Property(i => i.Role).IsRequired().HasMaxLength(50);
+            entity.Property(i => i.TokenHash).IsRequired();
+            entity.HasIndex(i => i.TokenHash);
         });
 
         // Register filter via instance method so EF Core 9 treats _currentTenant as a
