@@ -18,4 +18,9 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\Jobs\Domain\Ats.Modules.Jobs.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Tenants\Domain\Ats.Modules.Tenants.Domain.csproj" />
+  </ItemGroup>
+
 </Project>

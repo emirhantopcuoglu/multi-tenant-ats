@@ -82,6 +82,16 @@ public sealed class JobsController : ControllerBase
             : BadRequest(new { result.Error.Code, result.Error.Message });
     }
 
+    [HttpPost("{id:guid}/archive")]
+    [Authorize(Policy = Policies.CanManageJobs)]
+    public async Task<IActionResult> Archive(Guid id)
+    {
+        var result = await _sender.Send(new ArchiveJobCommand(id));
+        return result.IsSuccess
+            ? NoContent()
+            : BadRequest(new { result.Error.Code, result.Error.Message });
+    }
+
     [HttpPut("{id:guid}")]
     [Authorize(Policy = Policies.CanManageJobs)]
     public async Task<IActionResult> Update(Guid id, UpdateJobBody body)

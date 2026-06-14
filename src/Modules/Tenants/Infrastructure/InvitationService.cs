@@ -14,20 +14,17 @@ public sealed class InvitationService : IInvitationService
     private readonly TenantsDbContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IEmailSender _emailSender;
-    private readonly ITenantContext _tenant;
     private readonly InvitationOptions _options;
 
     public InvitationService(
         TenantsDbContext db,
         UserManager<ApplicationUser> userManager,
         IEmailSender emailSender,
-        ITenantContext tenant,
         IOptions<InvitationOptions> options)
     {
         _db = db;
         _userManager = userManager;
         _emailSender = emailSender;
-        _tenant = tenant;
         _options = options.Value;
     }
 
