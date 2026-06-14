@@ -2,7 +2,7 @@ using Ats.Shared.Kernel;
 
 namespace Ats.Modules.Tenants.Domain;
 
-public sealed class Invitation : ITenantScoped
+public sealed class Invitation : ITenantScoped, IAuditable, ISoftDeletable
 {
     public Guid Id { get; private set; }
     public Guid TenantId { get; private set; }
@@ -11,6 +11,14 @@ public sealed class Invitation : ITenantScoped
     public string TokenHash { get; private set; } = null!;
     public DateTime ExpiresAtUtc { get; private set; }
     public DateTime? AcceptedAtUtc { get; private set; }
+
+    public DateTime CreatedAtUtc { get; private set; }
+    public Guid? CreatedBy { get; private set; }
+    public DateTime? ModifiedAtUtc { get; private set; }
+    public Guid? ModifiedBy { get; private set; }
+    public bool IsDeleted { get; private set; }
+    public DateTime? DeletedAtUtc { get; private set; }
+    public Guid? DeletedBy { get; private set; }
 
     private Invitation(Guid id, string email, string role, string tokenHash, DateTime expiresAtUtc)
     {

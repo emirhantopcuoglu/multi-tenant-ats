@@ -2,7 +2,7 @@ using Ats.Shared.Kernel;
 
 namespace Ats.Modules.Jobs.Domain;
 
-public sealed class Job : ITenantScoped
+public sealed class Job : ITenantScoped, IAuditable, ISoftDeletable
 {
     public Guid Id { get; private set; }
     public Guid TenantId { get; private set; }
@@ -17,8 +17,14 @@ public sealed class Job : ITenantScoped
     public string Slug { get; private set; } = null!;
     public DateTime? PublishedAtUtc { get; private set; }
     public DateTime? ClosedAtUtc { get; private set; }
-    public Guid CreatedBy { get; private set; }
+
     public DateTime CreatedAtUtc { get; private set; }
+    public Guid? CreatedBy { get; private set; }
+    public DateTime? ModifiedAtUtc { get; private set; }
+    public Guid? ModifiedBy { get; private set; }
+    public bool IsDeleted { get; private set; }
+    public DateTime? DeletedAtUtc { get; private set; }
+    public Guid? DeletedBy { get; private set; }
 
     private Job(
         Guid id, string title, string description, string department, string location,
