@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Asp.Versioning;
 using Ats.Modules.Jobs.Application.Jobs;
+using Ats.Shared.Kernel;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,6 +22,7 @@ public sealed class JobsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = Policies.CanManageJobs)]
     public async Task<IActionResult> Create(CreateJobBody body)
     {
         // The author is the authenticated caller, never a client-supplied value.
@@ -41,6 +43,7 @@ public sealed class JobsController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [Authorize(Policy = Policies.CanViewJobs)]
     public async Task<IActionResult> GetById(Guid id)
     {
         var result = await _sender.Send(new GetJobByIdQuery(id));
@@ -50,6 +53,7 @@ public sealed class JobsController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = Policies.CanViewJobs)]
     public async Task<IActionResult> List(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
         [FromQuery] string? status = null, [FromQuery] string? search = null)
@@ -59,6 +63,7 @@ public sealed class JobsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/publish")]
+    [Authorize(Policy = Policies.CanManageJobs)]
     public async Task<IActionResult> Publish(Guid id)
     {
         var result = await _sender.Send(new PublishJobCommand(id));
@@ -68,6 +73,7 @@ public sealed class JobsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/close")]
+    [Authorize(Policy = Policies.CanManageJobs)]
     public async Task<IActionResult> Close(Guid id)
     {
         var result = await _sender.Send(new CloseJobCommand(id));
@@ -77,6 +83,7 @@ public sealed class JobsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = Policies.CanManageJobs)]
     public async Task<IActionResult> Update(Guid id, UpdateJobBody body)
     {
         var command = new UpdateJobCommand(

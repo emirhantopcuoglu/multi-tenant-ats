@@ -117,7 +117,21 @@ builder.Services
         };
     });
 
-builder.Services.AddAuthorization();
+// Policies map a capability to the roles that satisfy it. Controllers reference
+// only the policy name (Policies.*); this composition root is the single place
+// that knows which concrete roles (Roles.*) each capability requires. Management
+// roles are a subset of the viewing roles by design.
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(Policies.CanManageJobs, policy =>
+        policy.RequireRole(Roles.Admin, Roles.Recruiter));
+
+    options.AddPolicy(Policies.CanViewJobs, policy =>
+        policy.RequireRole(Roles.Admin, Roles.Recruiter, Roles.HiringManager, Roles.ReadOnly));
+
+    options.AddPolicy(Policies.CanManageUsers, policy =>
+        policy.RequireRole(Roles.Admin));
+});
 
 var app = builder.Build();
 
