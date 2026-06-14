@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: ats-postgres
+    environment:
+      POSTGRES_DB: ats
+      POSTGRES_USER: ats
+      POSTGRES_PASSWORD: ats_dev_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - ats-postgres-data:/var/lib/postgresql/data
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: ats-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+volumes:
+  ats-postgres-data:

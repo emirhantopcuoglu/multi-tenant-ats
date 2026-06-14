@@ -1,13 +1,17 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>ac088e4e-9220-485b-91aa-7081256cd622</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Asp.Versioning.Mvc" Version="8.1.0" />
+    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.9" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.16.2" />
   </ItemGroup>
 
   <ItemGroup>
@@ -22,6 +26,7 @@
     <ProjectReference Include="..\Modules\Notifications\Api\Ats.Modules.Notifications.Api.csproj" />
     <ProjectReference Include="..\Modules\Notifications\Infrastructure\Ats.Modules.Notifications.Infrastructure.csproj" />
     <ProjectReference Include="..\Shared\Ats.Shared.Infrastructure\Ats.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\Shared\Ats.Shared.Kernel\Ats.Shared.Kernel.csproj" />
   </ItemGroup>
 
 </Project>
