@@ -11,8 +11,10 @@ using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Minio;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -107,6 +109,21 @@ builder.Services.Configure<InvitationOptions>(
 builder.Services.AddScoped<IEmailSender, MailKitEmailSender>();
 builder.Services.AddScoped<IInvitationService, InvitationService>();
 
+// File storage (MinIO). The client is thread-safe and meant to be reused, so it is a
+// singleton; MinioFileStorage is stateless and depends only on singletons, so it is too.
+builder.Services.Configure<FileStorageOptions>(
+    builder.Configuration.GetSection(FileStorageOptions.SectionName));
+builder.Services.AddSingleton<IMinioClient>(sp =>
+{
+    var options = sp.GetRequiredService<IOptions<FileStorageOptions>>().Value;
+    return new MinioClient()
+        .WithEndpoint(options.Endpoint)
+        .WithCredentials(options.AccessKey, options.SecretKey)
+        .WithSSL(options.UseSsl)
+        .Build();
+});
+builder.Services.AddSingleton<IFileStorage, MinioFileStorage>();
+
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()!;
 
 builder.Services
@@ -147,6 +164,12 @@ using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
     await RoleSeeder.SeedAsync(roleManager);
+
+    // Like the migrations and role seeding above, this couples startup to its backing
+    // service being reachable — acceptable for a hard dependency in dev.
+    var minioClient = scope.ServiceProvider.GetRequiredService<IMinioClient>();
+    var fileStorageOptions = scope.ServiceProvider.GetRequiredService<IOptions<FileStorageOptions>>();
+    await FileStorageInitializer.EnsureBucketAsync(minioClient, fileStorageOptions);
 }
 
 app.UseExceptionHandler();
