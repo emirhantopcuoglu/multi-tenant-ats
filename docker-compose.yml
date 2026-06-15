@@ -18,5 +18,21 @@ services:
       - "1025:1025"
       - "8025:8025"
 
+  minio:
+    image: minio/minio
+    container_name: ats-minio
+    command: server /data --console-address ":9001"
+    environment:
+      # Dev defaults so `docker compose up` works with no .env; override via environment
+      # for anything shared or non-local. The API authenticates with the same credentials.
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"  # S3 API
+      - "9001:9001"  # web console
+    volumes:
+      - ats-minio-data:/data
+
 volumes:
   ats-postgres-data:
+  ats-minio-data:
