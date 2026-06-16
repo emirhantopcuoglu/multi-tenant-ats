@@ -1,4 +1,5 @@
 using Ats.Modules.Applications.Application.Events;
+using Ats.Modules.Applications.Domain;
 using Ats.Shared.Kernel;
 using FluentValidation;
 using MediatR;
@@ -23,11 +24,13 @@ public sealed class MoveApplicationStageHandler : ICommandHandler<MoveApplicatio
 {
     private readonly IApplicationsDbContext _db;
     private readonly IPublisher _publisher;
+    private readonly ICurrentUser _currentUser;
 
-    public MoveApplicationStageHandler(IApplicationsDbContext db, IPublisher publisher)
+    public MoveApplicationStageHandler(IApplicationsDbContext db, IPublisher publisher, ICurrentUser currentUser)
     {
         _db = db;
         _publisher = publisher;
+        _currentUser = currentUser;
     }
 
     public async Task<Result<bool>> Handle(MoveApplicationStageCommand command, CancellationToken ct)
@@ -57,6 +60,9 @@ public sealed class MoveApplicationStageHandler : ICommandHandler<MoveApplicatio
             return Result.Failure<bool>(ApplicationErrors.InvalidOperation(ex.Message));
         }
 
+        _db.Activities.Add(ApplicationActivity.StageChanged(
+            application.Id, _currentUser.UserId, fromStageId, command.TargetStageId));
+
         await _db.SaveChangesAsync(ct);
 
         await _publisher.Publish(
@@ -83,7 +89,13 @@ public sealed class RejectApplicationValidator : AbstractValidator<RejectApplica
 public sealed class RejectApplicationHandler : ICommandHandler<RejectApplicationCommand, bool>
 {
     private readonly IApplicationsDbContext _db;
-    public RejectApplicationHandler(IApplicationsDbContext db) => _db = db;
+    private readonly ICurrentUser _currentUser;
+
+    public RejectApplicationHandler(IApplicationsDbContext db, ICurrentUser currentUser)
+    {
+        _db = db;
+        _currentUser = currentUser;
+    }
 
     public async Task<Result<bool>> Handle(RejectApplicationCommand command, CancellationToken ct)
     {
@@ -100,6 +112,9 @@ public sealed class RejectApplicationHandler : ICommandHandler<RejectApplication
         {
             return Result.Failure<bool>(ApplicationErrors.InvalidOperation(ex.Message));
         }
+
+        _db.Activities.Add(ApplicationActivity.Rejected(
+            application.Id, _currentUser.UserId, command.Reason));
 
         await _db.SaveChangesAsync(ct);
         return Result.Success(true);

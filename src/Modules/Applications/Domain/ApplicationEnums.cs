@@ -11,3 +11,7 @@ public enum ApplicationStatus { Active, Withdrawn, Rejected, Hired }
 //   FinalHired     - terminal success
 //   FinalRejected  - terminal rejection
 public enum PipelineStageType { Initial, Active, FinalHired, FinalRejected }
+
+// What happened to an application, recorded in the activity log. Each value pairs with a
+// payload shape produced by the matching ApplicationActivity factory.
+public enum ApplicationActivityType { Submitted, StageChanged, Rejected }
