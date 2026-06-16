@@ -170,6 +170,12 @@ builder.Services.AddAuthorization(options =>
 
     options.AddPolicy(Policies.CanManageUsers, policy =>
         policy.RequireRole(Roles.Admin));
+
+    options.AddPolicy(Policies.CanViewApplications, policy =>
+        policy.RequireRole(Roles.Admin, Roles.Recruiter, Roles.HiringManager, Roles.ReadOnly));
+
+    options.AddPolicy(Policies.CanManageApplications, policy =>
+        policy.RequireRole(Roles.Admin, Roles.Recruiter));
 });
 
 var app = builder.Build();

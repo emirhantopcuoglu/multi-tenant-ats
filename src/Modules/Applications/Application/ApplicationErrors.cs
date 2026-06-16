@@ -14,4 +14,13 @@ public static class ApplicationErrors
 
     public static readonly Error DuplicateApplication =
         new("application.duplicate", "An active application for this job already exists.");
+
+    public static readonly Error NotFound =
+        new("application.not_found", "Application not found.");
+
+    public static readonly Error StageNotInPipeline =
+        new("application.stage_not_in_pipeline", "The target stage does not belong to this job's pipeline.");
+
+    public static Error InvalidOperation(string message) =>
+        new("application.invalid_operation", message);
 }
