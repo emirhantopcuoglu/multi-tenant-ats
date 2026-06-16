@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\Applications\Application\Ats.Modules.Applications.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Applications\Domain\Ats.Modules.Applications.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Jobs\Domain\Ats.Modules.Jobs.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Tenants\Domain\Ats.Modules.Tenants.Domain.csproj" />

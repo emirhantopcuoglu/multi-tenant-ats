@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using Asp.Versioning;
+using Ats.Modules.Applications.Application;
+using Ats.Modules.Applications.Infrastructure;
 using Ats.Modules.Jobs.Application;
 using Ats.Modules.Jobs.Infrastructure;
 using Ats.Modules.Tenants.Application;
@@ -93,6 +95,18 @@ builder.Services.AddDbContext<JobsDbContext>((sp, options) =>
 
 builder.Services.AddScoped<IJobsDbContext>(sp => sp.GetRequiredService<JobsDbContext>());
 builder.Services.AddJobsApplication();
+
+builder.Services.AddDbContext<ApplicationsDbContext>((sp, options) =>
+    options
+        .UseNpgsql(
+            builder.Configuration.GetConnectionString("Postgres"),
+            npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "applications"))
+        .AddInterceptors(
+            sp.GetRequiredService<TenantSaveChangesInterceptor>(),
+            sp.GetRequiredService<AuditableSaveChangesInterceptor>()));
+
+builder.Services.AddScoped<IApplicationsDbContext>(sp => sp.GetRequiredService<ApplicationsDbContext>());
+builder.Services.AddApplicationsApplication();
 
 builder.Services
     .AddIdentityCore<ApplicationUser>()

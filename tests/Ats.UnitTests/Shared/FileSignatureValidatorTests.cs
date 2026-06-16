@@ -1,4 +1,4 @@
-using Ats.Shared.Infrastructure;
+using Ats.Shared.Kernel;
 
 namespace Ats.UnitTests.Shared;
 
