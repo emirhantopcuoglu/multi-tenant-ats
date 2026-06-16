@@ -1,6 +1,4 @@
-using Ats.Shared.Kernel;
-
-namespace Ats.Shared.Infrastructure;
+namespace Ats.Shared.Kernel;
 
 // Validates an uploaded file at the boundary, before a single byte reaches storage.
 //
@@ -9,7 +7,9 @@ namespace Ats.Shared.Infrastructure;
 // for arbitrary bytes, costs nothing. The leading bytes of the actual content ("magic bytes")
 // reveal the real format. This is the OWASP defence against unrestricted file upload.
 //
-// Pure, allocation-free, side-effect-free: trivial to unit test and reusable from any layer.
+// Lives in the Kernel rather than Infrastructure: it is a pure, allocation-free, dependency-free
+// rule (it only needs Result/Error), so both the API boundary and any handler can reuse it
+// without taking an infrastructure dependency.
 public static class FileSignatureValidator
 {
     public static readonly Error Empty = new("file.empty", "The file is empty.");
