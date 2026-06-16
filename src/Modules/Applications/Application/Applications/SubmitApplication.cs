@@ -126,6 +126,11 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
             job.Id, candidate.Id, initialStageId, cvKey, command.CoverLetter);
         _db.Applications.Add(application);
 
+        // Record the first entry in the application's history. Added to the same unit of work,
+        // so the application and its "submitted" activity commit together. The actor is null:
+        // the candidate is anonymous.
+        _db.Activities.Add(ApplicationActivity.Submitted(application.Id, job.Id, candidate.Email));
+
         try
         {
             // Candidate (if new), pipeline (if new) and the application commit in one
