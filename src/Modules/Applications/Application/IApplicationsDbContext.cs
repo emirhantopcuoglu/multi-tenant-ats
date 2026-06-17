@@ -17,7 +17,6 @@ public interface IApplicationsDbContext
     DbSet<Candidate> Candidates { get; }
     DbSet<Pipeline> Pipelines { get; }
     DbSet<PipelineStage> PipelineStages { get; }
-    DbSet<ApplicationActivity> Activities { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

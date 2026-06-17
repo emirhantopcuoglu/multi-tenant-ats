@@ -5,6 +5,7 @@ using Ats.Shared.Kernel;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 // "Application" is both the aggregate and this layer's namespace; alias the type so
 // Application.Create below resolves to the entity, not the namespace.
@@ -48,19 +49,25 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
     private readonly IFileStorage _fileStorage;
     private readonly ICurrentTenant _currentTenant;
     private readonly IPublisher _publisher;
+    private readonly IActivityLogRepository _activityLog;
+    private readonly ILogger<SubmitApplicationHandler> _logger;
 
     public SubmitApplicationHandler(
         IApplicationsDbContext db,
         IJobDirectory jobs,
         IFileStorage fileStorage,
         ICurrentTenant currentTenant,
-        IPublisher publisher)
+        IPublisher publisher,
+        IActivityLogRepository activityLog,
+        ILogger<SubmitApplicationHandler> logger)
     {
         _db = db;
         _jobs = jobs;
         _fileStorage = fileStorage;
         _currentTenant = currentTenant;
         _publisher = publisher;
+        _activityLog = activityLog;
+        _logger = logger;
     }
 
     public async Task<Result<Guid>> Handle(SubmitApplicationCommand command, CancellationToken ct)
@@ -126,11 +133,6 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
             job.Id, candidate.Id, initialStageId, cvKey, command.CoverLetter);
         _db.Applications.Add(application);
 
-        // Record the first entry in the application's history. Added to the same unit of work,
-        // so the application and its "submitted" activity commit together. The actor is null:
-        // the candidate is anonymous.
-        _db.Activities.Add(ApplicationActivity.Submitted(application.Id, job.Id, candidate.Email));
-
         try
         {
             // Candidate (if new), pipeline (if new) and the application commit in one
@@ -145,6 +147,12 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
             await TryDeleteAsync(cvKey, ct);
             throw;
         }
+
+        // Record the first entry in the application's history, now in MongoDB. This is no longer
+        // part of the transaction above (Mongo is a separate system): the application is committed
+        // first, then logged best-effort. The actor is null — the candidate is anonymous.
+        await _activityLog.TryAddAsync(
+            ApplicationActivity.Submitted(application.Id, job.Id, candidate.Email), _logger, ct);
 
         await _publisher.Publish(
             new ApplicationSubmittedEvent(application.Id, job.Id, candidate.Id, tenantId, candidate.Email),

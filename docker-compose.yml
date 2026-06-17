@@ -33,6 +33,18 @@ services:
     volumes:
       - ats-minio-data:/data
 
+  mongo:
+    image: mongo:7
+    container_name: ats-mongo
+    # No MONGO_INITDB_ROOT_* on purpose: dev runs without authentication, like the local
+    # Postgres setup. A shared or remote MongoDB must enable auth and use a credentialed
+    # connection string from User Secrets / environment variables.
+    ports:
+      - "27017:27017"
+    volumes:
+      - ats-mongo-data:/data/db
+
 volumes:
   ats-postgres-data:
   ats-minio-data:
+  ats-mongo-data:
