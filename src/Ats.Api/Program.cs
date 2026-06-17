@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using Asp.Versioning;
+using Ats.Modules.Applications.Application;
+using Ats.Modules.Applications.Infrastructure;
 using Ats.Modules.Jobs.Application;
 using Ats.Modules.Jobs.Infrastructure;
 using Ats.Modules.Tenants.Application;
@@ -11,8 +13,10 @@ using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Minio;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -92,6 +96,18 @@ builder.Services.AddDbContext<JobsDbContext>((sp, options) =>
 builder.Services.AddScoped<IJobsDbContext>(sp => sp.GetRequiredService<JobsDbContext>());
 builder.Services.AddJobsApplication();
 
+builder.Services.AddDbContext<ApplicationsDbContext>((sp, options) =>
+    options
+        .UseNpgsql(
+            builder.Configuration.GetConnectionString("Postgres"),
+            npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "applications"))
+        .AddInterceptors(
+            sp.GetRequiredService<TenantSaveChangesInterceptor>(),
+            sp.GetRequiredService<AuditableSaveChangesInterceptor>()));
+
+builder.Services.AddScoped<IApplicationsDbContext>(sp => sp.GetRequiredService<ApplicationsDbContext>());
+builder.Services.AddApplicationsApplication();
+
 builder.Services
     .AddIdentityCore<ApplicationUser>()
     .AddRoles<IdentityRole<Guid>>()
@@ -106,6 +122,21 @@ builder.Services.Configure<InvitationOptions>(
     builder.Configuration.GetSection(InvitationOptions.SectionName));
 builder.Services.AddScoped<IEmailSender, MailKitEmailSender>();
 builder.Services.AddScoped<IInvitationService, InvitationService>();
+
+// File storage (MinIO). The client is thread-safe and meant to be reused, so it is a
+// singleton; MinioFileStorage is stateless and depends only on singletons, so it is too.
+builder.Services.Configure<FileStorageOptions>(
+    builder.Configuration.GetSection(FileStorageOptions.SectionName));
+builder.Services.AddSingleton<IMinioClient>(sp =>
+{
+    var options = sp.GetRequiredService<IOptions<FileStorageOptions>>().Value;
+    return new MinioClient()
+        .WithEndpoint(options.Endpoint)
+        .WithCredentials(options.AccessKey, options.SecretKey)
+        .WithSSL(options.UseSsl)
+        .Build();
+});
+builder.Services.AddSingleton<IFileStorage, MinioFileStorage>();
 
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()!;
 
@@ -139,6 +170,12 @@ builder.Services.AddAuthorization(options =>
 
     options.AddPolicy(Policies.CanManageUsers, policy =>
         policy.RequireRole(Roles.Admin));
+
+    options.AddPolicy(Policies.CanViewApplications, policy =>
+        policy.RequireRole(Roles.Admin, Roles.Recruiter, Roles.HiringManager, Roles.ReadOnly));
+
+    options.AddPolicy(Policies.CanManageApplications, policy =>
+        policy.RequireRole(Roles.Admin, Roles.Recruiter));
 });
 
 var app = builder.Build();
@@ -147,6 +184,12 @@ using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
     await RoleSeeder.SeedAsync(roleManager);
+
+    // Like the migrations and role seeding above, this couples startup to its backing
+    // service being reachable — acceptable for a hard dependency in dev.
+    var minioClient = scope.ServiceProvider.GetRequiredService<IMinioClient>();
+    var fileStorageOptions = scope.ServiceProvider.GetRequiredService<IOptions<FileStorageOptions>>();
+    await FileStorageInitializer.EnsureBucketAsync(minioClient, fileStorageOptions);
 }
 
 app.UseExceptionHandler();

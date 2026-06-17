@@ -1,13 +1,12 @@
-using Ats.Shared.Contracts.Jobs;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Ats.Modules.Jobs.Application;
+namespace Ats.Modules.Applications.Application;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddJobsApplication(this IServiceCollection services)
+    public static IServiceCollection AddApplicationsApplication(this IServiceCollection services)
     {
         var assembly = typeof(DependencyInjection).Assembly;
 
@@ -15,9 +14,6 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(assembly);
         services.AddTransient(
             typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
-
-        // The module's public read port, consumed by other modules through the contract only.
-        services.AddScoped<IJobDirectory, JobDirectory>();
 
         return services;
     }
