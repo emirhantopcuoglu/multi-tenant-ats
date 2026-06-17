@@ -17,6 +17,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Minio;
+using MongoDB.Driver;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -107,6 +108,23 @@ builder.Services.AddDbContext<ApplicationsDbContext>((sp, options) =>
 
 builder.Services.AddScoped<IApplicationsDbContext>(sp => sp.GetRequiredService<ApplicationsDbContext>());
 builder.Services.AddApplicationsApplication();
+
+// MongoDB holds the append-only activity log (Sprint 4). The driver's MongoClient is thread-safe
+// and pools connections internally, so it is a singleton; the database handle is derived from it.
+// The repository is scoped because it depends on the per-request ICurrentTenant for isolation.
+builder.Services.Configure<MongoOptions>(
+    builder.Configuration.GetSection(MongoOptions.SectionName));
+builder.Services.AddSingleton<IMongoClient>(sp =>
+{
+    var options = sp.GetRequiredService<IOptions<MongoOptions>>().Value;
+    return new MongoClient(options.ConnectionString);
+});
+builder.Services.AddSingleton<IMongoDatabase>(sp =>
+{
+    var options = sp.GetRequiredService<IOptions<MongoOptions>>().Value;
+    return sp.GetRequiredService<IMongoClient>().GetDatabase(options.DatabaseName);
+});
+builder.Services.AddScoped<IActivityLogRepository, MongoActivityLogRepository>();
 
 builder.Services
     .AddIdentityCore<ApplicationUser>()

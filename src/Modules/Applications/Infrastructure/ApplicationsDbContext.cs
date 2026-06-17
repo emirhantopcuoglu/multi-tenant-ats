@@ -24,7 +24,6 @@ public sealed class ApplicationsDbContext : DbContext, IApplicationsDbContext
     public DbSet<Candidate> Candidates => Set<Candidate>();
     public DbSet<Pipeline> Pipelines => Set<Pipeline>();
     public DbSet<PipelineStage> PipelineStages => Set<PipelineStage>();
-    public DbSet<ApplicationActivity> Activities => Set<ApplicationActivity>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -80,41 +79,20 @@ public sealed class ApplicationsDbContext : DbContext, IApplicationsDbContext
             entity.Property(s => s.Type).HasConversion<string>().HasMaxLength(20);
         });
 
-        builder.Entity<ApplicationActivity>(entity =>
-        {
-            entity.HasKey(a => a.Id);
-            entity.Property(a => a.ActivityType).HasConversion<string>().HasMaxLength(30);
-            // The schema-flexible part: stored as jsonb so payloads of different shapes share
-            // one column and can be queried by key later (and migrate cleanly to MongoDB).
-            entity.Property(a => a.Payload).HasColumnType("jsonb").IsRequired();
-            // Reading an application's timeline newest-first is the access pattern.
-            entity.HasIndex(a => new { a.TenantId, a.ApplicationId, a.OccurredAtUtc });
-        });
-
-        // Apply the global filter via instance methods so EF treats _currentTenant as a context
-        // accessor (re-evaluated per query) rather than baking the first scope's value into the
-        // cached model. Every tenant-scoped entity gets a tenant filter; those that are also
-        // soft-deletable get the IsDeleted half too. The append-only activity log is
-        // tenant-scoped but not soft-deletable, hence the split.
-        var tenantAndSoftDelete = GetType()
-            .GetMethod(nameof(SetTenantAndSoftDeleteFilter), BindingFlags.NonPublic | BindingFlags.Instance)!;
-        var tenantOnly = GetType()
+        // The append-only activity log moved to MongoDB in Sprint 4, so every entity that remains
+        // here is both tenant-scoped and soft-deletable: one filter covers both. Applied via an
+        // instance method so EF treats _currentTenant as a context accessor (re-evaluated per
+        // query) rather than baking the first scope's value into the cached model.
+        var setFilter = GetType()
             .GetMethod(nameof(SetTenantFilter), BindingFlags.NonPublic | BindingFlags.Instance)!;
 
         foreach (var entityType in builder.Model.GetEntityTypes()
             .Where(t => typeof(ITenantScoped).IsAssignableFrom(t.ClrType)))
         {
-            var method = typeof(ISoftDeletable).IsAssignableFrom(entityType.ClrType)
-                ? tenantAndSoftDelete
-                : tenantOnly;
-            method.MakeGenericMethod(entityType.ClrType).Invoke(this, [builder]);
+            setFilter.MakeGenericMethod(entityType.ClrType).Invoke(this, [builder]);
         }
     }
 
-    private void SetTenantAndSoftDeleteFilter<T>(ModelBuilder builder)
-        where T : class, ITenantScoped, ISoftDeletable
+    private void SetTenantFilter<T>(ModelBuilder builder) where T : class, ITenantScoped, ISoftDeletable
         => builder.Entity<T>().HasQueryFilter(e => !e.IsDeleted && (Guid?)e.TenantId == _currentTenant.TenantId);
-
-    private void SetTenantFilter<T>(ModelBuilder builder) where T : class, ITenantScoped
-        => builder.Entity<T>().HasQueryFilter(e => (Guid?)e.TenantId == _currentTenant.TenantId);
 }
