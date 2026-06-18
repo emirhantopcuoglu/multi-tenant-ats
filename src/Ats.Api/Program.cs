@@ -126,6 +126,15 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
 });
 builder.Services.AddScoped<IActivityLogRepository, MongoActivityLogRepository>();
 
+// Redis-backed distributed cache (Sprint 4). AddStackExchangeRedisCache registers IDistributedCache,
+// shared across all app instances (unlike an in-memory cache). It caches the hot, effectively
+// immutable slug -> tenantId lookup; TenantResolutionMiddleware treats it as best-effort, so a Redis
+// outage degrades to a database read rather than failing the request.
+var redisOptions = builder.Configuration
+    .GetSection(RedisOptions.SectionName).Get<RedisOptions>() ?? new RedisOptions();
+builder.Services.AddStackExchangeRedisCache(options =>
+    options.Configuration = redisOptions.ConnectionString);
+
 builder.Services
     .AddIdentityCore<ApplicationUser>()
     .AddRoles<IdentityRole<Guid>>()
