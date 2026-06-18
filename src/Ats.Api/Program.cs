@@ -208,6 +208,10 @@ using (var scope = app.Services.CreateScope())
     var minioClient = scope.ServiceProvider.GetRequiredService<IMinioClient>();
     var fileStorageOptions = scope.ServiceProvider.GetRequiredService<IOptions<FileStorageOptions>>();
     await FileStorageInitializer.EnsureBucketAsync(minioClient, fileStorageOptions);
+
+    // Ensure the activity-log read index exists. Idempotent, like the steps above.
+    var mongoDatabase = scope.ServiceProvider.GetRequiredService<IMongoDatabase>();
+    await MongoActivityLogInitializer.EnsureIndexesAsync(mongoDatabase);
 }
 
 app.UseExceptionHandler();

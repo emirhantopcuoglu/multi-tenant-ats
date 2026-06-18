@@ -18,7 +18,9 @@ namespace Ats.Modules.Applications.Infrastructure;
 public sealed class MongoActivityLogRepository : IActivityLogRepository
 {
     // Snake-case to match MongoDB collection-naming convention; lower-case keeps it shell-friendly.
-    private const string CollectionName = "application_activities";
+    // Internal (not private) so MongoActivityLogInitializer indexes the same collection — one source
+    // of truth for the name shared by the writer/reader and the index setup.
+    internal const string CollectionName = "application_activities";
 
     private readonly IMongoCollection<ActivityDocument> _collection;
     private readonly ICurrentTenant _currentTenant;
