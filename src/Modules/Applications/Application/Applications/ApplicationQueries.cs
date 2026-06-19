@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Ats.Modules.Applications.Domain;
 using Ats.Shared.Kernel;
 using Microsoft.EntityFrameworkCore;
@@ -132,5 +133,49 @@ public sealed class GetCvDownloadUrlHandler : IQueryHandler<GetCvDownloadUrlQuer
 
         var url = await _fileStorage.GetPresignedDownloadUrlAsync(cvFileKey, Expiry, ct);
         return Result.Success(new CvDownloadUrlDto(url, (int)Expiry.TotalSeconds));
+    }
+}
+
+// ---- GetApplicationActivity (the application's timeline, from MongoDB) ----
+// Payload is a JsonElement, not a string: the repository hands back raw JSON which we parse here
+// so the HTTP response embeds it as a real object rather than an escaped string.
+public sealed record ApplicationActivityDto(
+    Guid Id, string ActivityType, Guid? ActorUserId, JsonElement Payload, DateTime OccurredAtUtc);
+
+public sealed record GetApplicationActivityQuery(Guid ApplicationId)
+    : IQuery<IReadOnlyList<ApplicationActivityDto>>;
+
+public sealed class GetApplicationActivityHandler
+    : IQueryHandler<GetApplicationActivityQuery, IReadOnlyList<ApplicationActivityDto>>
+{
+    private readonly IApplicationsDbContext _db;
+    private readonly IActivityLogRepository _activityLog;
+
+    public GetApplicationActivityHandler(IApplicationsDbContext db, IActivityLogRepository activityLog)
+    {
+        _db = db;
+        _activityLog = activityLog;
+    }
+
+    public async Task<Result<IReadOnlyList<ApplicationActivityDto>>> Handle(
+        GetApplicationActivityQuery query, CancellationToken ct)
+    {
+        // Confirm the application exists in this tenant first (the EF global filter scopes this
+        // read), so an unknown id yields a clean 404 rather than an empty 200 — and we never
+        // hand back a timeline for an application the caller's tenant cannot see.
+        var exists = await _db.Applications.AsNoTracking()
+            .AnyAsync(a => a.Id == query.ApplicationId, ct);
+        if (!exists)
+            return Result.Failure<IReadOnlyList<ApplicationActivityDto>>(ApplicationErrors.NotFound);
+
+        var entries = await _activityLog.GetByApplicationAsync(query.ApplicationId, ct);
+
+        var items = entries
+            .Select(e => new ApplicationActivityDto(
+                e.Id, e.ActivityType, e.ActorUserId,
+                JsonSerializer.Deserialize<JsonElement>(e.Payload), e.OccurredAtUtc))
+            .ToList();
+
+        return Result.Success<IReadOnlyList<ApplicationActivityDto>>(items);
     }
 }

@@ -54,6 +54,16 @@ public sealed class ApplicationsController : ControllerBase
             : NotFound(new { result.Error.Code, result.Error.Message });
     }
 
+    [HttpGet("{id:guid}/activities")]
+    [Authorize(Policy = Policies.CanViewApplications)]
+    public async Task<IActionResult> GetActivities(Guid id)
+    {
+        var result = await _sender.Send(new GetApplicationActivityQuery(id));
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : NotFound(new { result.Error.Code, result.Error.Message });
+    }
+
     [HttpPost("{id:guid}/move-stage")]
     [Authorize(Policy = Policies.CanManageApplications)]
     public async Task<IActionResult> MoveStage(Guid id, MoveStageBody body)

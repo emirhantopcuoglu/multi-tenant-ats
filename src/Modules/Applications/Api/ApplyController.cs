@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Ats.Modules.Applications.Api;
 
@@ -32,6 +33,7 @@ public sealed class ApplyController : ControllerBase
     }
 
     [HttpPost]
+    [EnableRateLimiting(RateLimitPolicies.PerIp)]
     [RequestSizeLimit(MaxCvSizeBytes + 1024 * 1024)] // file + multipart/form-field overhead
     public async Task<IActionResult> Apply(
         string slug, string jobSlug, [FromForm] ApplyForm form, CancellationToken ct)
