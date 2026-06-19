@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.3.0...v0.4.0) (2026-06-19)
+
+
+### Features
+
+* **api:** add distributed rate limiting backed by Redis ([4d07106](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/4d07106fc8f7a3845c87ac16be6ab7b3cc6e91f2))
+* **api:** add distributed rate limiting backed by Redis ([0592f47](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/0592f47434e1c70ce6ea7d50d6bbe260395ee760))
+* **applications:** index MongoDB activity log for tenant-scoped reads ([e0438f3](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/e0438f3b0380e5c2a95fe0dc2743b55f496cc4ba))
+* **applications:** index MongoDB activity log for tenant-scoped reads ([edf454c](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/edf454c19dda0e2fa0bcaed6e803a96c89ea7b2d))
+* **tenants:** cache slug-to-tenant lookup in Redis ([ea85b7d](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/ea85b7df41b417bd503e8578aceae8cced0af790))
+* **tenants:** cache slug-to-tenant lookup in Redis ([e6c4876](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/e6c487619b8fb69e815f0084d421dbe85a2592d1))
+
+
+### Performance Improvements
+
+* **db:** index public job and application listing queries ([c7fd795](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/c7fd795101dcaf023da3da66c69f0011b39ca612))
+* **db:** index public job and application listing queries ([4514f8c](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/4514f8c91d1763f629be946d00df126b066612c5))
+
 ## [0.3.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.2.0...v0.3.0) (2026-06-17)
 
 
