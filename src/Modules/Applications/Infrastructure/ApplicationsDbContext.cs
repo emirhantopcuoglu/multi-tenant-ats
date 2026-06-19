@@ -54,6 +54,11 @@ public sealed class ApplicationsDbContext : DbContext, IApplicationsDbContext
             // recruiter list/filter queries that arrive in step 3.4.
             entity.HasIndex(a => new { a.TenantId, a.JobId, a.CandidateId });
             entity.HasIndex(a => new { a.TenantId, a.JobId, a.CurrentStageId });
+            // The recruiter list (ListApplications) always orders by AppliedAtUtc DESC. The default
+            // and status-filtered views carry no JobId, so the (TenantId, JobId, ...) indexes above
+            // cannot serve the sort; this one provides it from the index instead of a separate sort.
+            entity.HasIndex(a => new { a.TenantId, a.AppliedAtUtc })
+                .IsDescending(false, true);
         });
 
         builder.Entity<Pipeline>(entity =>

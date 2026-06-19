@@ -34,7 +34,12 @@ public sealed class JobsDbContext : DbContext, IJobsDbContext
             entity.Property(j => j.ExperienceLevel).HasConversion<string>();
             entity.Property(j => j.Status).HasConversion<string>();
             entity.HasIndex(j => new { j.TenantId, j.Slug }).IsUnique();
-            entity.HasIndex(j => new { j.TenantId, j.Status });
+            // Serves the hot public listing (ListPublicJobs): filter on (TenantId, Status=Published)
+            // is the index prefix, and PublishedAtUtc DESC is the ORDER BY — both come from this one
+            // index, so the planner needs no separate sort. It supersedes a plain (TenantId, Status)
+            // index, which would be a redundant prefix of this one.
+            entity.HasIndex(j => new { j.TenantId, j.Status, j.PublishedAtUtc })
+                .IsDescending(false, false, true);
 
             entity.OwnsOne(j => j.SalaryRange, sr =>
             {
