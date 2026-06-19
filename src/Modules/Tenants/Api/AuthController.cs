@@ -1,6 +1,8 @@
 using Asp.Versioning;
 using Ats.Modules.Tenants.Application;
+using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Ats.Modules.Tenants.Api;
 
@@ -22,6 +24,7 @@ public sealed class AuthController : ControllerBase
     public sealed record RefreshRequest(string RefreshToken);
 
     [HttpPost("register")]
+    [EnableRateLimiting(RateLimitPolicies.PerIp)]
     public async Task<IActionResult> Register(RegisterRequest request)
     {
         var result = await _authService.RegisterAsync(
@@ -33,6 +36,7 @@ public sealed class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting(RateLimitPolicies.PerIp)]
     public async Task<IActionResult> Login(LoginRequest request)
     {
         var result = await _authService.LoginAsync(request.Email, request.Password);
