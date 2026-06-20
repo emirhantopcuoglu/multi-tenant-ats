@@ -6,6 +6,7 @@ using System.Threading.RateLimiting;
 using Asp.Versioning;
 using MassTransit;
 using Ats.Modules.Applications.Application;
+using Ats.Modules.Notifications.Infrastructure;
 using Ats.Modules.Applications.Infrastructure;
 using Ats.Modules.Jobs.Application;
 using Ats.Modules.Jobs.Infrastructure;
@@ -233,18 +234,21 @@ RateLimitPartition<string> FailOpenRedisFixedWindow(HttpContext httpContext, str
             partitionKey));
 }
 
-// RabbitMQ message bus (Sprint 5.1). MassTransit is the abstraction over the broker: it owns the
+// RabbitMQ message bus (Sprint 5). MassTransit is the abstraction over the broker: it owns the
 // connection, retries, and (Sprint 5.3) the outbox, and lets consumer code stay transport-agnostic.
-// This step only stands up the bus; no consumers are registered yet, so ConfigureEndpoints declares
-// nothing. Sprint 5.2 adds the first consumer and moves ApplicationSubmittedEvent onto the broker.
-// Unlike the Mongo/MinIO initializers, MassTransit's hosted service connects in the background and
-// retries on its own, so a broker that is briefly unreachable does not crash startup.
+// Sprint 5.2 added the first consumer (application-submitted -> candidate email). Unlike the
+// Mongo/MinIO initializers, MassTransit's hosted service connects in the background and retries on
+// its own, so a broker that is briefly unreachable does not crash startup.
 builder.Services.Configure<RabbitMqOptions>(
     builder.Configuration.GetSection(RabbitMqOptions.SectionName));
 builder.Services.AddMassTransit(bus =>
 {
-    // Future consumer endpoints get readable, kebab-cased queue names instead of namespaced defaults.
+    // Consumer endpoints get readable, kebab-cased queue names instead of namespaced defaults.
     bus.SetKebabCaseEndpointNameFormatter();
+
+    // Notifications consumer (Sprint 5.2): sends the candidate's confirmation email when an
+    // application is submitted. ConfigureEndpoints below creates and binds its queue automatically.
+    bus.AddConsumer<ApplicationSubmittedConsumer>();
 
     bus.UsingRabbitMq((context, configurator) =>
     {
