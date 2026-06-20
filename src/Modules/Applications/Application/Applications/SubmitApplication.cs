@@ -155,7 +155,9 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
             ApplicationActivity.Submitted(application.Id, job.Id, candidate.Email), _logger, ct);
 
         await _publisher.Publish(
-            new ApplicationSubmittedEvent(application.Id, job.Id, candidate.Id, tenantId, candidate.Email),
+            new ApplicationSubmittedEvent(
+                application.Id, job.Id, job.Title, candidate.Id,
+                candidate.Email, candidate.FirstName, tenantId),
             ct);
 
         return Result.Success(application.Id);

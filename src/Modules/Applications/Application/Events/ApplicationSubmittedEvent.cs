@@ -2,16 +2,20 @@ using MediatR;
 
 namespace Ats.Modules.Applications.Application.Events;
 
-// A domain event raised in-process via MediatR after an application is persisted. Nothing
-// consumes it yet; Sprint 5 republishes it as an integration event onto RabbitMQ to drive the
-// "application received" / "new application" emails. Publishing it now keeps the apply flow
-// stable so that wiring is purely additive later.
+// A domain event raised in-process via MediatR after an application is persisted. A handler in
+// this module (PublishApplicationSubmittedIntegrationEvent) bridges it onto RabbitMQ as an
+// integration event, where the Notifications module consumes it to send the candidate's
+// confirmation email. Keeping the domain event in-process and the integration event on the bus
+// is the standard split: domain events stay inside the module, integration events cross it.
 //
-// It carries ids and the candidate email only — no entity references — so a future
-// out-of-process consumer can handle it without loading this module's aggregates.
+// It carries plain data (ids plus the candidate name/email and job title needed for the email) —
+// no entity references — so the out-of-process consumer can handle it without loading this
+// module's aggregates.
 public sealed record ApplicationSubmittedEvent(
     Guid ApplicationId,
     Guid JobId,
+    string JobTitle,
     Guid CandidateId,
-    Guid TenantId,
-    string CandidateEmail) : INotification;
+    string CandidateEmail,
+    string CandidateFirstName,
+    Guid TenantId) : INotification;
