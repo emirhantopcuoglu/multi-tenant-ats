@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Asp.Versioning;
+using MassTransit;
 using Ats.Modules.Applications.Application;
 using Ats.Modules.Applications.Infrastructure;
 using Ats.Modules.Jobs.Application;
@@ -231,6 +232,34 @@ RateLimitPartition<string> FailOpenRedisFixedWindow(HttpContext httpContext, str
             logger,
             partitionKey));
 }
+
+// RabbitMQ message bus (Sprint 5.1). MassTransit is the abstraction over the broker: it owns the
+// connection, retries, and (Sprint 5.3) the outbox, and lets consumer code stay transport-agnostic.
+// This step only stands up the bus; no consumers are registered yet, so ConfigureEndpoints declares
+// nothing. Sprint 5.2 adds the first consumer and moves ApplicationSubmittedEvent onto the broker.
+// Unlike the Mongo/MinIO initializers, MassTransit's hosted service connects in the background and
+// retries on its own, so a broker that is briefly unreachable does not crash startup.
+builder.Services.Configure<RabbitMqOptions>(
+    builder.Configuration.GetSection(RabbitMqOptions.SectionName));
+builder.Services.AddMassTransit(bus =>
+{
+    // Future consumer endpoints get readable, kebab-cased queue names instead of namespaced defaults.
+    bus.SetKebabCaseEndpointNameFormatter();
+
+    bus.UsingRabbitMq((context, configurator) =>
+    {
+        var rabbitMqOptions = context.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
+        configurator.Host(rabbitMqOptions.Host, rabbitMqOptions.Port, rabbitMqOptions.VirtualHost, host =>
+        {
+            host.Username(rabbitMqOptions.Username);
+            host.Password(rabbitMqOptions.Password);
+        });
+
+        // Auto-wires every registered consumer to its endpoint. A no-op today (none registered), but
+        // it keeps Sprint 5.2 to a single AddConsumer call with no manual endpoint plumbing.
+        configurator.ConfigureEndpoints(context);
+    });
+});
 
 builder.Services
     .AddIdentityCore<ApplicationUser>()

@@ -53,7 +53,26 @@ services:
     ports:
       - "6379:6379"
 
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: ats-rabbitmq
+    environment:
+      # A dedicated dev user, mirroring the Postgres setup. The built-in `guest` account is restricted
+      # to loopback connections; the API runs on the host and reaches the broker through Docker's port
+      # mapping, so the connection is not seen as loopback and `guest` would be rejected. Override for
+      # anything shared or non-local.
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-ats}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-ats_dev_password}
+    ports:
+      - "5672:5672"    # AMQP protocol (the API connects here)
+      - "15672:15672"  # management UI (http://localhost:15672)
+    volumes:
+      # Unlike Redis, the broker is a store: it must not drop messages that are in flight or waiting in
+      # durable queues across a restart. This durability is what the Sprint 5.3 outbox will build on.
+      - ats-rabbitmq-data:/var/lib/rabbitmq
+
 volumes:
   ats-postgres-data:
   ats-minio-data:
   ats-mongo-data:
+  ats-rabbitmq-data:
