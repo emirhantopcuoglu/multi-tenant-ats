@@ -11,6 +11,12 @@ namespace Ats.Shared.Contracts.Jobs;
 public interface IJobDirectory
 {
     Task<PublishedJob?> GetPublishedJobBySlugAsync(string slug, CancellationToken cancellationToken = default);
+
+    // Looks up a job's title by id regardless of its status. The Applications module needs this to
+    // name the job in a rejection email, where the job may already be Closed or Archived — so unlike
+    // the slug lookup above, this one is not restricted to Published. Returns null if no such job
+    // exists in the current tenant. The port grows one method at a time, as real needs arise.
+    Task<string?> GetJobTitleByIdAsync(Guid jobId, CancellationToken cancellationToken = default);
 }
 
 // A minimal read model — only what a consumer needs to attach an application to a job. It is
