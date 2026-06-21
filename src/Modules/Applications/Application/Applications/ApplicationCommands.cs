@@ -142,29 +142,30 @@ public sealed class RejectApplicationHandler : ICommandHandler<RejectApplication
             return Result.Failure<bool>(ApplicationErrors.InvalidOperation(ex.Message));
         }
 
-        await _db.SaveChangesAsync(ct);
-
-        // Logged best-effort after commit; see MoveApplicationStageHandler for the rationale.
-        await _activityLog.TryAddAsync(
-            ApplicationActivity.Rejected(application.Id, _currentUser.UserId, command.Reason),
-            _logger, ct);
-
-        // Notify the candidate out-of-process. Gather the data the email needs — the candidate's
-        // name/email (this module) and the job title (the Jobs module, via the read port) — and
-        // raise an in-process event; a bridge handler forwards it to the bus. The internal reason
-        // is never passed on. The candidate is loaded fresh rather than carried on the entity
-        // because Application references it by id only.
+        // Gather the data the candidate's rejection email needs before saving — the candidate's
+        // name/email (this module) and the job title (the Jobs module, via the read port). The
+        // internal reason is never passed on. The candidate is loaded fresh rather than carried on
+        // the entity because Application references it by id only.
         var candidate = await _db.Candidates.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == application.CandidateId, ct);
         if (candidate is not null)
         {
             var jobTitle = await _jobs.GetJobTitleByIdAsync(application.JobId, ct);
+            // Publish before saving so the transactional outbox writes the integration event in the
+            // same transaction as the rejected status — atomic, and never lost to a broker outage.
             await _publisher.Publish(
                 new ApplicationRejectedEvent(
                     application.Id, application.JobId, jobTitle ?? string.Empty,
                     candidate.Id, candidate.Email, candidate.FirstName, application.TenantId),
                 ct);
         }
+
+        await _db.SaveChangesAsync(ct);
+
+        // Logged best-effort after commit; see MoveApplicationStageHandler for the rationale.
+        await _activityLog.TryAddAsync(
+            ApplicationActivity.Rejected(application.Id, _currentUser.UserId, command.Reason),
+            _logger, ct);
 
         return Result.Success(true);
     }

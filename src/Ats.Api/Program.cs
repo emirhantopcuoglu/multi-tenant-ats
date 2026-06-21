@@ -246,6 +246,17 @@ builder.Services.AddMassTransit(bus =>
     // Consumer endpoints get readable, kebab-cased queue names instead of namespaced defaults.
     bus.SetKebabCaseEndpointNameFormatter();
 
+    // Transactional outbox. Publishing an integration event no longer hits the broker inline;
+    // instead the message is written to the outbox tables in the applications schema as part of the
+    // same SaveChanges as the business change. A background delivery service then forwards it to
+    // RabbitMQ and marks it delivered. The result is atomicity (both the row and the message commit,
+    // or neither) and durability (a broker outage delays delivery, never loses or blocks the request).
+    bus.AddEntityFrameworkOutbox<ApplicationsDbContext>(outbox =>
+    {
+        outbox.UsePostgres();
+        outbox.UseBusOutbox();
+    });
+
     // Notifications consumers: email the candidate when an application is submitted, and again when
     // it is rejected. ConfigureEndpoints below creates and binds each consumer's queue automatically.
     bus.AddConsumer<ApplicationSubmittedConsumer>();

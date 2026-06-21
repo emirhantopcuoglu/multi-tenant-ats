@@ -2,6 +2,7 @@ using System.Reflection;
 using Ats.Modules.Applications.Application;
 using Ats.Modules.Applications.Domain;
 using Ats.Shared.Kernel;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 
 // The aggregate and this module's Application-layer namespace are both called "Application";
@@ -28,6 +29,12 @@ public sealed class ApplicationsDbContext : DbContext, IApplicationsDbContext
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.HasDefaultSchema("applications");
+
+        // Transactional outbox tables (OutboxMessage/OutboxState/InboxState). They live in this
+        // context so an integration-event publish is written in the same transaction as the
+        // business change; a background delivery service forwards them to RabbitMQ afterwards.
+        // They are not ITenantScoped, so the tenant filter loop below leaves them untouched.
+        builder.AddTransactionalOutboxEntities();
 
         builder.Entity<Candidate>(entity =>
         {
