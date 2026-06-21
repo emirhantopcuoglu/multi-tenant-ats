@@ -246,9 +246,10 @@ builder.Services.AddMassTransit(bus =>
     // Consumer endpoints get readable, kebab-cased queue names instead of namespaced defaults.
     bus.SetKebabCaseEndpointNameFormatter();
 
-    // Notifications consumer (Sprint 5.2): sends the candidate's confirmation email when an
-    // application is submitted. ConfigureEndpoints below creates and binds its queue automatically.
+    // Notifications consumers: email the candidate when an application is submitted, and again when
+    // it is rejected. ConfigureEndpoints below creates and binds each consumer's queue automatically.
     bus.AddConsumer<ApplicationSubmittedConsumer>();
+    bus.AddConsumer<ApplicationRejectedConsumer>();
 
     bus.UsingRabbitMq((context, configurator) =>
     {

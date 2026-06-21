@@ -23,4 +23,16 @@ public sealed class JobDirectory : IJobDirectory
             .Select(j => new PublishedJob(j.Id, j.Title, j.Slug))
             .FirstOrDefaultAsync(cancellationToken);
     }
+
+    public async Task<string?> GetJobTitleByIdAsync(
+        Guid jobId, CancellationToken cancellationToken = default)
+    {
+        // No status filter: a rejected application's job may be Closed or Archived, but we still
+        // want its title for the email. The global query filter keeps this scoped to the tenant.
+        return await _db.Jobs
+            .AsNoTracking()
+            .Where(j => j.Id == jobId)
+            .Select(j => j.Title)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 }

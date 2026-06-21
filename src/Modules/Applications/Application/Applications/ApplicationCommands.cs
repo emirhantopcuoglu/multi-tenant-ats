@@ -1,5 +1,6 @@
 using Ats.Modules.Applications.Application.Events;
 using Ats.Modules.Applications.Domain;
+using Ats.Shared.Contracts.Jobs;
 using Ats.Shared.Kernel;
 using FluentValidation;
 using MediatR;
@@ -103,17 +104,23 @@ public sealed class RejectApplicationValidator : AbstractValidator<RejectApplica
 public sealed class RejectApplicationHandler : ICommandHandler<RejectApplicationCommand, bool>
 {
     private readonly IApplicationsDbContext _db;
+    private readonly IPublisher _publisher;
+    private readonly IJobDirectory _jobs;
     private readonly ICurrentUser _currentUser;
     private readonly IActivityLogRepository _activityLog;
     private readonly ILogger<RejectApplicationHandler> _logger;
 
     public RejectApplicationHandler(
         IApplicationsDbContext db,
+        IPublisher publisher,
+        IJobDirectory jobs,
         ICurrentUser currentUser,
         IActivityLogRepository activityLog,
         ILogger<RejectApplicationHandler> logger)
     {
         _db = db;
+        _publisher = publisher;
+        _jobs = jobs;
         _currentUser = currentUser;
         _activityLog = activityLog;
         _logger = logger;
@@ -141,6 +148,23 @@ public sealed class RejectApplicationHandler : ICommandHandler<RejectApplication
         await _activityLog.TryAddAsync(
             ApplicationActivity.Rejected(application.Id, _currentUser.UserId, command.Reason),
             _logger, ct);
+
+        // Notify the candidate out-of-process. Gather the data the email needs — the candidate's
+        // name/email (this module) and the job title (the Jobs module, via the read port) — and
+        // raise an in-process event; a bridge handler forwards it to the bus. The internal reason
+        // is never passed on. The candidate is loaded fresh rather than carried on the entity
+        // because Application references it by id only.
+        var candidate = await _db.Candidates.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == application.CandidateId, ct);
+        if (candidate is not null)
+        {
+            var jobTitle = await _jobs.GetJobTitleByIdAsync(application.JobId, ct);
+            await _publisher.Publish(
+                new ApplicationRejectedEvent(
+                    application.Id, application.JobId, jobTitle ?? string.Empty,
+                    candidate.Id, candidate.Email, candidate.FirstName, application.TenantId),
+                ct);
+        }
 
         return Result.Success(true);
     }
