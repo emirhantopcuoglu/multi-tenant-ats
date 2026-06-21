@@ -133,32 +133,34 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
             job.Id, candidate.Id, initialStageId, cvKey, command.CoverLetter);
         _db.Applications.Add(application);
 
+        // Publish before saving: with the transactional outbox, the bridge handler writes the
+        // integration event to the outbox tables in this same DbContext, so it commits atomically
+        // with the rows below — a broker outage can no longer lose it or block this request.
+        await _publisher.Publish(
+            new ApplicationSubmittedEvent(
+                application.Id, job.Id, job.Title, candidate.Id,
+                candidate.Email, candidate.FirstName, tenantId),
+            ct);
+
         try
         {
-            // Candidate (if new), pipeline (if new) and the application commit in one
-            // transaction — SaveChanges is atomic per DbContext.
+            // Candidate (if new), pipeline (if new), the application and the outbox message commit
+            // in one transaction — SaveChanges is atomic per DbContext.
             await _db.SaveChangesAsync(ct);
         }
         catch
         {
             // The upload is not part of the DB transaction. If persistence fails, delete the
             // orphaned object so storage does not accumulate unreferenced CVs (a PII concern).
-            // Durable cross-resource consistency arrives with the outbox pattern in Sprint 5.
             await TryDeleteAsync(cvKey, ct);
             throw;
         }
 
-        // Record the first entry in the application's history, now in MongoDB. This is no longer
-        // part of the transaction above (Mongo is a separate system): the application is committed
-        // first, then logged best-effort. The actor is null — the candidate is anonymous.
+        // Record the first entry in the application's history, now in MongoDB. This is not part of
+        // the transaction above (Mongo is a separate system): the application is committed first,
+        // then logged best-effort. The actor is null — the candidate is anonymous.
         await _activityLog.TryAddAsync(
             ApplicationActivity.Submitted(application.Id, job.Id, candidate.Email), _logger, ct);
-
-        await _publisher.Publish(
-            new ApplicationSubmittedEvent(
-                application.Id, job.Id, job.Title, candidate.Id,
-                candidate.Email, candidate.FirstName, tenantId),
-            ct);
 
         return Result.Success(application.Id);
     }
