@@ -8,8 +8,11 @@ namespace Ats.Modules.Notifications.Infrastructure;
 
 // Consumes ApplicationRejectedIntegrationEvent off RabbitMQ and emails the candidate a polite
 // rejection. The out-of-process counterpart to the recruiter's reject action, which has already
-// returned 204. If it throws, MassTransit redelivers, so a transient SMTP failure does not silently
-// drop the email.
+// returned 204. If it throws, MassTransit retries the message and, once retries are exhausted,
+// dead-letters it — so a transient SMTP failure does not silently drop the email.
+//
+// The send is wrapped in the idempotency guard keyed on the message id, so an at-least-once
+// redelivery of the same message does not email the candidate twice (Sprint 5.5).
 //
 // The email is deliberately generic: it never includes the recruiter's internal rejection reason.
 // The body is interpolated HTML, matching the existing emails — a templating engine is deferred
@@ -23,13 +26,16 @@ public sealed class ApplicationRejectedConsumer : IConsumer<ApplicationRejectedI
     private const string FallbackRole = "the role you applied for";
 
     private readonly IEmailSender _emailSender;
+    private readonly IIdempotencyGuard _idempotencyGuard;
     private readonly ILogger<ApplicationRejectedConsumer> _logger;
 
     public ApplicationRejectedConsumer(
         IEmailSender emailSender,
+        IIdempotencyGuard idempotencyGuard,
         ILogger<ApplicationRejectedConsumer> logger)
     {
         _emailSender = emailSender;
+        _idempotencyGuard = idempotencyGuard;
         _logger = logger;
     }
 
@@ -53,7 +59,18 @@ public sealed class ApplicationRejectedConsumer : IConsumer<ApplicationRejectedI
             your experience. We wish you all the best.</p>
             """;
 
-        await _emailSender.SendAsync(message.CandidateEmail, Subject, body, context.CancellationToken);
+        var key = $"notifications:application-rejected:{context.MessageId}";
+        var sent = await _idempotencyGuard.ProcessOnceAsync(
+            key,
+            () => _emailSender.SendAsync(message.CandidateEmail, Subject, body, context.CancellationToken));
+
+        if (!sent)
+        {
+            _logger.LogInformation(
+                "Skipped duplicate application-rejected email for application {ApplicationId}",
+                message.ApplicationId);
+            return;
+        }
 
         _logger.LogInformation(
             "Sent application-rejected email to {CandidateEmail} for application {ApplicationId}",

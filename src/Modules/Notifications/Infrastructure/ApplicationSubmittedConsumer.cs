@@ -9,7 +9,11 @@ namespace Ats.Modules.Notifications.Infrastructure;
 // Consumes ApplicationSubmittedIntegrationEvent off RabbitMQ and emails the candidate a
 // confirmation. This is the out-of-process side of the apply flow: the candidate's HTTP request has
 // already returned 201, and this work happens afterwards, decoupled. If it throws, MassTransit
-// redelivers the message, so a transient SMTP failure does not silently drop the email.
+// retries the message and, once retries are exhausted, dead-letters it — so a transient SMTP failure
+// does not silently drop the email.
+//
+// The send is wrapped in the idempotency guard keyed on the message id, so an at-least-once
+// redelivery of the same message does not email the candidate twice (Sprint 5.5).
 //
 // The body is built with interpolated HTML, matching the existing invitation email — a templating
 // engine is deliberately deferred until the set of emails justifies one (see the architecture guide).
@@ -18,13 +22,16 @@ public sealed class ApplicationSubmittedConsumer : IConsumer<ApplicationSubmitte
     private const string Subject = "We received your application";
 
     private readonly IEmailSender _emailSender;
+    private readonly IIdempotencyGuard _idempotencyGuard;
     private readonly ILogger<ApplicationSubmittedConsumer> _logger;
 
     public ApplicationSubmittedConsumer(
         IEmailSender emailSender,
+        IIdempotencyGuard idempotencyGuard,
         ILogger<ApplicationSubmittedConsumer> logger)
     {
         _emailSender = emailSender;
+        _idempotencyGuard = idempotencyGuard;
         _logger = logger;
     }
 
@@ -44,7 +51,18 @@ public sealed class ApplicationSubmittedConsumer : IConsumer<ApplicationSubmitte
             <p>We'll be in touch.</p>
             """;
 
-        await _emailSender.SendAsync(message.CandidateEmail, Subject, body, context.CancellationToken);
+        var key = $"notifications:application-submitted:{context.MessageId}";
+        var sent = await _idempotencyGuard.ProcessOnceAsync(
+            key,
+            () => _emailSender.SendAsync(message.CandidateEmail, Subject, body, context.CancellationToken));
+
+        if (!sent)
+        {
+            _logger.LogInformation(
+                "Skipped duplicate application-received email for application {ApplicationId}",
+                message.ApplicationId);
+            return;
+        }
 
         _logger.LogInformation(
             "Sent application-received email to {CandidateEmail} for application {ApplicationId}",

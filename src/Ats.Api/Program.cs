@@ -274,11 +274,29 @@ builder.Services.AddMassTransit(bus =>
             host.Password(rabbitMqOptions.Password);
         });
 
-        // Auto-wires every registered consumer to its endpoint. A no-op today (none registered), but
-        // it keeps Sprint 5.2 to a single AddConsumer call with no manual endpoint plumbing.
+        // Consumer retry policy (Sprint 5.5). Applied here, before ConfigureEndpoints, so every consumer
+        // endpoint inherits it: a throwing consumer is retried with an exponential back-off instead of
+        // failing once or looping forever. intervalDelta is set to the initial interval so the back-off
+        // grows from there. When all attempts are exhausted, MassTransit moves the message to the
+        // endpoint's "<queue>_error" dead-letter queue automatically — no extra wiring needed.
+        configurator.UseMessageRetry(retry => retry.Exponential(
+            retryLimit: rabbitMqOptions.RetryLimit,
+            minInterval: TimeSpan.FromSeconds(rabbitMqOptions.RetryInitialIntervalSeconds),
+            maxInterval: TimeSpan.FromSeconds(rabbitMqOptions.RetryMaxIntervalSeconds),
+            intervalDelta: TimeSpan.FromSeconds(rabbitMqOptions.RetryInitialIntervalSeconds)));
+
+        // Auto-wires every registered consumer to its endpoint and binds the retry policy above.
         configurator.ConfigureEndpoints(context);
     });
 });
+
+// Message idempotency guard (Sprint 5.5). RabbitMQ delivers at-least-once, so a consumer can see the
+// same message twice (a lost ack, a retry, or an error-queue replay). The guard marks a processed
+// message in Redis so a duplicate delivery does not send a duplicate email. It reuses the shared Redis
+// multiplexer registered above; it is stateless, so a singleton is fine.
+builder.Services.Configure<IdempotencyOptions>(
+    builder.Configuration.GetSection(IdempotencyOptions.SectionName));
+builder.Services.AddSingleton<IIdempotencyGuard, RedisIdempotencyGuard>();
 
 // Hangfire background jobs (Sprint 5.4). Jobs are stored in PostgreSQL (Hangfire's own "hangfire" schema,
 // created automatically and kept separate from our EF migrations) so they survive restarts, and run on a
