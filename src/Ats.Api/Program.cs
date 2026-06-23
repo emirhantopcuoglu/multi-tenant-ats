@@ -11,6 +11,8 @@ using MassTransit;
 using Ats.Modules.Applications.Application;
 using Ats.Modules.Notifications.Infrastructure;
 using Ats.Modules.Applications.Infrastructure;
+using Ats.Modules.Interviews.Application;
+using Ats.Modules.Interviews.Infrastructure;
 using Ats.Modules.Jobs.Application;
 using Ats.Modules.Jobs.Infrastructure;
 using Ats.Modules.Tenants.Application;
@@ -118,6 +120,18 @@ builder.Services.AddDbContext<ApplicationsDbContext>((sp, options) =>
 
 builder.Services.AddScoped<IApplicationsDbContext>(sp => sp.GetRequiredService<ApplicationsDbContext>());
 builder.Services.AddApplicationsApplication();
+
+builder.Services.AddDbContext<InterviewsDbContext>((sp, options) =>
+    options
+        .UseNpgsql(
+            builder.Configuration.GetConnectionString("Postgres"),
+            npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "interviews"))
+        .AddInterceptors(
+            sp.GetRequiredService<TenantSaveChangesInterceptor>(),
+            sp.GetRequiredService<AuditableSaveChangesInterceptor>()));
+
+builder.Services.AddScoped<IInterviewsDbContext>(sp => sp.GetRequiredService<InterviewsDbContext>());
+builder.Services.AddInterviewsApplication();
 
 // MongoDB holds the append-only activity log (Sprint 4). The driver's MongoClient is thread-safe
 // and pools connections internally, so it is a singleton; the database handle is derived from it.
@@ -383,6 +397,14 @@ builder.Services.AddAuthorization(options =>
 
     options.AddPolicy(Policies.CanManageApplications, policy =>
         policy.RequireRole(Roles.Admin, Roles.Recruiter));
+
+    // Hiring managers run interviews, so they can both view and schedule them — unlike applications,
+    // where managing is limited to Admin and Recruiter.
+    options.AddPolicy(Policies.CanViewInterviews, policy =>
+        policy.RequireRole(Roles.Admin, Roles.Recruiter, Roles.HiringManager, Roles.ReadOnly));
+
+    options.AddPolicy(Policies.CanManageInterviews, policy =>
+        policy.RequireRole(Roles.Admin, Roles.Recruiter, Roles.HiringManager));
 });
 
 var app = builder.Build();
