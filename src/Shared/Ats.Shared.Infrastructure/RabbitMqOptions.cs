@@ -21,4 +21,15 @@ public sealed class RabbitMqOptions
     public string Username { get; init; } = "ats";
 
     public string Password { get; init; } = "ats_dev_password";
+
+    // Consumer retry policy (Sprint 5.5). When a consumer throws (e.g. a transient SMTP failure),
+    // MassTransit retries the message with an exponential back-off before giving up. After the last
+    // attempt fails, MassTransit moves the message to the endpoint's "_error" queue (the dead-letter
+    // queue) for manual inspection. These are in-memory retries: the message stays held by the consumer
+    // between attempts, so the intervals are kept modest by default.
+    public int RetryLimit { get; init; } = 5;
+
+    public int RetryInitialIntervalSeconds { get; init; } = 2;
+
+    public int RetryMaxIntervalSeconds { get; init; } = 30;
 }
