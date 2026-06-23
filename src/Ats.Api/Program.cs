@@ -4,7 +4,12 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Asp.Versioning;
+using Hangfire;
+using Hangfire.Dashboard;
+using Hangfire.PostgreSql;
+using MassTransit;
 using Ats.Modules.Applications.Application;
+using Ats.Modules.Notifications.Infrastructure;
 using Ats.Modules.Applications.Infrastructure;
 using Ats.Modules.Jobs.Application;
 using Ats.Modules.Jobs.Infrastructure;
@@ -232,6 +237,81 @@ RateLimitPartition<string> FailOpenRedisFixedWindow(HttpContext httpContext, str
             partitionKey));
 }
 
+// RabbitMQ message bus (Sprint 5). MassTransit is the abstraction over the broker: it owns the
+// connection, retries, and (Sprint 5.3) the outbox, and lets consumer code stay transport-agnostic.
+// Sprint 5.2 added the first consumer (application-submitted -> candidate email). Unlike the
+// Mongo/MinIO initializers, MassTransit's hosted service connects in the background and retries on
+// its own, so a broker that is briefly unreachable does not crash startup.
+builder.Services.Configure<RabbitMqOptions>(
+    builder.Configuration.GetSection(RabbitMqOptions.SectionName));
+builder.Services.AddMassTransit(bus =>
+{
+    // Consumer endpoints get readable, kebab-cased queue names instead of namespaced defaults.
+    bus.SetKebabCaseEndpointNameFormatter();
+
+    // Transactional outbox. Publishing an integration event no longer hits the broker inline;
+    // instead the message is written to the outbox tables in the applications schema as part of the
+    // same SaveChanges as the business change. A background delivery service then forwards it to
+    // RabbitMQ and marks it delivered. The result is atomicity (both the row and the message commit,
+    // or neither) and durability (a broker outage delays delivery, never loses or blocks the request).
+    bus.AddEntityFrameworkOutbox<ApplicationsDbContext>(outbox =>
+    {
+        outbox.UsePostgres();
+        outbox.UseBusOutbox();
+    });
+
+    // Notifications consumers: email the candidate when an application is submitted, and again when
+    // it is rejected. ConfigureEndpoints below creates and binds each consumer's queue automatically.
+    bus.AddConsumer<ApplicationSubmittedConsumer>();
+    bus.AddConsumer<ApplicationRejectedConsumer>();
+
+    bus.UsingRabbitMq((context, configurator) =>
+    {
+        var rabbitMqOptions = context.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
+        configurator.Host(rabbitMqOptions.Host, rabbitMqOptions.Port, rabbitMqOptions.VirtualHost, host =>
+        {
+            host.Username(rabbitMqOptions.Username);
+            host.Password(rabbitMqOptions.Password);
+        });
+
+        // Consumer retry policy (Sprint 5.5). Applied here, before ConfigureEndpoints, so every consumer
+        // endpoint inherits it: a throwing consumer is retried with an exponential back-off instead of
+        // failing once or looping forever. intervalDelta is set to the initial interval so the back-off
+        // grows from there. When all attempts are exhausted, MassTransit moves the message to the
+        // endpoint's "<queue>_error" dead-letter queue automatically — no extra wiring needed.
+        configurator.UseMessageRetry(retry => retry.Exponential(
+            retryLimit: rabbitMqOptions.RetryLimit,
+            minInterval: TimeSpan.FromSeconds(rabbitMqOptions.RetryInitialIntervalSeconds),
+            maxInterval: TimeSpan.FromSeconds(rabbitMqOptions.RetryMaxIntervalSeconds),
+            intervalDelta: TimeSpan.FromSeconds(rabbitMqOptions.RetryInitialIntervalSeconds)));
+
+        // Auto-wires every registered consumer to its endpoint and binds the retry policy above.
+        configurator.ConfigureEndpoints(context);
+    });
+});
+
+// Message idempotency guard (Sprint 5.5). RabbitMQ delivers at-least-once, so a consumer can see the
+// same message twice (a lost ack, a retry, or an error-queue replay). The guard marks a processed
+// message in Redis so a duplicate delivery does not send a duplicate email. It reuses the shared Redis
+// multiplexer registered above; it is stateless, so a singleton is fine.
+builder.Services.Configure<IdempotencyOptions>(
+    builder.Configuration.GetSection(IdempotencyOptions.SectionName));
+builder.Services.AddSingleton<IIdempotencyGuard, RedisIdempotencyGuard>();
+
+// Hangfire background jobs (Sprint 5.4). Jobs are stored in PostgreSQL (Hangfire's own "hangfire" schema,
+// created automatically and kept separate from our EF migrations) so they survive restarts, and run on a
+// server hosted in this process. In a multi-instance deployment Hangfire's storage-level locks ensure a
+// recurring job runs on only one instance at a time — the reason to use it over a raw BackgroundService.
+builder.Services.Configure<HangfireOptions>(
+    builder.Configuration.GetSection(HangfireOptions.SectionName));
+builder.Services.AddHangfire(hangfire => hangfire
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(postgres =>
+        postgres.UseNpgsqlConnection(builder.Configuration.GetConnectionString("Postgres"))));
+builder.Services.AddHangfireServer();
+
 builder.Services
     .AddIdentityCore<ApplicationUser>()
     .AddRoles<IdentityRole<Guid>>()
@@ -246,6 +326,9 @@ builder.Services.Configure<InvitationOptions>(
     builder.Configuration.GetSection(InvitationOptions.SectionName));
 builder.Services.AddScoped<IEmailSender, MailKitEmailSender>();
 builder.Services.AddScoped<IInvitationService, InvitationService>();
+
+// Resolved per execution inside the Hangfire job scope; scheduled below after the app is built.
+builder.Services.AddScoped<ExpiredInvitationCleanupJob>();
 
 // File storage (MinIO). The client is thread-safe and meant to be reused, so it is a
 // singleton; MinioFileStorage is stateless and depends only on singletons, so it is too.
@@ -340,5 +423,24 @@ app.UseRateLimiter();
 app.UseMiddleware<TenantClaimResolutionMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
+
+// Hangfire dashboard at /hangfire. LocalRequestsOnlyAuthorizationFilter restricts it to localhost: the
+// dashboard exposes job data and trigger/delete controls, and the API's auth is bearer-token based (no
+// cookies), so a browser cannot carry a JWT here. Real authentication for a remote dashboard is a
+// production hardening task (Sprint 8); in dev, local-only is the correct guard.
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = [new LocalRequestsOnlyAuthorizationFilter()]
+});
+
+// Register/refresh the recurring expired-invitation cleanup job. AddOrUpdate keys on the job id, so a
+// restart updates the existing schedule rather than creating duplicates.
+var hangfireOptions = app.Configuration.GetSection(HangfireOptions.SectionName).Get<HangfireOptions>()
+    ?? new HangfireOptions();
+RecurringJob.AddOrUpdate<ExpiredInvitationCleanupJob>(
+    "expired-invitation-cleanup",
+    job => job.CleanupAsync(CancellationToken.None),
+    hangfireOptions.ExpiredInvitationCleanupCron,
+    new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 
 app.Run();

@@ -1,10 +1,10 @@
-using Ats.Modules.Tenants.Application;
+using Ats.Shared.Kernel;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Options;
 using MimeKit;
 
-namespace Ats.Modules.Tenants.Infrastructure;
+namespace Ats.Shared.Infrastructure;
 
 public sealed class MailKitEmailSender : IEmailSender
 {
