@@ -59,9 +59,43 @@ public sealed class InterviewsController : ControllerBase
             : MapFailure(result.Error);
     }
 
+    [HttpPut("{id:guid}/reschedule")]
+    [Authorize(Policy = Policies.CanManageInterviews)]
+    public async Task<IActionResult> Reschedule(Guid id, RescheduleBody body)
+    {
+        var result = await _sender.Send(
+            new RescheduleInterviewCommand(id, body.ScheduledAtUtc, body.DurationMinutes));
+        return result.IsSuccess ? NoContent() : MapFailure(result.Error);
+    }
+
+    [HttpPost("{id:guid}/cancel")]
+    [Authorize(Policy = Policies.CanManageInterviews)]
+    public async Task<IActionResult> Cancel(Guid id)
+    {
+        var result = await _sender.Send(new CancelInterviewCommand(id));
+        return result.IsSuccess ? NoContent() : MapFailure(result.Error);
+    }
+
+    [HttpPost("{id:guid}/complete")]
+    [Authorize(Policy = Policies.CanManageInterviews)]
+    public async Task<IActionResult> Complete(Guid id)
+    {
+        var result = await _sender.Send(new CompleteInterviewCommand(id));
+        return result.IsSuccess ? NoContent() : MapFailure(result.Error);
+    }
+
+    [HttpPost("{id:guid}/no-show")]
+    [Authorize(Policy = Policies.CanManageInterviews)]
+    public async Task<IActionResult> MarkNoShow(Guid id)
+    {
+        var result = await _sender.Send(new MarkInterviewNoShowCommand(id));
+        return result.IsSuccess ? NoContent() : MapFailure(result.Error);
+    }
+
     private IActionResult MapFailure(Error error) => error.Code switch
     {
         "interview.application_not_found" => NotFound(new { error.Code, error.Message }),
+        "interview.not_found" => NotFound(new { error.Code, error.Message }),
         _ => BadRequest(new { error.Code, error.Message })
     };
 
@@ -73,4 +107,6 @@ public sealed class InterviewsController : ControllerBase
         string? Location,
         IReadOnlyList<Guid>? InterviewerUserIds,
         string? Notes);
+
+    public sealed record RescheduleBody(DateTime ScheduledAtUtc, int DurationMinutes);
 }
