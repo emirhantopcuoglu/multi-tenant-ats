@@ -17,6 +17,7 @@ public sealed class InterviewsDbContext : DbContext, IInterviewsDbContext
     }
 
     public DbSet<Interview> Interviews => Set<Interview>();
+    public DbSet<InterviewFeedback> Feedback => Set<InterviewFeedback>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -42,19 +43,40 @@ public sealed class InterviewsDbContext : DbContext, IInterviewsDbContext
             entity.HasIndex(i => i.InterviewerUserIds).HasMethod("gin");
         });
 
-        // Interview is both tenant-scoped and soft-deletable, so one filter covers both. Applied via an
-        // instance method so EF treats _currentTenant as a context accessor (re-evaluated per query)
-        // rather than baking the first scope's value into the cached model.
-        var setFilter = GetType()
-            .GetMethod(nameof(SetTenantFilter), BindingFlags.NonPublic | BindingFlags.Instance)!;
+        builder.Entity<InterviewFeedback>(entity =>
+        {
+            entity.HasKey(f => f.Id);
+            entity.ToTable("feedback");
+            entity.Property(f => f.Recommendation).HasConversion<string>().HasMaxLength(20);
+            entity.Property(f => f.Comments).HasMaxLength(5000);
+
+            entity.HasIndex(f => f.InterviewId);
+            // One feedback per interviewer per interview; the DB index is the authoritative guard.
+            entity.HasIndex(f => new { f.InterviewId, f.InterviewerUserId }).IsUnique();
+        });
+
+        // Two filter helpers: one for entities that are both tenant-scoped and soft-deletable, one for
+        // entities that are tenant-scoped only. Both are applied via instance methods so EF re-evaluates
+        // _currentTenant on every query rather than baking the first scope's value into the model.
+        var withSoftDelete = GetType()
+            .GetMethod(nameof(SetTenantAndSoftDeleteFilter), BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var tenantOnly = GetType()
+            .GetMethod(nameof(SetTenantOnlyFilter), BindingFlags.NonPublic | BindingFlags.Instance)!;
 
         foreach (var entityType in builder.Model.GetEntityTypes()
             .Where(t => typeof(ITenantScoped).IsAssignableFrom(t.ClrType)))
         {
-            setFilter.MakeGenericMethod(entityType.ClrType).Invoke(this, [builder]);
+            var method = typeof(ISoftDeletable).IsAssignableFrom(entityType.ClrType)
+                ? withSoftDelete
+                : tenantOnly;
+
+            method.MakeGenericMethod(entityType.ClrType).Invoke(this, [builder]);
         }
     }
 
-    private void SetTenantFilter<T>(ModelBuilder builder) where T : class, ITenantScoped, ISoftDeletable
+    private void SetTenantAndSoftDeleteFilter<T>(ModelBuilder builder) where T : class, ITenantScoped, ISoftDeletable
         => builder.Entity<T>().HasQueryFilter(e => !e.IsDeleted && (Guid?)e.TenantId == _currentTenant.TenantId);
+
+    private void SetTenantOnlyFilter<T>(ModelBuilder builder) where T : class, ITenantScoped
+        => builder.Entity<T>().HasQueryFilter(e => (Guid?)e.TenantId == _currentTenant.TenantId);
 }

@@ -6,6 +6,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+
 namespace Ats.Modules.Interviews.Api;
 
 // Authenticated recruiter/hiring-manager view over interviews. Tenant isolation is automatic: every
@@ -92,10 +93,25 @@ public sealed class InterviewsController : ControllerBase
         return result.IsSuccess ? NoContent() : MapFailure(result.Error);
     }
 
+    [HttpPost("{id:guid}/feedback")]
+    [Authorize(Policy = Policies.CanManageInterviews)]
+    public async Task<IActionResult> SubmitFeedback(Guid id, SubmitFeedbackBody body)
+    {
+        var command = new SubmitInterviewFeedbackCommand(
+            id, body.InterviewerUserId, body.Rating, body.Recommendation, body.Comments);
+
+        var result = await _sender.Send(command);
+        return result.IsSuccess
+            ? CreatedAtAction(nameof(GetById), new { id }, new { id = result.Value })
+            : MapFailure(result.Error);
+    }
+
     private IActionResult MapFailure(Error error) => error.Code switch
     {
         "interview.application_not_found" => NotFound(new { error.Code, error.Message }),
         "interview.not_found" => NotFound(new { error.Code, error.Message }),
+        "interview.feedback_not_eligible" => Conflict(new { error.Code, error.Message }),
+        "interview.duplicate_feedback" => Conflict(new { error.Code, error.Message }),
         _ => BadRequest(new { error.Code, error.Message })
     };
 
@@ -109,4 +125,10 @@ public sealed class InterviewsController : ControllerBase
         string? Notes);
 
     public sealed record RescheduleBody(DateTime ScheduledAtUtc, int DurationMinutes);
+
+    public sealed record SubmitFeedbackBody(
+        Guid InterviewerUserId,
+        int Rating,
+        FeedbackRecommendation Recommendation,
+        string? Comments);
 }
