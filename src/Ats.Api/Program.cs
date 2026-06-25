@@ -11,8 +11,10 @@ using MassTransit;
 using Ats.Modules.Applications.Application;
 using Ats.Modules.Notifications.Infrastructure;
 using Ats.Modules.Applications.Infrastructure;
+using Ats.Modules.Interviews.Api.Authorization;
 using Ats.Modules.Interviews.Application;
 using Ats.Modules.Interviews.Infrastructure;
+using Microsoft.AspNetCore.Authorization;
 using Ats.Modules.Jobs.Application;
 using Ats.Modules.Jobs.Infrastructure;
 using Ats.Modules.Tenants.Application;
@@ -405,7 +407,14 @@ builder.Services.AddAuthorization(options =>
 
     options.AddPolicy(Policies.CanManageInterviews, policy =>
         policy.RequireRole(Roles.Admin, Roles.Recruiter, Roles.HiringManager));
+
+    // Resource-based: checked imperatively via IAuthorizationService against a loaded InterviewDetailDto.
+    options.AddPolicy(Policies.IsInterviewParticipant, policy =>
+        policy.AddRequirements(new InterviewerRequirement()));
 });
+
+// Stateless handler — singleton is safe and avoids allocating per-request.
+builder.Services.AddSingleton<IAuthorizationHandler, InterviewerAuthorizationHandler>();
 
 var app = builder.Build();
 

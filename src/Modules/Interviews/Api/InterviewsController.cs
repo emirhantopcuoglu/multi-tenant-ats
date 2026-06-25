@@ -1,11 +1,12 @@
+using System.Security.Claims;
 using Asp.Versioning;
+using Ats.Modules.Interviews.Api.Authorization;
 using Ats.Modules.Interviews.Application.Interviews;
 using Ats.Modules.Interviews.Domain;
 using Ats.Shared.Kernel;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-
 
 namespace Ats.Modules.Interviews.Api;
 
@@ -18,10 +19,12 @@ namespace Ats.Modules.Interviews.Api;
 public sealed class InterviewsController : ControllerBase
 {
     private readonly ISender _sender;
+    private readonly IAuthorizationService _authorizationService;
 
-    public InterviewsController(ISender sender)
+    public InterviewsController(ISender sender, IAuthorizationService authorizationService)
     {
         _sender = sender;
+        _authorizationService = authorizationService;
     }
 
     [HttpGet]
@@ -97,8 +100,24 @@ public sealed class InterviewsController : ControllerBase
     [Authorize(Policy = Policies.CanManageInterviews)]
     public async Task<IActionResult> SubmitFeedback(Guid id, SubmitFeedbackBody body)
     {
+        // Load the interview first so we can run a resource-based authorization check.
+        var interviewResult = await _sender.Send(new GetInterviewByIdQuery(id));
+        if (!interviewResult.IsSuccess)
+            return MapFailure(interviewResult.Error);
+
+        // Second gate: only an assigned interviewer may submit feedback for this specific interview.
+        // CanManageInterviews (above) checks the role; IsInterviewParticipant checks the resource.
+        var authResult = await _authorizationService.AuthorizeAsync(
+            User, interviewResult.Value, Policies.IsInterviewParticipant);
+        if (!authResult.Succeeded)
+            return Forbid();
+
+        // The interviewer's identity comes from the JWT, not from the request body — callers must
+        // not be able to self-declare another user's identity.
+        var interviewerUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
         var command = new SubmitInterviewFeedbackCommand(
-            id, body.InterviewerUserId, body.Rating, body.Recommendation, body.Comments);
+            id, interviewerUserId, body.Rating, body.Recommendation, body.Comments);
 
         var result = await _sender.Send(command);
         return result.IsSuccess
@@ -127,7 +146,6 @@ public sealed class InterviewsController : ControllerBase
     public sealed record RescheduleBody(DateTime ScheduledAtUtc, int DurationMinutes);
 
     public sealed record SubmitFeedbackBody(
-        Guid InterviewerUserId,
         int Rating,
         FeedbackRecommendation Recommendation,
         string? Comments);
