@@ -23,5 +23,11 @@ public interface IFileStorage
     Task<string> GetPresignedDownloadUrlAsync(
         string key, TimeSpan expiry, CancellationToken cancellationToken = default);
 
+    // Reads the whole object into memory. Unlike GetPresignedDownloadUrlAsync (for the browser to
+    // pull a file directly), this is for server-side processing that needs the bytes in-process —
+    // e.g. the CV-parsing consumer extracting text. Returning a byte[] is fine because CVs are
+    // capped at a few MB at upload; a streaming overload can be added if larger objects appear.
+    Task<byte[]> DownloadAsync(string key, CancellationToken cancellationToken = default);
+
     Task DeleteAsync(string key, CancellationToken cancellationToken = default);
 }

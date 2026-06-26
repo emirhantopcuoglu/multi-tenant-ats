@@ -18,6 +18,9 @@ public static class ApplicationErrors
     public static readonly Error NotFound =
         new("application.not_found", "Application not found.");
 
+    public static readonly Error CvNotParsed =
+        new("application.cv_not_parsed", "The CV has not been parsed yet.");
+
     public static readonly Error StageNotInPipeline =
         new("application.stage_not_in_pipeline", "The target stage does not belong to this job's pipeline.");
 

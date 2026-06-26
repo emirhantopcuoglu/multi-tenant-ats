@@ -64,6 +64,18 @@ public sealed class ApplicationsController : ControllerBase
             : NotFound(new { result.Error.Code, result.Error.Message });
     }
 
+    [HttpGet("{id:guid}/cv-parse-result")]
+    [Authorize(Policy = Policies.CanViewApplications)]
+    public async Task<IActionResult> GetCvParseResult(Guid id)
+    {
+        // Both failures are 404: the application does not exist in this tenant, or it exists but its
+        // CV has not been parsed yet (parsing is asynchronous). The error code distinguishes them.
+        var result = await _sender.Send(new GetCvParseResultQuery(id));
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : NotFound(new { result.Error.Code, result.Error.Message });
+    }
+
     [HttpPost("{id:guid}/move-stage")]
     [Authorize(Policy = Policies.CanManageApplications)]
     public async Task<IActionResult> MoveStage(Guid id, MoveStageBody body)
