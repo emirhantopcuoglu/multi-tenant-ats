@@ -157,14 +157,15 @@ builder.Services.AddScoped<IActivityLogRepository, MongoActivityLogRepository>()
 // tenant explicitly, since it runs outside a resolved-tenant request.
 builder.Services.AddScoped<ICvParseResultRepository, MongoCvParseResultRepository>();
 
-// LLM-backed CV parsing (Sprint 6.3). The PDF text extractor and the Claude parser are stateless and
-// thread-safe (the parser holds one reusable Anthropic client and Polly pipeline), so both are
-// singletons. The Anthropic API key is read from User Secrets / env via AnthropicOptions, never from
-// appsettings.json.
-builder.Services.Configure<AnthropicOptions>(
-    builder.Configuration.GetSection(AnthropicOptions.SectionName));
+// LLM-backed CV parsing (Sprint 6.3). The PDF text extractor and the Gemini parser are stateless and
+// thread-safe (the parser holds one reusable Polly pipeline and pulls HTTP clients from the factory),
+// so both are singletons. Gemini's free tier backs this; the API key is read from User Secrets / env
+// via GeminiOptions, never from appsettings.json.
+builder.Services.Configure<GeminiOptions>(
+    builder.Configuration.GetSection(GeminiOptions.SectionName));
+builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IPdfTextExtractor, PdfPigTextExtractor>();
-builder.Services.AddSingleton<ICvParser, ClaudeCvParser>();
+builder.Services.AddSingleton<ICvParser, GeminiCvParser>();
 
 // One Redis connection shared by the whole app. StackExchange.Redis multiplexes all traffic over a
 // single ConnectionMultiplexer by design, so both the distributed cache (4.3) and the rate limiter
