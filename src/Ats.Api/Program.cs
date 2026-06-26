@@ -152,6 +152,20 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
 });
 builder.Services.AddScoped<IActivityLogRepository, MongoActivityLogRepository>();
 
+// CV parse results (Sprint 6.3) also live in MongoDB. Scoped like the activity log because the read
+// path depends on the per-request ICurrentTenant; the write path (the CV-parsing consumer) passes the
+// tenant explicitly, since it runs outside a resolved-tenant request.
+builder.Services.AddScoped<ICvParseResultRepository, MongoCvParseResultRepository>();
+
+// LLM-backed CV parsing (Sprint 6.3). The PDF text extractor and the Claude parser are stateless and
+// thread-safe (the parser holds one reusable Anthropic client and Polly pipeline), so both are
+// singletons. The Anthropic API key is read from User Secrets / env via AnthropicOptions, never from
+// appsettings.json.
+builder.Services.Configure<AnthropicOptions>(
+    builder.Configuration.GetSection(AnthropicOptions.SectionName));
+builder.Services.AddSingleton<IPdfTextExtractor, PdfPigTextExtractor>();
+builder.Services.AddSingleton<ICvParser, ClaudeCvParser>();
+
 // One Redis connection shared by the whole app. StackExchange.Redis multiplexes all traffic over a
 // single ConnectionMultiplexer by design, so both the distributed cache (4.3) and the rate limiter
 // (4.4) use this one instance. AbortOnConnectFail = false keeps the cache's fail-open behavior: a
@@ -280,6 +294,10 @@ builder.Services.AddMassTransit(bus =>
     // it is rejected. ConfigureEndpoints below creates and binds each consumer's queue automatically.
     bus.AddConsumer<ApplicationSubmittedConsumer>();
     bus.AddConsumer<ApplicationRejectedConsumer>();
+
+    // CV-parsing consumer (Sprint 6.3): downloads the CV, extracts text, asks Claude for structured
+    // data, and stores it in MongoDB. Inherits the retry/dead-letter policy configured below.
+    bus.AddConsumer<CvParsingConsumer>();
 
     bus.UsingRabbitMq((context, configurator) =>
     {

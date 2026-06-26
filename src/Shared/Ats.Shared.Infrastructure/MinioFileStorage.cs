@@ -45,6 +45,21 @@ public sealed class MinioFileStorage : IFileStorage
         return await _client.PresignedGetObjectAsync(args);
     }
 
+    public async Task<byte[]> DownloadAsync(string key, CancellationToken cancellationToken = default)
+    {
+        // MinIO streams the object to a callback rather than returning a stream, so we copy it into
+        // a MemoryStream and hand back the bytes. CVs are small (10 MB cap at upload), so buffering
+        // the whole object is acceptable here.
+        using var buffer = new MemoryStream();
+        var args = new GetObjectArgs()
+            .WithBucket(_options.BucketName)
+            .WithObject(key)
+            .WithCallbackStream((stream, ct) => stream.CopyToAsync(buffer, ct));
+
+        await _client.GetObjectAsync(args, cancellationToken);
+        return buffer.ToArray();
+    }
+
     public async Task DeleteAsync(string key, CancellationToken cancellationToken = default)
     {
         var args = new RemoveObjectArgs()
