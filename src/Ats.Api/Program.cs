@@ -157,15 +157,16 @@ builder.Services.AddScoped<IActivityLogRepository, MongoActivityLogRepository>()
 // tenant explicitly, since it runs outside a resolved-tenant request.
 builder.Services.AddScoped<ICvParseResultRepository, MongoCvParseResultRepository>();
 
-// LLM-backed CV parsing (Sprint 6.3). The PDF text extractor and the Gemini parser are stateless and
+// LLM-backed CV parsing (Sprint 6.3). The PDF text extractor and the parser are stateless and
 // thread-safe (the parser holds one reusable Polly pipeline and pulls HTTP clients from the factory),
-// so both are singletons. Gemini's free tier backs this; the API key is read from User Secrets / env
-// via GeminiOptions, never from appsettings.json.
-builder.Services.Configure<GeminiOptions>(
-    builder.Configuration.GetSection(GeminiOptions.SectionName));
+// so both are singletons. The parser targets any OpenAI-compatible API; it defaults to GitHub Models
+// (free with a GitHub token). The key is read from User Secrets / env via LlmOptions, never from
+// appsettings.json.
+builder.Services.Configure<LlmOptions>(
+    builder.Configuration.GetSection(LlmOptions.SectionName));
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IPdfTextExtractor, PdfPigTextExtractor>();
-builder.Services.AddSingleton<ICvParser, GeminiCvParser>();
+builder.Services.AddSingleton<ICvParser, OpenAiCompatibleCvParser>();
 
 // One Redis connection shared by the whole app. StackExchange.Redis multiplexes all traffic over a
 // single ConnectionMultiplexer by design, so both the distributed cache (4.3) and the rate limiter
