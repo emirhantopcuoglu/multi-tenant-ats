@@ -10,9 +10,6 @@ namespace Ats.IntegrationTests.Shared;
 public sealed class PostgresContainerFixture : IAsyncLifetime
 {
     private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:17-alpine")
-        .WithDatabase("ats_test")
-        .WithUsername("ats_test")
-        .WithPassword("ats_test")
         .Build();
 
     public string ConnectionString => _container.GetConnectionString();
