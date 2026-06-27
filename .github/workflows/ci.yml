@@ -7,7 +7,9 @@ on:
     branches: [main, develop]
 
 jobs:
-  build:
+  # Fast gate: unit + architecture tests with no external dependencies.
+  # Integration tests and docker-build only run when this job is green.
+  unit-and-arch:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,5 +25,56 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
-      - name: Test
-        run: dotnet test --no-build --configuration Release
+      - name: Unit tests
+        run: |
+          dotnet test tests/Ats.UnitTests/Ats.UnitTests.csproj \
+            --no-build --configuration Release \
+            --collect:"XPlat Code Coverage" \
+            --results-directory coverage/
+
+      - name: Architecture tests
+        run: |
+          dotnet test tests/Ats.ArchitectureTests/Ats.ArchitectureTests.csproj \
+            --no-build --configuration Release
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  # Integration tests require Docker (Testcontainers pulls postgres:17-alpine).
+  # ubuntu-latest runners have Docker pre-installed.
+  integration:
+    needs: unit-and-arch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Integration tests
+        run: |
+          dotnet test tests/Ats.IntegrationTests/Ats.IntegrationTests.csproj \
+            --no-build --configuration Release
+
+  # Validates the Dockerfile builds a runnable image.
+  # Runs in parallel with integration after the fast gate passes.
+  docker-build:
+    needs: unit-and-arch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t ats-api:ci .
