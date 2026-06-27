@@ -142,6 +142,13 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
                 candidate.Email, candidate.FirstName, tenantId),
             ct);
 
+        // Also request CV parsing. Like the event above, this is bridged onto RabbitMQ via the
+        // outbox, so it commits in the same transaction as the application row: a parse can never be
+        // requested for an application that was not saved, and vice versa.
+        await _publisher.Publish(
+            new CvParseRequestedEvent(application.Id, candidate.Id, cvKey, tenantId),
+            ct);
+
         try
         {
             // Candidate (if new), pipeline (if new), the application and the outbox message commit

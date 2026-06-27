@@ -4,6 +4,7 @@ using Ats.Modules.Applications.Domain;
 using Ats.Shared.Kernel;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using NpgsqlTypes;
 
 // The aggregate and this module's Application-layer namespace are both called "Application";
 // the alias disambiguates the type from the namespace.
@@ -47,6 +48,17 @@ public sealed class ApplicationsDbContext : DbContext, IApplicationsDbContext
             // Enforces the "one candidate per (tenant, email)" rule at the database, the only
             // place that holds under concurrent inserts.
             entity.HasIndex(c => new { c.TenantId, c.Email }).IsUnique();
+
+            // Full-text search vector (Sprint 6.4). A STORED generated column so PostgreSQL
+            // maintains it automatically on every insert/update. The Domain entity stays clean
+            // (no NpgsqlTsVector property); EF accesses it as a shadow property. The GIN index
+            // makes @@ lookups O(log n) instead of O(n) sequential scans.
+            entity.Property<NpgsqlTsVector>("SearchVector")
+                .HasColumnType("tsvector")
+                .HasComputedColumnSql(
+                    "to_tsvector('english', coalesce(\"FirstName\",'') || ' ' || coalesce(\"LastName\",'') || ' ' || coalesce(\"Email\",''))",
+                    stored: true);
+            entity.HasIndex("SearchVector").HasMethod("GIN");
         });
 
         builder.Entity<ApplicationEntity>(entity =>

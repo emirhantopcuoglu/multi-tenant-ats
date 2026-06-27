@@ -12,4 +12,10 @@ public static class Policies
     public const string CanManageUsers = "CanManageUsers";
     public const string CanViewApplications = "CanViewApplications";
     public const string CanManageApplications = "CanManageApplications";
+    public const string CanViewInterviews = "CanViewInterviews";
+    public const string CanManageInterviews = "CanManageInterviews";
+
+    // Resource-based: the current user must appear in the interview's InterviewerUserIds list.
+    // Used imperatively via IAuthorizationService, not as an [Authorize] attribute.
+    public const string IsInterviewParticipant = "IsInterviewParticipant";
 }

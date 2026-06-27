@@ -1,3 +1,4 @@
+using Ats.Shared.Contracts.Applications;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,9 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(assembly);
         services.AddTransient(
             typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+        // The module's public read port, consumed by the Interviews module through the contract only.
+        services.AddScoped<IApplicationDirectory, ApplicationDirectory>();
 
         return services;
     }

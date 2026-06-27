@@ -4,13 +4,20 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Asp.Versioning;
+using Ats.Api;
+using Serilog;
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.PostgreSql;
 using MassTransit;
 using Ats.Modules.Applications.Application;
+using Ats.Modules.Applications.Application.Applications;
 using Ats.Modules.Notifications.Infrastructure;
 using Ats.Modules.Applications.Infrastructure;
+using Ats.Modules.Interviews.Api.Authorization;
+using Ats.Modules.Interviews.Application;
+using Ats.Modules.Interviews.Infrastructure;
+using Microsoft.AspNetCore.Authorization;
 using Ats.Modules.Jobs.Application;
 using Ats.Modules.Jobs.Infrastructure;
 using Ats.Modules.Tenants.Application;
@@ -30,7 +37,17 @@ using RedisRateLimiting;
 using Scalar.AspNetCore;
 using StackExchange.Redis;
 
+// Bootstrap Serilog before the host so startup errors (DB unreachable, bad config) are also
+// captured. ReadFrom.Configuration picks up the "Serilog" section from appsettings;
+// ReadFrom.Services allows DI-registered sinks (none currently, but keeps the door open).
+// Destructure.With masks sensitive properties when {@obj} is used in log messages.
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((ctx, services, config) => config
+    .ReadFrom.Configuration(ctx.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .Destructure.With(new SensitiveDataMaskingPolicy()));
 
 builder.Services
     .AddControllers()
@@ -85,6 +102,7 @@ builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantCon
 builder.Services.AddScoped<ICurrentTenant>(sp => sp.GetRequiredService<TenantContext>());
 builder.Services.AddScoped<TenantSaveChangesInterceptor>();
 builder.Services.AddScoped<AuditableSaveChangesInterceptor>();
+builder.Services.AddScoped<AuditLogInterceptor>();
 
 builder.Services.AddDbContext<TenantsDbContext>((sp, options) =>
     options
@@ -93,7 +111,8 @@ builder.Services.AddDbContext<TenantsDbContext>((sp, options) =>
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "tenants"))
         .AddInterceptors(
             sp.GetRequiredService<TenantSaveChangesInterceptor>(),
-            sp.GetRequiredService<AuditableSaveChangesInterceptor>()));
+            sp.GetRequiredService<AuditableSaveChangesInterceptor>(),
+            sp.GetRequiredService<AuditLogInterceptor>()));
 
 builder.Services.AddDbContext<JobsDbContext>((sp, options) =>
     options
@@ -102,7 +121,8 @@ builder.Services.AddDbContext<JobsDbContext>((sp, options) =>
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "jobs"))
         .AddInterceptors(
             sp.GetRequiredService<TenantSaveChangesInterceptor>(),
-            sp.GetRequiredService<AuditableSaveChangesInterceptor>()));
+            sp.GetRequiredService<AuditableSaveChangesInterceptor>(),
+            sp.GetRequiredService<AuditLogInterceptor>()));
 
 builder.Services.AddScoped<IJobsDbContext>(sp => sp.GetRequiredService<JobsDbContext>());
 builder.Services.AddJobsApplication();
@@ -114,10 +134,24 @@ builder.Services.AddDbContext<ApplicationsDbContext>((sp, options) =>
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "applications"))
         .AddInterceptors(
             sp.GetRequiredService<TenantSaveChangesInterceptor>(),
-            sp.GetRequiredService<AuditableSaveChangesInterceptor>()));
+            sp.GetRequiredService<AuditableSaveChangesInterceptor>(),
+            sp.GetRequiredService<AuditLogInterceptor>()));
 
 builder.Services.AddScoped<IApplicationsDbContext>(sp => sp.GetRequiredService<ApplicationsDbContext>());
 builder.Services.AddApplicationsApplication();
+
+builder.Services.AddDbContext<InterviewsDbContext>((sp, options) =>
+    options
+        .UseNpgsql(
+            builder.Configuration.GetConnectionString("Postgres"),
+            npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "interviews"))
+        .AddInterceptors(
+            sp.GetRequiredService<TenantSaveChangesInterceptor>(),
+            sp.GetRequiredService<AuditableSaveChangesInterceptor>(),
+            sp.GetRequiredService<AuditLogInterceptor>()));
+
+builder.Services.AddScoped<IInterviewsDbContext>(sp => sp.GetRequiredService<InterviewsDbContext>());
+builder.Services.AddInterviewsApplication();
 
 // MongoDB holds the append-only activity log (Sprint 4). The driver's MongoClient is thread-safe
 // and pools connections internally, so it is a singleton; the database handle is derived from it.
@@ -135,6 +169,26 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
     return sp.GetRequiredService<IMongoClient>().GetDatabase(options.DatabaseName);
 });
 builder.Services.AddScoped<IActivityLogRepository, MongoActivityLogRepository>();
+
+// CV parse results (Sprint 6.3) also live in MongoDB. Scoped like the activity log because the read
+// path depends on the per-request ICurrentTenant; the write path (the CV-parsing consumer) passes the
+// tenant explicitly, since it runs outside a resolved-tenant request.
+builder.Services.AddScoped<ICvParseResultRepository, MongoCvParseResultRepository>();
+
+// Candidate full-text search (Sprint 6.4). Backed by a PostgreSQL tsvector generated column on the
+// Candidates table; the repository is scoped because the underlying DbContext is scoped.
+builder.Services.AddScoped<ICandidateSearchRepository, CandidateSearchRepository>();
+
+// LLM-backed CV parsing (Sprint 6.3). The PDF text extractor and the parser are stateless and
+// thread-safe (the parser holds one reusable Polly pipeline and pulls HTTP clients from the factory),
+// so both are singletons. The parser targets any OpenAI-compatible API; it defaults to GitHub Models
+// (free with a GitHub token). The key is read from User Secrets / env via LlmOptions, never from
+// appsettings.json.
+builder.Services.Configure<LlmOptions>(
+    builder.Configuration.GetSection(LlmOptions.SectionName));
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<IPdfTextExtractor, PdfPigTextExtractor>();
+builder.Services.AddSingleton<ICvParser, OpenAiCompatibleCvParser>();
 
 // One Redis connection shared by the whole app. StackExchange.Redis multiplexes all traffic over a
 // single ConnectionMultiplexer by design, so both the distributed cache (4.3) and the rate limiter
@@ -265,6 +319,10 @@ builder.Services.AddMassTransit(bus =>
     bus.AddConsumer<ApplicationSubmittedConsumer>();
     bus.AddConsumer<ApplicationRejectedConsumer>();
 
+    // CV-parsing consumer (Sprint 6.3): downloads the CV, extracts text, asks Claude for structured
+    // data, and stores it in MongoDB. Inherits the retry/dead-letter policy configured below.
+    bus.AddConsumer<CvParsingConsumer>();
+
     bus.UsingRabbitMq((context, configurator) =>
     {
         var rabbitMqOptions = context.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
@@ -383,7 +441,22 @@ builder.Services.AddAuthorization(options =>
 
     options.AddPolicy(Policies.CanManageApplications, policy =>
         policy.RequireRole(Roles.Admin, Roles.Recruiter));
+
+    // Hiring managers run interviews, so they can both view and schedule them — unlike applications,
+    // where managing is limited to Admin and Recruiter.
+    options.AddPolicy(Policies.CanViewInterviews, policy =>
+        policy.RequireRole(Roles.Admin, Roles.Recruiter, Roles.HiringManager, Roles.ReadOnly));
+
+    options.AddPolicy(Policies.CanManageInterviews, policy =>
+        policy.RequireRole(Roles.Admin, Roles.Recruiter, Roles.HiringManager));
+
+    // Resource-based: checked imperatively via IAuthorizationService against a loaded InterviewDetailDto.
+    options.AddPolicy(Policies.IsInterviewParticipant, policy =>
+        policy.AddRequirements(new InterviewerRequirement()));
 });
+
+// Stateless handler — singleton is safe and avoids allocating per-request.
+builder.Services.AddSingleton<IAuthorizationHandler, InterviewerAuthorizationHandler>();
 
 var app = builder.Build();
 
@@ -398,12 +471,30 @@ using (var scope = app.Services.CreateScope())
     var fileStorageOptions = scope.ServiceProvider.GetRequiredService<IOptions<FileStorageOptions>>();
     await FileStorageInitializer.EnsureBucketAsync(minioClient, fileStorageOptions);
 
-    // Ensure the activity-log read index exists. Idempotent, like the steps above.
+    // Ensure the activity-log and audit-log read indexes exist. Idempotent.
     var mongoDatabase = scope.ServiceProvider.GetRequiredService<IMongoDatabase>();
     await MongoActivityLogInitializer.EnsureIndexesAsync(mongoDatabase);
+    await MongoAuditLogInitializer.EnsureIndexesAsync(mongoDatabase);
 }
 
 app.UseExceptionHandler();
+
+// Assign / forward X-Correlation-ID before anything else so every log line carries it.
+app.UseMiddleware<CorrelationIdMiddleware>();
+
+// One structured log per request: method, path, status, elapsed ms. TenantId and UserId
+// are enriched here via the diagnostic context (resolved by the time the request completes).
+app.UseSerilogRequestLogging(options =>
+{
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        var tenant = httpContext.RequestServices.GetService<ICurrentTenant>();
+        var user = httpContext.RequestServices.GetService<ICurrentUser>();
+        diagnosticContext.Set("TenantId", tenant?.TenantId?.ToString() ?? string.Empty);
+        diagnosticContext.Set("UserId", user?.UserId?.ToString() ?? string.Empty);
+        diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
+    };
+});
 
 if (app.Environment.IsDevelopment())
 {
