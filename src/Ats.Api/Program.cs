@@ -4,6 +4,8 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Asp.Versioning;
+using Ats.Api;
+using Serilog;
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.PostgreSql;
@@ -35,7 +37,17 @@ using RedisRateLimiting;
 using Scalar.AspNetCore;
 using StackExchange.Redis;
 
+// Bootstrap Serilog before the host so startup errors (DB unreachable, bad config) are also
+// captured. ReadFrom.Configuration picks up the "Serilog" section from appsettings;
+// ReadFrom.Services allows DI-registered sinks (none currently, but keeps the door open).
+// Destructure.With masks sensitive properties when {@obj} is used in log messages.
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((ctx, services, config) => config
+    .ReadFrom.Configuration(ctx.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .Destructure.With(new SensitiveDataMaskingPolicy()));
 
 builder.Services
     .AddControllers()
@@ -466,6 +478,23 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseExceptionHandler();
+
+// Assign / forward X-Correlation-ID before anything else so every log line carries it.
+app.UseMiddleware<CorrelationIdMiddleware>();
+
+// One structured log per request: method, path, status, elapsed ms. TenantId and UserId
+// are enriched here via the diagnostic context (resolved by the time the request completes).
+app.UseSerilogRequestLogging(options =>
+{
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        var tenant = httpContext.RequestServices.GetService<ICurrentTenant>();
+        var user = httpContext.RequestServices.GetService<ICurrentUser>();
+        diagnosticContext.Set("TenantId", tenant?.TenantId?.ToString() ?? string.Empty);
+        diagnosticContext.Set("UserId", user?.UserId?.ToString() ?? string.Empty);
+        diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
+    };
+});
 
 if (app.Environment.IsDevelopment())
 {
