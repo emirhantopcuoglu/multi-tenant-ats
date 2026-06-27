@@ -71,8 +71,23 @@ services:
       # durable queues across a restart. This durability is what the Sprint 5.3 outbox will build on.
       - ats-rabbitmq-data:/var/lib/rabbitmq
 
+  seq:
+    image: datalust/seq:latest
+    container_name: ats-seq
+    environment:
+      # No authentication — dev-only convenience. Set SEQ_FIRSTRUN_ADMINPASSWORDHASH and remove
+      # SEQ_FIRSTRUN_NOAUTHENTICATION for shared or staging. See https://docs.datalust.co/docs/getting-started-with-docker
+      ACCEPT_EULA: "Y"
+      SEQ_FIRSTRUN_NOAUTHENTICATION: "true"
+    ports:
+      - "5341:5341"  # ingestion (Serilog Seq sink points here)
+      - "8081:80"    # web UI — http://localhost:8081
+    volumes:
+      - ats-seq-data:/data
+
 volumes:
   ats-postgres-data:
   ats-minio-data:
   ats-mongo-data:
   ats-rabbitmq-data:
+  ats-seq-data:
