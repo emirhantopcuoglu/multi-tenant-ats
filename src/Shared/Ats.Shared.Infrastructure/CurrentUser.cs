@@ -21,4 +21,8 @@ public sealed class CurrentUser : ICurrentUser
             out var id)
             ? id
             : null;
+
+    // The JWT 'email' claim; null for anonymous/background requests.
+    public string? Email =>
+        _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.Email);
 }
