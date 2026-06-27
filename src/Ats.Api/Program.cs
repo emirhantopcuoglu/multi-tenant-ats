@@ -9,6 +9,7 @@ using Ats.Api;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Prometheus;
+using RabbitMQ.Client;
 using Serilog;
 using Serilog.Enrichers.OpenTelemetry;
 using Hangfire;
@@ -23,6 +24,8 @@ using Ats.Modules.Interviews.Api.Authorization;
 using Ats.Modules.Interviews.Application;
 using Ats.Modules.Interviews.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Ats.Modules.Jobs.Application;
 using Ats.Modules.Jobs.Infrastructure;
 using Ats.Modules.Tenants.Application;
@@ -500,6 +503,52 @@ builder.Services.AddOpenTelemetry()
                 builder.Configuration["OpenTelemetry:OtlpEndpoint"] ?? "http://localhost:4317");
         }));
 
+// Health checks for liveness and readiness probes.
+//
+// Why two endpoints instead of one?
+// - /health/live answers "is the process alive?" — no external deps. If this fails, restart the pod.
+// - /health/ready answers "can the process serve traffic?" — all deps must respond. If this fails,
+//   remove the instance from the load balancer until it recovers.
+//
+// The RabbitMQ IConnection is registered as a long-lived singleton (per RabbitMQ's own guidelines)
+// and resolved lazily so it does not block startup if the broker is temporarily unreachable.
+var rabbitMqHealthOptions = builder.Configuration
+    .GetSection(RabbitMqOptions.SectionName).Get<RabbitMqOptions>() ?? new RabbitMqOptions();
+
+var mongoHealthOptions = builder.Configuration
+    .GetSection(MongoOptions.SectionName).Get<MongoOptions>() ?? new MongoOptions();
+
+var rabbitMqHealthConnection = new Lazy<Task<IConnection>>(() =>
+    new ConnectionFactory
+    {
+        HostName = rabbitMqHealthOptions.Host,
+        Port = rabbitMqHealthOptions.Port,
+        VirtualHost = rabbitMqHealthOptions.VirtualHost,
+        UserName = rabbitMqHealthOptions.Username,
+        Password = rabbitMqHealthOptions.Password
+    }.CreateConnectionAsync());
+
+builder.Services
+    .AddHealthChecks()
+    .AddNpgSql(
+        connectionString: builder.Configuration.GetConnectionString("Postgres")!,
+        name: "postgres",
+        tags: ["ready"])
+    .AddRedis(
+        sp => sp.GetRequiredService<IConnectionMultiplexer>(),
+        name: "redis",
+        tags: ["ready"])
+    .AddRabbitMQ(
+        _ => rabbitMqHealthConnection.Value,
+        name: "rabbitmq",
+        tags: ["ready"])
+    .AddMongoDb(
+        clientFactory: sp => (MongoClient)sp.GetRequiredService<IMongoClient>(),
+        databaseNameFactory: _ => mongoHealthOptions.DatabaseName,
+        name: "mongodb",
+        tags: ["ready"])
+    .AddCheck<MinioHealthCheck>("minio", tags: ["ready"]);
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -565,6 +614,24 @@ app.UseMiddleware<TenantClaimResolutionMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 
+// Liveness: is the process alive? Predicate = false means no checks run — the endpoint
+// just confirms the process can accept connections. A container orchestrator that gets 200
+// here knows the app started; it should restart if this ever returns 503.
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false,
+    ResponseWriter = WriteHealthCheckJson
+});
+
+// Readiness: are all external dependencies reachable? Only checks tagged "ready" run.
+// A load balancer should route traffic here only when this returns 200; on 503 it removes
+// the instance from rotation until the dependency recovers.
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+    ResponseWriter = WriteHealthCheckJson
+});
+
 // Hangfire dashboard at /hangfire. LocalRequestsOnlyAuthorizationFilter restricts it to localhost: the
 // dashboard exposes job data and trigger/delete controls, and the API's auth is bearer-token based (no
 // cookies), so a browser cannot carry a JWT here. Real authentication for a remote dashboard is a
@@ -585,3 +652,20 @@ RecurringJob.AddOrUpdate<ExpiredInvitationCleanupJob>(
     new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 
 app.Run();
+
+static Task WriteHealthCheckJson(HttpContext context, HealthReport report)
+{
+    context.Response.ContentType = "application/json; charset=utf-8";
+    return context.Response.WriteAsJsonAsync(new
+    {
+        status = report.Status.ToString(),
+        totalDurationMs = report.TotalDuration.TotalMilliseconds,
+        checks = report.Entries.Select(e => new
+        {
+            name = e.Key,
+            status = e.Value.Status.ToString(),
+            durationMs = e.Value.Duration.TotalMilliseconds,
+            description = e.Value.Description
+        })
+    });
+}
