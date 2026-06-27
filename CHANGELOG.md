@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.6.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.5.0...v0.6.0) (2026-06-27)
+
+
+### Features
+
+* **applications:** add PostgreSQL full-text search for candidates ([db6fcd8](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/db6fcd87791830534d6e890b9802bfaa9b1e44e5))
+* **applications:** add PostgreSQL full-text search for candidates ([79e72b5](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/79e72b56f0543b4991e64455ec1bcdac176a0f36))
+* **applications:** parse uploaded CVs with Claude into structured data ([a1287ac](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/a1287ac652352f856047cfd3ca32e75132e86959))
+* **applications:** parse uploaded CVs with Claude into structured data ([7add52e](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/7add52e7908efcd72e5bce51b4edde13c3e556dd))
+* **audit:** add MongoDB audit log via EF Core SaveChangesInterceptor ([09a1b06](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/09a1b0652f2757ce42ed4ded82e802110bc68fff))
+* **audit:** add MongoDB audit log via EF Core SaveChangesInterceptor ([fca91a4](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/fca91a47596e77fc82751ea6b1675542287f32ed))
+* **interviews:** add interview feedback submission ([e0375c2](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/e0375c2b95d3c6c15e194aee4fbc20d91ddadeaa))
+* **interviews:** add interview feedback submission ([46bc76a](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/46bc76ab50d5a92d33a5928ab2f8acf5d1cf5e8b))
+* **interviews:** add reschedule, cancel, complete and no-show endpoints ([793e04e](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/793e04e0168877543c262c4cab0975ccaa27ac0a))
+* **interviews:** add reschedule, cancel, complete and no-show endpoints ([755de05](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/755de05b2a54b63846dfd89c4c31aca25b4eec20))
+* **interviews:** restrict feedback submission to assigned interviewers ([b1621d2](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/b1621d22627ecce2bf1ff6870737825ac8de180a))
+* **interviews:** schedule interviews and view them by date or interviewer ([1ef293f](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/1ef293f115b40d8ca81975a3ff3ab270a5813794))
+* **interviews:** schedule interviews and view them by date or interviewer ([3d1cb03](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/3d1cb035fecfff86b603ce0953197ffd4c907e8e))
+* **observability:** add Serilog structured logging with Seq sink ([f341395](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/f3413956f9bdf8949ac73220dd8a11353caf0d61))
+
 ## [0.5.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.4.0...v0.5.0) (2026-06-23)
 
 
