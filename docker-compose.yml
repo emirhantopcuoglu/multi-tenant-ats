@@ -71,6 +71,18 @@ services:
       # durable queues across a restart. This durability is what the Sprint 5.3 outbox will build on.
       - ats-rabbitmq-data:/var/lib/rabbitmq
 
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: ats-jaeger
+    environment:
+      # Enable the OTLP receiver so the app can send spans directly via gRPC/HTTP.
+      # The UI at http://localhost:16686 shows traces; 4317/4318 are the ingestion ports.
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"  # web UI
+      - "4317:4317"    # OTLP gRPC (Serilog / OTel SDK sends here)
+      - "4318:4318"    # OTLP HTTP
+
   seq:
     image: datalust/seq:latest
     container_name: ats-seq
@@ -91,3 +103,4 @@ volumes:
   ats-mongo-data:
   ats-rabbitmq-data:
   ats-seq-data:
+  ats-jaeger-data:

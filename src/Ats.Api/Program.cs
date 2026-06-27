@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Security.Claims;
 using System.Text;
@@ -5,7 +6,10 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Asp.Versioning;
 using Ats.Api;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Serilog;
+using Serilog.Enrichers.OpenTelemetry;
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.PostgreSql;
@@ -47,6 +51,10 @@ builder.Host.UseSerilog((ctx, services, config) => config
     .ReadFrom.Configuration(ctx.Configuration)
     .ReadFrom.Services(services)
     .Enrich.FromLogContext()
+    // Adds TraceId and SpanId from the current OTel Activity to every log event, so a log line
+    // in Seq can be linked to the matching trace in Jaeger by TraceId.
+    .Enrich.WithOpenTelemetryTraceId()
+    .Enrich.WithOpenTelemetrySpanId()
     .Destructure.With(new SensitiveDataMaskingPolicy()));
 
 builder.Services
@@ -457,6 +465,39 @@ builder.Services.AddAuthorization(options =>
 
 // Stateless handler — singleton is safe and avoids allocating per-request.
 builder.Services.AddSingleton<IAuthorizationHandler, InterviewerAuthorizationHandler>();
+
+// Distributed tracing (Sprint 7.2). A single TracerProvider covers all instrumented activities.
+// The OTLP exporter forwards spans to Jaeger (http://localhost:4317 dev); swap the endpoint
+// for Tempo, Honeycomb, or Datadog in other environments — code stays unchanged.
+//
+// Why OTLP instead of Jaeger's own exporter? OTLP is vendor-neutral: Jaeger, Grafana Tempo,
+// and most hosted APM tools all accept it. The Jaeger-specific exporter is deprecated.
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource
+        .AddService(
+            serviceName: builder.Configuration["OpenTelemetry:ServiceName"] ?? "ats-api",
+            serviceVersion: typeof(Program).Assembly.GetName().Version?.ToString() ?? "0.0.0"))
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation(options =>
+        {
+            options.RecordException = true;
+            // Health check endpoints produce noise with no diagnostic value.
+            options.Filter = ctx => !ctx.Request.Path.StartsWithSegments("/health");
+        })
+        .AddHttpClientInstrumentation()
+        .AddEntityFrameworkCoreInstrumentation()
+        // MassTransit registers its own ActivitySource under "MassTransit". Subscribing here
+        // creates spans for every publish, consume, and send — the RabbitMQ leg of a request
+        // appears as a child span of the HTTP span that triggered the publish.
+        .AddSource("MassTransit")
+        // Redis instrumentation. Receives the shared multiplexer so it can subscribe to the
+        // ProfiledCommand events that StackExchange.Redis emits per operation.
+        .AddRedisInstrumentation(redisConnection)
+        .AddOtlpExporter(options =>
+        {
+            options.Endpoint = new Uri(
+                builder.Configuration["OpenTelemetry:OtlpEndpoint"] ?? "http://localhost:4317");
+        }));
 
 var app = builder.Build();
 
