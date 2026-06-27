@@ -31,12 +31,20 @@ public sealed class MailKitEmailSender : IEmailSender
             ? SecureSocketOptions.StartTls
             : SecureSocketOptions.None;
 
-        await client.ConnectAsync(_options.Host, _options.Port, socketOptions, cancellationToken);
+        try
+        {
+            await client.ConnectAsync(_options.Host, _options.Port, socketOptions, cancellationToken);
 
-        if (!string.IsNullOrEmpty(_options.Username))
-            await client.AuthenticateAsync(_options.Username, _options.Password ?? string.Empty, cancellationToken);
+            if (!string.IsNullOrEmpty(_options.Username))
+                await client.AuthenticateAsync(_options.Username, _options.Password ?? string.Empty, cancellationToken);
 
-        await client.SendAsync(message, cancellationToken);
-        await client.DisconnectAsync(true, cancellationToken);
+            await client.SendAsync(message, cancellationToken);
+            await client.DisconnectAsync(true, cancellationToken);
+        }
+        catch
+        {
+            AppMetrics.EmailFailuresTotal.Inc();
+            throw;
+        }
     }
 }

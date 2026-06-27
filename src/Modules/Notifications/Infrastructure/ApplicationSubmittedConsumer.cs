@@ -1,5 +1,6 @@
 using System.Net;
 using Ats.Shared.Contracts.Notifications;
+using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
 using MassTransit;
 using Microsoft.Extensions.Logging;
@@ -64,6 +65,7 @@ public sealed class ApplicationSubmittedConsumer : IConsumer<ApplicationSubmitte
             return;
         }
 
+        AppMetrics.ApplicationsSubmittedTotal.Inc();
         _logger.LogInformation(
             "Sent application-received email to {CandidateEmail} for application {ApplicationId}",
             message.CandidateEmail,

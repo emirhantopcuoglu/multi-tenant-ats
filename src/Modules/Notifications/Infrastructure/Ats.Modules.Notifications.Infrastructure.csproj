@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="MassTransit.Abstractions" Version="8.3.0" />
+    <PackageReference Include="prometheus-net" Version="8.2.1" />
   </ItemGroup>
 
   <PropertyGroup>

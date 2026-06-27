@@ -1,8 +1,10 @@
 using Ats.Modules.Applications.Application;
 using Ats.Shared.Contracts.Applications;
+using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
 using MassTransit;
 using Microsoft.Extensions.Logging;
+using Prometheus;
 
 namespace Ats.Modules.Applications.Infrastructure;
 
@@ -69,7 +71,11 @@ public sealed class CvParsingConsumer : IConsumer<CvParseRequestedIntegrationEve
             return;
         }
 
-        var result = await _cvParser.ParseAsync(text, context.CancellationToken);
+        CvParseResult result;
+        using (AppMetrics.CvParsingDurationSeconds.NewTimer())
+        {
+            result = await _cvParser.ParseAsync(text, context.CancellationToken);
+        }
 
         await _repository.SaveAsync(
             message.TenantId, message.ApplicationId, result, DateTime.UtcNow, context.CancellationToken);

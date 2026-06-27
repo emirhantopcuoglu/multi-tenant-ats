@@ -8,6 +8,7 @@ using Asp.Versioning;
 using Ats.Api;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Prometheus;
 using Serilog;
 using Serilog.Enrichers.OpenTelemetry;
 using Hangfire;
@@ -519,6 +520,14 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseExceptionHandler();
+
+// Metrics endpoint at /metrics (scraped by Prometheus). Placed before auth so Prometheus can
+// reach it without a token. The endpoint itself exposes no sensitive business data.
+app.UseMetricServer();
+
+// Tracks HTTP request count, duration, and in-progress count per method/route/status.
+// Placed early so it captures every request including 4xx/5xx responses.
+app.UseHttpMetrics();
 
 // Assign / forward X-Correlation-ID before anything else so every log line carries it.
 app.UseMiddleware<CorrelationIdMiddleware>();

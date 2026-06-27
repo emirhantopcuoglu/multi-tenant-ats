@@ -97,6 +97,40 @@ services:
     volumes:
       - ats-seq-data:/data
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ats-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+    ports:
+      - "9090:9090"  # web UI + query API
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ats-prometheus-data:/prometheus
+    # Allows scraping from the host machine (where the API runs) on Windows / Mac Docker Desktop.
+    # On Linux replace host.docker.internal with host-gateway via extra_hosts.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ats-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    ports:
+      - "3000:3000"  # web UI — http://localhost:3000
+    volumes:
+      - ats-grafana-data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
 volumes:
   ats-postgres-data:
   ats-minio-data:
@@ -104,3 +138,5 @@ volumes:
   ats-rabbitmq-data:
   ats-seq-data:
   ats-jaeger-data:
+  ats-prometheus-data:
+  ats-grafana-data:
