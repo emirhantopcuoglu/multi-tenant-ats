@@ -9,6 +9,7 @@ using Hangfire.Dashboard;
 using Hangfire.PostgreSql;
 using MassTransit;
 using Ats.Modules.Applications.Application;
+using Ats.Modules.Applications.Application.Applications;
 using Ats.Modules.Notifications.Infrastructure;
 using Ats.Modules.Applications.Infrastructure;
 using Ats.Modules.Interviews.Api.Authorization;
@@ -156,6 +157,10 @@ builder.Services.AddScoped<IActivityLogRepository, MongoActivityLogRepository>()
 // path depends on the per-request ICurrentTenant; the write path (the CV-parsing consumer) passes the
 // tenant explicitly, since it runs outside a resolved-tenant request.
 builder.Services.AddScoped<ICvParseResultRepository, MongoCvParseResultRepository>();
+
+// Candidate full-text search (Sprint 6.4). Backed by a PostgreSQL tsvector generated column on the
+// Candidates table; the repository is scoped because the underlying DbContext is scoped.
+builder.Services.AddScoped<ICandidateSearchRepository, CandidateSearchRepository>();
 
 // LLM-backed CV parsing (Sprint 6.3). The PDF text extractor and the parser are stateless and
 // thread-safe (the parser holds one reusable Polly pipeline and pulls HTTP clients from the factory),
