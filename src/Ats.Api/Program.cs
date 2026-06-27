@@ -90,6 +90,7 @@ builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantCon
 builder.Services.AddScoped<ICurrentTenant>(sp => sp.GetRequiredService<TenantContext>());
 builder.Services.AddScoped<TenantSaveChangesInterceptor>();
 builder.Services.AddScoped<AuditableSaveChangesInterceptor>();
+builder.Services.AddScoped<AuditLogInterceptor>();
 
 builder.Services.AddDbContext<TenantsDbContext>((sp, options) =>
     options
@@ -98,7 +99,8 @@ builder.Services.AddDbContext<TenantsDbContext>((sp, options) =>
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "tenants"))
         .AddInterceptors(
             sp.GetRequiredService<TenantSaveChangesInterceptor>(),
-            sp.GetRequiredService<AuditableSaveChangesInterceptor>()));
+            sp.GetRequiredService<AuditableSaveChangesInterceptor>(),
+            sp.GetRequiredService<AuditLogInterceptor>()));
 
 builder.Services.AddDbContext<JobsDbContext>((sp, options) =>
     options
@@ -107,7 +109,8 @@ builder.Services.AddDbContext<JobsDbContext>((sp, options) =>
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "jobs"))
         .AddInterceptors(
             sp.GetRequiredService<TenantSaveChangesInterceptor>(),
-            sp.GetRequiredService<AuditableSaveChangesInterceptor>()));
+            sp.GetRequiredService<AuditableSaveChangesInterceptor>(),
+            sp.GetRequiredService<AuditLogInterceptor>()));
 
 builder.Services.AddScoped<IJobsDbContext>(sp => sp.GetRequiredService<JobsDbContext>());
 builder.Services.AddJobsApplication();
@@ -119,7 +122,8 @@ builder.Services.AddDbContext<ApplicationsDbContext>((sp, options) =>
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "applications"))
         .AddInterceptors(
             sp.GetRequiredService<TenantSaveChangesInterceptor>(),
-            sp.GetRequiredService<AuditableSaveChangesInterceptor>()));
+            sp.GetRequiredService<AuditableSaveChangesInterceptor>(),
+            sp.GetRequiredService<AuditLogInterceptor>()));
 
 builder.Services.AddScoped<IApplicationsDbContext>(sp => sp.GetRequiredService<ApplicationsDbContext>());
 builder.Services.AddApplicationsApplication();
@@ -131,7 +135,8 @@ builder.Services.AddDbContext<InterviewsDbContext>((sp, options) =>
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "interviews"))
         .AddInterceptors(
             sp.GetRequiredService<TenantSaveChangesInterceptor>(),
-            sp.GetRequiredService<AuditableSaveChangesInterceptor>()));
+            sp.GetRequiredService<AuditableSaveChangesInterceptor>(),
+            sp.GetRequiredService<AuditLogInterceptor>()));
 
 builder.Services.AddScoped<IInterviewsDbContext>(sp => sp.GetRequiredService<InterviewsDbContext>());
 builder.Services.AddInterviewsApplication();
@@ -454,9 +459,10 @@ using (var scope = app.Services.CreateScope())
     var fileStorageOptions = scope.ServiceProvider.GetRequiredService<IOptions<FileStorageOptions>>();
     await FileStorageInitializer.EnsureBucketAsync(minioClient, fileStorageOptions);
 
-    // Ensure the activity-log read index exists. Idempotent, like the steps above.
+    // Ensure the activity-log and audit-log read indexes exist. Idempotent.
     var mongoDatabase = scope.ServiceProvider.GetRequiredService<IMongoDatabase>();
     await MongoActivityLogInitializer.EnsureIndexesAsync(mongoDatabase);
+    await MongoAuditLogInitializer.EnsureIndexesAsync(mongoDatabase);
 }
 
 app.UseExceptionHandler();
