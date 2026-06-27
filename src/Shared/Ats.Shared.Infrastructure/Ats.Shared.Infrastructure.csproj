@@ -17,6 +17,7 @@
     <PackageReference Include="MongoDB.Driver" Version="3.9.0" />
     <PackageReference Include="PdfPig" Version="0.1.15" />
     <PackageReference Include="Polly.Core" Version="8.7.0" />
+    <PackageReference Include="prometheus-net" Version="8.2.1" />
     <PackageReference Include="StackExchange.Redis" Version="2.8.58" />
   </ItemGroup>
 
