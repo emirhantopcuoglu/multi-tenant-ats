@@ -108,6 +108,37 @@ public sealed class AuthService : IAuthService
         return Result.Success();
     }
 
+    public async Task<Result<CurrentUserDto>> GetCurrentUserAsync(Guid userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+            return Result.Failure<CurrentUserDto>(AuthErrors.UserNotFound);
+
+        // Every user belongs to a tenant — register creates the tenant before the user, and invited
+        // users accept into an existing one — so a missing TenantId/tenant is an inconsistent state,
+        // not a normal case. Treat it as "user not found" rather than returning a half-built profile.
+        var tenant = user.TenantId is { } tenantId
+            ? await _db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId)
+            : null;
+        if (tenant is null)
+            return Result.Failure<CurrentUserDto>(AuthErrors.UserNotFound);
+
+        // We model one role per user (RegisterAsync assigns Admin; invitations assign a single role),
+        // so the first role is the user's role.
+        var roles = await _userManager.GetRolesAsync(user);
+        var role = roles.FirstOrDefault() ?? string.Empty;
+
+        var dto = new CurrentUserDto(
+            user.Id,
+            user.FirstName,
+            user.LastName,
+            user.Email ?? string.Empty,
+            role,
+            new CurrentUserTenantDto(tenant.Name, tenant.Slug));
+
+        return Result.Success(dto);
+    }
+
     private async Task<AuthResult> IssueTokensAsync(ApplicationUser user)
     {
         var roles = await _userManager.GetRolesAsync(user);

@@ -1,6 +1,7 @@
 using Asp.Versioning;
 using Ats.Modules.Tenants.Application;
 using Ats.Shared.Kernel;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -12,10 +13,12 @@ namespace Ats.Modules.Tenants.Api;
 public sealed class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly ICurrentUser _currentUser;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, ICurrentUser currentUser)
     {
         _authService = authService;
+        _currentUser = currentUser;
     }
 
     public sealed record RegisterRequest(
@@ -61,5 +64,23 @@ public sealed class AuthController : ControllerBase
     {
         await _authService.LogoutAsync(request.RefreshToken);
         return NoContent();
+    }
+
+    [HttpGet("me")]
+    [Authorize]
+    public async Task<IActionResult> Me()
+    {
+        // [Authorize] guarantees an authenticated principal, so UserId is present; the guard only
+        // covers the impossible case of a token without a 'sub' claim, mapping it to 401.
+        if (_currentUser.UserId is not { } userId)
+            return Unauthorized();
+
+        var result = await _authService.GetCurrentUserAsync(userId);
+
+        // A valid token whose user/tenant no longer exists is an inconsistent state, not a client
+        // error in the request — 404 communicates "this authenticated identity has no profile".
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : NotFound(new { result.Error.Code, result.Error.Message });
     }
 }
