@@ -1,0 +1,7 @@
+@import 'tailwindcss';
+
+/* Dark mode via a `.dark` class on an ancestor (the "class" strategy), not the OS preference.
+   Tailwind v4 defaults `dark:` to prefers-color-scheme; this custom variant rewires it to respond
+   to a `.dark` class instead, so ThemeProvider (Step 1.2) can toggle the theme by adding/removing
+   that class on <html>. The design tokens themselves are added in Step 1.2. */
+@custom-variant dark (&:where(.dark, .dark *));
