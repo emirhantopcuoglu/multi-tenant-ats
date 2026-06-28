@@ -25,6 +25,7 @@ using Ats.Modules.Interviews.Application;
 using Ats.Modules.Interviews.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Ats.Modules.Jobs.Application;
 using Ats.Modules.Jobs.Infrastructure;
@@ -303,6 +304,36 @@ RateLimitPartition<string> FailOpenRedisFixedWindow(HttpContext httpContext, str
             partitionKey));
 }
 
+// CORS for the SPA (Sprint 8.1). The front-end (Ats.Web) runs on a different origin than the API, so
+// the browser blocks its requests unless the API allows that origin. The allowed origins come from the
+// "Cors" section so each environment lists its own front-end without a code change. AllowCredentials is
+// required because the refresh flow carries credentials cross-origin; the CORS spec then forbids a
+// wildcard origin, which is why AllowedOrigins is an explicit list. Retry-After is exposed so the SPA
+// can read the rate limiter's back-off hint (cross-origin responses hide non-safelisted headers by default).
+var corsOptions = builder.Configuration
+    .GetSection(CorsOptions.SectionName).Get<CorsOptions>() ?? new CorsOptions();
+
+builder.Services.AddCors(options =>
+    options.AddPolicy(CorsPolicies.Spa, policy => policy
+        .WithOrigins(corsOptions.AllowedOrigins)
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials()
+        .WithExposedHeaders("Retry-After")));
+
+// Forwarded headers (Sprint 8.1). Behind a reverse proxy (nginx/Caddy in Sprint 8), the real client IP
+// and scheme arrive in X-Forwarded-For / X-Forwarded-Proto; without this middleware RemoteIpAddress is
+// the proxy's address. The per-IP rate limiter partitions on RemoteIpAddress, so it would otherwise
+// throttle every client behind the proxy as one. KnownNetworks/KnownProxies are cleared because the
+// proxy runs in an unknown Docker/host network range; this is safe only when the app is not exposed
+// directly to the internet (it always sits behind the proxy) — revisit if that assumption changes.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 // RabbitMQ message bus (Sprint 5). MassTransit is the abstraction over the broker: it owns the
 // connection, retries, and (Sprint 5.3) the outbox, and lets consumer code stay transport-agnostic.
 // Sprint 5.2 added the first consumer (application-submitted -> candidate email). Unlike the
@@ -568,6 +599,11 @@ using (var scope = app.Services.CreateScope())
     await MongoAuditLogInitializer.EnsureIndexesAsync(mongoDatabase);
 }
 
+// Apply X-Forwarded-* first so every downstream component (request logging, metrics, the per-IP rate
+// limiter) sees the real client IP and scheme instead of the reverse proxy's. Must run before
+// UseRateLimiter, which partitions on RemoteIpAddress.
+app.UseForwardedHeaders();
+
 app.UseExceptionHandler();
 
 // Metrics endpoint at /metrics (scraped by Prometheus). Placed before auth so Prometheus can
@@ -603,6 +639,11 @@ if (app.Environment.IsDevelopment())
         options.AddPreferredSecuritySchemes("Bearer");
     });
 }
+
+// CORS runs after routing but before tenant resolution and authentication so that a preflight (OPTIONS)
+// request — which carries no slug and no token — is answered here and never falls through to tenant or
+// auth logic that would reject it.
+app.UseCors(CorsPolicies.Spa);
 
 app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthentication();
