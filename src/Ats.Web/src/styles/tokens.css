@@ -1,0 +1,79 @@
+/* Design tokens — ported verbatim from the Claude Design prototype
+   ("Design System.dc.html" / "Auth.dc.html"). The prototype keys the palette off
+   [data-theme]; we key it off a `.dark` class instead, because that is the dark-mode
+   strategy the scaffold already wired up (see the @custom-variant in index.css) and the
+   strategy ThemeProvider toggles. Light is the default (:root); dark overrides under .dark.
+
+   These are raw values on purpose. index.css bridges them into Tailwind's semantic color
+   utilities with `@theme inline`, so that flipping `.dark` re-resolves every utility at
+   runtime instead of baking a frozen value at build time. */
+
+:root {
+  /* Surfaces */
+  --bg: #f7f7f8;
+  --card: #ffffff;
+  --elevated: #ffffff;
+  --border: #e6e6ea;
+  --divider: #f1f1f4;
+
+  /* Text */
+  --text: #18181b;
+  --text-muted: #6b6b76;
+  --text-disabled: #a8a8b3;
+  --text-inverse: #ffffff;
+
+  /* Accent (indigo) */
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+  --accent-active: #4338ca;
+  --accent-subtle: #eef0ff;
+  --accent-fg: #ffffff;
+
+  /* Status */
+  --success: #16a34a;
+  --success-bg: #e7f6ed;
+  --warning: #b45309;
+  --warning-bg: #fbf0db;
+  --danger: #dc2626;
+  --danger-bg: #fcebeb;
+  --info: #2563eb;
+  --info-bg: #e7effd;
+
+  /* Elevation */
+  --shadow: 0 1px 2px rgba(16, 16, 20, 0.06), 0 8px 24px rgba(16, 16, 20, 0.05);
+}
+
+.dark {
+  /* Surfaces */
+  --bg: #09090b;
+  --card: #141417;
+  --elevated: #1b1b1f;
+  --border: #27272c;
+  --divider: #1c1c20;
+
+  /* Text */
+  --text: #f4f4f5;
+  --text-muted: #9a9aa4;
+  --text-disabled: #55555f;
+  --text-inverse: #18181b;
+
+  /* Accent (indigo) */
+  --accent: #6e72f3;
+  --accent-hover: #818cf8;
+  --accent-active: #a5b4fc;
+  --accent-subtle: #1f1d36;
+  --accent-fg: #ffffff;
+
+  /* Status */
+  --success: #22c55e;
+  --success-bg: #10271a;
+  --warning: #f59e0b;
+  --warning-bg: #2c2107;
+  --danger: #f0596a;
+  --danger-bg: #2d1418;
+  --info: #3b82f6;
+  --info-bg: #0d1f3d;
+
+  /* Elevation */
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 10px 30px rgba(0, 0, 0, 0.4);
+}
