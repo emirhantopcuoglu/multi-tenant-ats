@@ -1,0 +1,130 @@
+{
+  "common": {
+    "appName": "Ats",
+    "search": "Aday, ilan ara…",
+    "toggleTheme": "Açık / koyu geçişi",
+    "save": "Kaydet",
+    "cancel": "İptal"
+  },
+  "nav": {
+    "overview": "Genel bakış",
+    "jobs": "İlanlar",
+    "applications": "Başvurular",
+    "interviews": "Mülakatlar",
+    "candidates": "Adaylar",
+    "settings": "Ayarlar"
+  },
+  "auth": {
+    "tagline": "Aday takibi, doğru şekilde",
+    "brandHead": "Birlikte daha iyi işe alın.",
+    "brandSub": "İlanlar, adaylar, mülakatlar ve yapılandırılmış geri bildirim için tek çalışma alanı — tüm işe alım ekibiniz için.",
+    "email": "E-posta",
+    "password": "Parola",
+    "forgot": "Parolanı mı unuttun?",
+    "remember": "Oturumumu açık tut",
+    "signInBtn": "Giriş yap",
+    "noAccount": "Ats’te yeni misin?",
+    "createOne": "Çalışma alanı oluştur",
+    "loginTitle": "Tekrar hoş geldin",
+    "loginSub": "{{company}} çalışma alanına giriş yap.",
+    "companyName": "Şirket adı",
+    "workspaceUrl": "Çalışma alanı adresi",
+    "urlPreview": "Çalışma alanın şu adreste olacak:",
+    "firstName": "Ad",
+    "lastName": "Soyad",
+    "slugPlaceholder": "sirketiniz",
+    "createBtn": "Çalışma alanı oluştur",
+    "haveAccount": "Zaten hesabın var mı?",
+    "signInLink": "Giriş yap",
+    "regTitle": "Çalışma alanını oluştur",
+    "regSub": "Dakikalar içinde işe almaya başla — kredi kartı gerekmez.",
+    "pwHint": "En az 8 karakter.",
+    "terms": "Devam ederek Şartlar ve Gizlilik Politikası’nı kabul edersiniz.",
+    "invTitle": "Davetini kabul et",
+    "invSub": "Ekibe katılmak için adını ve bir parola belirle.",
+    "invitedBy": "seni katılmaya davet etti:",
+    "asRole": "rol:",
+    "acceptBtn": "Kabul et ve katıl",
+    "setPassword": "Bir parola seç",
+    "tabLogin": "Giriş",
+    "tabRegister": "Kayıt",
+    "tabInvite": "Davet"
+  },
+  "form": {
+    "department": "Departman",
+    "notes": "Notlar",
+    "notesPlaceholder": "İşe alım ekibi için not ekle…",
+    "invalidEmail": "Geçerli bir e-posta adresi girin."
+  },
+  "table": {
+    "candidate": "Aday",
+    "role": "Pozisyon",
+    "stage": "Aşama",
+    "status": "Durum",
+    "applied": "Başvuru",
+    "showing": "Gösterilen {{from}} / {{total}}",
+    "rows_one": "{{count}} başvuru",
+    "rows_other": "{{count}} başvuru"
+  },
+  "status": {
+    "Draft": "Taslak",
+    "Published": "Yayında",
+    "Closed": "Kapalı",
+    "Archived": "Arşivlendi",
+    "Active": "Aktif",
+    "Hired": "İşe alındı",
+    "Rejected": "Reddedildi",
+    "Withdrawn": "Geri çekildi",
+    "Scheduled": "Planlandı",
+    "Completed": "Tamamlandı",
+    "Cancelled": "İptal edildi",
+    "NoShow": "Gelmedi"
+  },
+  "recommendation": {
+    "StrongNoHire": "Kesinlikle hayır",
+    "NoHire": "Olumsuz",
+    "Hire": "Olumlu",
+    "StrongHire": "Kesinlikle evet"
+  },
+  "stage": {
+    "Applied": "Başvurdu",
+    "Screening": "Ön eleme",
+    "Interview": "Mülakat",
+    "Offer": "Teklif",
+    "Hired": "İşe alındı",
+    "Rejected": "Reddedildi"
+  },
+  "role": {
+    "Admin": "Yönetici",
+    "Recruiter": "İşe alım uzmanı",
+    "HiringManager": "İşe alım müdürü",
+    "ReadOnly": "Salt okunur"
+  },
+  "stats": {
+    "openJobs": "Açık ilanlar",
+    "candidates": "Aktif adaylar",
+    "interviews": "Bu haftaki mülakatlar",
+    "offer": "Teklif kabul oranı"
+  },
+  "empty": {
+    "title": "Henüz başvuru yok",
+    "body": "Adaylar bu ilana başvurduğunda burada görünecek.",
+    "cta": "İlan bağlantısını paylaş"
+  },
+  "menu": {
+    "view": "Profili gör",
+    "edit": "Başvuruyu düzenle",
+    "remove": "Reddedilenlere taşı"
+  },
+  "interview": {
+    "scheduleTitle": "Mülakat planla",
+    "type": "Mülakat türü",
+    "when": "Tarih ve saat",
+    "schedule": "Planla"
+  },
+  "activity": {
+    "submitted": "bir başvuru gönderdi.",
+    "moved": "adayı taşıdı",
+    "rejected": "başvuruyu reddetti."
+  }
+}
