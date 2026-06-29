@@ -1,3 +1,4 @@
+using Ats.Modules.Applications.Infrastructure;
 using Ats.Modules.Jobs.Infrastructure;
 using Ats.Modules.Tenants.Infrastructure;
 using Ats.Shared.Infrastructure;
@@ -19,6 +20,7 @@ public sealed class PostgresContainerFixture : IAsyncLifetime
         await _container.StartAsync();
         await ApplyJobsMigrationsAsync();
         await ApplyTenantsMigrationsAsync();
+        await ApplyApplicationsMigrationsAsync();
     }
 
     public async Task DisposeAsync()
@@ -40,6 +42,13 @@ public sealed class PostgresContainerFixture : IAsyncLifetime
         await db.Database.MigrateAsync();
     }
 
+    private async Task ApplyApplicationsMigrationsAsync()
+    {
+        var tenant = new FixedTenant(null);
+        await using var db = new ApplicationsDbContext(BuildApplicationsOptions(ConnectionString, tenant), tenant);
+        await db.Database.MigrateAsync();
+    }
+
     internal static DbContextOptions<JobsDbContext> BuildJobsOptions(string connectionString, ICurrentTenant tenant)
         => new DbContextOptionsBuilder<JobsDbContext>()
             .UseNpgsql(connectionString,
@@ -53,6 +62,15 @@ public sealed class PostgresContainerFixture : IAsyncLifetime
         => new DbContextOptionsBuilder<TenantsDbContext>()
             .UseNpgsql(connectionString,
                 npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "tenants"))
+            .AddInterceptors(
+                new TenantSaveChangesInterceptor(tenant),
+                new AuditableSaveChangesInterceptor(new NullCurrentUser()))
+            .Options;
+
+    internal static DbContextOptions<ApplicationsDbContext> BuildApplicationsOptions(string connectionString, ICurrentTenant tenant)
+        => new DbContextOptionsBuilder<ApplicationsDbContext>()
+            .UseNpgsql(connectionString,
+                npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "applications"))
             .AddInterceptors(
                 new TenantSaveChangesInterceptor(tenant),
                 new AuditableSaveChangesInterceptor(new NullCurrentUser()))
