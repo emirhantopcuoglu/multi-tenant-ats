@@ -4,12 +4,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Button, Input } from '@/components/ui';
+import { Button, Field, Input } from '@/components/ui';
 import { useAuth } from '@/app/auth/auth-context';
 import { toApiError } from '@/lib/problemDetails';
 import { slugify } from '@/lib/slugify';
 import { AuthLayout } from '../components/AuthLayout';
-import { Field } from '../components/Field';
 import { authErrorMessage } from '../authErrorMessage';
 
 const PASSWORD_MIN = 8;

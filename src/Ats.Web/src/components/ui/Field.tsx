@@ -9,7 +9,7 @@ interface FieldRenderProps {
 
 /* Labelled form field with accessible error wiring. The control is a render prop so the caller can
    spread react-hook-form's register() onto our Input/Select while we own the id ↔ label ↔ error
-   relationships (htmlFor, aria-describedby, aria-invalid). */
+   relationships (htmlFor, aria-describedby, aria-invalid). Shared across the auth and jobs forms. */
 export function Field({
   label,
   error,
