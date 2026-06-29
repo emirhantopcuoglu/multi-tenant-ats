@@ -1,18 +1,40 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   Avatar,
   Badge,
+  Breadcrumb,
   Button,
   Card,
   Checkbox,
+  Dropdown,
   EmptyState,
   IconButton,
   Input,
+  KanbanCard,
+  KanbanColumn,
+  Modal,
+  Pagination,
   Select,
+  SidebarNavItem,
   Skeleton,
+  SortableTH,
   StatCard,
+  TabPanel,
+  Table,
+  Tabs,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+  TableFooter,
   Textarea,
+  Timeline,
+  TimelineItem,
   Toggle,
+  Tooltip,
+  useToast,
+  type SortDirection,
 } from '@/components/ui';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
@@ -60,7 +82,42 @@ function TrashIcon() {
   );
 }
 
+function DotsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <circle cx="5" cy="12" r="1.6" />
+      <circle cx="12" cy="12" r="1.6" />
+      <circle cx="19" cy="12" r="1.6" />
+    </svg>
+  );
+}
+
+function ToastDemoButton() {
+  const { toast } = useToast();
+  return (
+    <Button
+      variant="secondary"
+      onClick={() =>
+        toast({ title: 'Interview scheduled', description: 'Elif Yılmaz · Technical · Mon 10:00', tone: 'success' })
+      }
+    >
+      Show toast
+    </Button>
+  );
+}
+
+const candidateRows = [
+  { name: 'Elif Yılmaz', role: 'Sr. Frontend Engineer', stage: 'Interview', status: 'Active' as const, applied: '2d ago' },
+  { name: 'Sarah Chen', role: 'Backend Engineer', stage: 'Offer', status: 'Hired' as const, applied: '5d ago' },
+  { name: 'Ahmet Kaya', role: 'DevOps Engineer', stage: 'Applied', status: 'Rejected' as const, applied: '1w ago' },
+];
+
 export function PlaygroundPage() {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [tab, setTab] = useState('overview');
+  const [sortDir, setSortDir] = useState<SortDirection>('asc');
+  const [page, setPage] = useState(2);
+
   return (
     <div className="min-h-screen bg-bg text-text">
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card/80 px-6 py-4 backdrop-blur">
@@ -154,6 +211,153 @@ export function PlaygroundPage() {
           </div>
         </Section>
 
+        <Section title="Overlays — modal, dropdown, tooltip, toast">
+          <Card className="flex flex-wrap items-center gap-3">
+            <Button onClick={() => setModalOpen(true)}>Open dialog</Button>
+            <Dropdown
+              align="start"
+              trigger={<Button variant="secondary" leadingIcon={<DotsIcon />}>Actions</Button>}
+              items={[
+                { key: 'view', label: 'View profile', onSelect: () => undefined },
+                { key: 'edit', label: 'Edit application', onSelect: () => undefined },
+                { key: 'reject', label: 'Move to rejected', onSelect: () => undefined, tone: 'danger', separatorBefore: true },
+              ]}
+            />
+            <Tooltip content="Tooltips give extra context">
+              <Button variant="ghost">Hover me</Button>
+            </Tooltip>
+            <ToastDemoButton />
+          </Card>
+        </Section>
+
+        <Section title="Tabs">
+          <Card>
+            <Tabs
+              value={tab}
+              onValueChange={setTab}
+              items={[
+                { value: 'overview', label: 'Overview' },
+                { value: 'details', label: 'Details' },
+                { value: 'activity', label: 'Activity' },
+              ]}
+            >
+              <TabPanel value="overview">
+                <p className="text-sm text-text-muted">A quick summary of the role and pipeline health.</p>
+              </TabPanel>
+              <TabPanel value="details">
+                <p className="text-sm text-text-muted">Full job description, requirements and salary band.</p>
+              </TabPanel>
+              <TabPanel value="activity">
+                <p className="text-sm text-text-muted">Every stage change, note and email, in order.</p>
+              </TabPanel>
+            </Tabs>
+          </Card>
+        </Section>
+
+        <Section title="Table — sortable header, row actions, pagination footer">
+          <Table>
+            <THead>
+              <TR>
+                <SortableTH direction={sortDir} onSort={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}>
+                  Candidate
+                </SortableTH>
+                <TH>Role</TH>
+                <TH>Stage</TH>
+                <TH>Status</TH>
+                <TH className="text-right">Applied</TH>
+                <TH />
+              </TR>
+            </THead>
+            <TBody>
+              {candidateRows.map((row) => (
+                <TR key={row.name} interactive>
+                  <TD>
+                    <div className="flex items-center gap-2.5">
+                      <Avatar name={row.name} size="sm" />
+                      <span className="font-medium">{row.name}</span>
+                    </div>
+                  </TD>
+                  <TD className="text-text-muted">{row.role}</TD>
+                  <TD>{row.stage}</TD>
+                  <TD>
+                    <Badge tone={applicationStatusTone[row.status]}>{row.status}</Badge>
+                  </TD>
+                  <TD className="text-right text-text-muted">{row.applied}</TD>
+                  <TD className="text-right">
+                    <Dropdown
+                      trigger={<IconButton aria-label="Row actions" icon={<DotsIcon />} className="border-transparent bg-transparent" />}
+                      items={[
+                        { key: 'view', label: 'View profile', onSelect: () => undefined },
+                        { key: 'reject', label: 'Move to rejected', onSelect: () => undefined, tone: 'danger', separatorBefore: true },
+                      ]}
+                    />
+                  </TD>
+                </TR>
+              ))}
+            </TBody>
+            <tfoot>
+              <tr>
+                <td colSpan={6} className="p-0">
+                  <TableFooter>
+                    <span className="text-sm text-text-muted">Showing 6 of 148 applications</span>
+                    <Pagination page={page} pageCount={25} onPageChange={setPage} />
+                  </TableFooter>
+                </td>
+              </tr>
+            </tfoot>
+          </Table>
+        </Section>
+
+        <Section title="Breadcrumb">
+          <Card>
+            <Breadcrumb
+              items={[{ label: 'Jobs', href: '/jobs' }, { label: 'Senior Frontend Engineer' }]}
+            />
+          </Card>
+        </Section>
+
+        <Section title="Pipeline — Kanban">
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            <KanbanColumn title="Applied" count={2}>
+              <KanbanCard>
+                <div className="flex items-center gap-2">
+                  <Avatar name="Ahmet Kaya" size="sm" />
+                  <span className="text-sm font-medium">Ahmet Kaya</span>
+                </div>
+                <span className="text-xs text-text-muted">DevOps Engineer</span>
+              </KanbanCard>
+            </KanbanColumn>
+            <KanbanColumn title="Interview" count={1}>
+              <KanbanCard>
+                <div className="flex items-center gap-2">
+                  <Avatar name="Elif Yılmaz" size="sm" />
+                  <span className="text-sm font-medium">Elif Yılmaz</span>
+                </div>
+                <span className="text-xs text-text-muted">Sr. Frontend Engineer</span>
+              </KanbanCard>
+            </KanbanColumn>
+          </div>
+        </Section>
+
+        <Section title="Activity timeline">
+          <Card>
+            <Timeline>
+              <TimelineItem tone="accent" title={<><strong className="font-semibold">Elif Yılmaz</strong> submitted an application.</>} meta="2 days ago" />
+              <TimelineItem tone="success" title={<><strong className="font-semibold">You</strong> moved the candidate to Interview.</>} meta="1 day ago" />
+              <TimelineItem tone="danger" last title={<><strong className="font-semibold">You</strong> rejected the application.</>} meta="3 hours ago" />
+            </Timeline>
+          </Card>
+        </Section>
+
+        <Section title="Sidebar navigation">
+          <Card className="max-w-xs space-y-1">
+            <SidebarNavItem label="Overview" active />
+            <SidebarNavItem label="Jobs" />
+            <SidebarNavItem label="Applications" />
+            <SidebarNavItem label="Interviews" />
+          </Card>
+        </Section>
+
         <Section title="Loading & empty states">
           <div className="grid gap-4 sm:grid-cols-2">
             <Card className="space-y-3">
@@ -171,6 +375,32 @@ export function PlaygroundPage() {
           </div>
         </Section>
       </main>
+
+      <Modal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        title="Schedule interview"
+        description="Set up an interview for Elif Yılmaz"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={() => setModalOpen(false)}>
+              Schedule
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <Select defaultValue="technical">
+            <option value="phone">Phone screen</option>
+            <option value="technical">Technical</option>
+            <option value="final">Final</option>
+          </Select>
+          <Input type="datetime-local" />
+        </div>
+      </Modal>
     </div>
   );
 }

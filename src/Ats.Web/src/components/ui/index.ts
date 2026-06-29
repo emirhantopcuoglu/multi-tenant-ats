@@ -13,3 +13,27 @@ export { Card } from './Card';
 export { StatCard } from './StatCard';
 export { Skeleton } from './Skeleton';
 export { EmptyState } from './EmptyState';
+
+// Interactive / overlay components (Radix-based where accessibility is hard to hand-roll).
+export { Modal } from './Modal';
+export { Dropdown, type DropdownAction } from './Dropdown';
+export { Tabs, TabPanel, type TabItem } from './Tabs';
+export { Tooltip } from './Tooltip';
+export { ToastProvider } from './toast/ToastProvider';
+export { useToast, type ToastOptions, type ToastTone } from './toast/toast-context';
+export {
+  Table,
+  THead,
+  TBody,
+  TR,
+  TH,
+  SortableTH,
+  TD,
+  TableFooter,
+  type SortDirection,
+} from './Table';
+export { Pagination } from './Pagination';
+export { Breadcrumb, type BreadcrumbItem } from './Breadcrumb';
+export { Timeline, TimelineItem, type TimelineDotTone } from './Timeline';
+export { KanbanColumn, KanbanCard } from './Kanban';
+export { SidebarNavItem } from './SidebarNavItem';
