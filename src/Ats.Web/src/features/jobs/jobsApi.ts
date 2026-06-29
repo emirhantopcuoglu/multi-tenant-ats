@@ -1,6 +1,6 @@
 import { apiClient, API_V1 } from '@/lib/apiClient';
 import type { PagedResult } from '@/types/pagination';
-import type { Job } from '@/types/job';
+import type { Job, JobDetail, JobWriteRequest } from '@/types/job';
 import type { JobStatus } from '@/types/enums';
 
 /* Typed wrappers over the recruiter Jobs endpoints (JobsController). Lifecycle transitions are POSTs
@@ -28,6 +28,21 @@ export async function listJobs(params: ListJobsParams): Promise<PagedResult<Job>
     },
   });
   return data;
+}
+
+export async function getJob(id: string): Promise<JobDetail> {
+  const { data } = await apiClient.get<JobDetail>(`${JOBS_BASE}/${id}`);
+  return data;
+}
+
+export async function createJob(body: JobWriteRequest): Promise<string> {
+  // The controller returns 201 with { id }.
+  const { data } = await apiClient.post<{ id: string }>(JOBS_BASE, body);
+  return data.id;
+}
+
+export async function updateJob(id: string, body: JobWriteRequest): Promise<void> {
+  await apiClient.put(`${JOBS_BASE}/${id}`, body);
 }
 
 export async function publishJob(id: string): Promise<void> {

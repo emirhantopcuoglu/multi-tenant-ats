@@ -4,11 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Button, Input } from '@/components/ui';
+import { Button, Field, Input } from '@/components/ui';
 import { useAuth } from '@/app/auth/auth-context';
 import { toApiError } from '@/lib/problemDetails';
 import { AuthLayout } from '../components/AuthLayout';
-import { Field } from '../components/Field';
 import { authErrorMessage } from '../authErrorMessage';
 
 export function LoginPage() {

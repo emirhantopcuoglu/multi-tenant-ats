@@ -13,6 +13,7 @@ export { Card } from './Card';
 export { StatCard } from './StatCard';
 export { Skeleton } from './Skeleton';
 export { EmptyState } from './EmptyState';
+export { Field } from './Field';
 
 // Interactive / overlay components (Radix-based where accessibility is hard to hand-roll).
 export { Modal } from './Modal';
