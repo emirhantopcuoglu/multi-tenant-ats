@@ -4,7 +4,13 @@
     "search": "Aday, ilan ara…",
     "toggleTheme": "Açık / koyu geçişi",
     "save": "Kaydet",
-    "cancel": "İptal"
+    "cancel": "İptal",
+    "openMenu": "Menüyü aç",
+    "closeMenu": "Menüyü kapat",
+    "signOut": "Çıkış yap"
+  },
+  "placeholder": {
+    "body": "Bu ekran ilerleyen adımlarda gelecek."
   },
   "nav": {
     "overview": "Genel bakış",

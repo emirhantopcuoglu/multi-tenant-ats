@@ -4,7 +4,13 @@
     "search": "Search candidates, jobs…",
     "toggleTheme": "Toggle light / dark",
     "save": "Save",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "signOut": "Sign out"
+  },
+  "placeholder": {
+    "body": "This screen arrives in a later step."
   },
   "nav": {
     "overview": "Overview",

@@ -1,16 +1,18 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAuth } from '@/app/auth/RequireAuth';
 import { RequireRole } from '@/app/auth/RequireRole';
+import { AppShell } from '@/components/layout/AppShell';
+import { PagePlaceholder } from '@/components/layout/PagePlaceholder';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { RegisterPage } from '@/features/auth/pages/RegisterPage';
 import { AcceptInvitationPage } from '@/features/auth/pages/AcceptInvitationPage';
-import { HomePage } from '@/features/home/HomePage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { PlaygroundPage } from '@/features/playground/PlaygroundPage';
 
-/* Router skeleton (Step 2.1). Public auth routes sit at the top; everything else is nested under
-   RequireAuth, with role-restricted areas nested again under RequireRole. The real app shell + screens
-   fill in from Step 2.3 onward; /playground stays reachable as a dev gallery until then. */
+/* Public auth routes sit at the top. Everything else is nested under RequireAuth → AppShell, so the
+   shell (sidebar + topbar) wraps every authenticated screen and the routed page renders through its
+   <Outlet/>. Role-restricted areas nest again under RequireRole. Real feature screens replace the
+   placeholders from Phase 3 onward; /playground stays a public dev gallery for now. */
 export default function App() {
   return (
     <Routes>
@@ -20,9 +22,15 @@ export default function App() {
       <Route path="/playground" element={<PlaygroundPage />} />
 
       <Route element={<RequireAuth />}>
-        <Route path="/" element={<HomePage />} />
-        <Route element={<RequireRole roles={['Admin']} />}>
-          <Route path="/settings" element={<SettingsPage />} />
+        <Route element={<AppShell />}>
+          <Route path="/" element={<PagePlaceholder titleKey="nav.overview" />} />
+          <Route path="/jobs" element={<PagePlaceholder titleKey="nav.jobs" />} />
+          <Route path="/applications" element={<PagePlaceholder titleKey="nav.applications" />} />
+          <Route path="/interviews" element={<PagePlaceholder titleKey="nav.interviews" />} />
+          <Route path="/candidates" element={<PagePlaceholder titleKey="nav.candidates" />} />
+          <Route element={<RequireRole roles={['Admin']} />}>
+            <Route path="/settings" element={<SettingsPage />} />
+          </Route>
         </Route>
       </Route>
 
