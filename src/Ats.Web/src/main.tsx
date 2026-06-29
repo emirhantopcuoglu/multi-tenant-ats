@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from '@/App';
 import { ThemeProvider } from '@/app/theme/ThemeProvider';
+import '@/i18n';
 import '@/styles/index.css';
 
 // Entry point: mount the React tree into #root. StrictMode surfaces unsafe lifecycles and

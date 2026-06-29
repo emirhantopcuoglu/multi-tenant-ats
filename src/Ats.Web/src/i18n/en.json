@@ -1,0 +1,130 @@
+{
+  "common": {
+    "appName": "Ats",
+    "search": "Search candidates, jobs…",
+    "toggleTheme": "Toggle light / dark",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "nav": {
+    "overview": "Overview",
+    "jobs": "Jobs",
+    "applications": "Applications",
+    "interviews": "Interviews",
+    "candidates": "Candidates",
+    "settings": "Settings"
+  },
+  "auth": {
+    "tagline": "Applicant Tracking, done right",
+    "brandHead": "Hire better, together.",
+    "brandSub": "One workspace for jobs, candidates, interviews and structured feedback — built for your whole hiring team.",
+    "email": "Email",
+    "password": "Password",
+    "forgot": "Forgot password?",
+    "remember": "Keep me signed in",
+    "signInBtn": "Sign in",
+    "noAccount": "New to Ats?",
+    "createOne": "Create a workspace",
+    "loginTitle": "Welcome back",
+    "loginSub": "Sign in to your {{company}} workspace.",
+    "companyName": "Company name",
+    "workspaceUrl": "Workspace URL",
+    "urlPreview": "Your workspace will live at",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "slugPlaceholder": "your-company",
+    "createBtn": "Create workspace",
+    "haveAccount": "Already have an account?",
+    "signInLink": "Sign in",
+    "regTitle": "Create your workspace",
+    "regSub": "Start hiring in minutes — no credit card required.",
+    "pwHint": "At least 8 characters.",
+    "terms": "By continuing you agree to the Terms and Privacy Policy.",
+    "invTitle": "Accept your invitation",
+    "invSub": "Set your name and a password to join the team.",
+    "invitedBy": "invited you to join",
+    "asRole": "as a",
+    "acceptBtn": "Accept & join workspace",
+    "setPassword": "Choose a password",
+    "tabLogin": "Login",
+    "tabRegister": "Register",
+    "tabInvite": "Invitation"
+  },
+  "form": {
+    "department": "Department",
+    "notes": "Notes",
+    "notesPlaceholder": "Add a note for the hiring team…",
+    "invalidEmail": "Enter a valid email address."
+  },
+  "table": {
+    "candidate": "Candidate",
+    "role": "Role",
+    "stage": "Stage",
+    "status": "Status",
+    "applied": "Applied",
+    "showing": "Showing {{from}} of {{total}}",
+    "rows_one": "{{count}} application",
+    "rows_other": "{{count}} applications"
+  },
+  "status": {
+    "Draft": "Draft",
+    "Published": "Published",
+    "Closed": "Closed",
+    "Archived": "Archived",
+    "Active": "Active",
+    "Hired": "Hired",
+    "Rejected": "Rejected",
+    "Withdrawn": "Withdrawn",
+    "Scheduled": "Scheduled",
+    "Completed": "Completed",
+    "Cancelled": "Cancelled",
+    "NoShow": "No-show"
+  },
+  "recommendation": {
+    "StrongNoHire": "Strong no-hire",
+    "NoHire": "No-hire",
+    "Hire": "Hire",
+    "StrongHire": "Strong hire"
+  },
+  "stage": {
+    "Applied": "Applied",
+    "Screening": "Screening",
+    "Interview": "Interview",
+    "Offer": "Offer",
+    "Hired": "Hired",
+    "Rejected": "Rejected"
+  },
+  "role": {
+    "Admin": "Admin",
+    "Recruiter": "Recruiter",
+    "HiringManager": "Hiring Manager",
+    "ReadOnly": "Read-only"
+  },
+  "stats": {
+    "openJobs": "Open jobs",
+    "candidates": "Active candidates",
+    "interviews": "Interviews this week",
+    "offer": "Offer acceptance"
+  },
+  "empty": {
+    "title": "No applications yet",
+    "body": "When candidates apply to this job, they’ll show up here.",
+    "cta": "Share job link"
+  },
+  "menu": {
+    "view": "View profile",
+    "edit": "Edit application",
+    "remove": "Move to rejected"
+  },
+  "interview": {
+    "scheduleTitle": "Schedule interview",
+    "type": "Interview type",
+    "when": "Date & time",
+    "schedule": "Schedule"
+  },
+  "activity": {
+    "submitted": "submitted an application.",
+    "moved": "moved the candidate",
+    "rejected": "rejected the application."
+  }
+}
