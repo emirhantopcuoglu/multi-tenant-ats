@@ -1,0 +1,39 @@
+import { apiClient, API_V1 } from '@/lib/apiClient';
+import { tokenStore } from '@/lib/tokenStore';
+import type {
+  AuthResult,
+  CurrentUser,
+  LoginRequest,
+  RegisterRequest,
+} from '@/types/auth';
+
+/* Thin typed wrappers over the auth endpoints. Token persistence is a side effect of the calls
+   that mint tokens, so callers (and the future AuthContext) don't have to remember to store them. */
+
+const AUTH_BASE = `${API_V1}/auth`;
+
+export async function login(request: LoginRequest): Promise<AuthResult> {
+  const { data } = await apiClient.post<AuthResult>(`${AUTH_BASE}/login`, request);
+  tokenStore.setTokens(data);
+  return data;
+}
+
+export async function register(request: RegisterRequest): Promise<AuthResult> {
+  const { data } = await apiClient.post<AuthResult>(`${AUTH_BASE}/register`, request);
+  tokenStore.setTokens(data);
+  return data;
+}
+
+export async function getCurrentUser(): Promise<CurrentUser> {
+  const { data } = await apiClient.get<CurrentUser>(`${AUTH_BASE}/me`);
+  return data;
+}
+
+export async function logout(): Promise<void> {
+  const refreshToken = tokenStore.getRefreshToken();
+  if (refreshToken) {
+    // Best-effort server-side revocation; clear locally regardless of the result.
+    await apiClient.post(`${AUTH_BASE}/logout`, { refreshToken }).catch(() => undefined);
+  }
+  tokenStore.clear();
+}
