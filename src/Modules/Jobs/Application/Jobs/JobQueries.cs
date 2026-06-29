@@ -9,27 +9,40 @@ public sealed record JobDto(
     string EmploymentType, string ExperienceLevel, string Status,
     string Slug, DateTime CreatedAtUtc);
 
-// ---- GetJobById ----
-public sealed record GetJobByIdQuery(Guid JobId) : IQuery<JobDto>;
+// Detail shape for GetById: adds the fields the edit form must prefill (Description + salary), which
+// the list DTO deliberately omits. Kept separate so list/public projections stay lean (the table
+// never needs the description), while the edit screen gets everything it writes back.
+public sealed record JobDetailDto(
+    Guid Id, string Title, string Description, string Department, string Location,
+    string EmploymentType, string ExperienceLevel, string Status, string Slug,
+    decimal? SalaryMin, decimal? SalaryMax, string? SalaryCurrency, DateTime CreatedAtUtc);
 
-public sealed class GetJobByIdHandler : IQueryHandler<GetJobByIdQuery, JobDto>
+// ---- GetJobById ----
+public sealed record GetJobByIdQuery(Guid JobId) : IQuery<JobDetailDto>;
+
+public sealed class GetJobByIdHandler : IQueryHandler<GetJobByIdQuery, JobDetailDto>
 {
     private readonly IJobsDbContext _db;
     public GetJobByIdHandler(IJobsDbContext db) => _db = db;
 
-    public async Task<Result<JobDto>> Handle(GetJobByIdQuery query, CancellationToken ct)
+    public async Task<Result<JobDetailDto>> Handle(GetJobByIdQuery query, CancellationToken ct)
     {
+        // SalaryRange is an optional owned type, so all three columns are null together; the
+        // null check projects them as null rather than dereferencing a missing dependent.
         var job = await _db.Jobs
             .AsNoTracking()
             .Where(j => j.Id == query.JobId)
-            .Select(j => new JobDto(
-                j.Id, j.Title, j.Department, j.Location,
-                j.EmploymentType.ToString(), j.ExperienceLevel.ToString(), j.Status.ToString(),
-                j.Slug, j.CreatedAtUtc))
+            .Select(j => new JobDetailDto(
+                j.Id, j.Title, j.Description, j.Department, j.Location,
+                j.EmploymentType.ToString(), j.ExperienceLevel.ToString(), j.Status.ToString(), j.Slug,
+                j.SalaryRange == null ? null : (decimal?)j.SalaryRange.Min,
+                j.SalaryRange == null ? null : (decimal?)j.SalaryRange.Max,
+                j.SalaryRange == null ? null : j.SalaryRange.Currency,
+                j.CreatedAtUtc))
             .FirstOrDefaultAsync(ct);
 
         return job is null
-            ? Result.Failure<JobDto>(JobErrors.NotFound)
+            ? Result.Failure<JobDetailDto>(JobErrors.NotFound)
             : Result.Success(job);
     }
 }
