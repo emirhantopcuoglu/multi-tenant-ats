@@ -20,6 +20,56 @@
     "candidates": "Candidates",
     "settings": "Settings"
   },
+  "jobs": {
+    "newJob": "New job",
+    "searchPlaceholder": "Search by title…",
+    "filterStatus": "Filter by status",
+    "allStatuses": "All statuses",
+    "rowActions": "Row actions",
+    "rows_one": "{{count}} job",
+    "rows_other": "{{count}} jobs",
+    "loadError": "Couldn't load jobs.",
+    "retry": "Try again",
+    "formPlaceholder": "The job form arrives in step 3.2.",
+    "col": {
+      "title": "Title",
+      "department": "Department",
+      "location": "Location",
+      "type": "Type",
+      "level": "Level",
+      "status": "Status",
+      "created": "Created"
+    },
+    "action": {
+      "edit": "Edit",
+      "publish": "Publish",
+      "close": "Close",
+      "archive": "Archive"
+    },
+    "empty": {
+      "title": "No jobs yet",
+      "body": "Create your first job posting to start hiring.",
+      "filtered": "No jobs match your filters."
+    },
+    "toast": {
+      "published": "Job published.",
+      "closed": "Job closed.",
+      "archived": "Job archived.",
+      "error": "Action failed. Please try again."
+    }
+  },
+  "employmentType": {
+    "FullTime": "Full-time",
+    "PartTime": "Part-time",
+    "Contract": "Contract",
+    "Internship": "Internship"
+  },
+  "experienceLevel": {
+    "Junior": "Junior",
+    "Mid": "Mid",
+    "Senior": "Senior",
+    "Lead": "Lead"
+  },
   "auth": {
     "tagline": "Applicant Tracking, done right",
     "brandHead": "Hire better, together.",

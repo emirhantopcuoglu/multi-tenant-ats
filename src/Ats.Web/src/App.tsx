@@ -3,6 +3,8 @@ import { RequireAuth } from '@/app/auth/RequireAuth';
 import { RequireRole } from '@/app/auth/RequireRole';
 import { AppShell } from '@/components/layout/AppShell';
 import { PagePlaceholder } from '@/components/layout/PagePlaceholder';
+import { JobsPage } from '@/features/jobs/JobsPage';
+import { JobFormPage } from '@/features/jobs/JobFormPage';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { RegisterPage } from '@/features/auth/pages/RegisterPage';
 import { AcceptInvitationPage } from '@/features/auth/pages/AcceptInvitationPage';
@@ -24,7 +26,9 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
           <Route path="/" element={<PagePlaceholder titleKey="nav.overview" />} />
-          <Route path="/jobs" element={<PagePlaceholder titleKey="nav.jobs" />} />
+          <Route path="/jobs" element={<JobsPage />} />
+          <Route path="/jobs/new" element={<JobFormPage />} />
+          <Route path="/jobs/:id/edit" element={<JobFormPage />} />
           <Route path="/applications" element={<PagePlaceholder titleKey="nav.applications" />} />
           <Route path="/interviews" element={<PagePlaceholder titleKey="nav.interviews" />} />
           <Route path="/candidates" element={<PagePlaceholder titleKey="nav.candidates" />} />

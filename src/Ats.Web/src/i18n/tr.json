@@ -20,6 +20,56 @@
     "candidates": "Adaylar",
     "settings": "Ayarlar"
   },
+  "jobs": {
+    "newJob": "Yeni ilan",
+    "searchPlaceholder": "Başlığa göre ara…",
+    "filterStatus": "Duruma göre filtrele",
+    "allStatuses": "Tüm durumlar",
+    "rowActions": "Satır işlemleri",
+    "rows_one": "{{count}} ilan",
+    "rows_other": "{{count}} ilan",
+    "loadError": "İlanlar yüklenemedi.",
+    "retry": "Tekrar dene",
+    "formPlaceholder": "İlan formu 3.2 adımında gelecek.",
+    "col": {
+      "title": "Başlık",
+      "department": "Departman",
+      "location": "Konum",
+      "type": "Tür",
+      "level": "Seviye",
+      "status": "Durum",
+      "created": "Oluşturulma"
+    },
+    "action": {
+      "edit": "Düzenle",
+      "publish": "Yayınla",
+      "close": "Kapat",
+      "archive": "Arşivle"
+    },
+    "empty": {
+      "title": "Henüz ilan yok",
+      "body": "İşe almaya başlamak için ilk ilanını oluştur.",
+      "filtered": "Filtrelerine uyan ilan yok."
+    },
+    "toast": {
+      "published": "İlan yayınlandı.",
+      "closed": "İlan kapatıldı.",
+      "archived": "İlan arşivlendi.",
+      "error": "İşlem başarısız. Lütfen tekrar dene."
+    }
+  },
+  "employmentType": {
+    "FullTime": "Tam zamanlı",
+    "PartTime": "Yarı zamanlı",
+    "Contract": "Sözleşmeli",
+    "Internship": "Staj"
+  },
+  "experienceLevel": {
+    "Junior": "Junior",
+    "Mid": "Orta",
+    "Senior": "Kıdemli",
+    "Lead": "Lider"
+  },
   "auth": {
     "tagline": "Aday takibi, doğru şekilde",
     "brandHead": "Birlikte daha iyi işe alın.",
