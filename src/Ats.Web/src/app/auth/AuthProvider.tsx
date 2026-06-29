@@ -3,9 +3,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { AUTH_LOGOUT_EVENT } from '@/lib/apiClient';
 import { tokenStore } from '@/lib/tokenStore';
-import { login as loginRequest, logout as logoutRequest } from '@/features/auth/authApi';
+import {
+  login as loginRequest,
+  logout as logoutRequest,
+  register as registerRequest,
+} from '@/features/auth/authApi';
 import { currentUserQueryKey, useCurrentUser } from '@/features/auth/useCurrentUser';
-import type { LoginRequest } from '@/types/auth';
+import type { LoginRequest, RegisterRequest } from '@/types/auth';
 import { AuthContext, type AuthContextValue } from './auth-context';
 
 /* Owns authentication state for the app. On cold start it tries to resolve the current user only if
@@ -28,6 +32,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setHasSession(true);
       // Load the profile before resolving, so callers can navigate to an authenticated screen
       // knowing `user` is populated.
+      await userQuery.refetch();
+    },
+    [userQuery],
+  );
+
+  const register = useCallback(
+    async (request: RegisterRequest) => {
+      await registerRequest(request); // creates tenant + admin and stores the token pair
+      setHasSession(true);
       await userQuery.refetch();
     },
     [userQuery],
@@ -63,9 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Only "loading" while we're actually resolving an assumed session, not when anonymous.
       isLoading: hasSession && userQuery.isLoading,
       login,
+      register,
       logout,
     }),
-    [user, hasSession, userQuery.isLoading, login, logout],
+    [user, hasSession, userQuery.isLoading, login, register, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

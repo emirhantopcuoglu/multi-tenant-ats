@@ -1,6 +1,7 @@
 import { apiClient, API_V1 } from '@/lib/apiClient';
 import { tokenStore } from '@/lib/tokenStore';
 import type {
+  AcceptInvitationRequest,
   AuthResult,
   CurrentUser,
   LoginRequest,
@@ -27,6 +28,12 @@ export async function register(request: RegisterRequest): Promise<AuthResult> {
 export async function getCurrentUser(): Promise<CurrentUser> {
   const { data } = await apiClient.get<CurrentUser>(`${AUTH_BASE}/me`);
   return data;
+}
+
+/* Accept a team invitation. Returns nothing on success (the endpoint mints no tokens), so the caller
+   redirects to the login screen afterwards. */
+export async function acceptInvitation(request: AcceptInvitationRequest): Promise<void> {
+  await apiClient.post(`${API_V1}/invitations/accept`, request);
 }
 
 export async function logout(): Promise<void> {

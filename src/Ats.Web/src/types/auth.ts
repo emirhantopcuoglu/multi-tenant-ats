@@ -36,3 +36,13 @@ export interface RegisterRequest {
   firstName: string;
   lastName: string;
 }
+
+/* POST /api/v1/invitations/accept (InvitationsController.AcceptRequest). The token comes from the
+   invitation URL; the user only supplies a password and their name. Unlike login/register this
+   endpoint returns no tokens, so the user is sent to /login afterwards. */
+export interface AcceptInvitationRequest {
+  token: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}

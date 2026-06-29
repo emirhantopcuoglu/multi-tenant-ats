@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { CurrentUser } from '@/types/auth';
 import type { Role } from '@/types/enums';
-import type { LoginRequest } from '@/types/auth';
+import type { LoginRequest, RegisterRequest } from '@/types/auth';
 
 export interface AuthContextValue {
   /** The signed-in user, or null when anonymous or still loading. */
@@ -12,6 +12,8 @@ export interface AuthContextValue {
   /** True while the initial /auth/me resolution is in flight (avoids guard flicker on reload). */
   isLoading: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
+  /** Create a new tenant + admin and sign in (register returns tokens). */
+  register: (request: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
 }
 

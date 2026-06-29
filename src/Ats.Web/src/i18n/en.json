@@ -48,7 +48,21 @@
     "setPassword": "Choose a password",
     "tabLogin": "Login",
     "tabRegister": "Register",
-    "tabInvite": "Invitation"
+    "tabInvite": "Invitation",
+    "invitationAccepted": "Your account is ready. Please sign in.",
+    "missingToken": "This invitation link is missing its token."
+  },
+  "validation": {
+    "required": "This field is required.",
+    "email": "Enter a valid email address.",
+    "passwordMin": "Password must be at least {{count}} characters.",
+    "slugFormat": "Use lowercase letters, numbers, and hyphens only."
+  },
+  "authError": {
+    "invalidCredentials": "Invalid email or password.",
+    "invitationInvalid": "This invitation is invalid or has expired.",
+    "emailInUse": "A user with this email already exists.",
+    "generic": "Something went wrong. Please try again."
   },
   "form": {
     "department": "Department",

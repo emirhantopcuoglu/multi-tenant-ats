@@ -48,7 +48,21 @@
     "setPassword": "Bir parola seç",
     "tabLogin": "Giriş",
     "tabRegister": "Kayıt",
-    "tabInvite": "Davet"
+    "tabInvite": "Davet",
+    "invitationAccepted": "Hesabın hazır. Lütfen giriş yap.",
+    "missingToken": "Bu davet bağlantısında token eksik."
+  },
+  "validation": {
+    "required": "Bu alan zorunludur.",
+    "email": "Geçerli bir e-posta adresi girin.",
+    "passwordMin": "Parola en az {{count}} karakter olmalı.",
+    "slugFormat": "Yalnızca küçük harf, rakam ve tire kullanın."
+  },
+  "authError": {
+    "invalidCredentials": "E-posta veya parola hatalı.",
+    "invitationInvalid": "Bu davet geçersiz veya süresi dolmuş.",
+    "emailInUse": "Bu e-posta ile bir kullanıcı zaten var.",
+    "generic": "Bir şeyler ters gitti. Lütfen tekrar deneyin."
   },
   "form": {
     "department": "Departman",
