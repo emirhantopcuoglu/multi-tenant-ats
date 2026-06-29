@@ -24,6 +24,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\Applications\Application\Ats.Modules.Applications.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Applications\Infrastructure\Ats.Modules.Applications.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Jobs\Application\Ats.Modules.Jobs.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Jobs\Infrastructure\Ats.Modules.Jobs.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Tenants\Infrastructure\Ats.Modules.Tenants.Infrastructure.csproj" />
