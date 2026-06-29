@@ -58,6 +58,31 @@
       "error": "Action failed. Please try again."
     }
   },
+  "applications": {
+    "searchPlaceholder": "Search candidates…",
+    "filterJob": "Filter by job",
+    "allJobs": "All jobs",
+    "filterStage": "Filter by stage",
+    "allStages": "All stages",
+    "filterStatus": "Filter by status",
+    "allStatuses": "All statuses",
+    "rows_one": "{{count}} application",
+    "rows_other": "{{count}} applications",
+    "loadError": "Couldn't load applications.",
+    "retry": "Try again",
+    "col": {
+      "candidate": "Candidate",
+      "job": "Job",
+      "stage": "Stage",
+      "status": "Status",
+      "applied": "Applied"
+    },
+    "empty": {
+      "title": "No applications yet",
+      "body": "Applications appear here as candidates apply to your jobs.",
+      "filtered": "No applications match your filters."
+    }
+  },
   "employmentType": {
     "FullTime": "Full-time",
     "PartTime": "Part-time",
