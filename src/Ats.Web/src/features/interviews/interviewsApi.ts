@@ -5,6 +5,7 @@ import type {
   InterviewListItem,
   RescheduleRequest,
   ScheduleInterviewRequest,
+  SubmitFeedbackRequest,
 } from '@/types/interview';
 
 const INTERVIEWS_BASE = `${API_V1}/interviews`;
@@ -62,4 +63,12 @@ export async function completeInterview(id: string): Promise<void> {
 
 export async function markInterviewNoShow(id: string): Promise<void> {
   await apiClient.post(`${INTERVIEWS_BASE}/${id}/no-show`);
+}
+
+/* Submit feedback for an interview. The backend authorizes this twice: the caller's role (handled by
+   the list/detail gating) and, resource-based, that the caller is one of the interview's assigned
+   interviewers — so it can still fail with 403, or 409 (cancelled / already submitted) even when the
+   UI shows the form. The interviewer identity comes from the JWT, never the body. */
+export async function submitFeedback(id: string, body: SubmitFeedbackRequest): Promise<void> {
+  await apiClient.post(`${INTERVIEWS_BASE}/${id}/feedback`, body);
 }

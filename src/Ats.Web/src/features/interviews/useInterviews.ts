@@ -7,10 +7,11 @@ import {
   markInterviewNoShow,
   rescheduleInterview,
   scheduleInterview,
+  submitFeedback,
   type ListInterviewsParams,
 } from './interviewsApi';
 import { listApplications } from '@/features/applications/applicationsApi';
-import type { RescheduleRequest } from '@/types/interview';
+import type { RescheduleRequest, SubmitFeedbackRequest } from '@/types/interview';
 
 /* Root key for every interviews query, so a single invalidate after any mutation refreshes all
    filtered list pages and the open detail. */
@@ -58,6 +59,17 @@ export function useInterviewActions(id: string) {
   const noShow = useMutation({ mutationFn: () => markInterviewNoShow(id), onSuccess: invalidate });
 
   return { reschedule, cancel, complete, noShow };
+}
+
+/* Feedback submission. Submitting doesn't change any field the detail renders, but we invalidate it
+   anyway so the screen re-reflects state consistently (and stays correct if the detail later starts
+   returning feedback). The caller maps the backend's 403/409 codes to messages. */
+export function useSubmitFeedback(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: SubmitFeedbackRequest) => submitFeedback(id, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: interviewDetailKey(id) }),
+  });
 }
 
 // 100 is the backend's max page size — enough active applications to schedule against for an MVP

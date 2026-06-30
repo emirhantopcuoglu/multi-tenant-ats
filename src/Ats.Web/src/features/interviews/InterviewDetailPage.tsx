@@ -12,6 +12,7 @@ import type { RescheduleRequest } from '@/types/interview';
 import { canManageInterviews } from './interviewPermissions';
 import { useInterview, useInterviewActions } from './useInterviews';
 import { RescheduleModal } from './components/RescheduleModal';
+import { FeedbackForm } from './components/FeedbackForm';
 
 /* Thin wrapper so the inner view can take a guaranteed-present id and keep its hooks unconditional. */
 export function InterviewDetailPage() {
@@ -24,7 +25,7 @@ function InterviewDetailView({ id }: { id: string }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const canManage = canManageInterviews(role);
   const lookup = useUserLookup();
 
@@ -68,6 +69,11 @@ function InterviewDetailView({ id }: { id: string }) {
   const busy = reschedule.isPending || cancel.isPending || complete.isPending || noShow.isPending;
   const isScheduled = interview.status === 'Scheduled';
   const candidateName = applicationQuery.data?.candidateName;
+
+  // Feedback gating mirrors the backend: only an assigned interviewer may submit, and never for a
+  // cancelled interview. The form still maps the backend's 403/409 as the final authority.
+  const isAssignedInterviewer = user ? interview.interviewerUserIds.includes(user.id) : false;
+  const canSubmitFeedback = isAssignedInterviewer && interview.status !== 'Cancelled';
 
   const interviewerNames = interview.interviewerUserIds
     .map((interviewerId) => {
@@ -156,6 +162,19 @@ function InterviewDetailView({ id }: { id: string }) {
             <span className="text-text-muted">—</span>
           )}
         </InfoRow>
+      </Card>
+
+      <Card className="space-y-3">
+        <h3 className="text-sm font-semibold text-text">{t('interviews.feedback.title')}</h3>
+        {canSubmitFeedback ? (
+          <FeedbackForm interviewId={id} />
+        ) : (
+          <p className="text-sm text-text-muted">
+            {interview.status === 'Cancelled'
+              ? t('interviews.feedback.lockedCancelled')
+              : t('interviews.feedback.locked')}
+          </p>
+        )}
       </Card>
 
       <RescheduleModal
