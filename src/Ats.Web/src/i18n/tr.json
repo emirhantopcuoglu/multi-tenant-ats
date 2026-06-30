@@ -58,6 +58,31 @@
       "error": "İşlem başarısız. Lütfen tekrar dene."
     }
   },
+  "applications": {
+    "searchPlaceholder": "Aday ara…",
+    "filterJob": "İlana göre filtrele",
+    "allJobs": "Tüm ilanlar",
+    "filterStage": "Aşamaya göre filtrele",
+    "allStages": "Tüm aşamalar",
+    "filterStatus": "Duruma göre filtrele",
+    "allStatuses": "Tüm durumlar",
+    "rows_one": "{{count}} başvuru",
+    "rows_other": "{{count}} başvuru",
+    "loadError": "Başvurular yüklenemedi.",
+    "retry": "Tekrar dene",
+    "col": {
+      "candidate": "Aday",
+      "job": "İlan",
+      "stage": "Aşama",
+      "status": "Durum",
+      "applied": "Başvuru"
+    },
+    "empty": {
+      "title": "Henüz başvuru yok",
+      "body": "Adaylar ilanlarına başvurdukça başvurular burada görünür.",
+      "filtered": "Filtrelerine uyan başvuru yok."
+    }
+  },
   "employmentType": {
     "FullTime": "Tam zamanlı",
     "PartTime": "Yarı zamanlı",
