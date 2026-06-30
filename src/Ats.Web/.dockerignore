@@ -1,0 +1,9 @@
+# Keep the build context small and reproducible: deps are installed fresh from the lockfile inside
+# the image, and local env/output must never leak in.
+node_modules
+dist
+.env
+.env.*
+!.env.example
+.vscode
+*.log

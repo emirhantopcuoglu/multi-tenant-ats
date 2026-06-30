@@ -53,5 +53,33 @@ src/
 ## CORS
 
 The API allows this origin via its `Cors:AllowedOrigins` setting. In development that is
-`http://localhost:5173` (the Vite default). If you change the dev server port, update the API config
-accordingly.
+`http://localhost:5173` (the Vite default) and `http://localhost:8080` (the Dockerized web below). If
+you change the dev server port, update the API config accordingly.
+
+## Serve (production-style, Docker)
+
+The app is served as static files by nginx (`Dockerfile` + `nginx.conf`). The API base URL is **baked
+in at build time** — Vite inlines `VITE_*` variables — so it is passed as a build arg, not a runtime
+env var:
+
+```bash
+docker build --build-arg VITE_API_BASE_URL=https://api.example.com -t ats-web .
+docker run -p 8080:80 ats-web
+```
+
+Or via the repo's `docker-compose.yml` (serves on `http://localhost:8080`, targeting the host API by
+default; override with `VITE_API_BASE_URL`):
+
+```bash
+docker compose up web --build
+```
+
+nginx handles client-side routing (unknown paths fall back to `index.html`), caches the hashed
+`/assets` for a year, and keeps `index.html` uncached so a new deploy is picked up immediately. CI
+runs `npm ci && npm run build` on every PR (the `web` job in `.github/workflows/ci.yml`).
+
+## Deployment notes
+
+- Set `VITE_API_BASE_URL` to the deployed API origin **at build time**.
+- Add the web's origin to the API's `Cors:AllowedOrigins` for that environment — production
+  `appsettings.json` ships with an empty list on purpose, so each environment must configure its own.
