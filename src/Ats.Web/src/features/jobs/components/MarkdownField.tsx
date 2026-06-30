@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
 import { useTranslation } from 'react-i18next';
 import { Tabs, TabPanel, Textarea } from '@/components/ui';
+import { Markdown } from '@/components/Markdown';
 
 interface MarkdownFieldProps {
   id: string;
@@ -50,9 +50,9 @@ export function MarkdownField({
       </TabPanel>
       <TabPanel value="preview">
         {value.trim() ? (
-          <div className="min-h-32 space-y-2 rounded-lg border border-border bg-bg px-3 py-2.5 text-sm leading-relaxed text-text [&_a]:text-accent [&_code]:rounded [&_code]:bg-divider [&_code]:px-1 [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:text-base [&_h2]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
-            <ReactMarkdown>{value}</ReactMarkdown>
-          </div>
+          <Markdown className="min-h-32 rounded-lg border border-border bg-bg px-3 py-2.5">
+            {value}
+          </Markdown>
         ) : (
           <p className="min-h-32 rounded-lg border border-border bg-bg px-3 py-2.5 text-sm text-text-muted">
             {t('jobForm.previewEmpty')}
