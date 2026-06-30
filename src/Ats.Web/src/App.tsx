@@ -9,6 +9,7 @@ import { ApplicationsPage } from '@/features/applications/ApplicationsPage';
 import { ApplicationDetailPage } from '@/features/applications/ApplicationDetailPage';
 import { InterviewsPage } from '@/features/interviews/InterviewsPage';
 import { InterviewDetailPage } from '@/features/interviews/InterviewDetailPage';
+import { OverviewPage } from '@/features/dashboard/OverviewPage';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { RegisterPage } from '@/features/auth/pages/RegisterPage';
 import { AcceptInvitationPage } from '@/features/auth/pages/AcceptInvitationPage';
@@ -29,7 +30,7 @@ export default function App() {
 
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
-          <Route path="/" element={<PagePlaceholder titleKey="nav.overview" />} />
+          <Route path="/" element={<OverviewPage />} />
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/jobs/new" element={<JobFormPage />} />
           <Route path="/jobs/:id/edit" element={<JobFormPage />} />

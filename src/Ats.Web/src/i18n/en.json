@@ -144,6 +144,19 @@
       "error": "Action failed. Please try again."
     }
   },
+  "overview": {
+    "greeting": "Welcome back, {{name}}",
+    "summary": "Here's what's happening across your hiring.",
+    "openJobs": "Open jobs",
+    "newApps": "New applications",
+    "thisWeek": "this week",
+    "upcomingInterviews": "Upcoming interviews",
+    "activeCandidates": "Active candidates",
+    "recentApps": "Recent applications",
+    "upcomingInt": "Upcoming interviews",
+    "noApps": "No applications yet.",
+    "noInterviews": "No upcoming interviews."
+  },
   "interviewType": {
     "PhoneScreen": "Phone screen",
     "Technical": "Technical",

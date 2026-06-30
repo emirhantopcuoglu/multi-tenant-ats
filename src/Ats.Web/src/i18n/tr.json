@@ -144,6 +144,19 @@
       "error": "İşlem başarısız. Lütfen tekrar dene."
     }
   },
+  "overview": {
+    "greeting": "Tekrar hoş geldin, {{name}}",
+    "summary": "İşe alım süreçlerinde olup bitenler burada.",
+    "openJobs": "Açık ilanlar",
+    "newApps": "Yeni başvurular",
+    "thisWeek": "bu hafta",
+    "upcomingInterviews": "Yaklaşan mülakatlar",
+    "activeCandidates": "Aktif adaylar",
+    "recentApps": "Son başvurular",
+    "upcomingInt": "Yaklaşan mülakatlar",
+    "noApps": "Henüz başvuru yok.",
+    "noInterviews": "Yaklaşan mülakat yok."
+  },
   "interviewType": {
     "PhoneScreen": "Telefon görüşmesi",
     "Technical": "Teknik",
