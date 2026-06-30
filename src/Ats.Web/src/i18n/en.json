@@ -214,6 +214,24 @@
       "notFound": "This interview could not be found.",
       "viewApplication": "View application"
     },
+    "feedback": {
+      "title": "Your feedback",
+      "rating": "Rating",
+      "ratingRequired": "Pick a rating.",
+      "stars_one": "{{count}} star",
+      "stars_other": "{{count}} stars",
+      "recommendation": "Recommendation",
+      "recommendationPlaceholder": "Select a recommendation…",
+      "recommendationRequired": "Pick a recommendation.",
+      "comments": "Comments",
+      "commentsPlaceholder": "What stood out, strengths, concerns…",
+      "submit": "Submit feedback",
+      "submitted": "Your feedback has been submitted.",
+      "toast": "Feedback submitted.",
+      "locked": "Only assigned interviewers can submit feedback for this interview.",
+      "lockedCancelled": "This interview was cancelled, so feedback is closed.",
+      "notEligible": "Feedback can't be submitted for this interview."
+    },
     "toast": {
       "scheduled": "Interview scheduled.",
       "rescheduled": "Interview rescheduled.",

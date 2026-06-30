@@ -214,6 +214,24 @@
       "notFound": "Bu mülakat bulunamadı.",
       "viewApplication": "Başvuruyu gör"
     },
+    "feedback": {
+      "title": "Değerlendirmen",
+      "rating": "Puan",
+      "ratingRequired": "Bir puan seç.",
+      "stars_one": "{{count}} yıldız",
+      "stars_other": "{{count}} yıldız",
+      "recommendation": "Tavsiye",
+      "recommendationPlaceholder": "Bir tavsiye seç…",
+      "recommendationRequired": "Bir tavsiye seç.",
+      "comments": "Yorumlar",
+      "commentsPlaceholder": "Öne çıkanlar, güçlü yönler, çekinceler…",
+      "submit": "Değerlendirmeyi gönder",
+      "submitted": "Değerlendirmen gönderildi.",
+      "toast": "Değerlendirme gönderildi.",
+      "locked": "Bu mülakat için yalnızca atanmış görüşmeciler değerlendirme gönderebilir.",
+      "lockedCancelled": "Bu mülakat iptal edildiği için değerlendirme kapalı.",
+      "notEligible": "Bu mülakat için değerlendirme gönderilemez."
+    },
     "toast": {
       "scheduled": "Mülakat planlandı.",
       "rescheduled": "Mülakat yeniden planlandı.",
