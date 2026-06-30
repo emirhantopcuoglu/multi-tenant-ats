@@ -1,4 +1,17 @@
 services:
+  # The built SPA served by nginx (Sprint 8.1, Step 6.1). The API base URL is baked in at build time
+  # (Vite inlines VITE_-prefixed vars), so it's a build arg. The default targets the API running on the
+  # host's dev port; override VITE_API_BASE_URL for a real deployment. Note: the API's CORS
+  # AllowedOrigins must include this origin (http://localhost:8080) for the browser calls to succeed.
+  web:
+    build:
+      context: ./src/Ats.Web
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:5236}
+    container_name: ats-web
+    ports:
+      - "8080:80"
+
   postgres:
     image: postgres:16
     container_name: ats-postgres
