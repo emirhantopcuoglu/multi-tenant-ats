@@ -16,6 +16,9 @@ public sealed record CurrentUserDto(
 
 public sealed record CurrentUserTenantDto(string CompanyName, string Slug);
 
+// A member of the caller's tenant, for the interviewer picker (and the future users/settings screen).
+public sealed record TenantUserDto(Guid Id, string FirstName, string LastName, string Email, string Role);
+
 public interface IAuthService
 {
     Task<Result<AuthResult>> RegisterAsync(string companyName, string slug, string email, string password, string firstName, string lastName);
@@ -23,4 +26,6 @@ public interface IAuthService
     Task<Result<AuthResult>> RefreshAsync(string refreshToken);
     Task<Result> LogoutAsync(string refreshToken);
     Task<Result<CurrentUserDto>> GetCurrentUserAsync(Guid userId);
+    /// <summary>Lists the members of the caller's tenant, ordered by name.</summary>
+    Task<IReadOnlyList<TenantUserDto>> ListTenantUsersAsync();
 }
