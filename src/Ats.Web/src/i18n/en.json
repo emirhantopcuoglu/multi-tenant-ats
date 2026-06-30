@@ -144,6 +144,85 @@
       "error": "Action failed. Please try again."
     }
   },
+  "interviewType": {
+    "PhoneScreen": "Phone screen",
+    "Technical": "Technical",
+    "Cultural": "Cultural",
+    "Final": "Final"
+  },
+  "interviews": {
+    "schedule": "Schedule interview",
+    "scheduleTitle": "Schedule interview",
+    "scheduleSub": "Set up an interview and invite the panel.",
+    "filterRange": "Filter by date",
+    "filterInterviewer": "Filter by interviewer",
+    "allInterviewers": "All interviewers",
+    "range": {
+      "all": "All dates",
+      "upcoming": "Upcoming",
+      "next7": "Next 7 days",
+      "past": "Past"
+    },
+    "minutesShort": "{{count}} min",
+    "rows_one": "{{count}} interview",
+    "rows_other": "{{count}} interviews",
+    "loadError": "Couldn't load interviews.",
+    "retry": "Try again",
+    "col": {
+      "candidate": "Candidate",
+      "type": "Type",
+      "when": "When",
+      "duration": "Duration",
+      "status": "Status",
+      "interviewers": "Interviewers"
+    },
+    "empty": {
+      "title": "No interviews yet",
+      "body": "Schedule an interview from a candidate's application to get started.",
+      "filtered": "No interviews match your filters."
+    },
+    "form": {
+      "candidate": "Candidate",
+      "candidatePlaceholder": "Select a candidate…",
+      "applicationRequired": "Select a candidate.",
+      "type": "Interview type",
+      "when": "Date & time",
+      "whenRequired": "Pick a date and time.",
+      "duration": "Duration (minutes)",
+      "durationInvalid": "Enter a valid duration.",
+      "location": "Location",
+      "locationPlaceholder": "Meet link or room",
+      "interviewers": "Interviewers",
+      "loadingUsers": "Loading team…",
+      "noUsers": "No team members found.",
+      "notes": "Notes",
+      "notesPlaceholder": "Agenda, focus areas…"
+    },
+    "reschedule": {
+      "title": "Reschedule interview",
+      "description": "Pick a new date, time, or duration.",
+      "confirm": "Reschedule"
+    },
+    "action": {
+      "reschedule": "Reschedule",
+      "complete": "Mark completed",
+      "noShow": "No-show",
+      "cancel": "Cancel"
+    },
+    "detail": {
+      "back": "Back to interviews",
+      "notFound": "This interview could not be found.",
+      "viewApplication": "View application"
+    },
+    "toast": {
+      "scheduled": "Interview scheduled.",
+      "rescheduled": "Interview rescheduled.",
+      "cancelled": "Interview cancelled.",
+      "completed": "Marked as completed.",
+      "noShow": "Marked as no-show.",
+      "error": "Action failed. Please try again."
+    }
+  },
   "employmentType": {
     "FullTime": "Full-time",
     "PartTime": "Part-time",
