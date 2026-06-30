@@ -36,3 +36,9 @@ export async function listJobStages(jobId: string): Promise<PipelineStage[]> {
   const { data } = await apiClient.get<PipelineStage[]>(`${API_V1}/jobs/${jobId}/stages`);
   return data;
 }
+
+/* Move an application to another stage of its job's pipeline (the Kanban drag target). Allowed only
+   while the application is Active; the backend rejects terminal applications with a 400. */
+export async function moveApplicationStage(id: string, targetStageId: string): Promise<void> {
+  await apiClient.post(`${APPLICATIONS_BASE}/${id}/move-stage`, { targetStageId });
+}
