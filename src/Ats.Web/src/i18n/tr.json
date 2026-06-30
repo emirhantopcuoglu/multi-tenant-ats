@@ -192,6 +192,20 @@
       "error": "Davet gönderilemedi. Lütfen tekrar deneyin."
     }
   },
+  "public": {
+    "careers": {
+      "title": "Açık pozisyonlar",
+      "empty": "Şu anda açık pozisyon bulunmuyor."
+    },
+    "detail": {
+      "back": "← Tüm pozisyonlara dön",
+      "apply": "Bu pozisyona başvur"
+    },
+    "notFound": {
+      "title": "Sayfa bulunamadı",
+      "description": "Bu şirket veya ilan mevcut değil ya da ilan kaldırılmış."
+    }
+  },
   "interviewType": {
     "PhoneScreen": "Telefon görüşmesi",
     "Technical": "Teknik",

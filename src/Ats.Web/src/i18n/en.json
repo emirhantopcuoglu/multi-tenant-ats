@@ -192,6 +192,20 @@
       "error": "Couldn't send the invitation. Please try again."
     }
   },
+  "public": {
+    "careers": {
+      "title": "Open positions",
+      "empty": "There are no open positions right now."
+    },
+    "detail": {
+      "back": "← Back to all positions",
+      "apply": "Apply for this role"
+    },
+    "notFound": {
+      "title": "Page not found",
+      "description": "This company or job doesn't exist, or the posting has been removed."
+    }
+  },
   "interviewType": {
     "PhoneScreen": "Phone screen",
     "Technical": "Technical",
