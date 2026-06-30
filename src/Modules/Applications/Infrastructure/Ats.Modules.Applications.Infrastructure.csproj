@@ -8,7 +8,7 @@
   <ItemGroup>
     <!-- Hosts the transactional outbox tables in this module's DbContext, so an integration-event
          publish commits in the same transaction as the business change it describes. -->
-    <PackageReference Include="MassTransit.EntityFrameworkCore" Version="8.3.0" />
+    <PackageReference Include="MassTransit.EntityFrameworkCore" Version="8.5.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.9" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.9">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
