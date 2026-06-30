@@ -15,17 +15,20 @@ public sealed class AuthService : IAuthService
     private readonly TenantsDbContext _db;
     private readonly ITokenService _tokenService;
     private readonly JwtOptions _jwtOptions;
+    private readonly ICurrentTenant _currentTenant;
 
     public AuthService(
         UserManager<ApplicationUser> userManager,
         TenantsDbContext db,
         ITokenService tokenService,
-        IOptions<JwtOptions> jwtOptions)
+        IOptions<JwtOptions> jwtOptions,
+        ICurrentTenant currentTenant)
     {
         _userManager = userManager;
         _db = db;
         _tokenService = tokenService;
         _jwtOptions = jwtOptions.Value;
+        _currentTenant = currentTenant;
     }
 
     public async Task<Result<AuthResult>> RegisterAsync(
@@ -137,6 +140,30 @@ public sealed class AuthService : IAuthService
             new CurrentUserTenantDto(tenant.Name, tenant.Slug));
 
         return Result.Success(dto);
+    }
+
+    public async Task<IReadOnlyList<TenantUserDto>> ListTenantUsersAsync()
+    {
+        if (_currentTenant.TenantId is not { } tenantId)
+            return [];
+
+        // One query joining the Identity role tables, rather than UserManager.GetRolesAsync per user
+        // (which would be N+1). ApplicationUser is not ITenantScoped, so the tenant filter is explicit
+        // here rather than coming from the global query filter. One role per user, so one row per user.
+        var users = await (
+            from user in _db.Users.AsNoTracking()
+            where user.TenantId == tenantId
+            join userRole in _db.UserRoles on user.Id equals userRole.UserId into userRoles
+            from userRole in userRoles.DefaultIfEmpty()
+            join role in _db.Roles on userRole.RoleId equals role.Id into roles
+            from role in roles.DefaultIfEmpty()
+            orderby user.FirstName, user.LastName
+            select new TenantUserDto(
+                user.Id, user.FirstName, user.LastName, user.Email!,
+                role != null ? role.Name! : string.Empty))
+            .ToListAsync();
+
+        return users;
     }
 
     private async Task<AuthResult> IssueTokensAsync(ApplicationUser user)

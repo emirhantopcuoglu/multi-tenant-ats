@@ -11,25 +11,21 @@ using Microsoft.Extensions.Options;
 namespace Ats.IntegrationTests.Tenants;
 
 [Collection("Integration")]
-public sealed class GetCurrentUserTests : IAsyncLifetime
+public sealed class ListTenantUsersTests : IAsyncLifetime
 {
-    // Generated at runtime rather than hardcoded so secret scanners don't flag a literal credential.
-    // The "Aa1!" prefix guarantees the default Identity password policy (upper, lower, digit,
-    // non-alphanumeric, length 6+); the GUID suffix makes each run's password unique and high-entropy.
     private static readonly string TestPassword = $"Aa1!{Guid.NewGuid():N}";
 
     private readonly PostgresContainerFixture _fixture;
 
-    public GetCurrentUserTests(PostgresContainerFixture fixture)
+    public ListTenantUsersTests(PostgresContainerFixture fixture)
     {
         _fixture = fixture;
     }
 
     public async Task InitializeAsync()
     {
-        // Start each test from an empty users/tenants state so one test never sees another's rows.
-        // Delete order respects the FK from AspNetUserRoles -> AspNetUsers.
-        await using var provider = BuildProvider(Guid.NewGuid());
+        // Start from an empty users/tenants state so one test never sees another's rows.
+        await using var provider = BuildProvider(null);
         using var scope = provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<TenantsDbContext>();
         await db.Database.ExecuteSqlRawAsync("DELETE FROM tenants.\"AspNetUserRoles\"");
@@ -40,60 +36,49 @@ public sealed class GetCurrentUserTests : IAsyncLifetime
     public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
-    public async Task should_return_current_user_with_tenant()
+    public async Task should_return_tenant_members_with_roles_ordered_by_name_and_scoped_to_tenant()
     {
-        // Arrange — a tenant with one admin user, created the way registration does.
-        var userId = await SeedTenantWithAdminAsync(
-            companyName: "Acme Inc", slug: "acme",
-            email: "admin@acme.test", firstName: "Ada", lastName: "Admin");
+        // Arrange — two members in the target tenant, plus a member of another tenant that must not leak.
+        var tenantId = await SeedTenantAsync("Acme Inc", "acme");
+        await SeedUserAsync(tenantId, "zoe@acme.test", "Zoe", "Zylker", Roles.Recruiter);
+        await SeedUserAsync(tenantId, "ada@acme.test", "Ada", "Admin", Roles.Admin);
 
-        // Act
-        await using var provider = BuildProvider(Guid.NewGuid());
+        var otherTenantId = await SeedTenantAsync("Globex", "globex");
+        await SeedUserAsync(otherTenantId, "eve@globex.test", "Eve", "External", Roles.Admin);
+
+        // Act — list members of the first tenant only.
+        await using var provider = BuildProvider(tenantId);
         using var scope = provider.CreateScope();
-        var result = await CreateAuthService(scope).GetCurrentUserAsync(userId);
+        var users = await CreateAuthService(scope).ListTenantUsersAsync();
 
-        // Assert
-        Assert.True(result.IsSuccess);
-        var dto = result.Value;
-        Assert.Equal(userId, dto.Id);
-        Assert.Equal("Ada", dto.FirstName);
-        Assert.Equal("Admin", dto.LastName);
-        Assert.Equal("admin@acme.test", dto.Email);
-        Assert.Equal(Roles.Admin, dto.Role);
-        Assert.Equal("Acme Inc", dto.Tenant.CompanyName);
-        Assert.Equal("acme", dto.Tenant.Slug);
+        // Assert — both members, ordered by first/last name, with their roles; the other tenant is absent.
+        Assert.Equal(2, users.Count);
+        Assert.Equal(new[] { "Ada", "Zoe" }, users.Select(u => u.FirstName).ToArray());
+        Assert.Equal(Roles.Admin, users[0].Role);
+        Assert.Equal(Roles.Recruiter, users[1].Role);
+        Assert.DoesNotContain(users, u => u.Email == "eve@globex.test");
     }
 
-    [Fact]
-    public async Task should_return_failure_when_user_does_not_exist()
+    private async Task<Guid> SeedTenantAsync(string companyName, string slug)
     {
-        // Arrange — InitializeAsync cleared the tables, so no user has this id.
-        await using var provider = BuildProvider(Guid.NewGuid());
-        using var scope = provider.CreateScope();
-
-        // Act
-        var result = await CreateAuthService(scope).GetCurrentUserAsync(Guid.NewGuid());
-
-        // Assert
-        Assert.True(result.IsFailure);
-        Assert.Equal(AuthErrors.UserNotFound.Code, result.Error.Code);
-    }
-
-    private async Task<Guid> SeedTenantWithAdminAsync(
-        string companyName, string slug, string email, string firstName, string lastName)
-    {
-        await using var provider = BuildProvider(Guid.NewGuid());
+        await using var provider = BuildProvider(null);
         using var scope = provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<TenantsDbContext>();
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
-
         var tenant = Tenant.Create(companyName, slug);
         db.Tenants.Add(tenant);
         await db.SaveChangesAsync();
+        return tenant.Id;
+    }
 
-        if (!await roleManager.RoleExistsAsync(Roles.Admin))
-            await roleManager.CreateAsync(new IdentityRole<Guid>(Roles.Admin));
+    private async Task SeedUserAsync(Guid tenantId, string email, string firstName, string lastName, string role)
+    {
+        await using var provider = BuildProvider(tenantId);
+        using var scope = provider.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+
+        if (!await roleManager.RoleExistsAsync(role))
+            await roleManager.CreateAsync(new IdentityRole<Guid>(role));
 
         var user = new ApplicationUser
         {
@@ -101,18 +86,15 @@ public sealed class GetCurrentUserTests : IAsyncLifetime
             Email = email,
             FirstName = firstName,
             LastName = lastName,
-            TenantId = tenant.Id,
+            TenantId = tenantId,
             CreatedAtUtc = DateTime.UtcNow
         };
 
         var created = await userManager.CreateAsync(user, TestPassword);
         Assert.True(created.Succeeded);
-        await userManager.AddToRoleAsync(user, Roles.Admin);
-
-        return user.Id;
+        await userManager.AddToRoleAsync(user, role);
     }
 
-    // Token service and JwtOptions are unused by GetCurrentUserAsync, so minimal stand-ins suffice.
     private AuthService CreateAuthService(IServiceScope scope) =>
         new(
             scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>(),
@@ -121,8 +103,6 @@ public sealed class GetCurrentUserTests : IAsyncLifetime
             Options.Create(new JwtOptions()),
             scope.ServiceProvider.GetRequiredService<ICurrentTenant>());
 
-    // A real UserManager/RoleManager backed by the container database — the role lookup in
-    // GetCurrentUserAsync depends on the Identity join tables, so a faithful test needs the real thing.
     private ServiceProvider BuildProvider(Guid? tenantId)
     {
         var services = new ServiceCollection();
