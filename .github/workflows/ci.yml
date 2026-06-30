@@ -78,3 +78,30 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t ats-api:ci .
+
+  # Type-checks and builds the React SPA. Independent of the .NET jobs (no `needs`), so it runs in
+  # parallel and gives the frontend its own pass/fail signal. `npm run build` is `tsc -b && vite
+  # build` — the same gate run locally before every web PR, now enforced automatically.
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/Ats.Web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          # Restore the npm cache keyed off the lockfile, so unchanged deps aren't re-downloaded.
+          cache: npm
+          cache-dependency-path: src/Ats.Web/package-lock.json
+
+      # `npm ci` installs exactly what package-lock.json pins (reproducible), unlike `npm install`
+      # which may resolve newer versions and mutate the lockfile.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check and build
+        run: npm run build
