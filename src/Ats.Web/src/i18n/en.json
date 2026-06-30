@@ -157,6 +157,41 @@
     "noApps": "No applications yet.",
     "noInterviews": "No upcoming interviews."
   },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage your workspace and team.",
+    "tabs": {
+      "company": "Company",
+      "users": "Users"
+    },
+    "company": {
+      "name": "Company name",
+      "slug": "Workspace URL",
+      "readonlyHint": "These are set when the workspace is created and can't be changed here yet."
+    },
+    "users": {
+      "title": "Team members",
+      "invite": "Invite user",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "empty": "No team members yet.",
+      "loadError": "Couldn't load team members."
+    },
+    "invite": {
+      "title": "Invite user",
+      "subtitle": "Send an invitation to join this workspace.",
+      "email": "Email",
+      "emailPlaceholder": "person@company.com",
+      "role": "Role",
+      "send": "Send invite",
+      "sent": "Invitation sent.",
+      "emailRequired": "Email is required.",
+      "emailInvalid": "Enter a valid email address.",
+      "emailInUse": "A user with this email already exists.",
+      "error": "Couldn't send the invitation. Please try again."
+    }
+  },
   "interviewType": {
     "PhoneScreen": "Phone screen",
     "Technical": "Technical",

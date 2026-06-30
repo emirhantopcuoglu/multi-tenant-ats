@@ -157,6 +157,41 @@
     "noApps": "Henüz başvuru yok.",
     "noInterviews": "Yaklaşan mülakat yok."
   },
+  "settings": {
+    "title": "Ayarlar",
+    "subtitle": "Çalışma alanınızı ve ekibinizi yönetin.",
+    "tabs": {
+      "company": "Şirket",
+      "users": "Kullanıcılar"
+    },
+    "company": {
+      "name": "Şirket adı",
+      "slug": "Çalışma alanı adresi",
+      "readonlyHint": "Bunlar çalışma alanı oluşturulurken belirlenir ve şimdilik buradan değiştirilemez."
+    },
+    "users": {
+      "title": "Ekip üyeleri",
+      "invite": "Kullanıcı davet et",
+      "name": "Ad",
+      "email": "E-posta",
+      "role": "Rol",
+      "empty": "Henüz ekip üyesi yok.",
+      "loadError": "Ekip üyeleri yüklenemedi."
+    },
+    "invite": {
+      "title": "Kullanıcı davet et",
+      "subtitle": "Bu çalışma alanına katılması için davet gönderin.",
+      "email": "E-posta",
+      "emailPlaceholder": "kisi@sirket.com",
+      "role": "Rol",
+      "send": "Davet gönder",
+      "sent": "Davet gönderildi.",
+      "emailRequired": "E-posta zorunludur.",
+      "emailInvalid": "Geçerli bir e-posta adresi girin.",
+      "emailInUse": "Bu e-posta ile bir kullanıcı zaten mevcut.",
+      "error": "Davet gönderilemedi. Lütfen tekrar deneyin."
+    }
+  },
   "interviewType": {
     "PhoneScreen": "Telefon görüşmesi",
     "Technical": "Teknik",
