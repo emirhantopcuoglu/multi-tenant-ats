@@ -81,7 +81,17 @@
       "title": "Henüz başvuru yok",
       "body": "Adaylar ilanlarına başvurdukça başvurular burada görünür.",
       "filtered": "Filtrelerine uyan başvuru yok."
-    }
+    },
+    "view": {
+      "label": "Görünüm",
+      "table": "Tablo",
+      "board": "Pano"
+    },
+    "selectJob": {
+      "title": "Bir ilan seç",
+      "body": "Pipeline panosunu görmek için bir ilan seç."
+    },
+    "moveError": "Başvuru taşınamadı. Lütfen tekrar dene."
   },
   "employmentType": {
     "FullTime": "Tam zamanlı",

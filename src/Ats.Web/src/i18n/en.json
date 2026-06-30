@@ -81,7 +81,17 @@
       "title": "No applications yet",
       "body": "Applications appear here as candidates apply to your jobs.",
       "filtered": "No applications match your filters."
-    }
+    },
+    "view": {
+      "label": "View",
+      "table": "Table",
+      "board": "Board"
+    },
+    "selectJob": {
+      "title": "Select a job",
+      "body": "Pick a job to see its pipeline board."
+    },
+    "moveError": "Couldn't move the application. Please try again."
   },
   "employmentType": {
     "FullTime": "Full-time",
