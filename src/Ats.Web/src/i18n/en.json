@@ -93,6 +93,57 @@
     },
     "moveError": "Couldn't move the application. Please try again."
   },
+  "applicationDetail": {
+    "back": "Back to applications",
+    "linkedin": "LinkedIn",
+    "moveStage": "Move stage",
+    "reject": "Reject",
+    "notFound": "This application could not be found.",
+    "tabs": {
+      "cv": "CV",
+      "cover": "Cover letter",
+      "analysis": "AI analysis",
+      "activity": "Activity"
+    },
+    "cv": {
+      "open": "Open CV",
+      "none": "No CV was attached to this application."
+    },
+    "cover": {
+      "none": "No cover letter was provided."
+    },
+    "analysis": {
+      "processing": "The CV is still being analyzed. Check back shortly.",
+      "error": "Couldn't load the CV analysis.",
+      "empty": "No analysis details were extracted.",
+      "experience": "Total experience",
+      "years_one": "{{count}} year",
+      "years_other": "{{count}} years",
+      "skills": "Skills",
+      "positions": "Recent positions",
+      "education": "Education"
+    },
+    "activity": {
+      "empty": "No activity yet.",
+      "error": "Couldn't load the activity.",
+      "submitted": "Application submitted",
+      "moved": "Moved from {{from}} to {{to}}",
+      "rejected": "Application rejected"
+    },
+    "reject_modal": {
+      "title": "Reject application",
+      "description": "The candidate is notified. The reason is kept internal.",
+      "reasonLabel": "Reason",
+      "reasonPlaceholder": "Why is this application being rejected?",
+      "reasonRequired": "A reason is required.",
+      "confirm": "Reject application"
+    },
+    "toast": {
+      "moved": "Stage updated.",
+      "rejected": "Application rejected.",
+      "error": "Action failed. Please try again."
+    }
+  },
   "employmentType": {
     "FullTime": "Full-time",
     "PartTime": "Part-time",

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, EmptyState, Pagination, Select, Skeleton } from '@/components/ui';
 import { useAuth } from '@/app/auth/auth-context';
@@ -43,9 +43,12 @@ function ViewToggle({ view, onChange }: { view: ApplicationsView; onChange: (vie
    and the per-job Kanban board; filters, page, and the active view all live in the URL. */
 export function ApplicationsPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { role } = useAuth();
   const canManage = canManageApplications(role);
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const openApplication = (id: string) => navigate(`/applications/${id}`);
 
   const pageParam = Number(searchParams.get('page'));
   const page = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;
@@ -172,7 +175,7 @@ export function ApplicationsPage() {
             </Card>
           ) : (
             <div className="space-y-4">
-              <ApplicationsTable applications={applications} jobTitleOf={jobTitleOf} />
+              <ApplicationsTable applications={applications} jobTitleOf={jobTitleOf} onSelect={openApplication} />
               <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
                 <p className="text-sm text-text-muted">
                   {t('applications.rows', { count: data?.totalCount ?? 0 })}
@@ -233,6 +236,7 @@ export function ApplicationsPage() {
               applications={board.applicationsQuery.data?.items ?? []}
               canManage={canManage}
               onMove={(id, targetStageId) => board.move.mutate({ id, targetStageId })}
+              onSelect={openApplication}
             />
           )}
         </div>

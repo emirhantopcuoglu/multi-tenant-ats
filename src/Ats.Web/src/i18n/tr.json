@@ -93,6 +93,57 @@
     },
     "moveError": "Başvuru taşınamadı. Lütfen tekrar dene."
   },
+  "applicationDetail": {
+    "back": "Başvurulara dön",
+    "linkedin": "LinkedIn",
+    "moveStage": "Aşama değiştir",
+    "reject": "Reddet",
+    "notFound": "Bu başvuru bulunamadı.",
+    "tabs": {
+      "cv": "CV",
+      "cover": "Ön yazı",
+      "analysis": "AI analizi",
+      "activity": "Hareketler"
+    },
+    "cv": {
+      "open": "CV'yi aç",
+      "none": "Bu başvuruya CV eklenmemiş."
+    },
+    "cover": {
+      "none": "Ön yazı girilmemiş."
+    },
+    "analysis": {
+      "processing": "CV hâlâ analiz ediliyor. Birazdan tekrar bak.",
+      "error": "CV analizi yüklenemedi.",
+      "empty": "Analiz detayı çıkarılamadı.",
+      "experience": "Toplam deneyim",
+      "years_one": "{{count}} yıl",
+      "years_other": "{{count}} yıl",
+      "skills": "Yetenekler",
+      "positions": "Son pozisyonlar",
+      "education": "Eğitim"
+    },
+    "activity": {
+      "empty": "Henüz hareket yok.",
+      "error": "Hareketler yüklenemedi.",
+      "submitted": "Başvuru gönderildi",
+      "moved": "{{from}} aşamasından {{to}} aşamasına taşındı",
+      "rejected": "Başvuru reddedildi"
+    },
+    "reject_modal": {
+      "title": "Başvuruyu reddet",
+      "description": "Aday bilgilendirilir. Sebep yalnızca dahili tutulur.",
+      "reasonLabel": "Sebep",
+      "reasonPlaceholder": "Bu başvuru neden reddediliyor?",
+      "reasonRequired": "Bir sebep zorunludur.",
+      "confirm": "Başvuruyu reddet"
+    },
+    "toast": {
+      "moved": "Aşama güncellendi.",
+      "rejected": "Başvuru reddedildi.",
+      "error": "İşlem başarısız. Lütfen tekrar dene."
+    }
+  },
   "employmentType": {
     "FullTime": "Tam zamanlı",
     "PartTime": "Yarı zamanlı",
