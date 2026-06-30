@@ -128,3 +128,35 @@ public sealed class ListPublicJobsHandler : IQueryHandler<ListPublicJobsQuery, P
         return Result.Success(new PagedResult<JobDto>(items, page, pageSize, totalCount));
     }
 }
+
+// ---- GetPublicJobBySlug (no auth, only Published) ----
+// The public job-detail page looks a job up by its slug, not its Guid — the slug is what appears in
+// the URL (/{tenant}/jobs/{jobSlug}). Only Published jobs are visible: a draft or closed job must
+// read as "not found" to the public, never leak. Tenant scoping is automatic via the global query
+// filter, so a slug from another tenant can't match.
+public sealed record GetPublicJobBySlugQuery(string Slug) : IQuery<JobDetailDto>;
+
+public sealed class GetPublicJobBySlugHandler : IQueryHandler<GetPublicJobBySlugQuery, JobDetailDto>
+{
+    private readonly IJobsDbContext _db;
+    public GetPublicJobBySlugHandler(IJobsDbContext db) => _db = db;
+
+    public async Task<Result<JobDetailDto>> Handle(GetPublicJobBySlugQuery query, CancellationToken ct)
+    {
+        var job = await _db.Jobs
+            .AsNoTracking()
+            .Where(j => j.Slug == query.Slug && j.Status == JobStatus.Published)
+            .Select(j => new JobDetailDto(
+                j.Id, j.Title, j.Description, j.Department, j.Location,
+                j.EmploymentType.ToString(), j.ExperienceLevel.ToString(), j.Status.ToString(), j.Slug,
+                j.SalaryRange == null ? null : (decimal?)j.SalaryRange.Min,
+                j.SalaryRange == null ? null : (decimal?)j.SalaryRange.Max,
+                j.SalaryRange == null ? null : j.SalaryRange.Currency,
+                j.CreatedAtUtc))
+            .FirstOrDefaultAsync(ct);
+
+        return job is null
+            ? Result.Failure<JobDetailDto>(JobErrors.NotFound)
+            : Result.Success(job);
+    }
+}
