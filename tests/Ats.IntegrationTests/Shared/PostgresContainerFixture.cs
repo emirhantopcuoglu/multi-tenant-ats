@@ -1,4 +1,5 @@
 using Ats.Modules.Applications.Infrastructure;
+using Ats.Modules.Interviews.Infrastructure;
 using Ats.Modules.Jobs.Infrastructure;
 using Ats.Modules.Tenants.Infrastructure;
 using Ats.Shared.Infrastructure;
@@ -21,6 +22,7 @@ public sealed class PostgresContainerFixture : IAsyncLifetime
         await ApplyJobsMigrationsAsync();
         await ApplyTenantsMigrationsAsync();
         await ApplyApplicationsMigrationsAsync();
+        await ApplyInterviewsMigrationsAsync();
     }
 
     public async Task DisposeAsync()
@@ -49,6 +51,13 @@ public sealed class PostgresContainerFixture : IAsyncLifetime
         await db.Database.MigrateAsync();
     }
 
+    private async Task ApplyInterviewsMigrationsAsync()
+    {
+        var tenant = new FixedTenant(null);
+        await using var db = new InterviewsDbContext(BuildInterviewsOptions(ConnectionString, tenant), tenant);
+        await db.Database.MigrateAsync();
+    }
+
     internal static DbContextOptions<JobsDbContext> BuildJobsOptions(string connectionString, ICurrentTenant tenant)
         => new DbContextOptionsBuilder<JobsDbContext>()
             .UseNpgsql(connectionString,
@@ -71,6 +80,15 @@ public sealed class PostgresContainerFixture : IAsyncLifetime
         => new DbContextOptionsBuilder<ApplicationsDbContext>()
             .UseNpgsql(connectionString,
                 npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "applications"))
+            .AddInterceptors(
+                new TenantSaveChangesInterceptor(tenant),
+                new AuditableSaveChangesInterceptor(new NullCurrentUser()))
+            .Options;
+
+    internal static DbContextOptions<InterviewsDbContext> BuildInterviewsOptions(string connectionString, ICurrentTenant tenant)
+        => new DbContextOptionsBuilder<InterviewsDbContext>()
+            .UseNpgsql(connectionString,
+                npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "interviews"))
             .AddInterceptors(
                 new TenantSaveChangesInterceptor(tenant),
                 new AuditableSaveChangesInterceptor(new NullCurrentUser()))

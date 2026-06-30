@@ -35,4 +35,12 @@ public sealed class JobDirectory : IJobDirectory
             .Select(j => j.Title)
             .FirstOrDefaultAsync(cancellationToken);
     }
+
+    public async Task<int> CountOpenJobsAsync(CancellationToken cancellationToken = default)
+    {
+        // A single tenant-scoped COUNT — "open" means Published. No N+1: one aggregate query.
+        return await _db.Jobs
+            .AsNoTracking()
+            .CountAsync(j => j.Status == JobStatus.Published, cancellationToken);
+    }
 }

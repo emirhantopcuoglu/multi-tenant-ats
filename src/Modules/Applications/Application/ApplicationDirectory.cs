@@ -39,4 +39,24 @@ public sealed class ApplicationDirectory : IApplicationDirectory
 
         return pairs.ToDictionary(pair => pair.Id, pair => pair.FullName);
     }
+
+    public async Task<int> CountApplicationsSinceAsync(
+        DateTime sinceUtc, CancellationToken cancellationToken = default)
+    {
+        return await _db.Applications
+            .AsNoTracking()
+            .CountAsync(a => a.AppliedAtUtc >= sinceUtc, cancellationToken);
+    }
+
+    public async Task<int> CountActiveCandidatesAsync(CancellationToken cancellationToken = default)
+    {
+        // Distinct candidates, not applications: one candidate may hold several open applications but
+        // is a single "active candidate". Distinct + count is one aggregate query (no N+1).
+        return await _db.Applications
+            .AsNoTracking()
+            .Where(a => a.Status == ApplicationStatus.Active)
+            .Select(a => a.CandidateId)
+            .Distinct()
+            .CountAsync(cancellationToken);
+    }
 }
