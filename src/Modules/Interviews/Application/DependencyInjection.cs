@@ -1,3 +1,4 @@
+using Ats.Shared.Contracts.Interviews;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,9 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(assembly);
         services.AddTransient(
             typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+        // Cross-module read port: lets the API compose interview counts for the dashboard.
+        services.AddScoped<IInterviewDirectory, InterviewDirectory>();
 
         return services;
     }

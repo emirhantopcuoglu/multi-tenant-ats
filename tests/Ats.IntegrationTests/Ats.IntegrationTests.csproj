@@ -28,6 +28,8 @@
     <ProjectReference Include="..\..\src\Modules\Applications\Infrastructure\Ats.Modules.Applications.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Jobs\Application\Ats.Modules.Jobs.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Jobs\Infrastructure\Ats.Modules.Jobs.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Interviews\Application\Ats.Modules.Interviews.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Interviews\Infrastructure\Ats.Modules.Interviews.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Tenants\Infrastructure\Ats.Modules.Tenants.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Shared\Ats.Shared.Infrastructure\Ats.Shared.Infrastructure.csproj" />
   </ItemGroup>

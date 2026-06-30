@@ -17,6 +17,16 @@ public interface IApplicationDirectory
     // Applications schema. Ids with no match (e.g. another tenant's) are simply absent from the map.
     Task<IReadOnlyDictionary<Guid, string>> GetCandidateNamesByApplicationAsync(
         IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default);
+
+    // Number of applications submitted at or after the given instant — feeds the dashboard "New
+    // applications this week" stat. The caller decides the window (e.g. the last 7 days) and passes
+    // the boundary, so this stays a simple, reusable count.
+    Task<int> CountApplicationsSinceAsync(
+        DateTime sinceUtc, CancellationToken cancellationToken = default);
+
+    // Number of distinct candidates with at least one Active application — the dashboard "Active
+    // candidates" stat. Distinct because one candidate may have several open applications.
+    Task<int> CountActiveCandidatesAsync(CancellationToken cancellationToken = default);
 }
 
 // A minimal read model: only what scheduling needs. IsActive collapses the Applications module's
