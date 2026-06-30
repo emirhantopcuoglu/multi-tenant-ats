@@ -7,6 +7,8 @@ interface ApplicationsTableProps {
   applications: ApplicationListItem[];
   /** Resolves a job id to its title (the list DTO carries only the id). */
   jobTitleOf: (jobId: string) => string;
+  /** Opens the application's detail page. */
+  onSelect: (id: string) => void;
 }
 
 function ColumnHeaders() {
@@ -22,7 +24,7 @@ function ColumnHeaders() {
   );
 }
 
-export function ApplicationsTable({ applications, jobTitleOf }: ApplicationsTableProps) {
+export function ApplicationsTable({ applications, jobTitleOf, onSelect }: ApplicationsTableProps) {
   const { t, i18n } = useTranslation();
   const dateFormatter = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium' });
 
@@ -33,7 +35,12 @@ export function ApplicationsTable({ applications, jobTitleOf }: ApplicationsTabl
       </THead>
       <TBody>
         {applications.map((application) => (
-          <TR key={application.id} interactive>
+          <TR
+            key={application.id}
+            interactive
+            onClick={() => onSelect(application.id)}
+            className="cursor-pointer"
+          >
             <TD>
               <div className="font-medium">{application.candidateName}</div>
               <div className="text-xs text-text-muted">{application.candidateEmail}</div>

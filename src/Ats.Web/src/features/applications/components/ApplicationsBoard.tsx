@@ -20,6 +20,8 @@ interface ApplicationsBoardProps {
   /** Read-only roles see the board but can't drag cards. */
   canManage: boolean;
   onMove: (applicationId: string, targetStageId: string) => void;
+  /** Clicking a card (without dragging) opens its detail page. */
+  onSelect: (id: string) => void;
 }
 
 /* The visual content of a card, reused by the column cards and the drag overlay. */
@@ -32,7 +34,15 @@ function CardBody({ application }: { application: ApplicationListItem }) {
   );
 }
 
-function BoardCard({ application, canManage }: { application: ApplicationListItem; canManage: boolean }) {
+function BoardCard({
+  application,
+  canManage,
+  onSelect,
+}: {
+  application: ApplicationListItem;
+  canManage: boolean;
+  onSelect: (id: string) => void;
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: application.id,
     disabled: !canManage,
@@ -43,7 +53,13 @@ function BoardCard({ application, canManage }: { application: ApplicationListIte
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={cn(canManage && 'cursor-grab active:cursor-grabbing', isDragging && 'opacity-40')}
+      // A drag needs 6px of movement to start, so a plain click falls through to open the detail.
+      onClick={() => onSelect(application.id)}
+      className={cn(
+        'cursor-pointer',
+        canManage && 'active:cursor-grabbing',
+        isDragging && 'opacity-40',
+      )}
     >
       <KanbanCard>
         <CardBody application={application} />
@@ -56,17 +72,24 @@ function BoardColumn({
   stage,
   applications,
   canManage,
+  onSelect,
 }: {
   stage: PipelineStage;
   applications: ApplicationListItem[];
   canManage: boolean;
+  onSelect: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   return (
     <div ref={setNodeRef} className={cn('rounded-2xl', isOver && 'ring-2 ring-accent')}>
       <KanbanColumn title={stage.name} count={applications.length}>
         {applications.map((application) => (
-          <BoardCard key={application.id} application={application} canManage={canManage} />
+          <BoardCard
+            key={application.id}
+            application={application}
+            canManage={canManage}
+            onSelect={onSelect}
+          />
         ))}
       </KanbanColumn>
     </div>
@@ -77,7 +100,7 @@ function BoardColumn({
    floating DragOverlay, and droppable columns without hand-rolling the HTML5 drag API. Only
    cross-column moves are meaningful (there's no intra-column order to persist), so plain
    draggable/droppable suffices — no sortable. Cards are grouped by their current stage id. */
-export function ApplicationsBoard({ stages, applications, canManage, onMove }: ApplicationsBoardProps) {
+export function ApplicationsBoard({ stages, applications, canManage, onMove, onSelect }: ApplicationsBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   // A small activation distance so a click on a card isn't mistaken for a drag.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -118,6 +141,7 @@ export function ApplicationsBoard({ stages, applications, canManage, onMove }: A
             stage={stage}
             applications={applicationsByStage.get(stage.id) ?? []}
             canManage={canManage}
+            onSelect={onSelect}
           />
         ))}
       </div>
