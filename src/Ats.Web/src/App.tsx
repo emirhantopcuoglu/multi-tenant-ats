@@ -7,6 +7,8 @@ import { JobsPage } from '@/features/jobs/JobsPage';
 import { JobFormPage } from '@/features/jobs/JobFormPage';
 import { ApplicationsPage } from '@/features/applications/ApplicationsPage';
 import { ApplicationDetailPage } from '@/features/applications/ApplicationDetailPage';
+import { InterviewsPage } from '@/features/interviews/InterviewsPage';
+import { InterviewDetailPage } from '@/features/interviews/InterviewDetailPage';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { RegisterPage } from '@/features/auth/pages/RegisterPage';
 import { AcceptInvitationPage } from '@/features/auth/pages/AcceptInvitationPage';
@@ -33,7 +35,8 @@ export default function App() {
           <Route path="/jobs/:id/edit" element={<JobFormPage />} />
           <Route path="/applications" element={<ApplicationsPage />} />
           <Route path="/applications/:id" element={<ApplicationDetailPage />} />
-          <Route path="/interviews" element={<PagePlaceholder titleKey="nav.interviews" />} />
+          <Route path="/interviews" element={<InterviewsPage />} />
+          <Route path="/interviews/:id" element={<InterviewDetailPage />} />
           <Route path="/candidates" element={<PagePlaceholder titleKey="nav.candidates" />} />
           <Route element={<RequireRole roles={['Admin']} />}>
             <Route path="/settings" element={<SettingsPage />} />

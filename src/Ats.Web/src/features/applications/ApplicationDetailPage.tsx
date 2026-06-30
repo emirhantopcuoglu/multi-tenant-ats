@@ -3,6 +3,8 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Skeleton, TabPanel, Tabs, useToast } from '@/components/ui';
 import { useAuth } from '@/app/auth/auth-context';
+import { canManageInterviews } from '@/features/interviews/interviewPermissions';
+import { ScheduleInterviewModal } from '@/features/interviews/components/ScheduleInterviewModal';
 import { canManageApplications } from './applicationPermissions';
 import { getCvDownloadUrl } from './applicationsApi';
 import { useJobStages } from './useApplications';
@@ -25,6 +27,7 @@ function ApplicationDetailView({ id }: { id: string }) {
   const { toast } = useToast();
   const { role } = useAuth();
   const canManage = canManageApplications(role);
+  const canScheduleInterview = canManageInterviews(role);
 
   const { data: application, isLoading, isError } = useApplication(id);
   const activitiesQuery = useApplicationActivities(id);
@@ -33,6 +36,7 @@ function ApplicationDetailView({ id }: { id: string }) {
 
   const [tab, setTab] = useState('cv');
   const [rejectOpen, setRejectOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [cvLoading, setCvLoading] = useState(false);
 
   if (isLoading) {
@@ -85,9 +89,16 @@ function ApplicationDetailView({ id }: { id: string }) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <Link to="/applications" className="text-sm text-text-muted transition-colors hover:text-text">
-        ← {t('applicationDetail.back')}
-      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <Link to="/applications" className="text-sm text-text-muted transition-colors hover:text-text">
+          ← {t('applicationDetail.back')}
+        </Link>
+        {canScheduleInterview && application.status === 'Active' && (
+          <Button variant="secondary" onClick={() => setScheduleOpen(true)}>
+            {t('interviews.schedule')}
+          </Button>
+        )}
+      </div>
 
       <ApplicationHeader
         application={application}
@@ -152,6 +163,14 @@ function ApplicationDetailView({ id }: { id: string }) {
         onOpenChange={setRejectOpen}
         onConfirm={handleReject}
         submitting={reject.isPending}
+      />
+
+      <ScheduleInterviewModal
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        applicationId={id}
+        candidateName={application.candidateName}
+        onScheduled={(interviewId) => navigate(`/interviews/${interviewId}`)}
       />
     </div>
   );

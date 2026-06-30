@@ -144,6 +144,85 @@
       "error": "İşlem başarısız. Lütfen tekrar dene."
     }
   },
+  "interviewType": {
+    "PhoneScreen": "Telefon görüşmesi",
+    "Technical": "Teknik",
+    "Cultural": "Kültürel",
+    "Final": "Final"
+  },
+  "interviews": {
+    "schedule": "Mülakat planla",
+    "scheduleTitle": "Mülakat planla",
+    "scheduleSub": "Bir mülakat ayarla ve ekibi davet et.",
+    "filterRange": "Tarihe göre filtrele",
+    "filterInterviewer": "Görüşmeciye göre filtrele",
+    "allInterviewers": "Tüm görüşmeciler",
+    "range": {
+      "all": "Tüm tarihler",
+      "upcoming": "Yaklaşan",
+      "next7": "Önümüzdeki 7 gün",
+      "past": "Geçmiş"
+    },
+    "minutesShort": "{{count}} dk",
+    "rows_one": "{{count}} mülakat",
+    "rows_other": "{{count}} mülakat",
+    "loadError": "Mülakatlar yüklenemedi.",
+    "retry": "Tekrar dene",
+    "col": {
+      "candidate": "Aday",
+      "type": "Tür",
+      "when": "Ne zaman",
+      "duration": "Süre",
+      "status": "Durum",
+      "interviewers": "Görüşmeciler"
+    },
+    "empty": {
+      "title": "Henüz mülakat yok",
+      "body": "Başlamak için bir adayın başvurusundan mülakat planla.",
+      "filtered": "Filtrelerinle eşleşen mülakat yok."
+    },
+    "form": {
+      "candidate": "Aday",
+      "candidatePlaceholder": "Bir aday seç…",
+      "applicationRequired": "Bir aday seç.",
+      "type": "Mülakat türü",
+      "when": "Tarih ve saat",
+      "whenRequired": "Tarih ve saat seç.",
+      "duration": "Süre (dakika)",
+      "durationInvalid": "Geçerli bir süre gir.",
+      "location": "Konum",
+      "locationPlaceholder": "Toplantı bağlantısı veya oda",
+      "interviewers": "Görüşmeciler",
+      "loadingUsers": "Ekip yükleniyor…",
+      "noUsers": "Ekip üyesi bulunamadı.",
+      "notes": "Notlar",
+      "notesPlaceholder": "Gündem, odak alanları…"
+    },
+    "reschedule": {
+      "title": "Mülakatı yeniden planla",
+      "description": "Yeni bir tarih, saat veya süre seç.",
+      "confirm": "Yeniden planla"
+    },
+    "action": {
+      "reschedule": "Yeniden planla",
+      "complete": "Tamamlandı işaretle",
+      "noShow": "Gelmedi",
+      "cancel": "İptal et"
+    },
+    "detail": {
+      "back": "Mülakatlara dön",
+      "notFound": "Bu mülakat bulunamadı.",
+      "viewApplication": "Başvuruyu gör"
+    },
+    "toast": {
+      "scheduled": "Mülakat planlandı.",
+      "rescheduled": "Mülakat yeniden planlandı.",
+      "cancelled": "Mülakat iptal edildi.",
+      "completed": "Tamamlandı olarak işaretlendi.",
+      "noShow": "Gelmedi olarak işaretlendi.",
+      "error": "İşlem başarısız. Lütfen tekrar dene."
+    }
+  },
   "employmentType": {
     "FullTime": "Tam zamanlı",
     "PartTime": "Yarı zamanlı",
