@@ -16,6 +16,7 @@ import { AcceptInvitationPage } from '@/features/auth/pages/AcceptInvitationPage
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { PublicCareersPage } from '@/features/public/PublicCareersPage';
 import { PublicJobDetailPage } from '@/features/public/PublicJobDetailPage';
+import { PublicApplyPage } from '@/features/public/PublicApplyPage';
 import { PlaygroundPage } from '@/features/playground/PlaygroundPage';
 
 /* Public auth routes sit at the top. Everything else is nested under RequireAuth → AppShell, so the
@@ -34,6 +35,7 @@ export default function App() {
           single-segment patterns, so they only match a tenant slug, never an app path. */}
       <Route path="/:slug" element={<PublicCareersPage />} />
       <Route path="/:slug/jobs/:jobSlug" element={<PublicJobDetailPage />} />
+      <Route path="/:slug/jobs/:jobSlug/apply" element={<PublicApplyPage />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
