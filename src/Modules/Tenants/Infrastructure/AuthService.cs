@@ -34,15 +34,24 @@ public sealed class AuthService : IAuthService
     public async Task<Result<AuthResult>> RegisterAsync(
         string companyName, string slug, string email, string password, string firstName, string lastName)
     {
-        var slugTaken = await _db.Tenants.AnyAsync(t => t.Slug == slug);
+        // Normalize once, then validate and check uniqueness against that exact value. The slug is
+        // stored lower-cased, so comparing the raw input would let "Acme" pass the uniqueness check
+        // against a stored "acme" and then collide on insert.
+        var normalizedSlug = (slug ?? string.Empty).Trim().ToLowerInvariant();
+
+        var slugValidation = SlugPolicy.Validate(normalizedSlug);
+        if (slugValidation.IsFailure)
+            return Result.Failure<AuthResult>(slugValidation.Error);
+
+        var slugTaken = await _db.Tenants.AnyAsync(t => t.Slug == normalizedSlug);
         if (slugTaken)
-            return Result.Failure<AuthResult>(AuthErrors.RegistrationFailed($"Slug '{slug}' is already taken."));
+            return Result.Failure<AuthResult>(AuthErrors.RegistrationFailed($"Slug '{normalizedSlug}' is already taken."));
 
         var emailTaken = await _userManager.FindByEmailAsync(email) is not null;
         if (emailTaken)
             return Result.Failure<AuthResult>(AuthErrors.RegistrationFailed($"Email '{email}' is already registered."));
 
-        var tenant = Tenant.Create(companyName, slug);
+        var tenant = Tenant.Create(companyName, normalizedSlug);
         _db.Tenants.Add(tenant);
         await _db.SaveChangesAsync();
 
