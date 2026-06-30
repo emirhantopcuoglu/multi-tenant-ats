@@ -11,6 +11,12 @@ public interface IApplicationDirectory
 {
     Task<ApplicationForScheduling?> GetForSchedulingAsync(
         Guid applicationId, CancellationToken cancellationToken = default);
+
+    // Resolves candidate display names for a set of applications. The interview list holds only
+    // application ids; this lets it show the candidate without the Interviews module knowing the
+    // Applications schema. Ids with no match (e.g. another tenant's) are simply absent from the map.
+    Task<IReadOnlyDictionary<Guid, string>> GetCandidateNamesByApplicationAsync(
+        IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default);
 }
 
 // A minimal read model: only what scheduling needs. IsActive collapses the Applications module's
