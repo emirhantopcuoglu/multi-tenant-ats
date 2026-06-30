@@ -37,4 +37,16 @@ public sealed class PublicJobsController : ControllerBase
         var result = await _sender.Send(new ListPublicJobsQuery(page, pageSize));
         return Ok(result.Value);
     }
+
+    // Public job detail by slug (e.g. /acmecorp/jobs/staff-engineer-1a2b3c4d). A draft, closed, or
+    // unknown job — and any slug under an unresolved tenant — all read as 404, so nothing leaks.
+    [HttpGet("{jobSlug}")]
+    public async Task<IActionResult> Detail(string slug, string jobSlug)
+    {
+        if (!_currentTenant.TenantId.HasValue)
+            return NotFound();
+
+        var result = await _sender.Send(new GetPublicJobBySlugQuery(jobSlug));
+        return result.IsSuccess ? Ok(result.Value) : NotFound();
+    }
 }
