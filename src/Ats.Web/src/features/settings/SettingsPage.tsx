@@ -1,15 +1,39 @@
-import { Card } from '@/components/ui';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Tabs, TabPanel, type TabItem } from '@/components/ui';
+import { CompanyTab } from './components/CompanyTab';
+import { UsersTab } from './components/UsersTab';
 
-/* Placeholder settings route, mounted behind RequireRole(['Admin']) inside the app shell so the role
-   guard has a concrete target. The shell provides the page padding, so this only owns its content.
-   The real Settings screen (company + users) arrives in Step 4.2. */
+const TABS = { company: 'company', users: 'users' } as const;
+type SettingsTab = (typeof TABS)[keyof typeof TABS];
+
+/* Settings (Step 4.2), Admin-only via the route guard. Two tabs: a read-only Company panel and the
+   tenant user directory with invite. The page owns only the active-tab state; each tab fetches its
+   own data so switching tabs doesn't re-render the other. */
 export function SettingsPage() {
+  const { t } = useTranslation();
+  const [tab, setTab] = useState<SettingsTab>(TABS.company);
+
+  const items: TabItem[] = [
+    { value: TABS.company, label: t('settings.tabs.company') },
+    { value: TABS.users, label: t('settings.tabs.users') },
+  ];
+
   return (
-    <div className="mx-auto max-w-2xl">
-      <Card className="space-y-1">
-        <h2 className="text-lg font-semibold text-text">Settings</h2>
-        <p className="text-sm text-text-muted">Admin-only. The real settings screen arrives later.</p>
-      </Card>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight text-text">{t('settings.title')}</h1>
+        <p className="text-sm text-text-muted">{t('settings.subtitle')}</p>
+      </div>
+
+      <Tabs value={tab} onValueChange={(value) => setTab(value as SettingsTab)} items={items}>
+        <TabPanel value={TABS.company}>
+          <CompanyTab />
+        </TabPanel>
+        <TabPanel value={TABS.users}>
+          <UsersTab />
+        </TabPanel>
+      </Tabs>
     </div>
   );
 }
