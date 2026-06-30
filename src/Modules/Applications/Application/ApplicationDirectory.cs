@@ -23,4 +23,20 @@ public sealed class ApplicationDirectory : IApplicationDirectory
             .Select(a => new ApplicationForScheduling(a.Id, a.Status == ApplicationStatus.Active))
             .FirstOrDefaultAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyDictionary<Guid, string>> GetCandidateNamesByApplicationAsync(
+        IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default)
+    {
+        if (applicationIds.Count == 0)
+            return new Dictionary<Guid, string>();
+
+        var pairs = await (
+            from a in _db.Applications.AsNoTracking()
+            where applicationIds.Contains(a.Id)
+            join c in _db.Candidates.AsNoTracking() on a.CandidateId equals c.Id
+            select new { a.Id, FullName = c.FirstName + " " + c.LastName })
+            .ToListAsync(cancellationToken);
+
+        return pairs.ToDictionary(pair => pair.Id, pair => pair.FullName);
+    }
 }
