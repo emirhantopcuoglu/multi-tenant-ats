@@ -40,6 +40,7 @@ public class SlugPolicyTests
     [InlineData("settings")]
     [InlineData("api")]
     [InlineData("hangfire")]
+    [InlineData("public")]
     public void Validate_should_reject_a_reserved_route_prefix(string slug)
     {
         var result = SlugPolicy.Validate(slug);

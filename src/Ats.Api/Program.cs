@@ -32,6 +32,7 @@ using Ats.Modules.Jobs.Infrastructure;
 using Ats.Modules.Tenants.Application;
 using Ats.Modules.Tenants.Domain;
 using Ats.Modules.Tenants.Infrastructure;
+using Ats.Shared.Contracts.Tenants;
 using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -420,6 +421,10 @@ builder.Services
 
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+
+// The Tenants module's cross-module read port, consumed (e.g.) by the Jobs public feed to name the
+// company behind each job without reaching into the Tenants schema.
+builder.Services.AddScoped<ITenantDirectory, TenantDirectory>();
 
 builder.Services.Configure<EmailOptions>(
     builder.Configuration.GetSection(EmailOptions.SectionName));
