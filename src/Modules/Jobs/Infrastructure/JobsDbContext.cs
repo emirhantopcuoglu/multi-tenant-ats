@@ -41,6 +41,13 @@ public sealed class JobsDbContext : DbContext, IJobsDbContext
             entity.HasIndex(j => new { j.TenantId, j.Status, j.PublishedAtUtc })
                 .IsDescending(false, false, true);
 
+            // Serves the cross-tenant marketplace feed (ListPublicJobFeed): unlike the per-tenant
+            // listing above, it filters on Status=Published across ALL tenants and orders by
+            // PublishedAtUtc DESC, so the leading TenantId of that index cannot be used. This one
+            // starts at Status, matching the feed's filter + sort with no separate sort step.
+            entity.HasIndex(j => new { j.Status, j.PublishedAtUtc })
+                .IsDescending(false, true);
+
             entity.OwnsOne(j => j.SalaryRange, sr =>
             {
                 sr.Property(p => p.Min).HasColumnName("SalaryMin");

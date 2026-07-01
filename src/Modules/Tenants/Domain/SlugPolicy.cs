@@ -26,7 +26,7 @@ public static partial class SlugPolicy
     {
         "login", "register", "accept-invitation", "playground",
         "jobs", "applications", "interviews", "candidates", "settings",
-        "api", "health", "hangfire", "metrics", "swagger",
+        "api", "health", "hangfire", "metrics", "swagger", "public",
     };
 
     // Expects an already-normalized (trimmed, lower-cased) slug — registration normalizes once and
