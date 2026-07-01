@@ -47,4 +47,20 @@ public sealed class TenantDirectory : ITenantDirectory
             .Select(t => t.Id)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<TenantSummary?> GetSummaryBySlugAsync(
+        string slug, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(slug))
+            return null;
+
+        // Slugs are stored lower-cased (Tenant.Create normalizes), so match on the normalized form.
+        var normalized = slug.Trim().ToLower();
+
+        return await _db.Tenants
+            .AsNoTracking()
+            .Where(t => t.Slug == normalized)
+            .Select(t => new TenantSummary(t.Id, t.Name, t.Slug))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 }
