@@ -1,4 +1,5 @@
 using Ats.Modules.Applications.Infrastructure;
+using Ats.Modules.CandidateAccounts.Infrastructure;
 using Ats.Modules.Interviews.Infrastructure;
 using Ats.Modules.Jobs.Infrastructure;
 using Ats.Modules.Tenants.Infrastructure;
@@ -23,6 +24,7 @@ public sealed class PostgresContainerFixture : IAsyncLifetime
         await ApplyTenantsMigrationsAsync();
         await ApplyApplicationsMigrationsAsync();
         await ApplyInterviewsMigrationsAsync();
+        await ApplyCandidateAccountsMigrationsAsync();
     }
 
     public async Task DisposeAsync()
@@ -55,6 +57,13 @@ public sealed class PostgresContainerFixture : IAsyncLifetime
     {
         var tenant = new FixedTenant(null);
         await using var db = new InterviewsDbContext(BuildInterviewsOptions(ConnectionString, tenant), tenant);
+        await db.Database.MigrateAsync();
+    }
+
+    // The candidate accounts context is tenant-less, so — unlike the others — it needs no tenant stub.
+    private async Task ApplyCandidateAccountsMigrationsAsync()
+    {
+        await using var db = new CandidateAccountsDbContext(BuildCandidateAccountsOptions(ConnectionString));
         await db.Database.MigrateAsync();
     }
 
@@ -92,5 +101,13 @@ public sealed class PostgresContainerFixture : IAsyncLifetime
             .AddInterceptors(
                 new TenantSaveChangesInterceptor(tenant),
                 new AuditableSaveChangesInterceptor(new NullCurrentUser()))
+            .Options;
+
+    // No tenant/audit interceptors: CandidateAccount is neither tenant-scoped nor auditable, matching
+    // how the context is registered in Program.cs.
+    internal static DbContextOptions<CandidateAccountsDbContext> BuildCandidateAccountsOptions(string connectionString)
+        => new DbContextOptionsBuilder<CandidateAccountsDbContext>()
+            .UseNpgsql(connectionString,
+                npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "candidate_accounts"))
             .Options;
 }

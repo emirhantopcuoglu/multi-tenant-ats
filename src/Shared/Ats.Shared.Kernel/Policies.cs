@@ -18,4 +18,19 @@ public static class Policies
     // Resource-based: the current user must appear in the interview's InterviewerUserIds list.
     // Used imperatively via IAuthorizationService, not as an [Authorize] attribute.
     public const string IsInterviewParticipant = "IsInterviewParticipant";
+
+    // The caller must present a candidate (marketplace) token, not a company (tenant-user) token.
+    // Both token kinds are signed by the same key and validated by the same JWT scheme, so this
+    // policy is what keeps a company token out of candidate-only endpoints — see TokenTypes.
+    public const string CandidateOnly = "CandidateOnly";
+}
+
+// Discriminates the two kinds of access token the system issues. Both are otherwise identical
+// (same signing key, issuer, audience), so a single custom claim tells them apart: a candidate
+// (marketplace) token carries token_type=candidate, while a company (tenant-user) token does not.
+// Kept in the shared kernel so the token minter and the authorization policy agree on the strings.
+public static class TokenTypes
+{
+    public const string ClaimName = "token_type";
+    public const string Candidate = "candidate";
 }

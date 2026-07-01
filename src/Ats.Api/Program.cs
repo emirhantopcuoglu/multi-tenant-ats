@@ -18,6 +18,9 @@ using Hangfire.PostgreSql;
 using MassTransit;
 using Ats.Modules.Applications.Application;
 using Ats.Modules.Applications.Application.Applications;
+using Ats.Modules.CandidateAccounts.Application;
+using Ats.Modules.CandidateAccounts.Domain;
+using Ats.Modules.CandidateAccounts.Infrastructure;
 using Ats.Modules.Notifications.Infrastructure;
 using Ats.Modules.Applications.Infrastructure;
 using Ats.Modules.Interviews.Api.Authorization;
@@ -166,6 +169,15 @@ builder.Services.AddDbContext<InterviewsDbContext>((sp, options) =>
 
 builder.Services.AddScoped<IInterviewsDbContext>(sp => sp.GetRequiredService<InterviewsDbContext>());
 builder.Services.AddInterviewsApplication();
+
+// Candidate accounts (FAZ 7): the marketplace's global, tenant-less identity. Unlike every other
+// context, this one takes no tenant/audit interceptors — its only entity is neither ITenantScoped nor
+// IAuditable, so those interceptors would be inert. Registered here (deferred from 7.3) now that the
+// auth services below consume it.
+builder.Services.AddDbContext<CandidateAccountsDbContext>(options =>
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("Postgres"),
+        npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "candidate_accounts")));
 
 // MongoDB holds the append-only activity log (Sprint 4). The driver's MongoClient is thread-safe
 // and pools connections internally, so it is a singleton; the database handle is derived from it.
@@ -426,6 +438,17 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 // company behind each job without reaching into the Tenants schema.
 builder.Services.AddScoped<ITenantDirectory, TenantDirectory>();
 
+// Candidate authentication (FAZ 7). Binds the same "Jwt" section as the company side, so candidate and
+// company tokens share one signing key and are validated by the one JWT bearer scheme; they are told
+// apart only by the token_type claim. The password hasher is Identity's PBKDF2 hasher (stateless, so a
+// singleton) adapted to a subject-less port.
+builder.Services.Configure<CandidateJwtOptions>(
+    builder.Configuration.GetSection(CandidateJwtOptions.SectionName));
+builder.Services.AddSingleton<IPasswordHasher<CandidateAccount>, PasswordHasher<CandidateAccount>>();
+builder.Services.AddScoped<ICandidatePasswordHasher, CandidatePasswordHasher>();
+builder.Services.AddScoped<ICandidateTokenService, CandidateTokenService>();
+builder.Services.AddScoped<ICandidateAuthService, CandidateAuthService>();
+
 builder.Services.Configure<EmailOptions>(
     builder.Configuration.GetSection(EmailOptions.SectionName));
 builder.Services.Configure<InvitationOptions>(
@@ -501,6 +524,13 @@ builder.Services.AddAuthorization(options =>
     // Resource-based: checked imperatively via IAuthorizationService against a loaded InterviewDetailDto.
     options.AddPolicy(Policies.IsInterviewParticipant, policy =>
         policy.AddRequirements(new InterviewerRequirement()));
+
+    // Candidate-only endpoints. Requires a candidate (marketplace) token: a company token is signed by
+    // the same key and passes JWT validation, but carries no token_type=candidate claim, so it fails
+    // here. The reverse — a candidate token on a company endpoint — is already blocked by those
+    // endpoints' role requirements, which a role-less candidate token cannot meet.
+    options.AddPolicy(Policies.CandidateOnly, policy =>
+        policy.RequireClaim(TokenTypes.ClaimName, TokenTypes.Candidate));
 });
 
 // Stateless handler — singleton is safe and avoids allocating per-request.
