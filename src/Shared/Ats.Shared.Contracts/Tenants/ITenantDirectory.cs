@@ -21,6 +21,12 @@ public interface ITenantDirectory
     // Jobs handler ORs these ids into its own predicate.
     Task<IReadOnlyCollection<Guid>> SearchIdsByNameAsync(
         string term, CancellationToken cancellationToken = default);
+
+    // Resolve a single company by its public URL slug, or null if no such tenant exists. Backs the
+    // public company profile (/public/companies/{slug}): the Jobs module identifies the company here,
+    // then counts its own published jobs, without reaching into the Tenants schema.
+    Task<TenantSummary?> GetSummaryBySlugAsync(
+        string slug, CancellationToken cancellationToken = default);
 }
 
 // A minimal read model — only the two fields a public listing needs to name and link a company.
