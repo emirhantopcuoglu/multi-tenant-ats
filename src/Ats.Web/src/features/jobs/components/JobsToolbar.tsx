@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Button, Input, Select } from '@/components/ui';
+import { CareersPageLink } from '@/components/CareersPageLink';
 import { JOB_STATUSES, type JobStatus } from '@/types/enums';
 
 interface JobsToolbarProps {
@@ -9,6 +10,8 @@ interface JobsToolbarProps {
   onStatusChange: (value: JobStatus | '') => void;
   canManage: boolean;
   onNewJob: () => void;
+  /** Tenant slug for the "View careers page" link; omitted if the identity has no slug. */
+  careersSlug?: string;
 }
 
 function SearchIcon() {
@@ -37,6 +40,7 @@ export function JobsToolbar({
   onStatusChange,
   canManage,
   onNewJob,
+  careersSlug,
 }: JobsToolbarProps) {
   const { t } = useTranslation();
 
@@ -70,11 +74,14 @@ export function JobsToolbar({
         ))}
       </Select>
 
-      {canManage && (
-        <Button leadingIcon={<PlusIcon />} onClick={onNewJob} className="sm:ml-auto">
-          {t('jobs.newJob')}
-        </Button>
-      )}
+      <div className="flex items-center gap-3 sm:ml-auto">
+        {careersSlug && <CareersPageLink slug={careersSlug} />}
+        {canManage && (
+          <Button leadingIcon={<PlusIcon />} onClick={onNewJob}>
+            {t('jobs.newJob')}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

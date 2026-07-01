@@ -19,15 +19,6 @@ function MenuIcon() {
   );
 }
 
-function SearchIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="11" cy="11" r="8" />
-      <path d="m21 21-4.3-4.3" />
-    </svg>
-  );
-}
-
 function ChevronDownIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="text-text-muted">
@@ -46,8 +37,8 @@ function LogoutIcon() {
 }
 
 /* The page chrome above the routed content: a mobile menu button, the current page title (derived
-   from the active nav item), a search placeholder, the theme/language controls, and the user menu
-   that surfaces the /auth/me identity plus sign-out. */
+   from the active nav item), the theme/language controls, and the user menu that surfaces the
+   /auth/me identity plus sign-out. */
 export function Topbar({ onMenuClick }: TopbarProps) {
   const { t } = useTranslation();
   const { pathname } = useLocation();
@@ -68,19 +59,6 @@ export function Topbar({ onMenuClick }: TopbarProps) {
       <h1 className="text-base font-semibold tracking-tight">{title}</h1>
 
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
-        {/* Visual placeholder only — global search is wired up in a later step. */}
-        <div className="relative hidden md:block">
-          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-text-muted">
-            <SearchIcon />
-          </span>
-          <input
-            type="search"
-            aria-label={t('common.search')}
-            placeholder={t('common.search')}
-            className="h-9 w-56 rounded-lg border border-border bg-card pl-9 pr-3 text-sm text-text placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
-        </div>
-
         <LanguageSwitcher />
         <ThemeToggle />
 
