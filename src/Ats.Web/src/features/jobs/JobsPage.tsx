@@ -21,7 +21,7 @@ export function JobsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const canManage = canManageJobs(role);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -96,6 +96,7 @@ export function JobsPage() {
         onStatusChange={(value) => setParam('status', value)}
         canManage={canManage}
         onNewJob={() => navigate('/jobs/new')}
+        careersSlug={user?.tenant.slug}
       />
 
       {isLoading ? (

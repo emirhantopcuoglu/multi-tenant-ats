@@ -1,13 +1,13 @@
 {
   "common": {
     "appName": "Ats",
-    "search": "Aday, ilan ara…",
     "toggleTheme": "Açık / koyu geçişi",
     "save": "Kaydet",
     "cancel": "İptal",
     "openMenu": "Menüyü aç",
     "closeMenu": "Menüyü kapat",
-    "signOut": "Çıkış yap"
+    "signOut": "Çıkış yap",
+    "viewCareers": "Kariyer sayfasını görüntüle"
   },
   "placeholder": {
     "body": "Bu ekran ilerleyen adımlarda gelecek."

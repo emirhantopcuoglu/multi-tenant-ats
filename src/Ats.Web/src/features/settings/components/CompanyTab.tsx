@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui';
+import { CareersPageLink } from '@/components/CareersPageLink';
 import { useAuth } from '@/app/auth/auth-context';
 
 /* Company tab. The tenant's name and URL slug are read-only here: they are set at registration and
@@ -16,6 +17,7 @@ export function CompanyTab() {
       <ReadonlyRow label={t('settings.company.name')} value={tenant?.companyName} />
       <ReadonlyRow label={t('settings.company.slug')} value={tenant?.slug} mono />
       <p className="text-xs text-text-muted">{t('settings.company.readonlyHint')}</p>
+      {tenant?.slug && <CareersPageLink slug={tenant.slug} />}
     </Card>
   );
 }

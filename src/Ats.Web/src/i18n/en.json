@@ -1,13 +1,13 @@
 {
   "common": {
     "appName": "Ats",
-    "search": "Search candidates, jobs…",
     "toggleTheme": "Toggle light / dark",
     "save": "Save",
     "cancel": "Cancel",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "viewCareers": "View careers page"
   },
   "placeholder": {
     "body": "This screen arrives in a later step."
