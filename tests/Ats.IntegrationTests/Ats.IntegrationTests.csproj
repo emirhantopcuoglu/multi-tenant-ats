@@ -26,6 +26,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Modules\Applications\Application\Ats.Modules.Applications.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Applications\Infrastructure\Ats.Modules.Applications.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\CandidateAccounts\Application\Ats.Modules.CandidateAccounts.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\CandidateAccounts\Infrastructure\Ats.Modules.CandidateAccounts.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Jobs\Application\Ats.Modules.Jobs.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Jobs\Infrastructure\Ats.Modules.Jobs.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Interviews\Application\Ats.Modules.Interviews.Application.csproj" />
