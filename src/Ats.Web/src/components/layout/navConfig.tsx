@@ -42,7 +42,7 @@ function Glyph({ children }: { children: ReactNode }) {
    Topbar (derives the page title from the active path). Order here is the order shown in the rail. */
 export const NAV_ITEMS: NavItem[] = [
   {
-    path: '/',
+    path: '/dashboard',
     labelKey: 'nav.overview',
     icon: (
       <Glyph>
@@ -108,9 +108,9 @@ export const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-/* The overview lives at the root, so it must match exactly; every other item also matches its own
-   sub-paths (e.g. /jobs/42 keeps "Jobs" highlighted) without bleeding into siblings. */
+/* Dashboard (/dashboard) matches exactly; every other item also matches its own sub-paths
+   (e.g. /jobs/42 keeps "Jobs" highlighted) without bleeding into siblings. */
 export function isNavItemActive(pathname: string, path: string): boolean {
-  if (path === '/') return pathname === '/';
+  if (path === '/dashboard') return pathname === '/dashboard';
   return pathname === path || pathname.startsWith(`${path}/`);
 }
