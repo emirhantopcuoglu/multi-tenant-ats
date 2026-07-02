@@ -399,7 +399,23 @@
     "haveAccount": "Already have an account?",
     "signInLink": "Sign in",
     "publicSignIn": "Sign in",
-    "publicRegister": "Create account"
+    "publicRegister": "Create account",
+    "myApplications": "My applications"
+  },
+  "candidatePortal": {
+    "applicationsTitle": "My applications",
+    "applicationsSubtitle": "All positions you've applied to.",
+    "empty": "You haven't applied to any positions yet.",
+    "exploreJobs": "Explore open positions",
+    "loadError": "Couldn't load your applications.",
+    "retry": "Try again",
+    "col": {
+      "position": "Position",
+      "company": "Company",
+      "stage": "Stage",
+      "status": "Status",
+      "applied": "Applied"
+    }
   },
   "auth": {
     "tagline": "Applicant Tracking, done right",

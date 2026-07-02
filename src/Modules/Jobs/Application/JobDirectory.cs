@@ -43,4 +43,20 @@ public sealed class JobDirectory : IJobDirectory
             .AsNoTracking()
             .CountAsync(j => j.Status == JobStatus.Published, cancellationToken);
     }
+
+    public async Task<IReadOnlyDictionary<Guid, JobSummary>> GetSummariesAsync(
+        IReadOnlyCollection<Guid> jobIds, CancellationToken cancellationToken = default)
+    {
+        if (jobIds.Count == 0)
+            return new Dictionary<Guid, JobSummary>();
+
+        // IgnoreQueryFilters bypasses the tenant global filter — intentional, because a
+        // candidate's applications can span multiple companies.
+        return await _db.Jobs
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(j => jobIds.Contains(j.Id) && !j.IsDeleted)
+            .Select(j => new JobSummary(j.Id, j.Title, j.Slug, j.TenantId))
+            .ToDictionaryAsync(j => j.Id, cancellationToken);
+    }
 }

@@ -399,7 +399,23 @@
     "haveAccount": "Zaten hesabın var mı?",
     "signInLink": "Giriş yap",
     "publicSignIn": "Giriş yap",
-    "publicRegister": "Hesap oluştur"
+    "publicRegister": "Hesap oluştur",
+    "myApplications": "Başvurularım"
+  },
+  "candidatePortal": {
+    "applicationsTitle": "Başvurularım",
+    "applicationsSubtitle": "Başvurduğun tüm pozisyonlar.",
+    "empty": "Henüz bir pozisyona başvurmadın.",
+    "exploreJobs": "Açık pozisyonları keşfet",
+    "loadError": "Başvurular yüklenemedi.",
+    "retry": "Tekrar dene",
+    "col": {
+      "position": "Pozisyon",
+      "company": "Şirket",
+      "stage": "Aşama",
+      "status": "Durum",
+      "applied": "Başvuru tarihi"
+    }
   },
   "auth": {
     "tagline": "Aday takibi, doğru şekilde",
