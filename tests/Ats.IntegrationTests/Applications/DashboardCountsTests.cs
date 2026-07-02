@@ -85,8 +85,8 @@ public sealed class DashboardCountsTests
 
     private static Application NewApplication(Guid candidateId) =>
         Application.Create(
-            jobId: Guid.NewGuid(), candidateId: candidateId, initialStageId: Guid.NewGuid(),
-            cvFileKey: "cv/test.pdf");
+            jobId: Guid.NewGuid(), candidateId: candidateId, candidateAccountId: null,
+            initialStageId: Guid.NewGuid(), cvFileKey: "cv/test.pdf");
 
     private ApplicationsDbContext NewDb(FixedTenant tenant) =>
         new(PostgresContainerFixture.BuildApplicationsOptions(_fixture.ConnectionString, tenant), tenant);

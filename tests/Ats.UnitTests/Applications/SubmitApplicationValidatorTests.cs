@@ -8,12 +8,10 @@ namespace Ats.UnitTests.Applications;
 public class SubmitApplicationValidatorTests
 {
     private static SubmitApplicationCommand ValidCommand(
-        string email = "jane@example.com", string firstName = "Jane", string lastName = "Doe") =>
+        Guid? candidateAccountId = null) =>
         new(
             JobSlug: "senior-dev-1a2b3c",
-            CandidateEmail: email,
-            FirstName: firstName,
-            LastName: lastName,
+            CandidateAccountId: candidateAccountId ?? Guid.NewGuid(),
             Phone: null,
             LinkedInUrl: null,
             CoverLetter: null,
@@ -27,42 +25,38 @@ public class SubmitApplicationValidatorTests
     [Fact]
     public void Valid_command_passes()
     {
-        // Arrange
-        var command = ValidCommand();
+        var result = _validator.Validate(ValidCommand());
 
-        // Act
-        var result = _validator.Validate(command);
-
-        // Assert
         Assert.True(result.IsValid);
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("not-an-email")]
-    public void Rejects_a_missing_or_malformed_email(string email)
+    [Fact]
+    public void Rejects_an_empty_candidate_account_id()
     {
-        var result = _validator.Validate(ValidCommand(email: email));
+        var result = _validator.Validate(ValidCommand(candidateAccountId: Guid.Empty));
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.PropertyName == nameof(SubmitApplicationCommand.CandidateEmail));
+        Assert.Contains(result.Errors,
+            e => e.PropertyName == nameof(SubmitApplicationCommand.CandidateAccountId));
     }
 
     [Fact]
-    public void Rejects_a_blank_first_name()
+    public void Rejects_a_phone_that_exceeds_40_characters()
     {
-        var result = _validator.Validate(ValidCommand(firstName: "  "));
+        var command = ValidCommand() with { Phone = new string('9', 41) };
+        var result = _validator.Validate(command);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.PropertyName == nameof(SubmitApplicationCommand.FirstName));
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(SubmitApplicationCommand.Phone));
     }
 
     [Fact]
-    public void Rejects_a_blank_last_name()
+    public void Rejects_a_cover_letter_that_exceeds_5000_characters()
     {
-        var result = _validator.Validate(ValidCommand(lastName: ""));
+        var command = ValidCommand() with { CoverLetter = new string('a', 5001) };
+        var result = _validator.Validate(command);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.PropertyName == nameof(SubmitApplicationCommand.LastName));
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(SubmitApplicationCommand.CoverLetter));
     }
 }

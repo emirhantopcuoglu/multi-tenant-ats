@@ -11,6 +11,7 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
     public Guid TenantId { get; private set; }
     public Guid JobId { get; private set; }
     public Guid CandidateId { get; private set; }
+    public Guid? CandidateAccountId { get; private set; }
     public Guid CurrentStageId { get; private set; }
     public string CvFileKey { get; private set; } = null!;
     public string? CoverLetter { get; private set; }
@@ -29,11 +30,13 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
     private Application() { }
 
     private Application(
-        Guid id, Guid jobId, Guid candidateId, Guid initialStageId, string cvFileKey, string? coverLetter)
+        Guid id, Guid jobId, Guid candidateId, Guid? candidateAccountId,
+        Guid initialStageId, string cvFileKey, string? coverLetter)
     {
         Id = id;
         JobId = jobId;
         CandidateId = candidateId;
+        CandidateAccountId = candidateAccountId;
         CurrentStageId = initialStageId;
         CvFileKey = cvFileKey;
         CoverLetter = coverLetter;
@@ -42,7 +45,8 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
     }
 
     public static Application Create(
-        Guid jobId, Guid candidateId, Guid initialStageId, string cvFileKey, string? coverLetter = null)
+        Guid jobId, Guid candidateId, Guid? candidateAccountId,
+        Guid initialStageId, string cvFileKey, string? coverLetter = null)
     {
         if (jobId == Guid.Empty)
             throw new ArgumentException("JobId is required.", nameof(jobId));
@@ -54,7 +58,7 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
             throw new ArgumentException("A CV file is required.", nameof(cvFileKey));
 
         return new Application(
-            Guid.NewGuid(), jobId, candidateId, initialStageId, cvFileKey,
+            Guid.NewGuid(), jobId, candidateId, candidateAccountId, initialStageId, cvFileKey,
             string.IsNullOrWhiteSpace(coverLetter) ? null : coverLetter);
     }
 

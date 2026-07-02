@@ -35,6 +35,7 @@ using Ats.Modules.Jobs.Infrastructure;
 using Ats.Modules.Tenants.Application;
 using Ats.Modules.Tenants.Domain;
 using Ats.Modules.Tenants.Infrastructure;
+using Ats.Shared.Contracts.CandidateAccounts;
 using Ats.Shared.Contracts.Tenants;
 using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
@@ -448,6 +449,7 @@ builder.Services.AddSingleton<IPasswordHasher<CandidateAccount>, PasswordHasher<
 builder.Services.AddScoped<ICandidatePasswordHasher, CandidatePasswordHasher>();
 builder.Services.AddScoped<ICandidateTokenService, CandidateTokenService>();
 builder.Services.AddScoped<ICandidateAuthService, CandidateAuthService>();
+builder.Services.AddScoped<ICandidateAccountReader, CandidateAccountReader>();
 
 builder.Services.Configure<EmailOptions>(
     builder.Configuration.GetSection(EmailOptions.SectionName));

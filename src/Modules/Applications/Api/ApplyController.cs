@@ -9,11 +9,12 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace Ats.Modules.Applications.Api;
 
-// Public, unauthenticated application endpoint. The tenant comes from the path slug, resolved
-// by TenantResolutionMiddleware before the request reaches here. No api/v{version} prefix:
-// this is a candidate-facing URL like /acmecorp/jobs/senior-dev-1a2b3c/apply.
+// Candidate-facing apply endpoint. The tenant comes from the path slug, resolved by
+// TenantResolutionMiddleware. No api/v{version} prefix: the URL is candidate-facing
+// (/{slug}/jobs/{jobSlug}/apply). Requires a CandidateOnly token — identity fields
+// (email, name) are taken from the account rather than the form.
 [ApiController]
-[AllowAnonymous]
+[Authorize(Policy = Policies.CandidateOnly)]
 [Route("{slug}/jobs/{jobSlug}/apply")]
 public sealed class ApplyController : ControllerBase
 {
@@ -25,11 +26,13 @@ public sealed class ApplyController : ControllerBase
 
     private readonly ISender _sender;
     private readonly ICurrentTenant _currentTenant;
+    private readonly ICurrentUser _currentUser;
 
-    public ApplyController(ISender sender, ICurrentTenant currentTenant)
+    public ApplyController(ISender sender, ICurrentTenant currentTenant, ICurrentUser currentUser)
     {
         _sender = sender;
         _currentTenant = currentTenant;
+        _currentUser = currentUser;
     }
 
     [HttpPost]
@@ -42,6 +45,9 @@ public sealed class ApplyController : ControllerBase
         // misleading validation error — the company page genuinely does not exist.
         if (!_currentTenant.TenantId.HasValue)
             return NotFound();
+
+        // CandidateOnly policy guarantees authentication, so UserId is present.
+        var candidateAccountId = _currentUser.UserId!.Value;
 
         if (form.Cv is null || form.Cv.Length == 0)
             return BadRequest(ToProblem(FileSignatureValidator.Empty));
@@ -61,7 +67,7 @@ public sealed class ApplyController : ControllerBase
         cvStream.Position = 0;
 
         var command = new SubmitApplicationCommand(
-            jobSlug, form.Email, form.FirstName, form.LastName, form.Phone, form.LinkedInUrl,
+            jobSlug, candidateAccountId, form.Phone, form.LinkedInUrl,
             form.CoverLetter, cvStream, form.Cv.Length, form.Cv.ContentType, form.Cv.FileName);
 
         var result = await _sender.Send(command, ct);
@@ -77,18 +83,17 @@ public sealed class ApplyController : ControllerBase
     {
         "application.job_not_available" => NotFound(ToProblem(error)),
         "application.tenant_not_resolved" => NotFound(ToProblem(error)),
+        "application.candidate_account_not_found" => NotFound(ToProblem(error)),
         "application.duplicate" => Conflict(ToProblem(error)),
         _ => BadRequest(ToProblem(error))
     };
 
     private static object ToProblem(Error error) => new { error.Code, error.Message };
 
-    // Bound from multipart/form-data. IFormFile carries the CV; the rest are plain form fields.
+    // Bound from multipart/form-data. Identity fields (email, name) come from the authenticated
+    // CandidateAccount; only supplementary profile data is submitted at apply time.
     public sealed class ApplyForm
     {
-        public string Email { get; init; } = null!;
-        public string FirstName { get; init; } = null!;
-        public string LastName { get; init; } = null!;
         public string? Phone { get; init; }
         public string? LinkedInUrl { get; init; }
         public string? CoverLetter { get; init; }
