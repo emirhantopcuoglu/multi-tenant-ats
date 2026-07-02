@@ -1,0 +1,530 @@
+{
+  "common": {
+    "appName": "Ats",
+    "toggleTheme": "Toggle light / dark",
+    "save": "Save",
+    "cancel": "Cancel",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "signOut": "Sign out",
+    "viewCareers": "View careers page",
+    "errorTitle": "Something went wrong",
+    "errorRetry": "Please try again later."
+  },
+  "placeholder": {
+    "body": "This screen arrives in a later step."
+  },
+  "nav": {
+    "overview": "Overview",
+    "jobs": "Jobs",
+    "applications": "Applications",
+    "interviews": "Interviews",
+    "candidates": "Candidates",
+    "settings": "Settings"
+  },
+  "jobs": {
+    "newJob": "New job",
+    "searchPlaceholder": "Search by title…",
+    "filterStatus": "Filter by status",
+    "allStatuses": "All statuses",
+    "rowActions": "Row actions",
+    "rows_one": "{{count}} job",
+    "rows_other": "{{count}} jobs",
+    "loadError": "Couldn't load jobs.",
+    "retry": "Try again",
+    "formPlaceholder": "The job form arrives in step 3.2.",
+    "col": {
+      "title": "Title",
+      "department": "Department",
+      "location": "Location",
+      "type": "Type",
+      "level": "Level",
+      "status": "Status",
+      "created": "Created"
+    },
+    "action": {
+      "edit": "Edit",
+      "publish": "Publish",
+      "close": "Close",
+      "archive": "Archive"
+    },
+    "empty": {
+      "title": "No jobs yet",
+      "body": "Create your first job posting to start hiring.",
+      "filtered": "No jobs match your filters."
+    },
+    "toast": {
+      "published": "Job published.",
+      "closed": "Job closed.",
+      "archived": "Job archived.",
+      "error": "Action failed. Please try again."
+    }
+  },
+  "applications": {
+    "searchPlaceholder": "Search candidates…",
+    "filterJob": "Filter by job",
+    "allJobs": "All jobs",
+    "filterStage": "Filter by stage",
+    "allStages": "All stages",
+    "filterStatus": "Filter by status",
+    "allStatuses": "All statuses",
+    "rows_one": "{{count}} application",
+    "rows_other": "{{count}} applications",
+    "loadError": "Couldn't load applications.",
+    "retry": "Try again",
+    "col": {
+      "candidate": "Candidate",
+      "job": "Job",
+      "stage": "Stage",
+      "status": "Status",
+      "applied": "Applied"
+    },
+    "empty": {
+      "title": "No applications yet",
+      "body": "Applications appear here as candidates apply to your jobs.",
+      "filtered": "No applications match your filters."
+    },
+    "view": {
+      "label": "View",
+      "table": "Table",
+      "board": "Board"
+    },
+    "selectJob": {
+      "title": "Select a job",
+      "body": "Pick a job to see its pipeline board."
+    },
+    "moveError": "Couldn't move the application. Please try again."
+  },
+  "applicationDetail": {
+    "back": "Back to applications",
+    "linkedin": "LinkedIn",
+    "moveStage": "Move stage",
+    "reject": "Reject",
+    "notFound": "This application could not be found.",
+    "tabs": {
+      "cv": "CV",
+      "cover": "Cover letter",
+      "analysis": "AI analysis",
+      "activity": "Activity"
+    },
+    "cv": {
+      "open": "Open CV",
+      "none": "No CV was attached to this application."
+    },
+    "cover": {
+      "none": "No cover letter was provided."
+    },
+    "analysis": {
+      "processing": "The CV is still being analyzed. Check back shortly.",
+      "error": "Couldn't load the CV analysis.",
+      "empty": "No analysis details were extracted.",
+      "experience": "Total experience",
+      "years_one": "{{count}} year",
+      "years_other": "{{count}} years",
+      "skills": "Skills",
+      "positions": "Recent positions",
+      "education": "Education"
+    },
+    "activity": {
+      "empty": "No activity yet.",
+      "error": "Couldn't load the activity.",
+      "submitted": "Application submitted",
+      "moved": "Moved from {{from}} to {{to}}",
+      "rejected": "Application rejected"
+    },
+    "reject_modal": {
+      "title": "Reject application",
+      "description": "The candidate is notified. The reason is kept internal.",
+      "reasonLabel": "Reason",
+      "reasonPlaceholder": "Why is this application being rejected?",
+      "reasonRequired": "A reason is required.",
+      "confirm": "Reject application"
+    },
+    "toast": {
+      "moved": "Stage updated.",
+      "rejected": "Application rejected.",
+      "error": "Action failed. Please try again."
+    }
+  },
+  "overview": {
+    "greeting": "Welcome back, {{name}}",
+    "summary": "Here's what's happening across your hiring.",
+    "openJobs": "Open jobs",
+    "newApps": "New applications",
+    "thisWeek": "this week",
+    "upcomingInterviews": "Upcoming interviews",
+    "activeCandidates": "Active candidates",
+    "recentApps": "Recent applications",
+    "upcomingInt": "Upcoming interviews",
+    "noApps": "No applications yet.",
+    "noInterviews": "No upcoming interviews."
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage your workspace and team.",
+    "tabs": {
+      "company": "Company",
+      "users": "Users"
+    },
+    "company": {
+      "name": "Company name",
+      "slug": "Workspace URL",
+      "readonlyHint": "These are set when the workspace is created and can't be changed here yet."
+    },
+    "users": {
+      "title": "Team members",
+      "invite": "Invite user",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "empty": "No team members yet.",
+      "loadError": "Couldn't load team members."
+    },
+    "invite": {
+      "title": "Invite user",
+      "subtitle": "Send an invitation to join this workspace.",
+      "email": "Email",
+      "emailPlaceholder": "person@company.com",
+      "role": "Role",
+      "send": "Send invite",
+      "sent": "Invitation sent.",
+      "emailRequired": "Email is required.",
+      "emailInvalid": "Enter a valid email address.",
+      "emailInUse": "A user with this email already exists.",
+      "error": "Couldn't send the invitation. Please try again."
+    }
+  },
+  "public": {
+    "careers": {
+      "title": "Open positions",
+      "empty": "There are no open positions right now."
+    },
+    "detail": {
+      "back": "← Back to all positions",
+      "apply": "Apply for this role"
+    },
+    "apply": {
+      "title": "Apply: {{title}}",
+      "backToJob": "← Back to the job",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "email": "Email",
+      "phone": "Phone",
+      "linkedIn": "LinkedIn",
+      "linkedInPlaceholder": "https://linkedin.com/in/…",
+      "coverLetter": "Cover letter",
+      "coverLetterPlaceholder": "Tell us why you're a great fit (optional).",
+      "cv": "CV / Résumé",
+      "cvPrompt": "Click to upload or drag and drop",
+      "cvHint": "PDF or DOCX, up to 10 MB",
+      "removeCv": "Remove",
+      "submit": "Submit application",
+      "submitting": "Submitting…",
+      "required": "This field is required.",
+      "emailInvalid": "Enter a valid email address.",
+      "cvRequired": "Please attach your CV.",
+      "fileEmpty": "The file is empty.",
+      "fileTooLarge": "The file exceeds the 10 MB limit.",
+      "fileUnsupported": "Only PDF and DOCX files are accepted.",
+      "fileMismatch": "The file content doesn't match its type.",
+      "duplicate": "You've already applied to this position.",
+      "unavailable": "This position is no longer accepting applications.",
+      "error": "Something went wrong. Please try again.",
+      "successTitle": "Application received",
+      "successBody": "Thanks for applying to {{title}}. We'll be in touch.",
+      "backToJobs": "Back to all positions"
+    },
+    "notFound": {
+      "title": "Page not found",
+      "description": "This company or job doesn't exist, or the posting has been removed."
+    },
+    "marketplace": {
+      "title": "Find your next opportunity",
+      "subtitle": "Browse open positions from companies hiring right now.",
+      "searchPlaceholder": "Search by title or company…",
+      "searchBtn": "Search",
+      "empty": "No open positions match your search.",
+      "emptyGeneral": "There are no open positions right now. Check back later.",
+      "at": "at {{company}}"
+    }
+  },
+  "interviewType": {
+    "PhoneScreen": "Phone screen",
+    "Technical": "Technical",
+    "Cultural": "Cultural",
+    "Final": "Final"
+  },
+  "interviews": {
+    "schedule": "Schedule interview",
+    "scheduleTitle": "Schedule interview",
+    "scheduleSub": "Set up an interview and invite the panel.",
+    "filterRange": "Filter by date",
+    "filterInterviewer": "Filter by interviewer",
+    "allInterviewers": "All interviewers",
+    "range": {
+      "all": "All dates",
+      "upcoming": "Upcoming",
+      "next7": "Next 7 days",
+      "past": "Past"
+    },
+    "minutesShort": "{{count}} min",
+    "rows_one": "{{count}} interview",
+    "rows_other": "{{count}} interviews",
+    "loadError": "Couldn't load interviews.",
+    "retry": "Try again",
+    "col": {
+      "candidate": "Candidate",
+      "type": "Type",
+      "when": "When",
+      "duration": "Duration",
+      "status": "Status",
+      "interviewers": "Interviewers"
+    },
+    "empty": {
+      "title": "No interviews yet",
+      "body": "Schedule an interview from a candidate's application to get started.",
+      "filtered": "No interviews match your filters."
+    },
+    "form": {
+      "candidate": "Candidate",
+      "candidatePlaceholder": "Select a candidate…",
+      "applicationRequired": "Select a candidate.",
+      "type": "Interview type",
+      "when": "Date & time",
+      "whenRequired": "Pick a date and time.",
+      "duration": "Duration (minutes)",
+      "durationInvalid": "Enter a valid duration.",
+      "location": "Location",
+      "locationPlaceholder": "Meet link or room",
+      "interviewers": "Interviewers",
+      "loadingUsers": "Loading team…",
+      "noUsers": "No team members found.",
+      "notes": "Notes",
+      "notesPlaceholder": "Agenda, focus areas…"
+    },
+    "reschedule": {
+      "title": "Reschedule interview",
+      "description": "Pick a new date, time, or duration.",
+      "confirm": "Reschedule"
+    },
+    "action": {
+      "reschedule": "Reschedule",
+      "complete": "Mark completed",
+      "noShow": "No-show",
+      "cancel": "Cancel"
+    },
+    "detail": {
+      "back": "Back to interviews",
+      "notFound": "This interview could not be found.",
+      "viewApplication": "View application"
+    },
+    "feedback": {
+      "title": "Your feedback",
+      "rating": "Rating",
+      "ratingRequired": "Pick a rating.",
+      "stars_one": "{{count}} star",
+      "stars_other": "{{count}} stars",
+      "recommendation": "Recommendation",
+      "recommendationPlaceholder": "Select a recommendation…",
+      "recommendationRequired": "Pick a recommendation.",
+      "comments": "Comments",
+      "commentsPlaceholder": "What stood out, strengths, concerns…",
+      "submit": "Submit feedback",
+      "submitted": "Your feedback has been submitted.",
+      "toast": "Feedback submitted.",
+      "locked": "Only assigned interviewers can submit feedback for this interview.",
+      "lockedCancelled": "This interview was cancelled, so feedback is closed.",
+      "notEligible": "Feedback can't be submitted for this interview."
+    },
+    "toast": {
+      "scheduled": "Interview scheduled.",
+      "rescheduled": "Interview rescheduled.",
+      "cancelled": "Interview cancelled.",
+      "completed": "Marked as completed.",
+      "noShow": "Marked as no-show.",
+      "error": "Action failed. Please try again."
+    }
+  },
+  "employmentType": {
+    "FullTime": "Full-time",
+    "PartTime": "Part-time",
+    "Contract": "Contract",
+    "Internship": "Internship"
+  },
+  "experienceLevel": {
+    "Junior": "Junior",
+    "Mid": "Mid",
+    "Senior": "Senior",
+    "Lead": "Lead"
+  },
+  "jobForm": {
+    "createTitle": "New job",
+    "editTitle": "Edit job",
+    "title": "Title",
+    "description": "Description",
+    "descriptionHint": "Markdown supported.",
+    "write": "Write",
+    "preview": "Preview",
+    "previewEmpty": "Nothing to preview yet.",
+    "department": "Department",
+    "location": "Location",
+    "employmentType": "Employment type",
+    "experienceLevel": "Experience level",
+    "salary": "Salary range (optional)",
+    "salaryMin": "Min",
+    "salaryMax": "Max",
+    "currency": "Currency",
+    "saveDraft": "Save as draft",
+    "saveChanges": "Save changes",
+    "publish": "Publish",
+    "titleMax": "Title must be at most {{count}} characters.",
+    "fieldMax": "This value is too long.",
+    "salaryNumber": "Enter a valid amount.",
+    "salaryRange": "Max must be greater than or equal to min.",
+    "currencyRequired": "Currency is required when a salary is set.",
+    "descriptionRequiredToPublish": "A description is required to publish.",
+    "savedToast": "Job saved.",
+    "publishedToast": "Job published.",
+    "loadError": "Couldn't load this job."
+  },
+  "candidateAuth": {
+    "loginTitle": "Sign in",
+    "loginSub": "Continue your job search.",
+    "registerTitle": "Create account",
+    "registerSub": "Apply to jobs and track your applications.",
+    "createBtn": "Create account",
+    "noAccount": "New here?",
+    "createOne": "Create a free account",
+    "haveAccount": "Already have an account?",
+    "signInLink": "Sign in",
+    "publicSignIn": "Sign in",
+    "publicRegister": "Create account"
+  },
+  "auth": {
+    "tagline": "Applicant Tracking, done right",
+    "brandHead": "Hire better, together.",
+    "brandSub": "One workspace for jobs, candidates, interviews and structured feedback — built for your whole hiring team.",
+    "email": "Email",
+    "password": "Password",
+    "forgot": "Forgot password?",
+    "remember": "Keep me signed in",
+    "signInBtn": "Sign in",
+    "noAccount": "New to Ats?",
+    "createOne": "Create a workspace",
+    "loginTitle": "Welcome back",
+    "loginSub": "Sign in to your {{company}} workspace.",
+    "companyName": "Company name",
+    "workspaceUrl": "Workspace URL",
+    "urlPreview": "Your workspace will live at",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "slugPlaceholder": "your-company",
+    "createBtn": "Create workspace",
+    "haveAccount": "Already have an account?",
+    "signInLink": "Sign in",
+    "regTitle": "Create your workspace",
+    "regSub": "Start hiring in minutes — no credit card required.",
+    "pwHint": "At least 8 characters.",
+    "terms": "By continuing you agree to the Terms and Privacy Policy.",
+    "invTitle": "Accept your invitation",
+    "invSub": "Set your name and a password to join the team.",
+    "invitedBy": "invited you to join",
+    "asRole": "as a",
+    "acceptBtn": "Accept & join workspace",
+    "setPassword": "Choose a password",
+    "tabLogin": "Login",
+    "tabRegister": "Register",
+    "tabInvite": "Invitation",
+    "invitationAccepted": "Your account is ready. Please sign in.",
+    "missingToken": "This invitation link is missing its token."
+  },
+  "validation": {
+    "required": "This field is required.",
+    "email": "Enter a valid email address.",
+    "passwordMin": "Password must be at least {{count}} characters.",
+    "slugFormat": "Use lowercase letters, numbers, and hyphens only."
+  },
+  "authError": {
+    "invalidCredentials": "Invalid email or password.",
+    "invitationInvalid": "This invitation is invalid or has expired.",
+    "emailInUse": "A user with this email already exists.",
+    "generic": "Something went wrong. Please try again."
+  },
+  "form": {
+    "department": "Department",
+    "notes": "Notes",
+    "notesPlaceholder": "Add a note for the hiring team…",
+    "invalidEmail": "Enter a valid email address."
+  },
+  "table": {
+    "candidate": "Candidate",
+    "role": "Role",
+    "stage": "Stage",
+    "status": "Status",
+    "applied": "Applied",
+    "showing": "Showing {{from}} of {{total}}",
+    "rows_one": "{{count}} application",
+    "rows_other": "{{count}} applications"
+  },
+  "status": {
+    "Draft": "Draft",
+    "Published": "Published",
+    "Closed": "Closed",
+    "Archived": "Archived",
+    "Active": "Active",
+    "Hired": "Hired",
+    "Rejected": "Rejected",
+    "Withdrawn": "Withdrawn",
+    "Scheduled": "Scheduled",
+    "Completed": "Completed",
+    "Cancelled": "Cancelled",
+    "NoShow": "No-show"
+  },
+  "recommendation": {
+    "StrongNoHire": "Strong no-hire",
+    "NoHire": "No-hire",
+    "Hire": "Hire",
+    "StrongHire": "Strong hire"
+  },
+  "stage": {
+    "Applied": "Applied",
+    "Screening": "Screening",
+    "Interview": "Interview",
+    "Offer": "Offer",
+    "Hired": "Hired",
+    "Rejected": "Rejected"
+  },
+  "role": {
+    "Admin": "Admin",
+    "Recruiter": "Recruiter",
+    "HiringManager": "Hiring Manager",
+    "ReadOnly": "Read-only"
+  },
+  "stats": {
+    "openJobs": "Open jobs",
+    "candidates": "Active candidates",
+    "interviews": "Interviews this week",
+    "offer": "Offer acceptance"
+  },
+  "empty": {
+    "title": "No applications yet",
+    "body": "When candidates apply to this job, they’ll show up here.",
+    "cta": "Share job link"
+  },
+  "menu": {
+    "view": "View profile",
+    "edit": "Edit application",
+    "remove": "Move to rejected"
+  },
+  "interview": {
+    "scheduleTitle": "Schedule interview",
+    "type": "Interview type",
+    "when": "Date & time",
+    "schedule": "Schedule"
+  },
+  "activity": {
+    "submitted": "submitted an application.",
+    "moved": "moved the candidate",
+    "rejected": "rejected the application."
+  }
+}

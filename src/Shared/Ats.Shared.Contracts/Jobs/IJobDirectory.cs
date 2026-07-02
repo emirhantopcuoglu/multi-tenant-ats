@@ -17,6 +17,10 @@ public interface IJobDirectory
     // the slug lookup above, this one is not restricted to Published. Returns null if no such job
     // exists in the current tenant. The port grows one method at a time, as real needs arise.
     Task<string?> GetJobTitleByIdAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    // Number of currently open (Published) jobs in the tenant. Feeds the dashboard "Open jobs" stat;
+    // the count is computed in the Jobs module so its status semantics never leak across the boundary.
+    Task<int> CountOpenJobsAsync(CancellationToken cancellationToken = default);
 }
 
 // A minimal read model — only what a consumer needs to attach an application to a job. It is

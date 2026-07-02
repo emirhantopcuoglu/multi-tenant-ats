@@ -33,6 +33,9 @@ namespace Ats.Modules.Applications.Infrastructure.Migrations
                     b.Property<DateTime>("AppliedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("CandidateAccountId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("CandidateId")
                         .HasColumnType("uuid");
 
@@ -85,6 +88,9 @@ namespace Ats.Modules.Applications.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CandidateAccountId")
+                        .HasFilter("\"CandidateAccountId\" IS NOT NULL");
 
                     b.HasIndex("TenantId", "AppliedAtUtc")
                         .IsDescending(false, true);

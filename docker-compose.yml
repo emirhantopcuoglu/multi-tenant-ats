@@ -1,4 +1,17 @@
 services:
+  # The built SPA served by nginx (Sprint 8.1, Step 6.1). The API base URL is baked in at build time
+  # (Vite inlines VITE_-prefixed vars), so it's a build arg. The default targets the API running on the
+  # host's dev port; override VITE_API_BASE_URL for a real deployment. Note: the API's CORS
+  # AllowedOrigins must include this origin (http://localhost:8080) for the browser calls to succeed.
+  web:
+    build:
+      context: ./src/Ats.Web
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:5236}
+    container_name: ats-web
+    ports:
+      - "8080:80"
+
   postgres:
     image: postgres:16
     container_name: ats-postgres
@@ -71,6 +84,18 @@ services:
       # durable queues across a restart. This durability is what the Sprint 5.3 outbox will build on.
       - ats-rabbitmq-data:/var/lib/rabbitmq
 
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: ats-jaeger
+    environment:
+      # Enable the OTLP receiver so the app can send spans directly via gRPC/HTTP.
+      # The UI at http://localhost:16686 shows traces; 4317/4318 are the ingestion ports.
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"  # web UI
+      - "4317:4317"    # OTLP gRPC (Serilog / OTel SDK sends here)
+      - "4318:4318"    # OTLP HTTP
+
   seq:
     image: datalust/seq:latest
     container_name: ats-seq
@@ -85,9 +110,46 @@ services:
     volumes:
       - ats-seq-data:/data
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ats-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+    ports:
+      - "9090:9090"  # web UI + query API
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ats-prometheus-data:/prometheus
+    # Allows scraping from the host machine (where the API runs) on Windows / Mac Docker Desktop.
+    # On Linux replace host.docker.internal with host-gateway via extra_hosts.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ats-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    ports:
+      - "3000:3000"  # web UI — http://localhost:3000
+    volumes:
+      - ats-grafana-data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
 volumes:
   ats-postgres-data:
   ats-minio-data:
   ats-mongo-data:
   ats-rabbitmq-data:
   ats-seq-data:
+  ats-jaeger-data:
+  ats-prometheus-data:
+  ats-grafana-data:

@@ -97,6 +97,9 @@ namespace Ats.Modules.Jobs.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Status", "PublishedAtUtc")
+                        .IsDescending(false, true);
+
                     b.HasIndex("TenantId", "Slug")
                         .IsUnique();
 

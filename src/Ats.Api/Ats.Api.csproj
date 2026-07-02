@@ -10,15 +10,27 @@
   <ItemGroup>
     <PackageReference Include="Asp.Versioning.Mvc" Version="8.1.0" />
     <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.MongoDb" Version="9.0.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.Rabbitmq" Version="9.0.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
     <PackageReference Include="Hangfire.AspNetCore" Version="1.8.23" />
     <PackageReference Include="Hangfire.PostgreSql" Version="1.21.1" />
-    <PackageReference Include="MassTransit" Version="8.3.0" />
-    <PackageReference Include="MassTransit.RabbitMQ" Version="8.3.0" />
+    <PackageReference Include="MassTransit" Version="8.5.10" />
+    <PackageReference Include="MassTransit.RabbitMQ" Version="8.5.10" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.9" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.16.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.16.0-beta.1" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.16.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.StackExchangeRedis" Version="1.16.0-beta.1" />
+    <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
     <PackageReference Include="RedisRateLimiting.AspNetCore" Version="1.2.1" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.16.2" />
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
     <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
+    <PackageReference Include="Serilog.Enrichers.OpenTelemetry" Version="1.0.1" />
     <PackageReference Include="Serilog.Enrichers.Thread" Version="4.0.0" />
     <PackageReference Include="Serilog.Sinks.Seq" Version="9.0.0" />
     <PackageReference Include="StackExchange.Redis" Version="2.8.58" />
@@ -37,6 +49,8 @@
     <ProjectReference Include="..\Modules\Notifications\Infrastructure\Ats.Modules.Notifications.Infrastructure.csproj" />
     <ProjectReference Include="..\Shared\Ats.Shared.Infrastructure\Ats.Shared.Infrastructure.csproj" />
     <ProjectReference Include="..\Shared\Ats.Shared.Kernel\Ats.Shared.Kernel.csproj" />
+    <ProjectReference Include="..\Modules\CandidateAccounts\Api\Ats.Modules.CandidateAccounts.Api.csproj" />
+    <ProjectReference Include="..\Modules\CandidateAccounts\Infrastructure\Ats.Modules.CandidateAccounts.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

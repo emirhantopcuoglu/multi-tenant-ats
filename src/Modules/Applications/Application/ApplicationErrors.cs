@@ -18,6 +18,9 @@ public static class ApplicationErrors
     public static readonly Error NotFound =
         new("application.not_found", "Application not found.");
 
+    public static readonly Error CandidateAccountNotFound =
+        new("application.candidate_account_not_found", "The candidate account could not be found.");
+
     public static readonly Error CvNotParsed =
         new("application.cv_not_parsed", "The CV has not been parsed yet.");
 

@@ -78,6 +78,10 @@ public sealed class ApplicationsDbContext : DbContext, IApplicationsDbContext
             // cannot serve the sort; this one provides it from the index instead of a separate sort.
             entity.HasIndex(a => new { a.TenantId, a.AppliedAtUtc })
                 .IsDescending(false, true);
+            // Used by the candidate portal (7.9) to list a candidate's own applications across
+            // all tenants. IgnoreQueryFilters() + this index serves the cross-tenant read.
+            entity.HasIndex(a => a.CandidateAccountId)
+                .HasFilter("\"CandidateAccountId\" IS NOT NULL");
         });
 
         builder.Entity<Pipeline>(entity =>

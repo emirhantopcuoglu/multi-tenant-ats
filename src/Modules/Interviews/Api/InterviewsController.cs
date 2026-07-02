@@ -31,11 +31,11 @@ public sealed class InterviewsController : ControllerBase
     [Authorize(Policy = Policies.CanViewInterviews)]
     public async Task<IActionResult> List(
         [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null,
-        [FromQuery] Guid? interviewerId = null,
+        [FromQuery] Guid? interviewerId = null, [FromQuery] Guid? applicationId = null,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         var result = await _sender.Send(
-            new ListInterviewsQuery(fromDate, toDate, interviewerId, page, pageSize));
+            new ListInterviewsQuery(fromDate, toDate, interviewerId, applicationId, page, pageSize));
         return Ok(result.Value);
     }
 

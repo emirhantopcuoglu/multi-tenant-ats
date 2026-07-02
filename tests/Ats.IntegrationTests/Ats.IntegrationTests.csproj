@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -10,12 +10,30 @@
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.2" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.12.0" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\Applications\Application\Ats.Modules.Applications.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Applications\Infrastructure\Ats.Modules.Applications.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\CandidateAccounts\Application\Ats.Modules.CandidateAccounts.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\CandidateAccounts\Infrastructure\Ats.Modules.CandidateAccounts.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Jobs\Application\Ats.Modules.Jobs.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Jobs\Infrastructure\Ats.Modules.Jobs.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Interviews\Application\Ats.Modules.Interviews.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Interviews\Infrastructure\Ats.Modules.Interviews.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Tenants\Infrastructure\Ats.Modules.Tenants.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Shared\Ats.Shared.Infrastructure\Ats.Shared.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

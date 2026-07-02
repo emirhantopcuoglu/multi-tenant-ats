@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
 using NpgsqlTypes;
 
 #nullable disable
@@ -6,11 +7,18 @@ using NpgsqlTypes;
 namespace Ats.Modules.Applications.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class AddCandidateSearchVector : Migration
+    public partial class AddCandidateAccountId : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AddColumn<Guid>(
+                name: "CandidateAccountId",
+                schema: "applications",
+                table: "Applications",
+                type: "uuid",
+                nullable: true);
+
             migrationBuilder.AddColumn<NpgsqlTsVector>(
                 name: "SearchVector",
                 schema: "applications",
@@ -26,6 +34,13 @@ namespace Ats.Modules.Applications.Infrastructure.Migrations
                 table: "Candidates",
                 column: "SearchVector")
                 .Annotation("Npgsql:IndexMethod", "GIN");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Applications_CandidateAccountId",
+                schema: "applications",
+                table: "Applications",
+                column: "CandidateAccountId",
+                filter: "\"CandidateAccountId\" IS NOT NULL");
         }
 
         /// <inheritdoc />
@@ -36,10 +51,20 @@ namespace Ats.Modules.Applications.Infrastructure.Migrations
                 schema: "applications",
                 table: "Candidates");
 
+            migrationBuilder.DropIndex(
+                name: "IX_Applications_CandidateAccountId",
+                schema: "applications",
+                table: "Applications");
+
             migrationBuilder.DropColumn(
                 name: "SearchVector",
                 schema: "applications",
                 table: "Candidates");
+
+            migrationBuilder.DropColumn(
+                name: "CandidateAccountId",
+                schema: "applications",
+                table: "Applications");
         }
     }
 }

@@ -1,0 +1,60 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+/* Dark mode via a `.dark` class on an ancestor (the "class" strategy), not the OS preference.
+   Tailwind v4 defaults `dark:` to prefers-color-scheme; this custom variant rewires it to respond
+   to a `.dark` class instead, so ThemeProvider toggles the theme by adding/removing that class
+   on <html>. The raw token values live in tokens.css. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Bridge the raw design tokens into Tailwind's semantic color/font utilities.
+   `inline` is the load-bearing keyword: without it Tailwind copies each variable's *value* into
+   the generated utility at build time, freezing the light palette so `.dark` would never take
+   effect. With `inline`, a utility like `bg-bg` emits `background-color: var(--bg)`, so switching
+   the `.dark` class re-resolves the cascade and the whole UI flips at runtime.
+   Naming note: utilities read as `<utility>-<token>` (e.g. bg-bg, text-text, border-border).
+   The doubled names are a little awkward but keep the token vocabulary 1:1 with the design source. */
+@theme inline {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Surfaces */
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-elevated: var(--elevated);
+  --color-border: var(--border);
+  --color-divider: var(--divider);
+
+  /* Text */
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-disabled: var(--text-disabled);
+  --color-text-inverse: var(--text-inverse);
+
+  /* Accent */
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-active: var(--accent-active);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-fg: var(--accent-fg);
+
+  /* Status */
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+
+  /* Elevation — exposes the design shadow as `shadow-card` */
+  --shadow-card: var(--shadow);
+}
+
+/* Sensible page defaults so surfaces/text follow the theme even before a screen sets them. */
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
