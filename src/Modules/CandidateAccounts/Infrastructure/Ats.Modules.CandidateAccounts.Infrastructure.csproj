@@ -4,6 +4,7 @@
     <ProjectReference Include="..\Application\Ats.Modules.CandidateAccounts.Application.csproj" />
     <ProjectReference Include="..\Domain\Ats.Modules.CandidateAccounts.Domain.csproj" />
     <ProjectReference Include="..\..\..\Shared\Ats.Shared.Kernel\Ats.Shared.Kernel.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Ats.Shared.Contracts\Ats.Shared.Contracts.csproj" />
   </ItemGroup>
 
   <!-- The framework reference brings in ASP.NET Identity's IPasswordHasher (reused to hash candidate

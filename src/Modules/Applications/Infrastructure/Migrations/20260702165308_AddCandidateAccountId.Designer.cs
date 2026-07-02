@@ -13,8 +13,8 @@ using NpgsqlTypes;
 namespace Ats.Modules.Applications.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationsDbContext))]
-    [Migration("20260627070142_AddCandidateSearchVector")]
-    partial class AddCandidateSearchVector
+    [Migration("20260702165308_AddCandidateAccountId")]
+    partial class AddCandidateAccountId
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -35,6 +35,9 @@ namespace Ats.Modules.Applications.Infrastructure.Migrations
 
                     b.Property<DateTime>("AppliedAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CandidateAccountId")
+                        .HasColumnType("uuid");
 
                     b.Property<Guid>("CandidateId")
                         .HasColumnType("uuid");
@@ -88,6 +91,9 @@ namespace Ats.Modules.Applications.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CandidateAccountId")
+                        .HasFilter("\"CandidateAccountId\" IS NOT NULL");
 
                     b.HasIndex("TenantId", "AppliedAtUtc")
                         .IsDescending(false, true);

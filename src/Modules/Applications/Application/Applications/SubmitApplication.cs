@@ -1,5 +1,6 @@
 using Ats.Modules.Applications.Application.Events;
 using Ats.Modules.Applications.Domain;
+using Ats.Shared.Contracts.CandidateAccounts;
 using Ats.Shared.Contracts.Jobs;
 using Ats.Shared.Kernel;
 using FluentValidation;
@@ -13,14 +14,12 @@ using ApplicationEntity = Ats.Modules.Applications.Domain.Application;
 
 namespace Ats.Modules.Applications.Application.Applications;
 
-// A candidate's public application to a job. The CV arrives as an already-validated stream:
-// the API boundary checks magic bytes and size before this command is built, so the handler
-// deals only in business rules.
+// A candidate's application to a job. The identity fields (email, name) are no longer
+// submitted in the form — they come from the authenticated CandidateAccount, fetched via the
+// ICandidateAccountReader port so this module never couples to the CandidateAccounts schema.
 public sealed record SubmitApplicationCommand(
     string JobSlug,
-    string CandidateEmail,
-    string FirstName,
-    string LastName,
+    Guid CandidateAccountId,
     string? Phone,
     string? LinkedInUrl,
     string? CoverLetter,
@@ -33,9 +32,7 @@ public sealed class SubmitApplicationValidator : AbstractValidator<SubmitApplica
 {
     public SubmitApplicationValidator()
     {
-        RuleFor(x => x.CandidateEmail).NotEmpty().EmailAddress().MaximumLength(256);
-        RuleFor(x => x.FirstName).NotEmpty().MaximumLength(100);
-        RuleFor(x => x.LastName).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.CandidateAccountId).NotEmpty();
         RuleFor(x => x.Phone).MaximumLength(40);
         RuleFor(x => x.LinkedInUrl).MaximumLength(300);
         RuleFor(x => x.CoverLetter).MaximumLength(5000);
@@ -46,6 +43,7 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
 {
     private readonly IApplicationsDbContext _db;
     private readonly IJobDirectory _jobs;
+    private readonly ICandidateAccountReader _candidateAccounts;
     private readonly IFileStorage _fileStorage;
     private readonly ICurrentTenant _currentTenant;
     private readonly IPublisher _publisher;
@@ -55,6 +53,7 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
     public SubmitApplicationHandler(
         IApplicationsDbContext db,
         IJobDirectory jobs,
+        ICandidateAccountReader candidateAccounts,
         IFileStorage fileStorage,
         ICurrentTenant currentTenant,
         IPublisher publisher,
@@ -63,6 +62,7 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
     {
         _db = db;
         _jobs = jobs;
+        _candidateAccounts = candidateAccounts;
         _fileStorage = fileStorage;
         _currentTenant = currentTenant;
         _publisher = publisher;
@@ -79,26 +79,34 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
 
         var tenantId = _currentTenant.TenantId.Value;
 
-        // 1. Confirm the job exists and is Published — a cross-module read through the
+        // 1. Resolve the candidate identity from the global account. A valid CandidateOnly token
+        //    guarantees the account existed at token mint; returning null here would mean it was
+        //    deleted in the interim, which we treat as a bad request.
+        var account = await _candidateAccounts.GetByIdAsync(command.CandidateAccountId, ct);
+        if (account is null)
+            return Result.Failure<Guid>(ApplicationErrors.CandidateAccountNotFound);
+
+        // 2. Confirm the job exists and is Published — a cross-module read through the
         //    IJobDirectory port. Applications never sees the Jobs schema or entity.
         var job = await _jobs.GetPublishedJobBySlugAsync(command.JobSlug, ct);
         if (job is null)
             return Result.Failure<Guid>(ApplicationErrors.JobNotAvailable);
 
-        // 2. Deduplicate the candidate by email. The tenant half of the (tenant, email) key is
-        //    applied automatically by the global query filter, so we only match the email here.
-        var email = Candidate.NormalizeEmail(command.CandidateEmail);
+        // 3. Deduplicate the per-tenant candidate by email. The tenant half of the (tenant, email)
+        //    key is applied automatically by the global query filter. Phone/LinkedIn come from the
+        //    form: they can differ per-tenant and are not stored on the global account.
+        var email = Candidate.NormalizeEmail(account.Email);
         var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.Email == email, ct);
         if (candidate is null)
         {
             candidate = Candidate.Create(
-                command.CandidateEmail, command.FirstName, command.LastName,
+                account.Email, account.FirstName, account.LastName,
                 command.Phone, command.LinkedInUrl);
             _db.Candidates.Add(candidate);
         }
         else
         {
-            // 3. One active application per (candidate, job). A brand-new candidate cannot have
+            // 4. One active application per (candidate, job). A brand-new candidate cannot have
             //    a prior application, so this check only matters for a returning candidate.
             var alreadyApplied = await _db.Applications.AnyAsync(
                 a => a.JobId == job.Id
@@ -109,7 +117,7 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
                 return Result.Failure<Guid>(ApplicationErrors.DuplicateApplication);
         }
 
-        // 4. Materialise the job's pipeline lazily on first application (custom editors are V2).
+        // 5. Materialise the job's pipeline lazily on first application (custom editors are V2).
         //    The unique (tenant, job) index makes this at-most-one per job.
         var pipeline = await _db.Pipelines
             .Include(p => p.Stages)
@@ -121,7 +129,7 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
         }
         var initialStageId = pipeline.InitialStage.Id;
 
-        // 5. Upload the CV before persisting. The bucket is private; the file is only ever
+        // 6. Upload the CV before persisting. The bucket is private; the file is only ever
         //    reachable through a short-lived presigned URL. The key is grouped under the
         //    candidate (known here) — the application id is generated inside Application.Create,
         //    so using it would force the entity to surrender id generation to this layer.
@@ -130,7 +138,7 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
             cvKey, command.CvContent, command.CvSizeBytes, command.CvContentType, ct);
 
         var application = ApplicationEntity.Create(
-            job.Id, candidate.Id, initialStageId, cvKey, command.CoverLetter);
+            job.Id, candidate.Id, command.CandidateAccountId, initialStageId, cvKey, command.CoverLetter);
         _db.Applications.Add(application);
 
         // Publish before saving: with the transactional outbox, the bridge handler writes the
@@ -165,7 +173,7 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
 
         // Record the first entry in the application's history, now in MongoDB. This is not part of
         // the transaction above (Mongo is a separate system): the application is committed first,
-        // then logged best-effort. The actor is null — the candidate is anonymous.
+        // then logged best-effort.
         await _activityLog.TryAddAsync(
             ApplicationActivity.Submitted(application.Id, job.Id, candidate.Email), _logger, ct);
 

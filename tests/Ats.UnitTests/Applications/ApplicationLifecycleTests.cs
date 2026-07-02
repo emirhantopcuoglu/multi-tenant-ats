@@ -6,15 +6,15 @@ public class ApplicationLifecycleTests
 {
     private static Application CreateActive() =>
         Application.Create(
-            jobId: Guid.NewGuid(), candidateId: Guid.NewGuid(), initialStageId: Guid.NewGuid(),
-            cvFileKey: "tenant/app/cv.pdf", coverLetter: null);
+            jobId: Guid.NewGuid(), candidateId: Guid.NewGuid(), candidateAccountId: null,
+            initialStageId: Guid.NewGuid(), cvFileKey: "tenant/app/cv.pdf", coverLetter: null);
 
     [Fact]
     public void Create_should_start_active_in_the_initial_stage()
     {
         var initialStage = Guid.NewGuid();
 
-        var application = Application.Create(Guid.NewGuid(), Guid.NewGuid(), initialStage, "k.pdf");
+        var application = Application.Create(Guid.NewGuid(), Guid.NewGuid(), null, initialStage, "k.pdf");
 
         Assert.Equal(ApplicationStatus.Active, application.Status);
         Assert.Equal(initialStage, application.CurrentStageId);
@@ -24,7 +24,7 @@ public class ApplicationLifecycleTests
     [Fact]
     public void Create_should_throw_when_cv_file_key_is_missing()
     {
-        var act = () => Application.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "   ");
+        var act = () => Application.Create(Guid.NewGuid(), Guid.NewGuid(), null, Guid.NewGuid(), "   ");
 
         Assert.Throws<ArgumentException>(act);
     }

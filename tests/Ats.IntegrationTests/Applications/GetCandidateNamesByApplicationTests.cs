@@ -26,8 +26,8 @@ public sealed class GetCandidateNamesByApplicationTests
         var candidate = Candidate.Create("jane@example.test", "Jane", "Doe");
         writeDb.Candidates.Add(candidate);
         var application = Application.Create(
-            jobId: Guid.NewGuid(), candidateId: candidate.Id, initialStageId: Guid.NewGuid(),
-            cvFileKey: "cv/jane.pdf");
+            jobId: Guid.NewGuid(), candidateId: candidate.Id, candidateAccountId: null,
+            initialStageId: Guid.NewGuid(), cvFileKey: "cv/jane.pdf");
         writeDb.Applications.Add(application);
         await writeDb.SaveChangesAsync();
 
