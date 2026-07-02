@@ -7,7 +7,9 @@
     "openMenu": "Menüyü aç",
     "closeMenu": "Menüyü kapat",
     "signOut": "Çıkış yap",
-    "viewCareers": "Kariyer sayfasını görüntüle"
+    "viewCareers": "Kariyer sayfasını görüntüle",
+    "errorTitle": "Bir hata oluştu",
+    "errorRetry": "Lütfen daha sonra tekrar deneyin."
   },
   "placeholder": {
     "body": "Bu ekran ilerleyen adımlarda gelecek."
@@ -235,6 +237,15 @@
     "notFound": {
       "title": "Sayfa bulunamadı",
       "description": "Bu şirket veya ilan mevcut değil ya da ilan kaldırılmış."
+    },
+    "marketplace": {
+      "title": "Bir sonraki fırsatınızı bulun",
+      "subtitle": "Şu an işe alan şirketlerin açık pozisyonlarına göz atın.",
+      "searchPlaceholder": "Pozisyon veya şirket adına göre ara…",
+      "searchBtn": "Ara",
+      "empty": "Aramanızla eşleşen açık pozisyon bulunamadı.",
+      "emptyGeneral": "Şu an açık pozisyon bulunmuyor. Daha sonra tekrar kontrol edin.",
+      "at": "{{company}}'de"
     }
   },
   "interviewType": {

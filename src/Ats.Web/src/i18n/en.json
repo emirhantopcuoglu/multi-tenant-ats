@@ -7,7 +7,9 @@
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "signOut": "Sign out",
-    "viewCareers": "View careers page"
+    "viewCareers": "View careers page",
+    "errorTitle": "Something went wrong",
+    "errorRetry": "Please try again later."
   },
   "placeholder": {
     "body": "This screen arrives in a later step."
@@ -235,6 +237,15 @@
     "notFound": {
       "title": "Page not found",
       "description": "This company or job doesn't exist, or the posting has been removed."
+    },
+    "marketplace": {
+      "title": "Find your next opportunity",
+      "subtitle": "Browse open positions from companies hiring right now.",
+      "searchPlaceholder": "Search by title or company…",
+      "searchBtn": "Search",
+      "empty": "No open positions match your search.",
+      "emptyGeneral": "There are no open positions right now. Check back later.",
+      "at": "at {{company}}"
     }
   },
   "interviewType": {

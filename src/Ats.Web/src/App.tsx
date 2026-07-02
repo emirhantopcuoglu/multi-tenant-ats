@@ -14,6 +14,7 @@ import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { RegisterPage } from '@/features/auth/pages/RegisterPage';
 import { AcceptInvitationPage } from '@/features/auth/pages/AcceptInvitationPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
+import { MarketplacePage } from '@/features/public/MarketplacePage';
 import { PublicCareersPage } from '@/features/public/PublicCareersPage';
 import { PublicJobDetailPage } from '@/features/public/PublicJobDetailPage';
 import { PublicApplyPage } from '@/features/public/PublicApplyPage';
@@ -26,6 +27,9 @@ import { PlaygroundPage } from '@/features/playground/PlaygroundPage';
 export default function App() {
   return (
     <Routes>
+      {/* The root is the public marketplace — visible to everyone, auth or not. */}
+      <Route path="/" element={<MarketplacePage />} />
+
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
@@ -39,7 +43,7 @@ export default function App() {
 
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
-          <Route path="/" element={<OverviewPage />} />
+          <Route path="/dashboard" element={<OverviewPage />} />
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/jobs/new" element={<JobFormPage />} />
           <Route path="/jobs/:id/edit" element={<JobFormPage />} />
