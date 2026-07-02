@@ -21,9 +21,20 @@ public interface IJobDirectory
     // Number of currently open (Published) jobs in the tenant. Feeds the dashboard "Open jobs" stat;
     // the count is computed in the Jobs module so its status semantics never leak across the boundary.
     Task<int> CountOpenJobsAsync(CancellationToken cancellationToken = default);
+
+    // Cross-tenant batch lookup for the candidate portal. A candidate's applications span multiple
+    // tenants, so this bypasses the global tenant filter. Named after GetSummariesAsync on
+    // ITenantDirectory to be consistent with the pattern already used for company name lookups.
+    // Missing ids are absent from the result; the caller decides how to handle a gap.
+    Task<IReadOnlyDictionary<Guid, JobSummary>> GetSummariesAsync(
+        IReadOnlyCollection<Guid> jobIds, CancellationToken cancellationToken = default);
 }
 
 // A minimal read model — only what a consumer needs to attach an application to a job. It is
 // deliberately not the Job entity: exposing the aggregate would leak the Jobs module's
 // internals and let other modules depend on its shape.
 public sealed record PublishedJob(Guid Id, string Title, string Slug);
+
+// Display info for a single job, used by the cross-tenant candidate portal view.
+// TenantId is included so the handler can batch the company-name lookup against ITenantDirectory.
+public sealed record JobSummary(Guid Id, string Title, string Slug, Guid TenantId);

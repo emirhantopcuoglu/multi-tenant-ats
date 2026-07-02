@@ -28,6 +28,12 @@ export function PublicLayout({ children }: { children: ReactNode }) {
 
             {user?.kind === 'candidate' ? (
               <div className="flex items-center gap-3">
+                <Link
+                  to="/candidate/applications"
+                  className="text-sm text-text-muted hover:text-text"
+                >
+                  {t('candidateAuth.myApplications')}
+                </Link>
                 <span className="text-sm font-medium text-text">{user.firstName}</span>
                 <button
                   type="button"
