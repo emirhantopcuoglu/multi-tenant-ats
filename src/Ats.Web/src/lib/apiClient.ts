@@ -13,15 +13,16 @@ const HTTP_UNAUTHORIZED = 401;
 /* Fired when the refresh flow fails unrecoverably. AuthContext (Step 2.1) listens for this to
    drop the user back to /login. Emitting an event keeps the API layer free of routing concerns. */
 export const AUTH_LOGOUT_EVENT = 'auth:logout';
+export const AUTH_CANDIDATE_LOGOUT_EVENT = 'auth:candidate-logout';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL;
 
 export const apiClient = axios.create({ baseURL });
 
-// Request: attach the current access token, if any. Anonymous calls (public job pages) simply
-// go out without an Authorization header.
+// Request: attach the active access token. Company accessToken takes precedence (in-memory after
+// a refresh); candidate token falls back from localStorage. Anonymous calls go out with no header.
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const token = tokenStore.getAccessToken();
+  const token = tokenStore.getAccessToken() ?? tokenStore.getCandidateToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -79,9 +80,16 @@ apiClient.interceptors.response.use(
       original.headers.Authorization = `Bearer ${newAccessToken}`;
       return apiClient(original);
     } catch (refreshError) {
-      // Refresh failed: the session is over. Clear credentials and let the app react.
-      tokenStore.clear();
-      window.dispatchEvent(new Event(AUTH_LOGOUT_EVENT));
+      // Refresh failed: the session is over. Clear credentials and fire the appropriate event so
+      // AuthProvider can navigate to the right login screen for each identity type.
+      const kind = tokenStore.getSessionKind();
+      if (kind === 'candidate') {
+        tokenStore.clearCandidateToken();
+        window.dispatchEvent(new Event(AUTH_CANDIDATE_LOGOUT_EVENT));
+      } else {
+        tokenStore.clear();
+        window.dispatchEvent(new Event(AUTH_LOGOUT_EVENT));
+      }
       return Promise.reject(refreshError);
     }
   },

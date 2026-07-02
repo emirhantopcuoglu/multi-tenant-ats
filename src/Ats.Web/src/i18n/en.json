@@ -387,6 +387,19 @@
     "publishedToast": "Job published.",
     "loadError": "Couldn't load this job."
   },
+  "candidateAuth": {
+    "loginTitle": "Sign in",
+    "loginSub": "Continue your job search.",
+    "registerTitle": "Create account",
+    "registerSub": "Apply to jobs and track your applications.",
+    "createBtn": "Create account",
+    "noAccount": "New here?",
+    "createOne": "Create a free account",
+    "haveAccount": "Already have an account?",
+    "signInLink": "Sign in",
+    "publicSignIn": "Sign in",
+    "publicRegister": "Create account"
+  },
   "auth": {
     "tagline": "Applicant Tracking, done right",
     "brandHead": "Hire better, together.",

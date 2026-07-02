@@ -1,8 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './auth-context';
 
-/* Centered spinner shown while the initial session check runs, so guarded routes don't flash the
-   login screen on reload before /auth/me resolves. */
 function FullPageSpinner() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg">
@@ -15,11 +13,11 @@ function FullPageSpinner() {
   );
 }
 
-/* Gate for authenticated areas. Used as a layout route wrapping protected children via <Outlet>.
-   Unauthenticated users are sent to /login, remembering where they came from so login can return
-   them there. */
+/* Gate for company-authenticated areas. Unauthenticated users are sent to /login remembering
+   their intended destination. Candidate accounts are redirected to / (the marketplace) because
+   they have no access to the company dashboard. */
 export function RequireAuth() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -28,6 +26,10 @@ export function RequireAuth() {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  if (user?.kind === 'candidate') {
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;

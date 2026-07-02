@@ -19,6 +19,8 @@ import { PublicCareersPage } from '@/features/public/PublicCareersPage';
 import { PublicJobDetailPage } from '@/features/public/PublicJobDetailPage';
 import { PublicApplyPage } from '@/features/public/PublicApplyPage';
 import { PlaygroundPage } from '@/features/playground/PlaygroundPage';
+import { CandidateLoginPage } from '@/features/candidates/pages/CandidateLoginPage';
+import { CandidateRegisterPage } from '@/features/candidates/pages/CandidateRegisterPage';
 
 /* Public auth routes sit at the top. Everything else is nested under RequireAuth → AppShell, so the
    shell (sidebar + topbar) wraps every authenticated screen and the routed page renders through its
@@ -33,6 +35,8 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+      <Route path="/candidate/login" element={<CandidateLoginPage />} />
+      <Route path="/candidate/register" element={<CandidateRegisterPage />} />
       <Route path="/playground" element={<PlaygroundPage />} />
 
       {/* Anonymous careers pages. Static routes above (e.g. /login, /jobs) outrank these dynamic

@@ -10,7 +10,7 @@ import { useAuth } from '@/app/auth/auth-context';
 export function CompanyTab() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const tenant = user?.tenant;
+  const tenant = user?.kind === 'company' ? user.tenant : undefined;
 
   return (
     <Card className="max-w-xl space-y-4">

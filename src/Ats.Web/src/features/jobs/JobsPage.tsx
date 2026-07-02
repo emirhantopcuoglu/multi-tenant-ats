@@ -96,7 +96,7 @@ export function JobsPage() {
         onStatusChange={(value) => setParam('status', value)}
         canManage={canManage}
         onNewJob={() => navigate('/jobs/new')}
-        careersSlug={user?.tenant.slug}
+        careersSlug={user?.kind === 'company' ? user.tenant.slug : undefined}
       />
 
       {isLoading ? (

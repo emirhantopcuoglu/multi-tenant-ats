@@ -3,7 +3,7 @@ import { tokenStore } from '@/lib/tokenStore';
 import type {
   AcceptInvitationRequest,
   AuthResult,
-  CurrentUser,
+  CompanyUser,
   LoginRequest,
   RegisterRequest,
 } from '@/types/auth';
@@ -25,9 +25,9 @@ export async function register(request: RegisterRequest): Promise<AuthResult> {
   return data;
 }
 
-export async function getCurrentUser(): Promise<CurrentUser> {
-  const { data } = await apiClient.get<CurrentUser>(`${AUTH_BASE}/me`);
-  return data;
+export async function getCurrentUser(): Promise<CompanyUser> {
+  const { data } = await apiClient.get<Omit<CompanyUser, 'kind'>>(`${AUTH_BASE}/me`);
+  return { ...data, kind: 'company' };
 }
 
 /* Accept a team invitation. Returns nothing on success (the endpoint mints no tokens), so the caller
