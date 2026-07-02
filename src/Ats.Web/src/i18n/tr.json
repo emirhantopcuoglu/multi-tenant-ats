@@ -232,7 +232,8 @@
       "error": "Bir şeyler ters gitti. Lütfen tekrar deneyin.",
       "successTitle": "Başvurunuz alındı",
       "successBody": "{{title}} pozisyonuna başvurduğunuz için teşekkürler. Sizinle iletişime geçeceğiz.",
-      "backToJobs": "Tüm pozisyonlara dön"
+      "backToJobs": "Tüm pozisyonlara dön",
+      "applyingAs": "Başvuru sahibi"
     },
     "notFound": {
       "title": "Sayfa bulunamadı",

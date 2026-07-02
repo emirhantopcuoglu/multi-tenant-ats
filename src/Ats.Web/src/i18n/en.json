@@ -232,7 +232,8 @@
       "error": "Something went wrong. Please try again.",
       "successTitle": "Application received",
       "successBody": "Thanks for applying to {{title}}. We'll be in touch.",
-      "backToJobs": "Back to all positions"
+      "backToJobs": "Back to all positions",
+      "applyingAs": "Applying as"
     },
     "notFound": {
       "title": "Page not found",
