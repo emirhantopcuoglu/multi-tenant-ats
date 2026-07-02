@@ -387,6 +387,19 @@
     "publishedToast": "İlan yayınlandı.",
     "loadError": "Bu ilan yüklenemedi."
   },
+  "candidateAuth": {
+    "loginTitle": "Giriş yap",
+    "loginSub": "İş arayışına devam et.",
+    "registerTitle": "Hesap oluştur",
+    "registerSub": "İlanlara başvur ve başvurularını takip et.",
+    "createBtn": "Ücretsiz hesap oluştur",
+    "noAccount": "İlk kez mi?",
+    "createOne": "Ücretsiz hesap oluştur",
+    "haveAccount": "Zaten hesabın var mı?",
+    "signInLink": "Giriş yap",
+    "publicSignIn": "Giriş yap",
+    "publicRegister": "Hesap oluştur"
+  },
   "auth": {
     "tagline": "Aday takibi, doğru şekilde",
     "brandHead": "Birlikte daha iyi işe alın.",

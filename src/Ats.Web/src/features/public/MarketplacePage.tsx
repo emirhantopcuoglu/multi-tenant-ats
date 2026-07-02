@@ -1,7 +1,8 @@
 import { useRef } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Badge, Card, EmptyState, Pagination, Skeleton } from '@/components/ui';
+import { useAuth } from '@/app/auth/auth-context';
 import { PublicLayout } from './components/PublicLayout';
 import { useMarketplaceJobs } from './useMarketplaceJobs';
 
@@ -10,7 +11,13 @@ import { useMarketplaceJobs } from './useMarketplaceJobs';
    survive a browser refresh. */
 export function MarketplacePage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Company users have their own dashboard; the marketplace is for candidates and anonymous visitors.
+  if (user?.kind === 'company') {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const search = searchParams.get('q') ?? '';
   const page = Math.max(1, Number(searchParams.get('page') ?? '1'));

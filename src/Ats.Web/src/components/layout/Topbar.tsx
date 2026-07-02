@@ -47,6 +47,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   const activeItem = NAV_ITEMS.find((item) => isNavItemActive(pathname, item.path));
   const title = activeItem ? t(activeItem.labelKey) : t('common.appName');
   const fullName = user ? `${user.firstName} ${user.lastName}` : '';
+  const companyUser = user?.kind === 'company' ? user : null;
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-bg/80 px-4 backdrop-blur sm:px-6 lg:px-8">
@@ -69,10 +70,12 @@ export function Topbar({ onMenuClick }: TopbarProps) {
               <div className="space-y-1.5">
                 <p className="text-sm font-medium text-text">{fullName}</p>
                 <p className="text-xs text-text-muted">{user.email}</p>
-                <div className="flex items-center gap-2 pt-0.5">
-                  <Badge tone="accent">{t(`role.${user.role}`)}</Badge>
-                  <span className="truncate text-xs text-text-muted">{user.tenant.companyName}</span>
-                </div>
+                {companyUser && (
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <Badge tone="accent">{t(`role.${companyUser.role}`)}</Badge>
+                    <span className="truncate text-xs text-text-muted">{companyUser.tenant.companyName}</span>
+                  </div>
+                )}
               </div>
             }
             items={[
@@ -94,9 +97,11 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                 <Avatar name={fullName} size="md" />
                 <span className="hidden text-left sm:block">
                   <span className="block text-sm font-medium leading-tight text-text">{fullName}</span>
-                  <span className="block text-xs leading-tight text-text-muted">
-                    {t(`role.${user.role}`)}
-                  </span>
+                  {companyUser && (
+                    <span className="block text-xs leading-tight text-text-muted">
+                      {t(`role.${companyUser.role}`)}
+                    </span>
+                  )}
                 </span>
                 <ChevronDownIcon />
               </button>
