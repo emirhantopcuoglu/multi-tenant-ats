@@ -14,16 +14,19 @@ export function MarketplacePage() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Company users have their own dashboard; the marketplace is for candidates and anonymous visitors.
-  if (user?.kind === 'company') {
-    return <Navigate to="/dashboard" replace />;
-  }
-
+  // Derived values before any hooks — no hooks violation risk here (these are plain assignments).
   const search = searchParams.get('q') ?? '';
   const page = Math.max(1, Number(searchParams.get('page') ?? '1'));
 
+  // All hooks must be called unconditionally, before any early return.
   const inputRef = useRef<HTMLInputElement>(null);
   const jobsQuery = useMarketplaceJobs(page, search);
+
+  // Company users have their own dashboard. This return sits after all hooks so React always
+  // calls the same set of hooks regardless of the user kind (Rules of Hooks).
+  if (user?.kind === 'company') {
+    return <Navigate to="/dashboard" replace />;
+  }
   const jobs = jobsQuery.data?.items ?? [];
   const totalPages = jobsQuery.data?.totalPages ?? 1;
 
