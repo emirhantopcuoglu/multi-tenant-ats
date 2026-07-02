@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.6.0...v0.7.0) (2026-07-02)
+
+
+### Features
+
+* **web:** add dual candidate/company auth UI ([#95](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/95)) ([447f478](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/447f478324f406aaff3b33e3968f9ec0154b0904))
+
 ## [0.6.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.5.0...v0.6.0) (2026-06-27)
 
 
