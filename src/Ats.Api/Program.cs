@@ -215,6 +215,7 @@ builder.Services.Configure<LlmOptions>(
     builder.Configuration.GetSection(LlmOptions.SectionName));
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IPdfTextExtractor, PdfPigTextExtractor>();
+builder.Services.AddSingleton<IDocxTextExtractor, DocxTextExtractor>();
 builder.Services.AddSingleton<ICvParser, OpenAiCompatibleCvParser>();
 
 // One Redis connection shared by the whole app. StackExchange.Redis multiplexes all traffic over a
