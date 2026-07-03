@@ -76,6 +76,50 @@ export function MarketplacePage() {
           </form>
         </div>
 
+        {/* Entry cards: only anonymous visitors need to pick a door. A signed-in candidate is
+            already through it, and company users never reach this page (redirected above). */}
+        {!user && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-3 rounded-xl border border-accent/40 bg-card p-5 text-center">
+              <h2 className="font-semibold text-text">{t('public.marketplace.seekerCardTitle')}</h2>
+              <p className="text-sm text-text-muted">{t('public.marketplace.seekerCardText')}</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Link
+                  to="/candidate/login"
+                  className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg hover:bg-accent-hover"
+                >
+                  {t('public.marketplace.seekerSignIn')}
+                </Link>
+                <Link
+                  to="/candidate/register"
+                  className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text hover:border-accent"
+                >
+                  {t('public.marketplace.seekerRegister')}
+                </Link>
+              </div>
+            </div>
+
+            <div className="space-y-3 rounded-xl border border-border bg-card p-5 text-center">
+              <h2 className="font-semibold text-text">{t('public.marketplace.hireCardTitle')}</h2>
+              <p className="text-sm text-text-muted">{t('public.marketplace.hireCardText')}</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Link
+                  to="/login"
+                  className="rounded-lg bg-text px-4 py-2 text-sm font-medium text-bg hover:opacity-90"
+                >
+                  {t('public.marketplace.hireSignIn')}
+                </Link>
+                <Link
+                  to="/register"
+                  className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text hover:border-accent"
+                >
+                  {t('public.marketplace.hireRegister')}
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Results */}
         <div className="space-y-4">
           {jobsQuery.isLoading ? (

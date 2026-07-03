@@ -45,6 +45,10 @@ export function PublicLayout({ children }: { children: ReactNode }) {
               </div>
             ) : !user ? (
               <div className="flex items-center gap-3">
+                <Link to="/login" className="text-sm text-text-muted hover:text-text">
+                  {t('public.forCompanies')}
+                </Link>
+                <span aria-hidden="true" className="h-4 w-px bg-border" />
                 <Link
                   to="/candidate/login"
                   className="text-sm text-text-muted hover:text-text"

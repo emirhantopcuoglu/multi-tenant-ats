@@ -246,8 +246,17 @@
       "searchBtn": "Ara",
       "empty": "Aramanızla eşleşen açık pozisyon bulunamadı.",
       "emptyGeneral": "Şu an açık pozisyon bulunmuyor. Daha sonra tekrar kontrol edin.",
-      "at": "{{company}}'de"
-    }
+      "at": "{{company}}'de",
+      "seekerCardTitle": "İş mi arıyorsun?",
+      "seekerCardText": "Ücretsiz aday hesabı oluştur, ilanlara başvur ve başvurularını takip et.",
+      "seekerSignIn": "Aday girişi",
+      "seekerRegister": "Aday hesabı oluştur",
+      "hireCardTitle": "İşe alım mı yapıyorsunuz?",
+      "hireCardText": "Şirket çalışma alanınızdan ilan yayınlayın ve başvuruları yönetin.",
+      "hireSignIn": "Şirket girişi",
+      "hireRegister": "Şirket kaydı"
+    },
+    "forCompanies": "Şirketler için"
   },
   "interviewType": {
     "PhoneScreen": "Telefon görüşmesi",
@@ -388,7 +397,15 @@
     "publishedToast": "İlan yayınlandı.",
     "loadError": "Bu ilan yüklenemedi."
   },
+  "authSwitch": {
+    "label": "Hesap türü",
+    "candidate": "İş arayan",
+    "company": "İşveren"
+  },
   "candidateAuth": {
+    "tagline": "Yeni işin burada başlıyor",
+    "brandHead": "İşi bul. Her başvurunu takip et.",
+    "brandSub": "Şirketler arasında açık pozisyonları ara, dakikalar içinde başvur ve tüm başvurularını tek yerden izle.",
     "loginTitle": "Giriş yap",
     "loginSub": "İş arayışına devam et.",
     "registerTitle": "Hesap oluştur",
