@@ -10,6 +10,15 @@ export const API_V1 = '/api/v1';
 const REFRESH_ENDPOINT = `${API_V1}/auth/refresh`;
 const HTTP_UNAUTHORIZED = 401;
 
+/* Endpoints where the caller presents credentials. A 401 from these is a real answer (wrong email
+   or password), not an expired session — the refresh flow below must let it reach the caller. */
+const CREDENTIAL_ENDPOINTS = [
+  `${API_V1}/auth/login`,
+  `${API_V1}/auth/register`,
+  `${API_V1}/candidate/auth/login`,
+  `${API_V1}/candidate/auth/register`,
+];
+
 /* Fired when the refresh flow fails unrecoverably. AuthContext (Step 2.1) listens for this to
    drop the user back to /login. Emitting an event keeps the API layer free of routing concerns. */
 export const AUTH_LOGOUT_EVENT = 'auth:logout';
@@ -61,10 +70,26 @@ apiClient.interceptors.response.use(
 
     const isAuthError = error.response?.status === HTTP_UNAUTHORIZED;
     const isRefreshCall = original?.url?.includes(REFRESH_ENDPOINT);
+    const isCredentialCall = CREDENTIAL_ENDPOINTS.some((endpoint) =>
+      original?.url?.includes(endpoint),
+    );
 
-    // Only intervene on a genuine 401 for a request we haven't already retried, and never for the
-    // refresh call itself (a 401 there means the refresh token is dead — nothing left to try).
-    if (!isAuthError || !original || original._retry || isRefreshCall) {
+    // Only intervene on a genuine 401 for a request we haven't already retried. Never for the
+    // refresh call itself (a 401 there means the refresh token is dead — nothing left to try),
+    // and never for login/register (their 401 means invalid credentials, not a stale session).
+    if (!isAuthError || !original || original._retry || isRefreshCall || isCredentialCall) {
+      return Promise.reject(error);
+    }
+
+    // Candidate sessions have no refresh flow, so a 401 on one is terminal: clear the token and
+    // let AuthProvider route back to the candidate login screen. Without an active session there
+    // is nothing to refresh either — pass the error through untouched.
+    const sessionKind = tokenStore.getSessionKind();
+    if (sessionKind !== 'company') {
+      if (sessionKind === 'candidate') {
+        tokenStore.clearCandidateToken();
+        window.dispatchEvent(new Event(AUTH_CANDIDATE_LOGOUT_EVENT));
+      }
       return Promise.reject(error);
     }
 
@@ -80,16 +105,10 @@ apiClient.interceptors.response.use(
       original.headers.Authorization = `Bearer ${newAccessToken}`;
       return apiClient(original);
     } catch (refreshError) {
-      // Refresh failed: the session is over. Clear credentials and fire the appropriate event so
-      // AuthProvider can navigate to the right login screen for each identity type.
-      const kind = tokenStore.getSessionKind();
-      if (kind === 'candidate') {
-        tokenStore.clearCandidateToken();
-        window.dispatchEvent(new Event(AUTH_CANDIDATE_LOGOUT_EVENT));
-      } else {
-        tokenStore.clear();
-        window.dispatchEvent(new Event(AUTH_LOGOUT_EVENT));
-      }
+      // Refresh failed: the company session is over (only company sessions reach this point).
+      // Clear credentials and fire the event so AuthProvider drops the user back to /login.
+      tokenStore.clear();
+      window.dispatchEvent(new Event(AUTH_LOGOUT_EVENT));
       return Promise.reject(refreshError);
     }
   },
