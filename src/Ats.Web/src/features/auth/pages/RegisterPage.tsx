@@ -9,6 +9,7 @@ import { useAuth } from '@/app/auth/auth-context';
 import { toApiError } from '@/lib/problemDetails';
 import { slugify } from '@/lib/slugify';
 import { AuthLayout } from '../components/AuthLayout';
+import { AudienceSwitch } from '../components/AudienceSwitch';
 import { authErrorMessage } from '../authErrorMessage';
 
 const PASSWORD_MIN = 8;
@@ -55,6 +56,8 @@ export function RegisterPage() {
 
   return (
     <AuthLayout title={t('auth.regTitle')} subtitle={t('auth.regSub')}>
+      <AudienceSwitch active="company" variant="register" />
+
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         {formError && (
           <div role="alert" className="rounded-lg bg-danger-bg px-3 py-2 text-sm text-danger">

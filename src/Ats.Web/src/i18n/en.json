@@ -246,8 +246,17 @@
       "searchBtn": "Search",
       "empty": "No open positions match your search.",
       "emptyGeneral": "There are no open positions right now. Check back later.",
-      "at": "at {{company}}"
-    }
+      "at": "at {{company}}",
+      "seekerCardTitle": "Looking for a job?",
+      "seekerCardText": "Create a free candidate account to apply and track your applications.",
+      "seekerSignIn": "Candidate sign in",
+      "seekerRegister": "Create candidate account",
+      "hireCardTitle": "Hiring?",
+      "hireCardText": "Post jobs and manage applicants from your company workspace.",
+      "hireSignIn": "Company sign in",
+      "hireRegister": "Create company workspace"
+    },
+    "forCompanies": "For companies"
   },
   "interviewType": {
     "PhoneScreen": "Phone screen",
@@ -388,7 +397,15 @@
     "publishedToast": "Job published.",
     "loadError": "Couldn't load this job."
   },
+  "authSwitch": {
+    "label": "Account type",
+    "candidate": "Job seeker",
+    "company": "Employer"
+  },
   "candidateAuth": {
+    "tagline": "Your next role starts here",
+    "brandHead": "Find the job. Track every application.",
+    "brandSub": "Search openings across companies, apply in minutes and follow every application from one place.",
     "loginTitle": "Sign in",
     "loginSub": "Continue your job search.",
     "registerTitle": "Create account",

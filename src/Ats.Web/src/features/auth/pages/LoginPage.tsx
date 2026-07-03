@@ -8,6 +8,7 @@ import { Button, Field, Input } from '@/components/ui';
 import { useAuth } from '@/app/auth/auth-context';
 import { toApiError } from '@/lib/problemDetails';
 import { AuthLayout } from '../components/AuthLayout';
+import { AudienceSwitch } from '../components/AudienceSwitch';
 import { authErrorMessage } from '../authErrorMessage';
 
 export function LoginPage() {
@@ -47,6 +48,8 @@ export function LoginPage() {
 
   return (
     <AuthLayout title={t('auth.loginTitle')} subtitle={t('auth.loginSub', { company: t('common.appName') })}>
+      <AudienceSwitch active="company" variant="login" />
+
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         {formError && (
           <div role="alert" className="rounded-lg bg-danger-bg px-3 py-2 text-sm text-danger">
