@@ -29,8 +29,18 @@ public interface IApplicationDirectory
     Task<int> CountActiveCandidatesAsync(CancellationToken cancellationToken = default);
 }
 
-// A minimal read model: only what scheduling needs. IsActive collapses the Applications module's
-// ApplicationStatus into a single question — "can this application still have interviews scheduled?"
-// — so the status enum never leaks across the module boundary. Returns null when no such application
-// exists in the current tenant.
-public sealed record ApplicationForScheduling(Guid Id, bool IsActive);
+// The read model scheduling needs. IsActive collapses the Applications module's ApplicationStatus
+// into a single question — "can this application still have interviews scheduled?" — so the status
+// enum never leaks across the module boundary. The candidate contact and job title are here so the
+// Interviews module can publish a self-contained InterviewScheduledIntegrationEvent without ever
+// touching the Applications or Jobs schemas. JobTitle falls back to an empty string when the job
+// is gone; consumers already treat that as "the role you applied for". Returns null when no such
+// application exists in the current tenant.
+public sealed record ApplicationForScheduling(
+    Guid Id,
+    bool IsActive,
+    Guid JobId,
+    string JobTitle,
+    Guid CandidateId,
+    string CandidateEmail,
+    string CandidateFirstName);
