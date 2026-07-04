@@ -89,6 +89,53 @@ public sealed class MoveApplicationStageHandler : ICommandHandler<MoveApplicatio
     }
 }
 
+// ---- MarkViewed (read receipt) ----
+// Fired by the API layer when a company user opens the application detail. Deliberately a
+// server-side effect of the trusted read path — there is no client-callable "mark viewed"
+// endpoint, so a forged receipt cannot be produced. Idempotent: only the first view is
+// recorded. Two simultaneous first views can race and both log an activity; the candidate
+// projection reads only the earliest, so the race is harmless and left unguarded.
+public sealed record MarkApplicationViewedCommand(Guid ApplicationId) : ICommand<bool>;
+
+public sealed class MarkApplicationViewedHandler : ICommandHandler<MarkApplicationViewedCommand, bool>
+{
+    private readonly IApplicationsDbContext _db;
+    private readonly ICurrentUser _currentUser;
+    private readonly IActivityLogRepository _activityLog;
+    private readonly ILogger<MarkApplicationViewedHandler> _logger;
+
+    public MarkApplicationViewedHandler(
+        IApplicationsDbContext db,
+        ICurrentUser currentUser,
+        IActivityLogRepository activityLog,
+        ILogger<MarkApplicationViewedHandler> logger)
+    {
+        _db = db;
+        _currentUser = currentUser;
+        _activityLog = activityLog;
+        _logger = logger;
+    }
+
+    public async Task<Result<bool>> Handle(MarkApplicationViewedCommand command, CancellationToken ct)
+    {
+        var application = await _db.Applications
+            .FirstOrDefaultAsync(a => a.Id == command.ApplicationId, ct);
+        if (application is null)
+            return Result.Failure<bool>(ApplicationErrors.NotFound);
+
+        if (!application.MarkViewed())
+            return Result.Success(false);
+
+        await _db.SaveChangesAsync(ct);
+
+        // Logged best-effort after commit; see MoveApplicationStageHandler for the rationale.
+        await _activityLog.TryAddAsync(
+            ApplicationActivity.Viewed(application.Id, _currentUser.UserId), _logger, ct);
+
+        return Result.Success(true);
+    }
+}
+
 // ---- Reject ----
 public sealed record RejectApplicationCommand(Guid ApplicationId, string Reason) : ICommand<bool>;
 

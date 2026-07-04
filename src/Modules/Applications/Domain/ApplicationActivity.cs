@@ -46,4 +46,9 @@ public sealed class ApplicationActivity : ITenantScoped
     public static ApplicationActivity Rejected(Guid applicationId, Guid? actorUserId, string reason) =>
         new(applicationId, ApplicationActivityType.Rejected, actorUserId,
             JsonSerializer.Serialize(new { reason }));
+
+    // The actor is kept for internal auditing but is never exposed to the candidate — the
+    // candidate-facing timeline says "the company viewed your application", not who.
+    public static ApplicationActivity Viewed(Guid applicationId, Guid? actorUserId) =>
+        new(applicationId, ApplicationActivityType.Viewed, actorUserId, "{}");
 }

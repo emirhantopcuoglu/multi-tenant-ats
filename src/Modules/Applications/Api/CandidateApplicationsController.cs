@@ -37,6 +37,22 @@ public sealed class CandidateApplicationsController : ControllerBase
         return Ok(result.Value);
     }
 
+    // The transparent tracking view: full pipeline + timeline for one of the candidate's own
+    // applications. An id that exists but belongs to another candidate is a 404, not a 403 —
+    // the handler folds ownership into the lookup so ids cannot be probed for existence.
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id)
+    {
+        var candidateAccountId = _currentUser.UserId!.Value;
+
+        var result = await _sender.Send(
+            new GetCandidateApplicationDetailQuery(candidateAccountId, id));
+
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : NotFound(new { result.Error.Code, result.Error.Message });
+    }
+
     // Membership set for the public job pages: which jobs does this candidate currently have an
     // Active application for? Lets the UI swap the apply CTA for an "already applied" state.
     [HttpGet("job-ids")]

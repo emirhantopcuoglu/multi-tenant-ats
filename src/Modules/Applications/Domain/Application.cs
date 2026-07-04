@@ -18,6 +18,9 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
     public ApplicationStatus Status { get; private set; }
     public string? RejectionReason { get; private set; }
     public DateTime AppliedAtUtc { get; private set; }
+    // Read receipt for candidate transparency: when someone at the company first opened this
+    // application. Later views never move it — "first viewed" is the honest signal.
+    public DateTime? FirstViewedAtUtc { get; private set; }
 
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
@@ -94,6 +97,18 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
     {
         EnsureActive("withdrawn");
         Status = ApplicationStatus.Withdrawn;
+    }
+
+    // Returns true only on the first call so the caller knows whether to record a timeline
+    // entry. Deliberately valid in any status: a terminal application can still be opened, and
+    // the candidate deserves to know it was looked at.
+    public bool MarkViewed()
+    {
+        if (FirstViewedAtUtc is not null)
+            return false;
+
+        FirstViewedAtUtc = DateTime.UtcNow;
+        return true;
     }
 
     private void EnsureActive(string action)

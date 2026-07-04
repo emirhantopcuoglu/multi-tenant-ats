@@ -53,6 +53,32 @@ public class ApplicationLifecycleTests
     }
 
     [Fact]
+    public void MarkViewed_should_stamp_only_the_first_view()
+    {
+        var application = CreateActive();
+
+        var firstCall = application.MarkViewed();
+        var stampedAt = application.FirstViewedAtUtc;
+        var secondCall = application.MarkViewed();
+
+        Assert.True(firstCall);
+        Assert.False(secondCall);
+        Assert.NotNull(stampedAt);
+        Assert.Equal(stampedAt, application.FirstViewedAtUtc);
+    }
+
+    [Fact]
+    public void MarkViewed_should_still_stamp_a_terminal_application()
+    {
+        // A rejected application can still be opened; the candidate deserves the receipt.
+        var application = CreateActive();
+        application.Reject("Not a fit");
+
+        Assert.True(application.MarkViewed());
+        Assert.NotNull(application.FirstViewedAtUtc);
+    }
+
+    [Fact]
     public void Reject_should_throw_when_reason_is_blank()
     {
         var application = CreateActive();
