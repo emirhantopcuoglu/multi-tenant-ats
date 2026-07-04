@@ -1,7 +1,9 @@
+using Ats.Modules.Interviews.Application.Events;
 using Ats.Modules.Interviews.Domain;
 using Ats.Shared.Contracts.Applications;
 using Ats.Shared.Kernel;
 using FluentValidation;
+using MediatR;
 
 namespace Ats.Modules.Interviews.Application.Interviews;
 
@@ -38,11 +40,19 @@ public sealed class ScheduleInterviewHandler : ICommandHandler<ScheduleInterview
 {
     private readonly IInterviewsDbContext _db;
     private readonly IApplicationDirectory _applications;
+    private readonly IPublisher _publisher;
+    private readonly ICurrentTenant _currentTenant;
 
-    public ScheduleInterviewHandler(IInterviewsDbContext db, IApplicationDirectory applications)
+    public ScheduleInterviewHandler(
+        IInterviewsDbContext db,
+        IApplicationDirectory applications,
+        IPublisher publisher,
+        ICurrentTenant currentTenant)
     {
         _db = db;
         _applications = applications;
+        _publisher = publisher;
+        _currentTenant = currentTenant;
     }
 
     public async Task<Result<Guid>> Handle(ScheduleInterviewCommand command, CancellationToken ct)
@@ -72,6 +82,22 @@ public sealed class ScheduleInterviewHandler : ICommandHandler<ScheduleInterview
 
         _db.Interviews.Add(interview);
         await _db.SaveChangesAsync(ct);
+
+        // Published AFTER SaveChanges: this module has no transactional outbox (MassTransit 8.x
+        // allows only one per container and Applications holds it — see Program.cs), so the bridge
+        // sends directly to the broker. Announcing before the commit could notify the candidate of
+        // an interview that then fails to save; announcing after means a broker outage can lose the
+        // notification, which the bridge logs — the lesser failure. The tenant id comes from the
+        // ambient tenant because the save-changes interceptor stamps interview.TenantId from that
+        // same source. The application read model supplies the candidate contact and job title;
+        // the recruiter's notes stay out of the event on purpose.
+        await _publisher.Publish(
+            new InterviewScheduledEvent(
+                interview.Id, application.Id, application.JobId, application.JobTitle,
+                application.CandidateId, application.CandidateEmail, application.CandidateFirstName,
+                interview.Type, interview.ScheduledAtUtc, interview.DurationMinutes,
+                interview.Location, _currentTenant.TenantId ?? Guid.Empty),
+            ct);
 
         return Result.Success(interview.Id);
     }

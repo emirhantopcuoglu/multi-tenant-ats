@@ -1,27 +1,53 @@
 using Ats.Modules.Applications.Domain;
 using Ats.Shared.Contracts.Applications;
+using Ats.Shared.Contracts.Jobs;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Applications.Application;
 
 // The Applications module's implementation of the cross-module read port, the counterpart to the
-// Jobs module's JobDirectory. It answers one question for the Interviews module — "is there an
-// application with this id, and is it still open?" — returning a flat read model, never the
-// Application aggregate. Tenant scoping is automatic via the global query filter on the context.
+// Jobs module's JobDirectory. It answers the Interviews module's questions about applications —
+// returning flat read models, never the Application aggregate. Tenant scoping is automatic via the
+// global query filter on the context.
 public sealed class ApplicationDirectory : IApplicationDirectory
 {
     private readonly IApplicationsDbContext _db;
+    private readonly IJobDirectory _jobs;
 
-    public ApplicationDirectory(IApplicationsDbContext db) => _db = db;
+    public ApplicationDirectory(IApplicationsDbContext db, IJobDirectory jobs)
+    {
+        _db = db;
+        _jobs = jobs;
+    }
 
     public async Task<ApplicationForScheduling?> GetForSchedulingAsync(
         Guid applicationId, CancellationToken cancellationToken = default)
     {
-        return await _db.Applications
-            .AsNoTracking()
-            .Where(a => a.Id == applicationId)
-            .Select(a => new ApplicationForScheduling(a.Id, a.Status == ApplicationStatus.Active))
+        // The candidate join can't miss: an application is always created against a candidate in
+        // this module's own schema. The job title comes through the Jobs read port because the
+        // title lives in that module's schema — same one-hop rule the Interviews caller follows.
+        var row = await (
+            from a in _db.Applications.AsNoTracking()
+            where a.Id == applicationId
+            join c in _db.Candidates.AsNoTracking() on a.CandidateId equals c.Id
+            select new
+            {
+                a.Id,
+                IsActive = a.Status == ApplicationStatus.Active,
+                a.JobId,
+                CandidateId = c.Id,
+                c.Email,
+                c.FirstName
+            })
             .FirstOrDefaultAsync(cancellationToken);
+
+        if (row is null)
+            return null;
+
+        var jobTitle = await _jobs.GetJobTitleByIdAsync(row.JobId, cancellationToken);
+        return new ApplicationForScheduling(
+            row.Id, row.IsActive, row.JobId, jobTitle ?? string.Empty,
+            row.CandidateId, row.Email, row.FirstName);
     }
 
     public async Task<IReadOnlyDictionary<Guid, string>> GetCandidateNamesByApplicationAsync(

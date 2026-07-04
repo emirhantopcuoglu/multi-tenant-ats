@@ -366,6 +366,13 @@ builder.Services.AddMassTransit(bus =>
     // same SaveChanges as the business change. A background delivery service then forwards it to
     // RabbitMQ and marks it delivered. The result is atomicity (both the row and the message commit,
     // or neither) and durability (a broker outage delays delivery, never loses or blocks the request).
+    // CONSTRAINT: exactly one bus outbox per container in MassTransit 8.x. UseBusOutbox routes
+    // every scoped IPublishEndpoint into this DbContext; registering a second one (e.g. for
+    // InterviewsDbContext) silently replaces this registration, and every Applications publish
+    // then lands in a context that request never saves — messages vanish without an error.
+    // Verified empirically before the Interviews module's outbox was rolled back. Modules other
+    // than Applications must publish via IBus (direct, after their own SaveChanges) until the
+    // stack supports multiple bus outboxes (MassTransit v9.1+, commercial).
     bus.AddEntityFrameworkOutbox<ApplicationsDbContext>(outbox =>
     {
         outbox.UsePostgres();

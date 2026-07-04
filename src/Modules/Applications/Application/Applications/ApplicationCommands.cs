@@ -26,6 +26,7 @@ public sealed class MoveApplicationStageHandler : ICommandHandler<MoveApplicatio
 {
     private readonly IApplicationsDbContext _db;
     private readonly IPublisher _publisher;
+    private readonly IJobDirectory _jobs;
     private readonly ICurrentUser _currentUser;
     private readonly IActivityLogRepository _activityLog;
     private readonly ILogger<MoveApplicationStageHandler> _logger;
@@ -33,12 +34,14 @@ public sealed class MoveApplicationStageHandler : ICommandHandler<MoveApplicatio
     public MoveApplicationStageHandler(
         IApplicationsDbContext db,
         IPublisher publisher,
+        IJobDirectory jobs,
         ICurrentUser currentUser,
         IActivityLogRepository activityLog,
         ILogger<MoveApplicationStageHandler> logger)
     {
         _db = db;
         _publisher = publisher;
+        _jobs = jobs;
         _currentUser = currentUser;
         _activityLog = activityLog;
         _logger = logger;
@@ -71,6 +74,29 @@ public sealed class MoveApplicationStageHandler : ICommandHandler<MoveApplicatio
             return Result.Failure<bool>(ApplicationErrors.InvalidOperation(ex.Message));
         }
 
+        // Gather what the stage-changed integration event needs: the stage names come free from the
+        // pipeline already loaded above, the candidate's contact from this module, the job title
+        // from the Jobs read port. Mirrors RejectApplicationHandler — and like there, publish goes
+        // BEFORE SaveChanges so the transactional outbox writes the message in the same transaction
+        // as the stage move (atomic: both commit or neither).
+        var candidate = await _db.Candidates.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == application.CandidateId, ct);
+        if (candidate is not null)
+        {
+            var jobTitle = await _jobs.GetJobTitleByIdAsync(application.JobId, ct);
+            var fromStageName = pipeline.Stages.FirstOrDefault(s => s.Id == fromStageId)?.Name;
+            var toStageName = pipeline.Stages.First(s => s.Id == command.TargetStageId).Name;
+
+            await _publisher.Publish(
+                new ApplicationStageChangedEvent(
+                    application.Id, application.JobId, jobTitle ?? string.Empty,
+                    candidate.Id, candidate.Email, candidate.FirstName,
+                    fromStageId, fromStageName ?? string.Empty,
+                    command.TargetStageId, toStageName,
+                    application.TenantId),
+                ct);
+        }
+
         await _db.SaveChangesAsync(ct);
 
         // Log the move after the state change is committed — the activity log is in MongoDB now,
@@ -79,11 +105,6 @@ public sealed class MoveApplicationStageHandler : ICommandHandler<MoveApplicatio
             ApplicationActivity.StageChanged(
                 application.Id, _currentUser.UserId, fromStageId, command.TargetStageId),
             _logger, ct);
-
-        await _publisher.Publish(
-            new ApplicationStageChangedEvent(
-                application.Id, fromStageId, command.TargetStageId, application.TenantId),
-            ct);
 
         return Result.Success(true);
     }
