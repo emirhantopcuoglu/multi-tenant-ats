@@ -35,6 +35,9 @@ public sealed class TenantsDbContext : IdentityDbContext<ApplicationUser, Identi
             entity.Property(t => t.Name).IsRequired().HasMaxLength(200);
             entity.Property(t => t.Slug).IsRequired().HasMaxLength(100);
             entity.HasIndex(t => t.Slug).IsUnique();
+            entity.Property(t => t.Description).HasMaxLength(Tenant.DescriptionMaxLength);
+            entity.Property(t => t.Website).HasMaxLength(Tenant.WebsiteMaxLength);
+            entity.Property(t => t.Location).HasMaxLength(Tenant.LocationMaxLength);
         });
 
         builder.Entity<RefreshToken>(entity =>

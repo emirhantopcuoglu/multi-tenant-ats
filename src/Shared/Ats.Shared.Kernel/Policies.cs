@@ -10,6 +10,7 @@ public static class Policies
     public const string CanManageJobs = "CanManageJobs";
     public const string CanViewJobs = "CanViewJobs";
     public const string CanManageUsers = "CanManageUsers";
+    public const string CanManageTenant = "CanManageTenant";
     public const string CanViewApplications = "CanViewApplications";
     public const string CanManageApplications = "CanManageApplications";
     public const string CanViewInterviews = "CanViewInterviews";

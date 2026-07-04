@@ -48,7 +48,7 @@ public sealed class TenantDirectory : ITenantDirectory
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<TenantSummary?> GetSummaryBySlugAsync(
+    public async Task<TenantPublicProfile?> GetPublicProfileBySlugAsync(
         string slug, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(slug))
@@ -60,7 +60,8 @@ public sealed class TenantDirectory : ITenantDirectory
         return await _db.Tenants
             .AsNoTracking()
             .Where(t => t.Slug == normalized)
-            .Select(t => new TenantSummary(t.Id, t.Name, t.Slug))
+            .Select(t => new TenantPublicProfile(
+                t.Id, t.Name, t.Slug, t.Description, t.Website, t.Location))
             .FirstOrDefaultAsync(cancellationToken);
     }
 }

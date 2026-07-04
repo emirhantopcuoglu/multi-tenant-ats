@@ -8,6 +8,7 @@ import { Button, Card, EmptyState, Field, Input, Skeleton, Textarea } from '@/co
 import { useAuth } from '@/app/auth/auth-context';
 import { useAppliedJobIds } from '@/features/candidates/useAppliedJobIds';
 import { toApiError } from '@/lib/problemDetails';
+import { isAbsoluteHttpUrl } from '@/lib/validation';
 import { PublicLayout } from './components/PublicLayout';
 import { PublicNotFound } from './components/PublicNotFound';
 import { CvUpload } from './components/CvUpload';
@@ -17,7 +18,6 @@ import { validateCvFile, type CvFileError } from './cvFile';
 import {
   COVER_LETTER_MAX_LENGTH,
   LINKEDIN_URL_MAX_LENGTH,
-  isAbsoluteHttpUrl,
   isPlausiblePhone,
 } from './applyValidation';
 
