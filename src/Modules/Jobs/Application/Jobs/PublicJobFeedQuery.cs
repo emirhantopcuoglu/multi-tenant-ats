@@ -14,8 +14,13 @@ public sealed record PublicJobFeedItemDto(
     string Slug, DateTime? PublishedAtUtc);
 
 // The public marketplace feed: every tenant's Published jobs in one list, newest first, with an
-// optional search over job title OR company name.
-public sealed record ListPublicJobFeedQuery(int Page = 1, int PageSize = 20, string? Search = null)
+// optional search over job title OR company name, plus optional narrowing filters. The enum
+// filters travel as strings because they come straight off a public query string: an unknown
+// value must degrade to "no filter", not to a 400 — these URLs are shared and hand-edited, and a
+// broken filter should never break the page.
+public sealed record ListPublicJobFeedQuery(
+    int Page = 1, int PageSize = 20, string? Search = null,
+    string? EmploymentType = null, string? ExperienceLevel = null, string? Location = null)
     : IQuery<PagedResult<PublicJobFeedItemDto>>;
 
 // Unlike every other query in this module, this one deliberately spans all tenants. The tenant
@@ -58,6 +63,28 @@ public sealed class ListPublicJobFeedHandler
             var companyMatchIds = (await _tenants.SearchIdsByNameAsync(term, ct)).ToList();
             jobs = jobs.Where(j =>
                 j.Title.ToLower().Contains(term) || companyMatchIds.Contains(j.TenantId));
+        }
+
+        // IsDefined guards against Enum.TryParse's numeric-string quirk: "99" parses "successfully"
+        // into an undefined value, which would silently filter everything out.
+        if (Enum.TryParse<EmploymentType>(query.EmploymentType, ignoreCase: true, out var employmentType)
+            && Enum.IsDefined(employmentType))
+        {
+            jobs = jobs.Where(j => j.EmploymentType == employmentType);
+        }
+
+        if (Enum.TryParse<ExperienceLevel>(query.ExperienceLevel, ignoreCase: true, out var experienceLevel)
+            && Enum.IsDefined(experienceLevel))
+        {
+            jobs = jobs.Where(j => j.ExperienceLevel == experienceLevel);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Location))
+        {
+            // Location is free text on the job, so a substring match ("istanbul" → "Istanbul, TR",
+            // "remote" → "Remote (EU)") is the honest granularity — no city taxonomy exists yet.
+            var location = query.Location.Trim().ToLower();
+            jobs = jobs.Where(j => j.Location.ToLower().Contains(location));
         }
 
         var totalCount = await jobs.CountAsync(ct);
