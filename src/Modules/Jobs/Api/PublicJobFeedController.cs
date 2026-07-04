@@ -20,13 +20,20 @@ public sealed class PublicJobFeedController : ControllerBase
 
     public PublicJobFeedController(ISender sender) => _sender = sender;
 
+    // The filters arrive as raw strings and stay strings all the way to the handler, which treats
+    // anything unparseable as "no filter" — a shared marketplace URL with a stale or mistyped value
+    // should render the unfiltered list, not a 400.
     [HttpGet]
     public async Task<IActionResult> List(
         [FromQuery] string? search = null,
+        [FromQuery] string? employmentType = null,
+        [FromQuery] string? experienceLevel = null,
+        [FromQuery] string? location = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
-        var result = await _sender.Send(new ListPublicJobFeedQuery(page, pageSize, search));
+        var result = await _sender.Send(new ListPublicJobFeedQuery(
+            page, pageSize, search, employmentType, experienceLevel, location));
         return Ok(result.Value);
     }
 }
