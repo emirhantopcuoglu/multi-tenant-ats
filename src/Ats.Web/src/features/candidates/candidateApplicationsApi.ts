@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/apiClient';
 import type { PagedResult } from '@/types/pagination';
-import type { ApplicationStatus } from '@/types/enums';
+import type { ApplicationStatus, PipelineStageType } from '@/types/enums';
 
 export interface CandidateApplicationItem {
   id: string;
@@ -11,6 +11,45 @@ export interface CandidateApplicationItem {
   appliedAtUtc: string;
   status: ApplicationStatus;
   currentStageName: string | null;
+}
+
+/* GET /api/v1/candidate/applications/{id} — the transparent tracking view. The backend already
+   sanitized it: no acting user, no internal rejection reason, stage ids resolved to names. */
+
+export interface CandidatePipelineStage {
+  id: string;
+  name: string;
+  type: PipelineStageType;
+  order: number;
+}
+
+export type CandidateTimelineEntryType = 'Submitted' | 'Viewed' | 'StageChanged' | 'Rejected';
+
+export interface CandidateTimelineEntry {
+  type: CandidateTimelineEntryType;
+  stageName: string | null;
+  occurredAtUtc: string;
+}
+
+export interface CandidateApplicationDetail {
+  id: string;
+  jobTitle: string;
+  jobSlug: string;
+  companyName: string;
+  companySlug: string;
+  status: ApplicationStatus;
+  appliedAtUtc: string;
+  firstViewedAtUtc: string | null;
+  currentStageId: string;
+  pipelineStages: CandidatePipelineStage[];
+  timeline: CandidateTimelineEntry[];
+}
+
+export async function getCandidateApplication(id: string): Promise<CandidateApplicationDetail> {
+  const { data } = await apiClient.get<CandidateApplicationDetail>(
+    `/api/v1/candidate/applications/${encodeURIComponent(id)}`,
+  );
+  return data;
 }
 
 /* Job ids the candidate has an Active application for. Rejected/withdrawn applications are

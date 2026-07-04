@@ -454,6 +454,20 @@
       "stage": "Aşama",
       "status": "Durum",
       "applied": "Başvuru tarihi"
+    },
+    "tracking": {
+      "title": "Başvuru süreci",
+      "back": "← Başvurularıma dön",
+      "detailLink": "Süreci görüntüle",
+      "notFound": "Bu başvuru bulunamadı.",
+      "appliedOn": "{{date}} tarihinde başvuruldu",
+      "submitted": "Başvurun iletildi",
+      "viewed": "Şirket başvurunu görüntüledi",
+      "movedTo": "\"{{stage}}\" aşamasına geçtin",
+      "moved": "Yeni bir aşamaya geçtin",
+      "rejected": "Süreç olumsuz sonuçlandı",
+      "hiredEvent": "Tebrikler — işe alındın!",
+      "inReview": "Değerlendirme sürüyor"
     }
   },
   "auth": {
