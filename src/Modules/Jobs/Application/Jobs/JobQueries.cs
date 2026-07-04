@@ -12,10 +12,13 @@ public sealed record JobDto(
 // Detail shape for GetById: adds the fields the edit form must prefill (Description + salary), which
 // the list DTO deliberately omits. Kept separate so list/public projections stay lean (the table
 // never needs the description), while the edit screen gets everything it writes back.
+// PublishedAtUtc is nullable because drafts have never been published; the public page shows it
+// as the posting date (CreatedAtUtc is the draft's birth date and would mislead the public).
 public sealed record JobDetailDto(
     Guid Id, string Title, string Description, string Department, string Location,
     string EmploymentType, string ExperienceLevel, string Status, string Slug,
-    decimal? SalaryMin, decimal? SalaryMax, string? SalaryCurrency, DateTime CreatedAtUtc);
+    decimal? SalaryMin, decimal? SalaryMax, string? SalaryCurrency, DateTime CreatedAtUtc,
+    DateTime? PublishedAtUtc);
 
 // ---- GetJobById ----
 public sealed record GetJobByIdQuery(Guid JobId) : IQuery<JobDetailDto>;
@@ -38,7 +41,7 @@ public sealed class GetJobByIdHandler : IQueryHandler<GetJobByIdQuery, JobDetail
                 j.SalaryRange == null ? null : (decimal?)j.SalaryRange.Min,
                 j.SalaryRange == null ? null : (decimal?)j.SalaryRange.Max,
                 j.SalaryRange == null ? null : j.SalaryRange.Currency,
-                j.CreatedAtUtc))
+                j.CreatedAtUtc, j.PublishedAtUtc))
             .FirstOrDefaultAsync(ct);
 
         return job is null
@@ -152,7 +155,7 @@ public sealed class GetPublicJobBySlugHandler : IQueryHandler<GetPublicJobBySlug
                 j.SalaryRange == null ? null : (decimal?)j.SalaryRange.Min,
                 j.SalaryRange == null ? null : (decimal?)j.SalaryRange.Max,
                 j.SalaryRange == null ? null : j.SalaryRange.Currency,
-                j.CreatedAtUtc))
+                j.CreatedAtUtc, j.PublishedAtUtc))
             .FirstOrDefaultAsync(ct);
 
         return job is null

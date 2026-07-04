@@ -43,6 +43,7 @@ public sealed class GetPublicJobBySlugHandlerTests
         Assert.Equal("Lead the platform team", result.Value.Description);
         Assert.Equal(120000m, result.Value.SalaryMin);
         Assert.Equal("USD", result.Value.SalaryCurrency);
+        Assert.NotNull(result.Value.PublishedAtUtc);
     }
 
     [Fact]
