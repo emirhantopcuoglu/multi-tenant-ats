@@ -87,6 +87,12 @@ export function CandidateApplicationsPage() {
                       <span className="text-xs text-text-muted">
                         {dateFormatter.format(new Date(item.appliedAtUtc))}
                       </span>
+                      <Link
+                        to={`/candidate/applications/${item.id}`}
+                        className="text-sm font-medium text-accent hover:underline"
+                      >
+                        {t('candidatePortal.tracking.detailLink')}
+                      </Link>
                     </div>
                   </Card>
                 </li>
