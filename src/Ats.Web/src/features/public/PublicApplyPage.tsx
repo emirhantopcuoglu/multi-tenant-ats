@@ -1,4 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, EmptyState, Field, Input, Skeleton, Textarea } from '@/components/ui';
@@ -11,6 +14,12 @@ import { CvUpload } from './components/CvUpload';
 import { usePublicJob } from './usePublicJobs';
 import { useApplyToJob } from './useApplyToJob';
 import { validateCvFile, type CvFileError } from './cvFile';
+import {
+  COVER_LETTER_MAX_LENGTH,
+  LINKEDIN_URL_MAX_LENGTH,
+  isAbsoluteHttpUrl,
+  isPlausiblePhone,
+} from './applyValidation';
 
 const FILE_ERROR_KEYS = {
   'file.empty': 'public.apply.fileEmpty',
@@ -28,13 +37,38 @@ export function PublicApplyPage() {
   const apply = useApplyToJob(slug, jobSlug);
   const appliedJobIds = useAppliedJobIds(user?.kind === 'candidate');
 
-  const [phone, setPhone] = useState('');
-  const [linkedInUrl, setLinkedInUrl] = useState('');
-  const [coverLetter, setCoverLetter] = useState('');
   const [cv, setCv] = useState<File | null>(null);
   const [cvError, setCvError] = useState<string | undefined>(undefined);
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+
+  // All three fields are optional; the refinements only fire on non-empty input. The rules
+  // mirror SubmitApplicationValidator — see applyValidation.ts.
+  const schema = useMemo(
+    () =>
+      z.object({
+        phone: z
+          .string()
+          .trim()
+          .refine((value) => value === '' || isPlausiblePhone(value), t('validation.phone')),
+        linkedInUrl: z
+          .string()
+          .trim()
+          .max(LINKEDIN_URL_MAX_LENGTH, t('validation.maxLength', { count: LINKEDIN_URL_MAX_LENGTH }))
+          .refine((value) => value === '' || isAbsoluteHttpUrl(value), t('validation.url')),
+        coverLetter: z
+          .string()
+          .trim()
+          .max(COVER_LETTER_MAX_LENGTH, t('validation.maxLength', { count: COVER_LETTER_MAX_LENGTH })),
+      }),
+    [t],
+  );
+  type ApplyForm = z.infer<typeof schema>;
+
+  const { register, handleSubmit, formState } = useForm<ApplyForm>({
+    resolver: zodResolver(schema),
+    defaultValues: { phone: '', linkedInUrl: '', coverLetter: '' },
+  });
 
   // appliedJobIds.isLoading is false while the query is disabled (anonymous visitor), so this
   // only ever waits for a signed-in candidate's membership check — no cost to everyone else.
@@ -68,27 +102,35 @@ export function PublicApplyPage() {
     setCvError(undefined);
   };
 
-  const handleSubmit = () => {
-    setBannerError(null);
-    if (!cv) {
-      setCvError(t('public.apply.cvRequired'));
-      return;
-    }
-    setCvError(undefined);
+  // The CV lives outside react-hook-form (it's a File in component state, not an input value),
+  // so its required-check runs in both submit branches — otherwise a schema error would hide
+  // the missing-CV error until the second attempt.
+  const onSubmit = handleSubmit(
+    (values) => {
+      setBannerError(null);
+      if (!cv) {
+        setCvError(t('public.apply.cvRequired'));
+        return;
+      }
+      setCvError(undefined);
 
-    apply.mutate(
-      {
-        phone: phone.trim() || undefined,
-        linkedInUrl: linkedInUrl.trim() || undefined,
-        coverLetter: coverLetter.trim() || undefined,
-        cv,
-      },
-      {
-        onSuccess: () => setSubmitted(true),
-        onError: (error) => mapSubmitError(error),
-      },
-    );
-  };
+      apply.mutate(
+        {
+          phone: values.phone || undefined,
+          linkedInUrl: values.linkedInUrl || undefined,
+          coverLetter: values.coverLetter || undefined,
+          cv,
+        },
+        {
+          onSuccess: () => setSubmitted(true),
+          onError: (error) => mapSubmitError(error),
+        },
+      );
+    },
+    () => {
+      if (!cv) setCvError(t('public.apply.cvRequired'));
+    },
+  );
 
   const mapSubmitError = (error: unknown) => {
     const { code } = toApiError(error);
@@ -179,50 +221,71 @@ export function PublicApplyPage() {
           </div>
         )}
 
-        <Card className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label={t('public.apply.phone')}>
-              {({ id }) => (
-                <Input id={id} value={phone} onChange={(event) => setPhone(event.target.value)} />
-              )}
-            </Field>
-            <Field label={t('public.apply.linkedIn')}>
-              {({ id }) => (
-                <Input
+        <form onSubmit={onSubmit} noValidate>
+          <Card className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label={t('public.apply.phone')} error={formState.errors.phone?.message}>
+                {({ id, describedById, invalid }) => (
+                  <Input
+                    id={id}
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder={t('public.apply.phonePlaceholder')}
+                    aria-describedby={describedById}
+                    invalid={invalid}
+                    {...register('phone')}
+                  />
+                )}
+              </Field>
+              <Field
+                label={t('public.apply.linkedIn')}
+                error={formState.errors.linkedInUrl?.message}
+              >
+                {({ id, describedById, invalid }) => (
+                  <Input
+                    id={id}
+                    inputMode="url"
+                    autoComplete="url"
+                    placeholder={t('public.apply.linkedInPlaceholder')}
+                    aria-describedby={describedById}
+                    invalid={invalid}
+                    {...register('linkedInUrl')}
+                  />
+                )}
+              </Field>
+            </div>
+
+            <Field
+              label={t('public.apply.coverLetter')}
+              error={formState.errors.coverLetter?.message}
+            >
+              {({ id, describedById, invalid }) => (
+                <Textarea
                   id={id}
-                  value={linkedInUrl}
-                  onChange={(event) => setLinkedInUrl(event.target.value)}
-                  placeholder={t('public.apply.linkedInPlaceholder')}
+                  rows={5}
+                  placeholder={t('public.apply.coverLetterPlaceholder')}
+                  aria-describedby={describedById}
+                  invalid={invalid}
+                  {...register('coverLetter')}
                 />
               )}
             </Field>
-          </div>
 
-          <Field label={t('public.apply.coverLetter')}>
-            {({ id }) => (
-              <Textarea
-                id={id}
-                rows={5}
-                value={coverLetter}
-                onChange={(event) => setCoverLetter(event.target.value)}
-                placeholder={t('public.apply.coverLetterPlaceholder')}
-              />
-            )}
-          </Field>
+            <CvUpload
+              file={cv}
+              onSelect={selectCv}
+              onClear={() => { setCv(null); setCvError(undefined); }}
+              error={cvError}
+            />
 
-          <CvUpload
-            file={cv}
-            onSelect={selectCv}
-            onClear={() => { setCv(null); setCvError(undefined); }}
-            error={cvError}
-          />
-
-          <div className="pt-2">
-            <Button onClick={handleSubmit} disabled={apply.isPending} className="w-full">
-              {apply.isPending ? t('public.apply.submitting') : t('public.apply.submit')}
-            </Button>
-          </div>
-        </Card>
+            <div className="pt-2">
+              <Button type="submit" disabled={apply.isPending} className="w-full">
+                {apply.isPending ? t('public.apply.submitting') : t('public.apply.submit')}
+              </Button>
+            </div>
+          </Card>
+        </form>
       </div>
     </PublicLayout>
   );

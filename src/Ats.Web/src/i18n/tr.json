@@ -212,6 +212,7 @@
       "lastName": "Soyad",
       "email": "E-posta",
       "phone": "Telefon",
+      "phonePlaceholder": "+90 555 111 22 33",
       "linkedIn": "LinkedIn",
       "linkedInPlaceholder": "https://linkedin.com/in/…",
       "coverLetter": "Ön yazı",
@@ -481,7 +482,10 @@
     "required": "Bu alan zorunludur.",
     "email": "Geçerli bir e-posta adresi girin.",
     "passwordMin": "Parola en az {{count}} karakter olmalı.",
-    "slugFormat": "Yalnızca küçük harf, rakam ve tire kullanın."
+    "slugFormat": "Yalnızca küçük harf, rakam ve tire kullanın.",
+    "phone": "Geçerli bir telefon numarası girin.",
+    "url": "http:// veya https:// ile başlayan tam bir URL girin.",
+    "maxLength": "En fazla {{count}} karakter olmalı."
   },
   "authError": {
     "invalidCredentials": "E-posta veya parola hatalı.",
