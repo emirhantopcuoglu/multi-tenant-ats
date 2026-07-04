@@ -2,18 +2,23 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Badge, Button, Card, Skeleton } from '@/components/ui';
 import { Markdown } from '@/components/Markdown';
+import { useAuth } from '@/app/auth/auth-context';
+import { useAppliedJobIds } from '@/features/candidates/useAppliedJobIds';
 import { PublicLayout } from './components/PublicLayout';
 import { PublicNotFound } from './components/PublicNotFound';
 import { usePublicJob } from './usePublicJobs';
 
 /* Public job detail at /{slug}/jobs/{jobSlug}: full markdown description, salary, meta, and the Apply
-   CTA. The CTA links forward to the application form route, which Step 5.2 adds. An unknown or
-   unpublished job resolves to a 404 state (the backend returns 404, never a stub). */
+   CTA. A signed-in candidate who already has an active application sees an "applied" state instead
+   of the CTA. An unknown or unpublished job resolves to a 404 state (the backend returns 404,
+   never a stub). */
 export function PublicJobDetailPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { slug = '', jobSlug = '' } = useParams();
+  const { user } = useAuth();
   const jobQuery = usePublicJob(slug, jobSlug);
+  const appliedJobIds = useAppliedJobIds(user?.kind === 'candidate');
 
   if (jobQuery.isLoading) {
     return (
@@ -59,9 +64,23 @@ export function PublicJobDetailPage() {
         </Card>
 
         <div className="flex justify-center">
-          <Button onClick={() => navigate(`/${slug}/jobs/${jobSlug}/apply`)}>
-            {t('public.detail.apply')}
-          </Button>
+          {appliedJobIds.data?.has(job.id) ? (
+            <div className="flex flex-col items-center gap-2">
+              <Badge tone="success" dot>
+                {t('public.detail.applied')}
+              </Badge>
+              <Link
+                to="/candidate/applications"
+                className="text-sm font-medium text-accent hover:underline"
+              >
+                {t('public.detail.viewApplications')}
+              </Link>
+            </div>
+          ) : (
+            <Button onClick={() => navigate(`/${slug}/jobs/${jobSlug}/apply`)}>
+              {t('public.detail.apply')}
+            </Button>
+          )}
         </div>
       </div>
     </PublicLayout>

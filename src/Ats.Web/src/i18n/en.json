@@ -201,7 +201,9 @@
     },
     "detail": {
       "back": "← Back to all positions",
-      "apply": "Apply for this role"
+      "apply": "Apply for this role",
+      "applied": "Applied",
+      "viewApplications": "View my applications"
     },
     "apply": {
       "title": "Apply: {{title}}",
@@ -233,7 +235,10 @@
       "successTitle": "Application received",
       "successBody": "Thanks for applying to {{title}}. We'll be in touch.",
       "backToJobs": "Back to all positions",
-      "applyingAs": "Applying as"
+      "applyingAs": "Applying as",
+      "alreadyAppliedTitle": "You've already applied",
+      "alreadyAppliedBody": "You have an active application for {{title}}. You can track its progress from your applications.",
+      "viewApplications": "View my applications"
     },
     "notFound": {
       "title": "Page not found",
