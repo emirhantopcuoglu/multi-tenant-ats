@@ -1,3 +1,4 @@
+using Ats.Modules.Applications.Domain;
 using Ats.Shared.Contracts.Jobs;
 using Ats.Shared.Contracts.Tenants;
 using Ats.Shared.Kernel;
@@ -91,5 +92,42 @@ public sealed class ListCandidateApplicationsHandler
             .ToList();
 
         return Result.Success(new PagedResult<CandidateApplicationSummaryDto>(items, page, pageSize, total));
+    }
+}
+
+// ---- ListCandidateAppliedJobIds ----
+public sealed record ListCandidateAppliedJobIdsQuery(Guid CandidateAccountId)
+    : IQuery<IReadOnlyList<Guid>>;
+
+// Returns the job ids the candidate currently has an Active application for, so the public job
+// pages can render an "already applied" state instead of the apply CTA. Only Active applications
+// count — SubmitApplicationHandler's duplicate rule allows re-applying after a rejection or
+// withdrawal, and this projection must mirror that rule exactly or the UI will contradict the API.
+//
+// The result is deliberately unpaged: it is a membership set of GUIDs bounded by how many jobs one
+// person can apply to, and the pages that consume it need the whole set for O(1) lookups.
+public sealed class ListCandidateAppliedJobIdsHandler
+    : IQueryHandler<ListCandidateAppliedJobIdsQuery, IReadOnlyList<Guid>>
+{
+    private readonly IApplicationsDbContext _db;
+
+    public ListCandidateAppliedJobIdsHandler(IApplicationsDbContext db) => _db = db;
+
+    public async Task<Result<IReadOnlyList<Guid>>> Handle(
+        ListCandidateAppliedJobIdsQuery query, CancellationToken ct)
+    {
+        // Same cross-tenant scope as the list above: the global candidate account is the root,
+        // so the tenant filter is explicitly bypassed.
+        var jobIds = await _db.Applications
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(a => !a.IsDeleted
+                        && a.CandidateAccountId == query.CandidateAccountId
+                        && a.Status == ApplicationStatus.Active)
+            .Select(a => a.JobId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        return Result.Success<IReadOnlyList<Guid>>(jobIds);
     }
 }
