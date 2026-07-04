@@ -201,7 +201,9 @@
     },
     "detail": {
       "back": "← Tüm pozisyonlara dön",
-      "apply": "Bu pozisyona başvur"
+      "apply": "Bu pozisyona başvur",
+      "applied": "Başvuruldu",
+      "viewApplications": "Başvurularımı görüntüle"
     },
     "apply": {
       "title": "Başvuru: {{title}}",
@@ -233,7 +235,10 @@
       "successTitle": "Başvurunuz alındı",
       "successBody": "{{title}} pozisyonuna başvurduğunuz için teşekkürler. Sizinle iletişime geçeceğiz.",
       "backToJobs": "Tüm pozisyonlara dön",
-      "applyingAs": "Başvuru sahibi"
+      "applyingAs": "Başvuru sahibi",
+      "alreadyAppliedTitle": "Bu pozisyona zaten başvurdunuz",
+      "alreadyAppliedBody": "{{title}} pozisyonu için aktif bir başvurunuz var. Durumunu başvurularınızdan takip edebilirsiniz.",
+      "viewApplications": "Başvurularımı görüntüle"
     },
     "notFound": {
       "title": "Sayfa bulunamadı",

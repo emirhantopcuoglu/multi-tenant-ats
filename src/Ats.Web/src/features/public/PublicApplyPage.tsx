@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, EmptyState, Field, Input, Skeleton, Textarea } from '@/components/ui';
 import { useAuth } from '@/app/auth/auth-context';
+import { useAppliedJobIds } from '@/features/candidates/useAppliedJobIds';
 import { toApiError } from '@/lib/problemDetails';
 import { PublicLayout } from './components/PublicLayout';
 import { PublicNotFound } from './components/PublicNotFound';
@@ -25,6 +26,7 @@ export function PublicApplyPage() {
   const { user, isLoading: authLoading } = useAuth();
   const jobQuery = usePublicJob(slug, jobSlug);
   const apply = useApplyToJob(slug, jobSlug);
+  const appliedJobIds = useAppliedJobIds(user?.kind === 'candidate');
 
   const [phone, setPhone] = useState('');
   const [linkedInUrl, setLinkedInUrl] = useState('');
@@ -34,7 +36,9 @@ export function PublicApplyPage() {
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
-  if (authLoading || jobQuery.isLoading) {
+  // appliedJobIds.isLoading is false while the query is disabled (anonymous visitor), so this
+  // only ever waits for a signed-in candidate's membership check — no cost to everyone else.
+  if (authLoading || jobQuery.isLoading || appliedJobIds.isLoading) {
     return (
       <PublicLayout>
         <Skeleton className="h-64 w-full" />
@@ -114,6 +118,29 @@ export function PublicApplyPage() {
             action={
               <Link to={`/${slug}`} className="text-sm font-medium text-accent hover:underline">
                 {t('public.apply.backToJobs')}
+              </Link>
+            }
+          />
+        </Card>
+      </PublicLayout>
+    );
+  }
+
+  // Already applied (and not via this visit — `submitted` above wins right after a submit, since
+  // the cache invalidation would flip this branch on too): show the state instead of the form.
+  if (appliedJobIds.data?.has(job.id)) {
+    return (
+      <PublicLayout>
+        <Card className="py-12">
+          <EmptyState
+            title={t('public.apply.alreadyAppliedTitle')}
+            description={t('public.apply.alreadyAppliedBody', { title: job.title })}
+            action={
+              <Link
+                to="/candidate/applications"
+                className="text-sm font-medium text-accent hover:underline"
+              >
+                {t('public.apply.viewApplications')}
               </Link>
             }
           />

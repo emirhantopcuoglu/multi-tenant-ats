@@ -36,4 +36,16 @@ public sealed class CandidateApplicationsController : ControllerBase
 
         return Ok(result.Value);
     }
+
+    // Membership set for the public job pages: which jobs does this candidate currently have an
+    // Active application for? Lets the UI swap the apply CTA for an "already applied" state.
+    [HttpGet("job-ids")]
+    public async Task<IActionResult> ListAppliedJobIds()
+    {
+        var candidateAccountId = _currentUser.UserId!.Value;
+
+        var result = await _sender.Send(new ListCandidateAppliedJobIdsQuery(candidateAccountId));
+
+        return Ok(result.Value);
+    }
 }
