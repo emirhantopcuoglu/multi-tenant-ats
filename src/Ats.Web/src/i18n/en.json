@@ -169,7 +169,15 @@
     "company": {
       "name": "Company name",
       "slug": "Workspace URL",
-      "readonlyHint": "These are set when the workspace is created and can't be changed here yet."
+      "readonlyHint": "Name and URL are set when the workspace is created and can't be changed here yet.",
+      "description": "About the company",
+      "descriptionPlaceholder": "What you do, your mission, why candidates should care…",
+      "website": "Website",
+      "location": "Location",
+      "locationPlaceholder": "e.g. Istanbul, TR",
+      "saved": "Company profile saved.",
+      "saveError": "Couldn't save the profile. Please try again.",
+      "loadError": "Couldn't load the company profile."
     },
     "users": {
       "title": "Team members",
@@ -197,7 +205,10 @@
   "public": {
     "careers": {
       "title": "Open positions",
-      "empty": "There are no open positions right now."
+      "empty": "There are no open positions right now.",
+      "website": "Visit website",
+      "openCount_one": "{{count}} open role",
+      "openCount_other": "{{count}} open roles"
     },
     "detail": {
       "back": "← Back to all positions",

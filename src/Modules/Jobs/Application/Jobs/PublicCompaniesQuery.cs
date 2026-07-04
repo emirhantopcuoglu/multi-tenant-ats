@@ -88,10 +88,22 @@ public sealed class ListPublicCompaniesHandler
 // identified by slug through the Tenants port, then this module counts its published jobs. Returns a
 // failure (→ 404) when no tenant owns the slug; a real company with zero open roles still resolves,
 // matching the careers page, which renders an empty-but-valid listing.
-public sealed record GetPublicCompanyBySlugQuery(string Slug) : IQuery<PublicCompanyDto>;
+//
+// A separate DTO from PublicCompanyDto: the directory list stays lean (name, slug, count) while the
+// profile page carries the tenant-editable fields. Null profile fields mean "never filled in" — the
+// page hides those sections rather than rendering empty blocks.
+public sealed record PublicCompanyProfileDto(
+    string CompanyName,
+    string Slug,
+    string? Description,
+    string? Website,
+    string? Location,
+    int OpenJobCount);
+
+public sealed record GetPublicCompanyBySlugQuery(string Slug) : IQuery<PublicCompanyProfileDto>;
 
 public sealed class GetPublicCompanyBySlugHandler
-    : IQueryHandler<GetPublicCompanyBySlugQuery, PublicCompanyDto>
+    : IQueryHandler<GetPublicCompanyBySlugQuery, PublicCompanyProfileDto>
 {
     private readonly IJobsDbContext _db;
     private readonly ITenantDirectory _tenants;
@@ -102,18 +114,22 @@ public sealed class GetPublicCompanyBySlugHandler
         _tenants = tenants;
     }
 
-    public async Task<Result<PublicCompanyDto>> Handle(GetPublicCompanyBySlugQuery query, CancellationToken ct)
+    public async Task<Result<PublicCompanyProfileDto>> Handle(
+        GetPublicCompanyBySlugQuery query, CancellationToken ct)
     {
-        var company = await _tenants.GetSummaryBySlugAsync(query.Slug, ct);
+        var company = await _tenants.GetPublicProfileBySlugAsync(query.Slug, ct);
         if (company is null)
-            return Result.Failure<PublicCompanyDto>(CompanyErrors.NotFound);
+            return Result.Failure<PublicCompanyProfileDto>(CompanyErrors.NotFound);
 
         var openJobCount = await _db.Jobs
             .AsNoTracking()
             .IgnoreQueryFilters()
             .CountAsync(j => !j.IsDeleted && j.TenantId == company.Id && j.Status == JobStatus.Published, ct);
 
-        return Result.Success(new PublicCompanyDto(company.CompanyName, company.Slug, openJobCount));
+        return Result.Success(new PublicCompanyProfileDto(
+            company.CompanyName, company.Slug,
+            company.Description, company.Website, company.Location,
+            openJobCount));
     }
 }
 

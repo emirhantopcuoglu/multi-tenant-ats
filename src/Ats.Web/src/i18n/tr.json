@@ -169,7 +169,15 @@
     "company": {
       "name": "Şirket adı",
       "slug": "Çalışma alanı adresi",
-      "readonlyHint": "Bunlar çalışma alanı oluşturulurken belirlenir ve şimdilik buradan değiştirilemez."
+      "readonlyHint": "Ad ve adres çalışma alanı oluşturulurken belirlenir ve şimdilik buradan değiştirilemez.",
+      "description": "Şirket hakkında",
+      "descriptionPlaceholder": "Ne yaptığınız, misyonunuz, adaylar neden sizi seçmeli…",
+      "website": "Web sitesi",
+      "location": "Lokasyon",
+      "locationPlaceholder": "örn. İstanbul, TR",
+      "saved": "Şirket profili kaydedildi.",
+      "saveError": "Profil kaydedilemedi. Lütfen tekrar deneyin.",
+      "loadError": "Şirket profili yüklenemedi."
     },
     "users": {
       "title": "Ekip üyeleri",
@@ -197,7 +205,10 @@
   "public": {
     "careers": {
       "title": "Açık pozisyonlar",
-      "empty": "Şu anda açık pozisyon bulunmuyor."
+      "empty": "Şu anda açık pozisyon bulunmuyor.",
+      "website": "Web sitesine git",
+      "openCount_one": "{{count}} açık pozisyon",
+      "openCount_other": "{{count}} açık pozisyon"
     },
     "detail": {
       "back": "← Tüm pozisyonlara dön",

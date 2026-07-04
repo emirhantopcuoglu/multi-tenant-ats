@@ -435,6 +435,7 @@ builder.Services
 
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ITenantProfileService, TenantProfileService>();
 
 // The Tenants module's cross-module read port, consumed (e.g.) by the Jobs public feed to name the
 // company behind each job without reaching into the Tenants schema.
@@ -508,6 +509,11 @@ builder.Services.AddAuthorization(options =>
         policy.RequireRole(Roles.Admin, Roles.Recruiter, Roles.HiringManager, Roles.ReadOnly));
 
     options.AddPolicy(Policies.CanManageUsers, policy =>
+        policy.RequireRole(Roles.Admin));
+
+    // Company-wide presentation (the public profile). Same trust level as managing users today,
+    // but a distinct policy: the two capabilities have no inherent reason to stay coupled.
+    options.AddPolicy(Policies.CanManageTenant, policy =>
         policy.RequireRole(Roles.Admin));
 
     options.AddPolicy(Policies.CanViewApplications, policy =>

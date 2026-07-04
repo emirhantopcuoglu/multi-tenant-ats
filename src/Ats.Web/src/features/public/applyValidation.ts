@@ -16,12 +16,3 @@ export function isPlausiblePhone(value: string): boolean {
   const digitCount = (value.match(/\d/g) ?? []).length;
   return digitCount >= PHONE_MIN_DIGITS && digitCount <= PHONE_MAX_DIGITS;
 }
-
-export function isAbsoluteHttpUrl(value: string): boolean {
-  try {
-    const { protocol } = new URL(value);
-    return protocol === 'http:' || protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
