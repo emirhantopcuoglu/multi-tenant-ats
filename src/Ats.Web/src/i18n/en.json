@@ -212,6 +212,7 @@
       "lastName": "Last name",
       "email": "Email",
       "phone": "Phone",
+      "phonePlaceholder": "+90 555 111 22 33",
       "linkedIn": "LinkedIn",
       "linkedInPlaceholder": "https://linkedin.com/in/…",
       "coverLetter": "Cover letter",
@@ -481,7 +482,10 @@
     "required": "This field is required.",
     "email": "Enter a valid email address.",
     "passwordMin": "Password must be at least {{count}} characters.",
-    "slugFormat": "Use lowercase letters, numbers, and hyphens only."
+    "slugFormat": "Use lowercase letters, numbers, and hyphens only.",
+    "phone": "Enter a valid phone number.",
+    "url": "Enter a full URL starting with http:// or https://.",
+    "maxLength": "Must be {{count}} characters or fewer."
   },
   "authError": {
     "invalidCredentials": "Invalid email or password.",
