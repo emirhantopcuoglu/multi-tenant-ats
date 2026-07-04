@@ -50,6 +50,52 @@ public class SubmitApplicationValidatorTests
         Assert.Contains(result.Errors, e => e.PropertyName == nameof(SubmitApplicationCommand.Phone));
     }
 
+    [Theory]
+    [InlineData("+90 (555) 111-22-33")]
+    [InlineData("0555.111.2233")]
+    [InlineData("5551112233")]
+    public void Accepts_common_phone_formats(string phone)
+    {
+        var result = _validator.Validate(ValidCommand() with { Phone = phone });
+
+        Assert.True(result.IsValid);
+    }
+
+    [Theory]
+    [InlineData("call me maybe")]  // letters
+    [InlineData("12345")]          // too few digits
+    [InlineData("+1234567890123456")] // 16 digits, beyond E.164
+    public void Rejects_an_implausible_phone(string phone)
+    {
+        var result = _validator.Validate(ValidCommand() with { Phone = phone });
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(SubmitApplicationCommand.Phone));
+    }
+
+    [Theory]
+    [InlineData("https://linkedin.com/in/someone")]
+    [InlineData("http://example.com/profile")]
+    public void Accepts_an_absolute_http_linkedin_url(string url)
+    {
+        var result = _validator.Validate(ValidCommand() with { LinkedInUrl = url });
+
+        Assert.True(result.IsValid);
+    }
+
+    [Theory]
+    [InlineData("linkedin.com/in/someone")] // relative
+    [InlineData("ftp://linkedin.com/in/x")] // wrong scheme
+    [InlineData("not a url")]
+    public void Rejects_a_linkedin_value_that_is_not_an_http_url(string url)
+    {
+        var result = _validator.Validate(ValidCommand() with { LinkedInUrl = url });
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors,
+            e => e.PropertyName == nameof(SubmitApplicationCommand.LinkedInUrl));
+    }
+
     [Fact]
     public void Rejects_a_cover_letter_that_exceeds_5000_characters()
     {
