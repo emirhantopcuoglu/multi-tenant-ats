@@ -62,6 +62,12 @@ public sealed class MongoActivityLogRepository : IActivityLogRepository
         if (_currentTenant.TenantId is not { } tenantId)
             return [];
 
+        return await GetByApplicationAsync(applicationId, tenantId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ActivityLogEntry>> GetByApplicationAsync(
+        Guid applicationId, Guid tenantId, CancellationToken cancellationToken = default)
+    {
         var filter = Builders<ActivityDocument>.Filter.Eq(d => d.TenantId, tenantId)
             & Builders<ActivityDocument>.Filter.Eq(d => d.ApplicationId, applicationId);
 

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Ats.Modules.Applications.Domain;
 using Ats.Shared.Contracts.Jobs;
 using Ats.Shared.Contracts.Tenants;
@@ -92,6 +93,174 @@ public sealed class ListCandidateApplicationsHandler
             .ToList();
 
         return Result.Success(new PagedResult<CandidateApplicationSummaryDto>(items, page, pageSize, total));
+    }
+}
+
+// ---- GetCandidateApplicationDetail ----
+// The candidate's transparent view of one application: where it sits in the company's full
+// pipeline plus a timeline of what happened. These DTOs are candidate-safe BY SHAPE — they have
+// no field for the acting user or the internal rejection reason, so a mapping bug cannot leak
+// either; the projection below never reads them into the response in the first place.
+public sealed record CandidatePipelineStageDto(Guid Id, string Name, string Type, int Order);
+
+public sealed record CandidateTimelineEntryDto(string Type, string? StageName, DateTime OccurredAtUtc);
+
+public sealed record CandidateApplicationDetailDto(
+    Guid Id,
+    string JobTitle,
+    string JobSlug,
+    string CompanyName,
+    string CompanySlug,
+    string Status,
+    DateTime AppliedAtUtc,
+    DateTime? FirstViewedAtUtc,
+    Guid CurrentStageId,
+    IReadOnlyList<CandidatePipelineStageDto> PipelineStages,
+    IReadOnlyList<CandidateTimelineEntryDto> Timeline);
+
+public sealed record GetCandidateApplicationDetailQuery(Guid CandidateAccountId, Guid ApplicationId)
+    : IQuery<CandidateApplicationDetailDto>;
+
+public sealed class GetCandidateApplicationDetailHandler
+    : IQueryHandler<GetCandidateApplicationDetailQuery, CandidateApplicationDetailDto>
+{
+    private readonly IApplicationsDbContext _db;
+    private readonly IJobDirectory _jobs;
+    private readonly ITenantDirectory _tenants;
+    private readonly IActivityLogRepository _activityLog;
+
+    public GetCandidateApplicationDetailHandler(
+        IApplicationsDbContext db,
+        IJobDirectory jobs,
+        ITenantDirectory tenants,
+        IActivityLogRepository activityLog)
+    {
+        _db = db;
+        _jobs = jobs;
+        _tenants = tenants;
+        _activityLog = activityLog;
+    }
+
+    public async Task<Result<CandidateApplicationDetailDto>> Handle(
+        GetCandidateApplicationDetailQuery query, CancellationToken ct)
+    {
+        // Ownership is part of the WHERE, not a separate check: an application that exists but
+        // belongs to someone else is indistinguishable from one that doesn't exist. Probing ids
+        // therefore reveals nothing. Cross-tenant scope as in the list query above.
+        var application = await _db.Applications
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(a => !a.IsDeleted
+                        && a.Id == query.ApplicationId
+                        && a.CandidateAccountId == query.CandidateAccountId)
+            .Select(a => new
+            {
+                a.Id, a.JobId, a.TenantId, a.CurrentStageId,
+                a.Status, a.AppliedAtUtc, a.FirstViewedAtUtc
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (application is null)
+            return Result.Failure<CandidateApplicationDetailDto>(ApplicationErrors.NotFound);
+
+        var jobs = await _jobs.GetSummariesAsync([application.JobId], ct);
+        var companies = await _tenants.GetSummariesAsync([application.TenantId], ct);
+        if (!jobs.TryGetValue(application.JobId, out var job)
+            || !companies.TryGetValue(application.TenantId, out var company))
+            return Result.Failure<CandidateApplicationDetailDto>(ApplicationErrors.NotFound);
+
+        var stages = await LoadPipelineStagesAsync(application.JobId, application.TenantId, ct);
+        if (stages.Count == 0)
+            return Result.Failure<CandidateApplicationDetailDto>(ApplicationErrors.NotFound);
+
+        // The tenant comes from the application row we just verified — never from the caller.
+        var entries = await _activityLog.GetByApplicationAsync(application.Id, application.TenantId, ct);
+        var stageNames = stages.ToDictionary(s => s.Id, s => s.Name);
+        var timeline = BuildCandidateTimeline(entries, stageNames);
+
+        return Result.Success(new CandidateApplicationDetailDto(
+            application.Id, job.Title, job.Slug, company.CompanyName, company.Slug,
+            application.Status.ToString(), application.AppliedAtUtc, application.FirstViewedAtUtc,
+            application.CurrentStageId, stages, timeline));
+    }
+
+    private async Task<IReadOnlyList<CandidatePipelineStageDto>> LoadPipelineStagesAsync(
+        Guid jobId, Guid tenantId, CancellationToken ct)
+    {
+        // Two narrow queries instead of a join: the pipeline id first, then its live stages in
+        // funnel order. TenantId is matched explicitly because the global filter is bypassed.
+        var pipelineId = await _db.Pipelines
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(p => !p.IsDeleted && p.JobId == jobId && p.TenantId == tenantId)
+            .Select(p => (Guid?)p.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (pipelineId is null)
+            return [];
+
+        return await _db.PipelineStages
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(s => !s.IsDeleted && s.PipelineId == pipelineId)
+            .OrderBy(s => s.Order)
+            .Select(s => new CandidatePipelineStageDto(s.Id, s.Name, s.Type.ToString(), s.Order))
+            .ToListAsync(ct);
+    }
+
+    // Pure mapping from internal log entries to the candidate-visible timeline. Ascending by
+    // time; only the earliest Viewed survives (a concurrent double-stamp may log two); stage ids
+    // resolve to names here so raw ids never reach the candidate; the Rejected payload's internal
+    // reason is intentionally never read.
+    internal static IReadOnlyList<CandidateTimelineEntryDto> BuildCandidateTimeline(
+        IReadOnlyList<ActivityLogEntry> entries, IReadOnlyDictionary<Guid, string> stageNames)
+    {
+        var timeline = new List<CandidateTimelineEntryDto>();
+        var viewedIncluded = false;
+
+        foreach (var entry in entries.OrderBy(e => e.OccurredAtUtc))
+        {
+            switch (entry.ActivityType)
+            {
+                case nameof(ApplicationActivityType.Submitted):
+                    timeline.Add(new(nameof(ApplicationActivityType.Submitted), null, entry.OccurredAtUtc));
+                    break;
+                case nameof(ApplicationActivityType.Viewed) when !viewedIncluded:
+                    viewedIncluded = true;
+                    timeline.Add(new(nameof(ApplicationActivityType.Viewed), null, entry.OccurredAtUtc));
+                    break;
+                case nameof(ApplicationActivityType.StageChanged):
+                    timeline.Add(new(
+                        nameof(ApplicationActivityType.StageChanged),
+                        ResolveToStageName(entry.Payload, stageNames),
+                        entry.OccurredAtUtc));
+                    break;
+                case nameof(ApplicationActivityType.Rejected):
+                    timeline.Add(new(nameof(ApplicationActivityType.Rejected), null, entry.OccurredAtUtc));
+                    break;
+            }
+        }
+
+        return timeline;
+    }
+
+    private static string? ResolveToStageName(
+        string payload, IReadOnlyDictionary<Guid, string> stageNames)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(payload);
+            if (document.RootElement.TryGetProperty("toStageId", out var property)
+                && Guid.TryParse(property.GetString(), out var stageId)
+                && stageNames.TryGetValue(stageId, out var name))
+                return name;
+        }
+        catch (JsonException)
+        {
+            // A legacy or malformed payload should degrade to a nameless move, not a 500.
+        }
+
+        return null;
     }
 }
 

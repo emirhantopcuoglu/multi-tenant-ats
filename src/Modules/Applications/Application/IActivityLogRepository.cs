@@ -16,6 +16,13 @@ public interface IActivityLogRepository
 
     Task<IReadOnlyList<ActivityLogEntry>> GetByApplicationAsync(
         Guid applicationId, CancellationToken cancellationToken = default);
+
+    // Same read, but with the tenant passed explicitly instead of taken from the request. A
+    // candidate reads their own application's timeline from a tenant-less request, so the
+    // caller supplies the tenant from the application row itself — and only after verifying
+    // the application belongs to that candidate. Never call this with a caller-supplied tenant.
+    Task<IReadOnlyList<ActivityLogEntry>> GetByApplicationAsync(
+        Guid applicationId, Guid tenantId, CancellationToken cancellationToken = default);
 }
 
 // Read model for one activity entry. Payload is the raw JSON document as a string; the API layer

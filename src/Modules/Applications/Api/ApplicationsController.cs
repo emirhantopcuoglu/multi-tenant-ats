@@ -39,9 +39,15 @@ public sealed class ApplicationsController : ControllerBase
     public async Task<IActionResult> GetById(Guid id)
     {
         var result = await _sender.Send(new GetApplicationByIdQuery(id));
-        return result.IsSuccess
-            ? Ok(result.Value)
-            : NotFound(new { result.Error.Code, result.Error.Message });
+        if (!result.IsSuccess)
+            return NotFound(new { result.Error.Code, result.Error.Message });
+
+        // Read receipt for candidate transparency: opening the detail stamps the first view.
+        // Best-effort by design — the detail the recruiter asked for never fails on it, and the
+        // handler itself logs any activity-write problem.
+        await _sender.Send(new MarkApplicationViewedCommand(id));
+
+        return Ok(result.Value);
     }
 
     [HttpGet("{id:guid}/cv-download-url")]
