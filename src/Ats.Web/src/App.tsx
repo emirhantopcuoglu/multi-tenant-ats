@@ -24,6 +24,7 @@ import { CandidateRegisterPage } from '@/features/candidates/pages/CandidateRegi
 import { CandidateApplicationsPage } from '@/features/candidates/pages/CandidateApplicationsPage';
 import { CandidateApplicationDetailPage } from '@/features/candidates/pages/CandidateApplicationDetailPage';
 import { CandidateNotificationsPage } from '@/features/notifications/pages/CandidateNotificationsPage';
+import { CompanyNotificationsPage } from '@/features/notifications/pages/CompanyNotificationsPage';
 
 /* Public auth routes sit at the top. Everything else is nested under RequireAuth → AppShell, so the
    shell (sidebar + topbar) wraps every authenticated screen and the routed page renders through its
@@ -54,6 +55,7 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
           <Route path="/dashboard" element={<OverviewPage />} />
+          <Route path="/notifications" element={<CompanyNotificationsPage />} />
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/jobs/new" element={<JobFormPage />} />
           <Route path="/jobs/:id/edit" element={<JobFormPage />} />

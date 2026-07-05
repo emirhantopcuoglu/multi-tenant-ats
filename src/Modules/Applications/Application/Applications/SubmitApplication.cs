@@ -177,7 +177,7 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
         await _publisher.Publish(
             new ApplicationSubmittedEvent(
                 application.Id, job.Id, job.Title, candidate.Id,
-                candidate.Email, candidate.FirstName, tenantId),
+                candidate.Email, candidate.FirstName, candidate.LastName, tenantId),
             ct);
 
         // Also request CV parsing. Like the event above, this is bridged onto RabbitMQ via the

@@ -148,6 +148,46 @@ public sealed class NotificationConsumerMappingTests
         Assert.Null(ApplicationCvDownloadedNotificationConsumer.TryBuildNotification(message));
     }
 
+    [Fact]
+    public void should_fan_out_one_new_application_notification_per_tenant_user()
+    {
+        // Arrange — three members of the tenant
+        var tenantId = Guid.NewGuid();
+        var applicationId = Guid.NewGuid();
+        var userIds = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        var message = NewApplicationMessage(tenantId, applicationId);
+
+        // Act
+        var notifications = NewApplicationNotificationConsumer.BuildNotifications(message, userIds);
+
+        // Assert — one row per user, each addressed to that user and tagged with the tenant
+        Assert.Equal(userIds.Length, notifications.Count);
+        Assert.Equal(userIds.ToHashSet(), notifications.Select(n => n.RecipientId).ToHashSet());
+        Assert.All(notifications, n =>
+        {
+            Assert.Equal(NotificationRecipientType.CompanyUser, n.RecipientType);
+            Assert.Equal(tenantId, n.TenantId);
+            Assert.Equal(NotificationType.NewApplication, n.Type);
+            Assert.Null(n.ReadAtUtc);
+
+            using var payload = JsonDocument.Parse(n.Payload);
+            Assert.Equal(applicationId, payload.RootElement.GetProperty("applicationId").GetGuid());
+            Assert.Equal("Staff Engineer", payload.RootElement.GetProperty("jobTitle").GetString());
+            Assert.Equal("Jane", payload.RootElement.GetProperty("candidateFirstName").GetString());
+            Assert.Equal("Doe", payload.RootElement.GetProperty("candidateLastName").GetString());
+        });
+    }
+
+    [Fact]
+    public void should_produce_no_notifications_when_tenant_has_no_users()
+    {
+        // Arrange — a tenant with (somehow) no members yet
+        var message = NewApplicationMessage(Guid.NewGuid(), Guid.NewGuid());
+
+        // Act & Assert
+        Assert.Empty(NewApplicationNotificationConsumer.BuildNotifications(message, []));
+    }
+
     private static ApplicationStageChangedIntegrationEvent StageChangedMessage(
         Guid? candidateAccountId, Guid applicationId) =>
         new(
@@ -173,4 +213,10 @@ public sealed class NotificationConsumerMappingTests
         new(
             applicationId, Guid.NewGuid(), "Staff Engineer",
             Guid.NewGuid(), candidateAccountId, Guid.NewGuid());
+
+    private static ApplicationSubmittedIntegrationEvent NewApplicationMessage(
+        Guid tenantId, Guid applicationId) =>
+        new(
+            applicationId, Guid.NewGuid(), "Staff Engineer",
+            Guid.NewGuid(), "jane@acme.test", "Jane", "Doe", tenantId);
 }

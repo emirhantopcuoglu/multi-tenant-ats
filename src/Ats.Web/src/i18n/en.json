@@ -499,6 +499,7 @@
   "notifications": {
     "title": "Notifications",
     "subtitle": "Updates about your applications.",
+    "companySubtitle": "Updates about your team's hiring.",
     "bellLabel": "Notifications",
     "empty": "No notifications yet.",
     "loadError": "Couldn't load notifications.",
@@ -507,6 +508,7 @@
     "viewAll": "View all notifications",
     "applicationViewed": "Your application for \"{{jobTitle}}\" was viewed by the company",
     "cvDownloaded": "Your CV for \"{{jobTitle}}\" was downloaded by the company",
+    "newApplication": "{{candidateName}} applied for \"{{jobTitle}}\"",
     "stageChanged": "Your application for \"{{jobTitle}}\" moved to the \"{{stage}}\" stage",
     "interviewScheduled": "An interview for \"{{jobTitle}}\" was scheduled: {{type}}, {{date}}",
     "generic": "You have a new notification"

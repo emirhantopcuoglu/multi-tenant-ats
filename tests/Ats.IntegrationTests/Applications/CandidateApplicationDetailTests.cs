@@ -380,4 +380,8 @@ internal sealed class FakeTenantDirectory : ITenantDirectory
     public Task<TenantPublicProfile?> GetPublicProfileBySlugAsync(
         string slug, CancellationToken cancellationToken = default) =>
         Task.FromResult<TenantPublicProfile?>(null);
+
+    public Task<IReadOnlyCollection<Guid>> GetTenantUserIdsAsync(
+        Guid tenantId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyCollection<Guid>>([]);
 }

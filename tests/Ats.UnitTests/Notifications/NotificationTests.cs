@@ -29,6 +29,31 @@ public sealed class NotificationTests
     }
 
     [Fact]
+    public void should_create_unread_company_user_notification_carrying_its_tenant()
+    {
+        // Act
+        var tenantId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var notification = Notification.ForCompanyUser(
+            tenantId, userId, NotificationType.NewApplication, """{"jobTitle":"Engineer"}""");
+
+        // Assert — addressed to the user, but tagged with the tenant unlike a candidate row
+        Assert.Equal(NotificationRecipientType.CompanyUser, notification.RecipientType);
+        Assert.Equal(userId, notification.RecipientId);
+        Assert.Equal(tenantId, notification.TenantId);
+        Assert.Null(notification.ReadAtUtc);
+    }
+
+    [Fact]
+    public void should_reject_empty_tenant_or_user_for_company_recipient()
+    {
+        Assert.Throws<ArgumentException>(() => Notification.ForCompanyUser(
+            Guid.Empty, Guid.NewGuid(), NotificationType.NewApplication, """{"a":1}"""));
+        Assert.Throws<ArgumentException>(() => Notification.ForCompanyUser(
+            Guid.NewGuid(), Guid.Empty, NotificationType.NewApplication, """{"a":1}"""));
+    }
+
+    [Fact]
     public void should_keep_the_first_read_timestamp_when_marked_twice()
     {
         // Arrange
