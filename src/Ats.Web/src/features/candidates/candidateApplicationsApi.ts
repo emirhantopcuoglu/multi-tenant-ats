@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/apiClient';
 import type { PagedResult } from '@/types/pagination';
-import type { ApplicationStatus, PipelineStageType } from '@/types/enums';
+import type { ApplicationStatus, InterviewStatus, InterviewType, PipelineStageType } from '@/types/enums';
 
 export interface CandidateApplicationItem {
   id: string;
@@ -31,6 +31,15 @@ export interface CandidateTimelineEntry {
   occurredAtUtc: string;
 }
 
+export interface CandidateInterview {
+  id: string;
+  type: InterviewType;
+  scheduledAtUtc: string;
+  durationMinutes: number;
+  location: string | null;
+  status: InterviewStatus;
+}
+
 export interface CandidateApplicationDetail {
   id: string;
   jobTitle: string;
@@ -43,6 +52,7 @@ export interface CandidateApplicationDetail {
   currentStageId: string;
   pipelineStages: CandidatePipelineStage[];
   timeline: CandidateTimelineEntry[];
+  interviews: CandidateInterview[];
 }
 
 export async function getCandidateApplication(id: string): Promise<CandidateApplicationDetail> {

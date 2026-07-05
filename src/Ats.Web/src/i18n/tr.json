@@ -105,6 +105,7 @@
       "cv": "CV",
       "cover": "Ön yazı",
       "analysis": "AI analizi",
+      "interviews": "Mülakatlar",
       "activity": "Hareketler"
     },
     "cv": {
@@ -501,7 +502,10 @@
       "moved": "Yeni bir aşamaya geçtin",
       "rejected": "Süreç olumsuz sonuçlandı",
       "hiredEvent": "Tebrikler — işe alındın!",
-      "inReview": "Değerlendirme sürüyor"
+      "inReview": "Değerlendirme sürüyor",
+      "interviews": {
+        "title": "Mülakatlar"
+      }
     }
   },
   "candidateProfile": {

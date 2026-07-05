@@ -105,6 +105,7 @@
       "cv": "CV",
       "cover": "Cover letter",
       "analysis": "AI analysis",
+      "interviews": "Interviews",
       "activity": "Activity"
     },
     "cv": {
@@ -501,7 +502,10 @@
       "moved": "Moved to a new stage",
       "rejected": "The process ended unsuccessfully",
       "hiredEvent": "Congratulations — you were hired!",
-      "inReview": "In review"
+      "inReview": "In review",
+      "interviews": {
+        "title": "Interviews"
+      }
     }
   },
   "candidateProfile": {

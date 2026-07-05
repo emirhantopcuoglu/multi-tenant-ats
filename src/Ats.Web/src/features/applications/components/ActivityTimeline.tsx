@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Timeline, TimelineItem, type TimelineDotTone } from '@/components/ui';
+import { stageLabel } from '@/lib/stageLabel';
 import type { ApplicationActivity, PipelineStage } from '@/types/application';
 import type { ApplicationActivityType } from '@/types/enums';
 
@@ -25,8 +26,11 @@ export function ActivityTimeline({ activities, stages }: ActivityTimelineProps) 
 
   const stageName = useMemo(() => {
     const byId = new Map(stages.map((stage) => [stage.id, stage.name]));
-    return (id: unknown) => byId.get(String(id)) ?? '—';
-  }, [stages]);
+    return (id: unknown) => {
+      const rawName = byId.get(String(id));
+      return rawName ? stageLabel(rawName, t) : '—';
+    };
+  }, [stages, t]);
 
   return (
     <Timeline>

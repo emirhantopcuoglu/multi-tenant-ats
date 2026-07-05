@@ -10,8 +10,10 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
+import { useTranslation } from 'react-i18next';
 import { KanbanCard, KanbanColumn } from '@/components/ui';
 import { cn } from '@/lib/cn';
+import { stageLabel } from '@/lib/stageLabel';
 import type { ApplicationListItem, PipelineStage } from '@/types/application';
 
 interface ApplicationsBoardProps {
@@ -80,9 +82,10 @@ function BoardColumn({
   onSelect: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
+  const { t } = useTranslation();
   return (
     <div ref={setNodeRef} className={cn('rounded-2xl', isOver && 'ring-2 ring-accent')}>
-      <KanbanColumn title={stage.name} count={applications.length}>
+      <KanbanColumn title={stageLabel(stage.name, t)} count={applications.length}>
         {applications.map((application) => (
           <BoardCard
             key={application.id}
