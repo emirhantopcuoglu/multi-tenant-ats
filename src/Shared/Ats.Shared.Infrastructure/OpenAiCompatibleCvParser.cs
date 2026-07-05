@@ -44,9 +44,13 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
+    // AllowReadingFromString: json_object mode guarantees valid JSON syntax but not per-field types,
+    // and the model occasionally quotes a number (e.g. "total_experience_years": "5") even though the
+    // prompt asks for a bare number. Without this, that one quirky field dead-letters the whole parse.
     private static readonly JsonSerializerOptions DeserializeOptions = new()
     {
-        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        NumberHandling = JsonNumberHandling.AllowReadingFromString
     };
 
     public OpenAiCompatibleCvParser(
