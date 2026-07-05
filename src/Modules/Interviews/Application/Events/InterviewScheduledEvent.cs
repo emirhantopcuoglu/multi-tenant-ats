@@ -11,13 +11,15 @@ namespace Ats.Modules.Interviews.Application.Events;
 // It carries plain data: the interview facts from the new aggregate plus the candidate contact and
 // job title that arrived through IApplicationDirectory, so the out-of-process consumer never loads
 // another module's aggregates. The recruiter's notes are deliberately not here — they are internal
-// and must never feed a candidate-facing notification.
+// and must never feed a candidate-facing notification. CandidateAccountId is the global marketplace
+// account an in-app notification is addressed to (nullable: pre-account applications have none).
 public sealed record InterviewScheduledEvent(
     Guid InterviewId,
     Guid ApplicationId,
     Guid JobId,
     string JobTitle,
     Guid CandidateId,
+    Guid? CandidateAccountId,
     string CandidateEmail,
     string CandidateFirstName,
     InterviewType Type,

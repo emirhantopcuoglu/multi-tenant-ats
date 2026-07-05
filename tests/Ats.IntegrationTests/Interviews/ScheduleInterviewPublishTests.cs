@@ -27,11 +27,12 @@ public sealed class ScheduleInterviewPublishTests
         var applicationId = Guid.NewGuid();
         var jobId = Guid.NewGuid();
         var candidateId = Guid.NewGuid();
+        var candidateAccountId = Guid.NewGuid();
         var scheduledAt = DateTime.UtcNow.AddDays(3);
 
         var directory = new FakeApplicationDirectory(new ApplicationForScheduling(
             applicationId, IsActive: true, jobId, "Staff Engineer",
-            candidateId, "invitee@acme.test", "Invi"));
+            candidateId, candidateAccountId, "invitee@acme.test", "Invi"));
         var publisher = new CapturingPublisher();
 
         // Act
@@ -54,6 +55,7 @@ public sealed class ScheduleInterviewPublishTests
         Assert.Equal(jobId, scheduled.JobId);
         Assert.Equal("Staff Engineer", scheduled.JobTitle);
         Assert.Equal(candidateId, scheduled.CandidateId);
+        Assert.Equal(candidateAccountId, scheduled.CandidateAccountId);
         Assert.Equal("invitee@acme.test", scheduled.CandidateEmail);
         Assert.Equal("Invi", scheduled.CandidateFirstName);
         Assert.Equal(InterviewType.Technical, scheduled.Type);
@@ -74,7 +76,7 @@ public sealed class ScheduleInterviewPublishTests
         var applicationId = Guid.NewGuid();
         var directory = new FakeApplicationDirectory(new ApplicationForScheduling(
             applicationId, IsActive: false, Guid.NewGuid(), "Closed Role",
-            Guid.NewGuid(), "settled@acme.test", "Set"));
+            Guid.NewGuid(), Guid.NewGuid(), "settled@acme.test", "Set"));
         var publisher = new CapturingPublisher();
 
         // Act

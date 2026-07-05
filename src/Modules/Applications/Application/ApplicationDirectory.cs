@@ -35,6 +35,7 @@ public sealed class ApplicationDirectory : IApplicationDirectory
                 a.Id,
                 IsActive = a.Status == ApplicationStatus.Active,
                 a.JobId,
+                a.CandidateAccountId,
                 CandidateId = c.Id,
                 c.Email,
                 c.FirstName
@@ -47,7 +48,7 @@ public sealed class ApplicationDirectory : IApplicationDirectory
         var jobTitle = await _jobs.GetJobTitleByIdAsync(row.JobId, cancellationToken);
         return new ApplicationForScheduling(
             row.Id, row.IsActive, row.JobId, jobTitle ?? string.Empty,
-            row.CandidateId, row.Email, row.FirstName);
+            row.CandidateId, row.CandidateAccountId, row.Email, row.FirstName);
     }
 
     public async Task<IReadOnlyDictionary<Guid, string>> GetCandidateNamesByApplicationAsync(
