@@ -184,7 +184,7 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
         // outbox, so it commits in the same transaction as the application row: a parse can never be
         // requested for an application that was not saved, and vice versa.
         await _publisher.Publish(
-            new CvParseRequestedEvent(application.Id, candidate.Id, cvKey, tenantId),
+            new CvParseRequestedEvent(application.Id, job.Id, candidate.Id, cvKey, tenantId),
             ct);
 
         try

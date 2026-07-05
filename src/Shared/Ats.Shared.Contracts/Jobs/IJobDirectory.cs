@@ -28,7 +28,18 @@ public interface IJobDirectory
     // Missing ids are absent from the result; the caller decides how to handle a gap.
     Task<IReadOnlyDictionary<Guid, JobSummary>> GetSummariesAsync(
         IReadOnlyCollection<Guid> jobIds, CancellationToken cancellationToken = default);
+
+    // The CV-parsing consumer needs a job's requirements to judge candidate fit, and — like the
+    // notification fan-out consumer — runs outside a resolved-tenant request, so tenantId is passed
+    // explicitly and the lookup bypasses the ambient-tenant global filter rather than relying on it.
+    Task<JobRequirements?> GetJobRequirementsAsync(
+        Guid tenantId, Guid jobId, CancellationToken cancellationToken = default);
 }
+
+// What a CV needs to be judged against: the job's title (context) and its free-text description
+// (the only requirements source the Jobs module has today — there is no separate structured
+// "required skills" list).
+public sealed record JobRequirements(string Title, string Description);
 
 // A minimal read model — only what a consumer needs to attach an application to a job. It is
 // deliberately not the Job entity: exposing the aggregate would leak the Jobs module's

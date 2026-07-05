@@ -356,6 +356,11 @@ internal sealed class FakeJobDirectory : IJobDirectory
             : new Dictionary<Guid, JobSummary> { [_summary.Id] = _summary };
         return Task.FromResult<IReadOnlyDictionary<Guid, JobSummary>>(result);
     }
+
+    public Task<JobRequirements?> GetJobRequirementsAsync(
+        Guid tenantId, Guid jobId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<JobRequirements?>(
+            _summary is null ? null : new JobRequirements(_summary.Title, ""));
 }
 
 internal sealed class FakeTenantDirectory : ITenantDirectory

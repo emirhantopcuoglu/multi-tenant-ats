@@ -1,5 +1,6 @@
 import type {
   ApplicationStatus,
+  CvJobFitRating,
   FeedbackRecommendation,
   InterviewStatus,
   JobStatus,
@@ -48,6 +49,12 @@ export const recommendationTone: Record<FeedbackRecommendation, BadgeTone> = {
   NoHire: 'danger',
   Hire: 'success',
   StrongHire: 'solidSuccess',
+};
+
+export const cvJobFitRatingTone: Record<CvJobFitRating, BadgeTone> = {
+  Weak: 'danger',
+  Moderate: 'warning',
+  Strong: 'success',
 };
 
 /* Role → tone for the user directory badges. Admin is the privileged role, so it takes the accent
