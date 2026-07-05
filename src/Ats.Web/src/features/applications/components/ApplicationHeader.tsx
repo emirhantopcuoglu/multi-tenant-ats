@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Avatar, Badge, Button, Card, Dropdown, type DropdownAction } from '@/components/ui';
 import { applicationStatusTone } from '@/lib/statusColors';
+import { stageLabel } from '@/lib/stageLabel';
 import type { ApplicationDetail, PipelineStage } from '@/types/application';
 
 interface ApplicationHeaderProps {
@@ -27,7 +28,7 @@ export function ApplicationHeader({
 
   const moveItems: DropdownAction[] = stages
     .filter((stage) => stage.id !== application.stageId)
-    .map((stage) => ({ key: stage.id, label: stage.name, onSelect: () => onMove(stage.id) }));
+    .map((stage) => ({ key: stage.id, label: stageLabel(stage.name, t), onSelect: () => onMove(stage.id) }));
 
   return (
     <Card className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -50,7 +51,7 @@ export function ApplicationHeader({
             )}
           </div>
           <div className="flex items-center gap-2 pt-1">
-            <Badge tone="neutral">{application.stageName}</Badge>
+            <Badge tone="neutral">{stageLabel(application.stageName, t)}</Badge>
             <Badge tone={applicationStatusTone[application.status]} dot>
               {t(`status.${application.status}`)}
             </Badge>

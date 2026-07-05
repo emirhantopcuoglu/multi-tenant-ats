@@ -13,6 +13,7 @@ import { ApplicationHeader } from './components/ApplicationHeader';
 import { RejectDialog } from './components/RejectDialog';
 import { CvAnalysisTab } from './components/CvAnalysisTab';
 import { ActivityTimeline } from './components/ActivityTimeline';
+import { ApplicationInterviewsTab } from './components/ApplicationInterviewsTab';
 
 /* Thin wrapper so the inner view can take a guaranteed-present id and keep its hooks unconditional. */
 export function ApplicationDetailPage() {
@@ -117,6 +118,7 @@ function ApplicationDetailView({ id }: { id: string }) {
             { value: 'cv', label: t('applicationDetail.tabs.cv') },
             { value: 'cover', label: t('applicationDetail.tabs.cover') },
             { value: 'analysis', label: t('applicationDetail.tabs.analysis') },
+            { value: 'interviews', label: t('applicationDetail.tabs.interviews') },
             { value: 'activity', label: t('applicationDetail.tabs.activity') },
           ]}
         >
@@ -142,6 +144,10 @@ function ApplicationDetailView({ id }: { id: string }) {
 
           <TabPanel value="analysis">
             <CvAnalysisTab applicationId={id} />
+          </TabPanel>
+
+          <TabPanel value="interviews">
+            <ApplicationInterviewsTab applicationId={id} />
           </TabPanel>
 
           <TabPanel value="activity">
