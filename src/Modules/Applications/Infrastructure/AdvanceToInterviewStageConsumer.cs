@@ -12,8 +12,7 @@ namespace Ats.Modules.Applications.Infrastructure;
 
 // Keeps the pipeline honest with the interview calendar: when a recruiter schedules an interview,
 // the application should already be sitting in the funnel's Interview stage rather than left
-// behind in an earlier one while the calendar says otherwise (Faz 4.2 — the pipeline and interview
-// scheduling used to be entirely disconnected).
+// behind in an earlier one while the calendar says otherwise.
 //
 // Forward-only and silent by design:
 //   - Forward-only: only advances an application into the Interview stage, and only if it is not
@@ -23,7 +22,7 @@ namespace Ats.Modules.Applications.Infrastructure;
 //     interview-scheduled notification from InterviewScheduledNotificationConsumer/EmailConsumer;
 //     a second "your stage changed" notification for the same action would be redundant noise. The
 //     move is still recorded to the activity log, so both the recruiter's and the candidate's
-//     timelines show it honestly (Faz 4.2 depends on the candidate timeline reflecting reality).
+//     timelines show it honestly.
 //
 // Runs with no ambient tenant — a message consumer has no resolved ICurrentTenant, the same
 // reasoning as CvParsingConsumer and IJobDirectory.GetJobRequirementsAsync — so every query bypasses
