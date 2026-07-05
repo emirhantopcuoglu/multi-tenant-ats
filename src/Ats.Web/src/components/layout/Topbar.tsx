@@ -4,6 +4,7 @@ import { Avatar, Badge, Dropdown, IconButton } from '@/components/ui';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useAuth } from '@/app/auth/auth-context';
+import { CompanyNotificationBell } from '@/features/notifications/components/CompanyNotificationBell';
 import { NAV_ITEMS, isNavItemActive } from './navConfig';
 
 interface TopbarProps {
@@ -62,6 +63,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
         <LanguageSwitcher />
         <ThemeToggle />
+        {user && <CompanyNotificationBell />}
 
         {user && (
           <Dropdown

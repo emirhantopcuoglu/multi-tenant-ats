@@ -33,5 +33,10 @@ public static class NotificationPayloads
 
     public sealed record ApplicationCvDownloaded(Guid ApplicationId, string JobTitle);
 
+    // Company-side payload: raw name facts, not a pre-joined "Jane Doe" string, matching the
+    // "structured facts only" rule above.
+    public sealed record NewApplication(
+        Guid ApplicationId, string JobTitle, string CandidateFirstName, string CandidateLastName);
+
     public static string Serialize<T>(T payload) => JsonSerializer.Serialize(payload, SerializerOptions);
 }

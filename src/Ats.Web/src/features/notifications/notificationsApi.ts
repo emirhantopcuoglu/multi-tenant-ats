@@ -9,6 +9,7 @@ export const KNOWN_NOTIFICATION_TYPES = [
   'InterviewScheduled',
   'ApplicationViewed',
   'ApplicationCvDownloaded',
+  'NewApplication',
 ] as const;
 
 export interface NotificationItem {
@@ -21,27 +22,36 @@ export interface NotificationItem {
   readAtUtc: string | null;
 }
 
-const NOTIFICATIONS_URL = '/api/v1/candidate/notifications';
-
-export async function listNotifications(
-  page = 1,
-  pageSize = 20,
-): Promise<PagedResult<NotificationItem>> {
-  const { data } = await apiClient.get<PagedResult<NotificationItem>>(NOTIFICATIONS_URL, {
-    params: { page, pageSize },
-  });
-  return data;
+export interface NotificationsApi {
+  listNotifications: (page?: number, pageSize?: number) => Promise<PagedResult<NotificationItem>>;
+  getUnreadNotificationCount: () => Promise<number>;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
 }
 
-export async function getUnreadNotificationCount(): Promise<number> {
-  const { data } = await apiClient.get<number>(`${NOTIFICATIONS_URL}/unread-count`);
-  return data;
+/* Candidates and company users each have their own notification feed, addressed from their own
+   JWT (never a client-supplied id) — so the two APIs are identical apart from the base path. A
+   factory avoids maintaining two copies of the same four calls. */
+function createNotificationsApi(basePath: string): NotificationsApi {
+  return {
+    async listNotifications(page = 1, pageSize = 20) {
+      const { data } = await apiClient.get<PagedResult<NotificationItem>>(basePath, {
+        params: { page, pageSize },
+      });
+      return data;
+    },
+    async getUnreadNotificationCount() {
+      const { data } = await apiClient.get<number>(`${basePath}/unread-count`);
+      return data;
+    },
+    async markNotificationRead(id: string) {
+      await apiClient.post(`${basePath}/${encodeURIComponent(id)}/read`);
+    },
+    async markAllNotificationsRead() {
+      await apiClient.post(`${basePath}/read-all`);
+    },
+  };
 }
 
-export async function markNotificationRead(id: string): Promise<void> {
-  await apiClient.post(`${NOTIFICATIONS_URL}/${encodeURIComponent(id)}/read`);
-}
-
-export async function markAllNotificationsRead(): Promise<void> {
-  await apiClient.post(`${NOTIFICATIONS_URL}/read-all`);
-}
+export const candidateNotificationsApi = createNotificationsApi('/api/v1/candidate/notifications');
+export const companyNotificationsApi = createNotificationsApi('/api/v1/notifications');

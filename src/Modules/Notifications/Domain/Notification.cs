@@ -23,6 +23,7 @@ public enum NotificationType
     InterviewScheduled = 2,
     ApplicationViewed = 3,
     ApplicationCvDownloaded = 4,
+    NewApplication = 5,
 }
 
 // A single in-app notification: an addressed, timestamped fact with a read marker. The payload is
@@ -78,6 +79,23 @@ public sealed class Notification
         return new Notification(
             Guid.NewGuid(), NotificationRecipientType.Candidate, candidateAccountId,
             tenantId: null, type, payload, DateTime.UtcNow);
+    }
+
+    // Unlike a candidate row, a company-user row carries its tenant: the recipient is a member of
+    // one specific organization, and the row is data, not a query-filter scope (this context has none).
+    public static Notification ForCompanyUser(
+        Guid tenantId, Guid userId, NotificationType type, string payload)
+    {
+        if (tenantId == Guid.Empty)
+            throw new ArgumentException("A tenant id is required.", nameof(tenantId));
+        if (userId == Guid.Empty)
+            throw new ArgumentException("A user id is required.", nameof(userId));
+        if (string.IsNullOrWhiteSpace(payload))
+            throw new ArgumentException("A payload is required.", nameof(payload));
+
+        return new Notification(
+            Guid.NewGuid(), NotificationRecipientType.CompanyUser, userId,
+            tenantId, type, payload, DateTime.UtcNow);
     }
 
     // Idempotent: a second mark keeps the original timestamp, so a double-click or a replayed

@@ -499,6 +499,7 @@
   "notifications": {
     "title": "Bildirimler",
     "subtitle": "Başvurularınla ilgili gelişmeler.",
+    "companySubtitle": "Ekibinin işe alım süreciyle ilgili gelişmeler.",
     "bellLabel": "Bildirimler",
     "empty": "Henüz bildirimin yok.",
     "loadError": "Bildirimler yüklenemedi.",
@@ -507,6 +508,7 @@
     "viewAll": "Tüm bildirimleri gör",
     "applicationViewed": "\"{{jobTitle}}\" başvurun şirket tarafından görüntülendi",
     "cvDownloaded": "\"{{jobTitle}}\" için CV'n şirket tarafından indirildi",
+    "newApplication": "{{candidateName}}, \"{{jobTitle}}\" pozisyonuna başvurdu",
     "stageChanged": "\"{{jobTitle}}\" başvurun \"{{stage}}\" aşamasına taşındı",
     "interviewScheduled": "\"{{jobTitle}}\" için mülakat planlandı: {{type}}, {{date}}",
     "generic": "Yeni bir bildirimin var"
