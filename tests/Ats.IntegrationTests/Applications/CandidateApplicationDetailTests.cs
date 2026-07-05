@@ -4,6 +4,7 @@ using Ats.Modules.Applications.Application.Applications;
 using Ats.Modules.Applications.Application.Events;
 using Ats.Modules.Applications.Domain;
 using Ats.Modules.Applications.Infrastructure;
+using Ats.Shared.Contracts.Interviews;
 using Ats.Shared.Contracts.Jobs;
 using Ats.Shared.Contracts.Tenants;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -67,7 +68,8 @@ public sealed class CandidateApplicationDetailTests
             readDb,
             new FakeJobDirectory(new JobSummary(jobId, "Staff Engineer", "staff-engineer", tenant.TenantId!.Value)),
             new FakeTenantDirectory(new TenantSummary(tenant.TenantId!.Value, "Acme", "acme")),
-            activityLog);
+            activityLog,
+            new FakeInterviewDirectory([]));
         var result = await handler.Handle(
             new GetCandidateApplicationDetailQuery(accountId, application.Id), CancellationToken.None);
 
@@ -86,6 +88,51 @@ public sealed class CandidateApplicationDetailTests
         Assert.Equal(baseTime.AddHours(2), detail.Timeline[1].OccurredAtUtc);
         Assert.Equal("Screening", detail.Timeline[2].StageName);
         Assert.Null(detail.Timeline[3].StageName);
+    }
+
+    [Fact]
+    public async Task should_include_the_applications_scheduled_interviews_in_schedule_order()
+    {
+        // Arrange
+        var accountId = Guid.NewGuid();
+        var jobId = Guid.NewGuid();
+        var tenant = new FixedTenant(Guid.NewGuid());
+
+        Application application;
+        await using (var db = NewDb(tenant))
+        {
+            var pipeline = Pipeline.CreateDefault(jobId);
+            db.Pipelines.Add(pipeline);
+            var candidate = Candidate.Create("interviewed@acme.test", "In", "Terviewed");
+            db.Candidates.Add(candidate);
+            application = Application.Create(
+                jobId, candidate.Id, accountId, pipeline.InitialStage.Id, "cv/interviewed.pdf");
+            db.Applications.Add(application);
+            await db.SaveChangesAsync();
+        }
+
+        var scheduledAt = DateTime.UtcNow.AddDays(3);
+        var interview = new CandidateInterviewInfo(
+            Guid.NewGuid(), "Technical", scheduledAt, 60, "Google Meet", "Scheduled");
+
+        // Act
+        await using var readDb = NewDb(tenant);
+        var handler = new GetCandidateApplicationDetailHandler(
+            readDb,
+            new FakeJobDirectory(new JobSummary(jobId, "Staff Engineer", "staff-engineer", tenant.TenantId!.Value)),
+            new FakeTenantDirectory(new TenantSummary(tenant.TenantId!.Value, "Acme", "acme")),
+            new InMemoryActivityLog([]),
+            new FakeInterviewDirectory([interview]));
+        var result = await handler.Handle(
+            new GetCandidateApplicationDetailQuery(accountId, application.Id), CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        var scheduledInterview = Assert.Single(result.Value.Interviews);
+        Assert.Equal("Technical", scheduledInterview.Type);
+        Assert.Equal(scheduledAt, scheduledInterview.ScheduledAtUtc);
+        Assert.Equal("Google Meet", scheduledInterview.Location);
+        Assert.Equal("Scheduled", scheduledInterview.Status);
     }
 
     [Fact]
@@ -111,7 +158,7 @@ public sealed class CandidateApplicationDetailTests
         await using var readDb = NewDb(tenant);
         var handler = new GetCandidateApplicationDetailHandler(
             readDb, new FakeJobDirectory(null), new FakeTenantDirectory(null),
-            new InMemoryActivityLog([]));
+            new InMemoryActivityLog([]), new FakeInterviewDirectory([]));
         var result = await handler.Handle(
             new GetCandidateApplicationDetailQuery(Guid.NewGuid(), application.Id),
             CancellationToken.None);
@@ -389,4 +436,19 @@ internal sealed class FakeTenantDirectory : ITenantDirectory
     public Task<IReadOnlyCollection<Guid>> GetTenantUserIdsAsync(
         Guid tenantId, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyCollection<Guid>>([]);
+}
+
+internal sealed class FakeInterviewDirectory : IInterviewDirectory
+{
+    private readonly IReadOnlyList<CandidateInterviewInfo> _interviews;
+
+    public FakeInterviewDirectory(IReadOnlyList<CandidateInterviewInfo> interviews) => _interviews = interviews;
+
+    public Task<int> CountUpcomingInterviewsAsync(
+        DateTime nowUtc, CancellationToken cancellationToken = default) =>
+        Task.FromResult(0);
+
+    public Task<IReadOnlyList<CandidateInterviewInfo>> GetForApplicationAsync(
+        Guid tenantId, Guid applicationId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_interviews);
 }

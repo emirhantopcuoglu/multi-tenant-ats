@@ -8,9 +8,13 @@ public enum ApplicationStatus { Active, Withdrawn, Rejected, Hired }
 // stage name (names are user-facing and may be customised later).
 //   Initial       - where every new application starts
 //   Active         - a normal working stage in the middle of the funnel
+//   Interview      - the working stage where a scheduled interview belongs; a distinct type
+//                    (rather than Active) so cross-module code — e.g. auto-advancing an
+//                    application when an interview is scheduled — can find it without matching
+//                    on the user-facing stage name
 //   FinalHired     - terminal success
 //   FinalRejected  - terminal rejection
-public enum PipelineStageType { Initial, Active, FinalHired, FinalRejected }
+public enum PipelineStageType { Initial, Active, Interview, FinalHired, FinalRejected }
 
 // What happened to an application, recorded in the activity log. Each value pairs with a
 // payload shape produced by the matching ApplicationActivity factory.
