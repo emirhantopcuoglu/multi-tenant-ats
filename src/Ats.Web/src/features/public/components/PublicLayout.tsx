@@ -42,7 +42,12 @@ export function PublicLayout({ children, wide = false }: { children: ReactNode; 
                 >
                   {t('candidateAuth.myApplications')}
                 </Link>
-                <span className="text-sm font-medium text-text">{user.firstName}</span>
+                <Link
+                  to="/candidate/profile"
+                  className="text-sm font-medium text-text hover:text-accent"
+                >
+                  {user.firstName}
+                </Link>
                 <button
                   type="button"
                   onClick={() => void logout()}

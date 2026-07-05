@@ -496,6 +496,17 @@
       "inReview": "In review"
     }
   },
+  "candidateProfile": {
+    "title": "My profile",
+    "subtitle": "Your account details.",
+    "loadError": "Couldn't load your profile.",
+    "email": "Email",
+    "emailReadonlyHint": "Your email is your sign-in ID and can't be changed here.",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "saved": "Profile updated.",
+    "saveError": "Couldn't save your profile. Try again."
+  },
   "notifications": {
     "title": "Notifications",
     "subtitle": "Updates about your applications.",

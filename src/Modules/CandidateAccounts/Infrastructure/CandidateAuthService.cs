@@ -79,4 +79,18 @@ public sealed class CandidateAuthService : ICandidateAuthService
         return Result.Success(
             new CurrentCandidateDto(account.Id, account.Email, account.FirstName, account.LastName));
     }
+
+    public async Task<Result<CurrentCandidateDto>> UpdateProfileAsync(
+        Guid candidateAccountId, string firstName, string lastName)
+    {
+        var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
+        if (account is null)
+            return Result.Failure<CurrentCandidateDto>(CandidateAuthErrors.NotFound);
+
+        account.UpdateProfile(firstName, lastName);
+        await _db.SaveChangesAsync();
+
+        return Result.Success(
+            new CurrentCandidateDto(account.Id, account.Email, account.FirstName, account.LastName));
+    }
 }
