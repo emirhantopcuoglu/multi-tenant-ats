@@ -1,6 +1,7 @@
 using Ats.IntegrationTests.Shared;
 using Ats.Modules.Applications.Application;
 using Ats.Modules.Applications.Application.Applications;
+using Ats.Modules.Applications.Application.Events;
 using Ats.Modules.Applications.Domain;
 using Ats.Modules.Applications.Infrastructure;
 using Ats.Shared.Contracts.Jobs;
@@ -139,28 +140,33 @@ public sealed class MarkApplicationViewedHandlerTests
     }
 
     [Fact]
-    public async Task should_stamp_the_first_view_once_and_log_a_single_activity()
+    public async Task should_stamp_the_first_view_once_publish_once_and_log_a_single_activity()
     {
         // Arrange
         var tenant = new FixedTenant(Guid.NewGuid());
+        var jobId = Guid.NewGuid();
+        var candidateAccountId = Guid.NewGuid();
         Application application;
+        Candidate candidate;
         await using (var db = NewDb(tenant))
         {
-            var candidate = Candidate.Create("viewed@acme.test", "Seen", "Once");
+            candidate = Candidate.Create("viewed@acme.test", "Seen", "Once");
             db.Candidates.Add(candidate);
             application = Application.Create(
-                Guid.NewGuid(), candidate.Id, Guid.NewGuid(), Guid.NewGuid(), "cv/v.pdf");
+                jobId, candidate.Id, candidateAccountId, Guid.NewGuid(), "cv/v.pdf");
             db.Applications.Add(application);
             await db.SaveChangesAsync();
         }
 
         var activityLog = new InMemoryActivityLog([]);
+        var publisher = new CapturingPublisher();
 
-        // Act — two consecutive opens; only the first may stamp and log.
+        // Act — two consecutive opens; only the first may stamp, publish and log.
         await using (var db = NewDb(tenant))
         {
             var handler = new MarkApplicationViewedHandler(
-                db, new NullCurrentUser(), activityLog,
+                db, publisher, new FakeJobDirectory(new JobSummary(jobId, "Staff Engineer", "staff-engineer", tenant.TenantId!.Value)),
+                new NullCurrentUser(), activityLog,
                 NullLogger<MarkApplicationViewedHandler>.Instance);
             var first = await handler.Handle(
                 new MarkApplicationViewedCommand(application.Id), CancellationToken.None);
@@ -173,12 +179,21 @@ public sealed class MarkApplicationViewedHandlerTests
             Assert.False(second.Value);
         }
 
-        // Assert — the stamp persisted and exactly one Viewed activity was written.
+        // Assert — the stamp persisted, exactly one event carrying the routing fields, and
+        // exactly one Viewed activity.
         await using (var db = NewDb(tenant))
         {
             var stored = db.Applications.Single(a => a.Id == application.Id);
             Assert.NotNull(stored.FirstViewedAtUtc);
         }
+        var published = Assert.Single(publisher.Published);
+        var viewed = Assert.IsType<ApplicationViewedEvent>(published);
+        Assert.Equal(application.Id, viewed.ApplicationId);
+        Assert.Equal(jobId, viewed.JobId);
+        Assert.Equal("Staff Engineer", viewed.JobTitle);
+        Assert.Equal(candidate.Id, viewed.CandidateId);
+        Assert.Equal(candidateAccountId, viewed.CandidateAccountId);
+        Assert.Equal(tenant.TenantId!.Value, viewed.TenantId);
         Assert.Single(activityLog.Added, a => a.ActivityType == ApplicationActivityType.Viewed);
     }
 
@@ -188,8 +203,8 @@ public sealed class MarkApplicationViewedHandlerTests
         // Arrange
         await using var db = NewDb(new FixedTenant(Guid.NewGuid()));
         var handler = new MarkApplicationViewedHandler(
-            db, new NullCurrentUser(), new InMemoryActivityLog([]),
-            NullLogger<MarkApplicationViewedHandler>.Instance);
+            db, new CapturingPublisher(), new FakeJobDirectory(null), new NullCurrentUser(),
+            new InMemoryActivityLog([]), NullLogger<MarkApplicationViewedHandler>.Instance);
 
         // Act
         var result = await handler.Handle(

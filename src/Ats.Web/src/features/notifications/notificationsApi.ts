@@ -4,7 +4,11 @@ import type { PagedResult } from '@/types/pagination';
 /* Server enum names from the Notifications module. `type` stays a plain string on the wire so a
    cached bundle keeps working when the API starts emitting types it doesn't know yet — rendering
    falls back to a generic message instead of crashing. */
-export const KNOWN_NOTIFICATION_TYPES = ['ApplicationStageChanged', 'InterviewScheduled'] as const;
+export const KNOWN_NOTIFICATION_TYPES = [
+  'ApplicationStageChanged',
+  'InterviewScheduled',
+  'ApplicationViewed',
+] as const;
 
 export interface NotificationItem {
   id: string;

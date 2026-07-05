@@ -400,6 +400,7 @@ builder.Services.AddMassTransit(bus =>
     // email consumers above, and becomes a row behind the candidate's bell icon.
     bus.AddConsumer<ApplicationStageChangedNotificationConsumer>();
     bus.AddConsumer<InterviewScheduledNotificationConsumer>();
+    bus.AddConsumer<ApplicationViewedNotificationConsumer>();
 
     // CV-parsing consumer (Sprint 6.3): downloads the CV, extracts text, asks Claude for structured
     // data, and stores it in MongoDB. Inherits the retry/dead-letter policy configured below.
