@@ -496,6 +496,19 @@
       "inReview": "In review"
     }
   },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "Updates about your applications.",
+    "bellLabel": "Notifications",
+    "empty": "No notifications yet.",
+    "loadError": "Couldn't load notifications.",
+    "retry": "Try again",
+    "markAllRead": "Mark all as read",
+    "viewAll": "View all notifications",
+    "stageChanged": "Your application for \"{{jobTitle}}\" moved to the \"{{stage}}\" stage",
+    "interviewScheduled": "An interview for \"{{jobTitle}}\" was scheduled: {{type}}, {{date}}",
+    "generic": "You have a new notification"
+  },
   "auth": {
     "tagline": "Applicant Tracking, done right",
     "brandHead": "Hire better, together.",

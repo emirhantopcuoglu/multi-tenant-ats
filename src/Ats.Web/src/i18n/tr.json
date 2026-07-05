@@ -496,6 +496,19 @@
       "inReview": "Değerlendirme sürüyor"
     }
   },
+  "notifications": {
+    "title": "Bildirimler",
+    "subtitle": "Başvurularınla ilgili gelişmeler.",
+    "bellLabel": "Bildirimler",
+    "empty": "Henüz bildirimin yok.",
+    "loadError": "Bildirimler yüklenemedi.",
+    "retry": "Tekrar dene",
+    "markAllRead": "Tümünü okundu işaretle",
+    "viewAll": "Tüm bildirimleri gör",
+    "stageChanged": "\"{{jobTitle}}\" başvurun \"{{stage}}\" aşamasına taşındı",
+    "interviewScheduled": "\"{{jobTitle}}\" için mülakat planlandı: {{type}}, {{date}}",
+    "generic": "Yeni bir bildirimin var"
+  },
   "auth": {
     "tagline": "Aday takibi, doğru şekilde",
     "brandHead": "Birlikte daha iyi işe alın.",

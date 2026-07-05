@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useAuth } from '@/app/auth/auth-context';
+import { NotificationBell } from '@/features/notifications/components/NotificationBell';
 import { cn } from '@/lib/cn';
 
 /* Chrome for anonymous careers and marketplace pages: a slim branded header with theme + language
@@ -34,6 +35,7 @@ export function PublicLayout({ children, wide = false }: { children: ReactNode; 
 
             {user?.kind === 'candidate' ? (
               <div className="flex items-center gap-3">
+                <NotificationBell />
                 <Link
                   to="/candidate/applications"
                   className="text-sm text-text-muted hover:text-text"
