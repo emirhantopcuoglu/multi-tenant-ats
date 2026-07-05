@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -44,14 +45,49 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    // AllowReadingFromString: json_object mode guarantees valid JSON syntax but not per-field types,
-    // and the model occasionally quotes a number (e.g. "total_experience_years": "5") even though the
-    // prompt asks for a bare number. Without this, that one quirky field dead-letters the whole parse.
+    // json_object mode guarantees valid JSON syntax but not per-field types or values: the model has
+    // returned a quoted number ("total_experience_years": "5") and, for a CV with no stated graduation
+    // year, an empty string ("year": ""). Neither is a bare number nor a parseable numeric string, so
+    // the two numeric fields most exposed to this (TotalExperienceYears, EducationDto.Year) carry their
+    // own lenient converters below instead of relying on JsonNumberHandling, which still throws on a
+    // non-numeric string like "".
     private static readonly JsonSerializerOptions DeserializeOptions = new()
     {
-        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-        NumberHandling = JsonNumberHandling.AllowReadingFromString
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
     };
+
+    // Reads a number, a numeric string, or falls back to 0 for anything else (empty string, "N/A",
+    // null) -- the CV parse prompt asks for 0 on unknown values, but the model doesn't always comply.
+    private sealed class LenientInt32Converter : JsonConverter<int>
+    {
+        public override int Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.Number)
+                return reader.GetInt32();
+            if (reader.TokenType == JsonTokenType.String && int.TryParse(reader.GetString(), out var value))
+                return value;
+            return 0;
+        }
+
+        public override void Write(Utf8JsonWriter writer, int value, JsonSerializerOptions options) =>
+            writer.WriteNumberValue(value);
+    }
+
+    private sealed class LenientDoubleConverter : JsonConverter<double>
+    {
+        public override double Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.Number)
+                return reader.GetDouble();
+            if (reader.TokenType == JsonTokenType.String &&
+                double.TryParse(reader.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+                return value;
+            return 0;
+        }
+
+        public override void Write(Utf8JsonWriter writer, double value, JsonSerializerOptions options) =>
+            writer.WriteNumberValue(value);
+    }
 
     public OpenAiCompatibleCvParser(
         IHttpClientFactory httpClientFactory,
@@ -129,8 +165,23 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
         if (string.IsNullOrWhiteSpace(json))
             throw new InvalidOperationException("The model returned no content for the CV parse request.");
 
-        var dto = JsonSerializer.Deserialize<CvParseDto>(json, DeserializeOptions)
-            ?? throw new InvalidOperationException("The model returned a CV parse result that could not be deserialized.");
+        CvParseDto? dto;
+        try
+        {
+            dto = JsonSerializer.Deserialize<CvParseDto>(json, DeserializeOptions);
+        }
+        catch (JsonException ex)
+        {
+            // The model's JSON is syntactically valid (json_object mode guarantees that) but its
+            // field *values* are not contractually guaranteed, so log the raw payload on a shape
+            // mismatch -- without it, a new quirk is undiagnosable after the fact (the text is
+            // gone once this throws).
+            _logger.LogError(ex, "CV parse response had an unexpected shape: {Json}", json);
+            throw;
+        }
+
+        if (dto is null)
+            throw new InvalidOperationException("The model returned a CV parse result that could not be deserialized.");
 
         return dto.ToResult();
     }
@@ -153,7 +204,8 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
     // ---- Parsed CV payload (snake_case fields), mapped to the Kernel's CvParseResult ----
     private sealed record CvParseDto(
         [property: JsonPropertyName("skills")] List<string>? Skills,
-        [property: JsonPropertyName("total_experience_years")] double TotalExperienceYears,
+        [property: JsonPropertyName("total_experience_years"), JsonConverter(typeof(LenientDoubleConverter))]
+        double TotalExperienceYears,
         [property: JsonPropertyName("education")] List<EducationDto>? Education,
         [property: JsonPropertyName("recent_positions")] List<PositionDto>? RecentPositions)
     {
@@ -169,7 +221,8 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
     private sealed record EducationDto(
         [property: JsonPropertyName("degree")] string? Degree,
         [property: JsonPropertyName("institution")] string? Institution,
-        [property: JsonPropertyName("year")] int Year);
+        [property: JsonPropertyName("year"), JsonConverter(typeof(LenientInt32Converter))]
+        int Year);
 
     private sealed record PositionDto(
         [property: JsonPropertyName("title")] string? Title,
