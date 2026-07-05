@@ -411,6 +411,11 @@ builder.Services.AddMassTransit(bus =>
     // data, and stores it in MongoDB. Inherits the retry/dead-letter policy configured below.
     bus.AddConsumer<CvParsingConsumer>();
 
+    // Pipeline/interview consistency (Faz 4.2): silently advances an application into its
+    // pipeline's Interview stage when a recruiter schedules an interview against it. Own queue,
+    // independent of the notification consumers above.
+    bus.AddConsumer<AdvanceToInterviewStageConsumer>();
+
     bus.UsingRabbitMq((context, configurator) =>
     {
         var rabbitMqOptions = context.GetRequiredService<IOptions<RabbitMqOptions>>().Value;

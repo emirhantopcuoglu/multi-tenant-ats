@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Ats.Modules.Applications.Domain;
+using Ats.Shared.Contracts.Interviews;
 using Ats.Shared.Contracts.Jobs;
 using Ats.Shared.Contracts.Tenants;
 using Ats.Shared.Kernel;
@@ -105,6 +106,11 @@ public sealed record CandidatePipelineStageDto(Guid Id, string Name, string Type
 
 public sealed record CandidateTimelineEntryDto(string Type, string? StageName, DateTime OccurredAtUtc);
 
+// Candidate-safe projection of CandidateInterviewInfo — same shape, kept as its own record so this
+// module's public contract doesn't leak a Shared.Contracts type verbatim into the API response.
+public sealed record CandidateInterviewDto(
+    Guid Id, string Type, DateTime ScheduledAtUtc, int DurationMinutes, string? Location, string Status);
+
 public sealed record CandidateApplicationDetailDto(
     Guid Id,
     string JobTitle,
@@ -116,7 +122,8 @@ public sealed record CandidateApplicationDetailDto(
     DateTime? FirstViewedAtUtc,
     Guid CurrentStageId,
     IReadOnlyList<CandidatePipelineStageDto> PipelineStages,
-    IReadOnlyList<CandidateTimelineEntryDto> Timeline);
+    IReadOnlyList<CandidateTimelineEntryDto> Timeline,
+    IReadOnlyList<CandidateInterviewDto> Interviews);
 
 public sealed record GetCandidateApplicationDetailQuery(Guid CandidateAccountId, Guid ApplicationId)
     : IQuery<CandidateApplicationDetailDto>;
@@ -128,17 +135,20 @@ public sealed class GetCandidateApplicationDetailHandler
     private readonly IJobDirectory _jobs;
     private readonly ITenantDirectory _tenants;
     private readonly IActivityLogRepository _activityLog;
+    private readonly IInterviewDirectory _interviews;
 
     public GetCandidateApplicationDetailHandler(
         IApplicationsDbContext db,
         IJobDirectory jobs,
         ITenantDirectory tenants,
-        IActivityLogRepository activityLog)
+        IActivityLogRepository activityLog,
+        IInterviewDirectory interviews)
     {
         _db = db;
         _jobs = jobs;
         _tenants = tenants;
         _activityLog = activityLog;
+        _interviews = interviews;
     }
 
     public async Task<Result<CandidateApplicationDetailDto>> Handle(
@@ -178,10 +188,16 @@ public sealed class GetCandidateApplicationDetailHandler
         var stageNames = stages.ToDictionary(s => s.Id, s => s.Name);
         var timeline = BuildCandidateTimeline(entries, stageNames);
 
+        var interviews = await _interviews.GetForApplicationAsync(application.TenantId, application.Id, ct);
+        var interviewDtos = interviews
+            .Select(i => new CandidateInterviewDto(
+                i.Id, i.Type, i.ScheduledAtUtc, i.DurationMinutes, i.Location, i.Status))
+            .ToList();
+
         return Result.Success(new CandidateApplicationDetailDto(
             application.Id, job.Title, job.Slug, company.CompanyName, company.Slug,
             application.Status.ToString(), application.AppliedAtUtc, application.FirstViewedAtUtc,
-            application.CurrentStageId, stages, timeline));
+            application.CurrentStageId, stages, timeline, interviewDtos));
     }
 
     private async Task<IReadOnlyList<CandidatePipelineStageDto>> LoadPipelineStagesAsync(
