@@ -90,7 +90,7 @@ public sealed class MoveApplicationStageHandler : ICommandHandler<MoveApplicatio
             await _publisher.Publish(
                 new ApplicationStageChangedEvent(
                     application.Id, application.JobId, jobTitle ?? string.Empty,
-                    candidate.Id, candidate.Email, candidate.FirstName,
+                    candidate.Id, application.CandidateAccountId, candidate.Email, candidate.FirstName,
                     fromStageId, fromStageName ?? string.Empty,
                     command.TargetStageId, toStageName,
                     application.TenantId),

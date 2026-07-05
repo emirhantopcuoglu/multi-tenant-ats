@@ -8,11 +8,17 @@ namespace Ats.Shared.Contracts.Notifications;
 // the human-readable stage names all travel in the message, so a consumer never has to reach back
 // into the Applications module to describe the transition. Stage names are resolved by the
 // publisher because only the Applications module can — the pipeline lives in its schema.
+//
+// CandidateAccountId is the global marketplace account behind the application — the identity the
+// in-app notification is addressed to (CandidateId is the per-tenant applicant record and cannot
+// be routed to a login). Nullable because applications submitted before candidate accounts existed
+// have no account; consumers that need one skip those, while email consumers keep working.
 public sealed record ApplicationStageChangedIntegrationEvent(
     Guid ApplicationId,
     Guid JobId,
     string JobTitle,
     Guid CandidateId,
+    Guid? CandidateAccountId,
     string CandidateEmail,
     string CandidateFirstName,
     Guid FromStageId,
