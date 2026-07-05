@@ -505,6 +505,7 @@
     "retry": "Tekrar dene",
     "markAllRead": "Tümünü okundu işaretle",
     "viewAll": "Tüm bildirimleri gör",
+    "applicationViewed": "\"{{jobTitle}}\" başvurun şirket tarafından görüntülendi",
     "stageChanged": "\"{{jobTitle}}\" başvurun \"{{stage}}\" aşamasına taşındı",
     "interviewScheduled": "\"{{jobTitle}}\" için mülakat planlandı: {{type}}, {{date}}",
     "generic": "Yeni bir bildirimin var"

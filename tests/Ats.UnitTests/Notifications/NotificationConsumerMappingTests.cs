@@ -82,6 +82,39 @@ public sealed class NotificationConsumerMappingTests
         Assert.Null(InterviewScheduledNotificationConsumer.TryBuildNotification(message));
     }
 
+    [Fact]
+    public void should_build_viewed_notification_with_structured_payload()
+    {
+        // Arrange
+        var candidateAccountId = Guid.NewGuid();
+        var applicationId = Guid.NewGuid();
+        var message = ViewedMessage(candidateAccountId, applicationId);
+
+        // Act
+        var notification = ApplicationViewedNotificationConsumer.TryBuildNotification(message);
+
+        // Assert
+        Assert.NotNull(notification);
+        Assert.Equal(NotificationRecipientType.Candidate, notification.RecipientType);
+        Assert.Equal(candidateAccountId, notification.RecipientId);
+        Assert.Equal(NotificationType.ApplicationViewed, notification.Type);
+        Assert.Null(notification.ReadAtUtc);
+
+        using var payload = JsonDocument.Parse(notification.Payload);
+        Assert.Equal(applicationId, payload.RootElement.GetProperty("applicationId").GetGuid());
+        Assert.Equal("Staff Engineer", payload.RootElement.GetProperty("jobTitle").GetString());
+    }
+
+    [Fact]
+    public void should_skip_viewed_notification_without_candidate_account()
+    {
+        // Arrange
+        var message = ViewedMessage(candidateAccountId: null, Guid.NewGuid());
+
+        // Act & Assert
+        Assert.Null(ApplicationViewedNotificationConsumer.TryBuildNotification(message));
+    }
+
     private static ApplicationStageChangedIntegrationEvent StageChangedMessage(
         Guid? candidateAccountId, Guid applicationId) =>
         new(
@@ -95,4 +128,10 @@ public sealed class NotificationConsumerMappingTests
             Guid.NewGuid(), applicationId, Guid.NewGuid(), "Staff Engineer",
             Guid.NewGuid(), candidateAccountId, "jane@acme.test", "Jane",
             "Technical", scheduledAtUtc, 60, "Google Meet", Guid.NewGuid());
+
+    private static ApplicationViewedIntegrationEvent ViewedMessage(
+        Guid? candidateAccountId, Guid applicationId) =>
+        new(
+            applicationId, Guid.NewGuid(), "Staff Engineer",
+            Guid.NewGuid(), candidateAccountId, Guid.NewGuid());
 }

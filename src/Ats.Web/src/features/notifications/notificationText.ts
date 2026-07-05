@@ -17,6 +17,13 @@ export function renderNotification(
   locale: string,
 ): RenderedNotification {
   switch (item.type) {
+    case 'ApplicationViewed':
+      return {
+        text: t('notifications.applicationViewed', {
+          jobTitle: readString(item.payload, 'jobTitle'),
+        }),
+        applicationId: readString(item.payload, 'applicationId') || null,
+      };
     case 'ApplicationStageChanged':
       return {
         text: t('notifications.stageChanged', {

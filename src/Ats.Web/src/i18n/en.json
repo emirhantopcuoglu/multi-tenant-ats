@@ -505,6 +505,7 @@
     "retry": "Try again",
     "markAllRead": "Mark all as read",
     "viewAll": "View all notifications",
+    "applicationViewed": "Your application for \"{{jobTitle}}\" was viewed by the company",
     "stageChanged": "Your application for \"{{jobTitle}}\" moved to the \"{{stage}}\" stage",
     "interviewScheduled": "An interview for \"{{jobTitle}}\" was scheduled: {{type}}, {{date}}",
     "generic": "You have a new notification"

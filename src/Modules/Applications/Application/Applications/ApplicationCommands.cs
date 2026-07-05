@@ -121,17 +121,23 @@ public sealed record MarkApplicationViewedCommand(Guid ApplicationId) : ICommand
 public sealed class MarkApplicationViewedHandler : ICommandHandler<MarkApplicationViewedCommand, bool>
 {
     private readonly IApplicationsDbContext _db;
+    private readonly IPublisher _publisher;
+    private readonly IJobDirectory _jobs;
     private readonly ICurrentUser _currentUser;
     private readonly IActivityLogRepository _activityLog;
     private readonly ILogger<MarkApplicationViewedHandler> _logger;
 
     public MarkApplicationViewedHandler(
         IApplicationsDbContext db,
+        IPublisher publisher,
+        IJobDirectory jobs,
         ICurrentUser currentUser,
         IActivityLogRepository activityLog,
         ILogger<MarkApplicationViewedHandler> logger)
     {
         _db = db;
+        _publisher = publisher;
+        _jobs = jobs;
         _currentUser = currentUser;
         _activityLog = activityLog;
         _logger = logger;
@@ -146,6 +152,16 @@ public sealed class MarkApplicationViewedHandler : ICommandHandler<MarkApplicati
 
         if (!application.MarkViewed())
             return Result.Success(false);
+
+        // Publish before SaveChanges, matching MoveApplicationStageHandler: the transactional
+        // outbox writes the message in the same transaction as the view stamp, so both commit or
+        // neither does.
+        var jobTitle = await _jobs.GetJobTitleByIdAsync(application.JobId, ct);
+        await _publisher.Publish(
+            new ApplicationViewedEvent(
+                application.Id, application.JobId, jobTitle ?? string.Empty,
+                application.CandidateId, application.CandidateAccountId, application.TenantId),
+            ct);
 
         await _db.SaveChangesAsync(ct);
 

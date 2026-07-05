@@ -29,5 +29,7 @@ public static class NotificationPayloads
         int DurationMinutes,
         string? Location);
 
+    public sealed record ApplicationViewed(Guid ApplicationId, string JobTitle);
+
     public static string Serialize<T>(T payload) => JsonSerializer.Serialize(payload, SerializerOptions);
 }
