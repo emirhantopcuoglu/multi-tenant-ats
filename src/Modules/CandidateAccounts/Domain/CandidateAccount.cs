@@ -54,4 +54,18 @@ public sealed class CandidateAccount
     // Stored normalised so the global unique-email constraint is case-insensitive without relying on
     // database collation: "Jane@x.com" and "jane@x.com" are the same account.
     public static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
+
+    // Email is deliberately not editable here: it is the login identity and the deduplication key for
+    // Applications.Candidate records across tenants, so changing it is a bigger operation (verification,
+    // re-linking) than a profile edit — out of scope until a real need for it shows up.
+    public void UpdateProfile(string firstName, string lastName)
+    {
+        if (string.IsNullOrWhiteSpace(firstName))
+            throw new ArgumentException("First name is required.", nameof(firstName));
+        if (string.IsNullOrWhiteSpace(lastName))
+            throw new ArgumentException("Last name is required.", nameof(lastName));
+
+        FirstName = firstName.Trim();
+        LastName = lastName.Trim();
+    }
 }

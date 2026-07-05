@@ -109,6 +109,41 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
         Assert.DoesNotContain(token.Claims, c => c.Type == ClaimTypes.Role || c.Type == "role");
     }
 
+    [Fact]
+    public async Task UpdateProfile_should_persist_the_new_names_and_return_them()
+    {
+        // Arrange
+        var service = CreateService();
+        var register = await service.RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe");
+        var candidateId = SubjectOf(register.Value.AccessToken);
+
+        // Act
+        var updated = await service.UpdateProfileAsync(candidateId, "Janet", "Roe");
+
+        // Assert — the write is visible both in the immediate result and on a fresh read
+        Assert.True(updated.IsSuccess);
+        Assert.Equal("Janet", updated.Value.FirstName);
+        Assert.Equal("Roe", updated.Value.LastName);
+
+        var me = await service.GetCurrentCandidateAsync(candidateId);
+        Assert.Equal("Janet", me.Value.FirstName);
+        Assert.Equal("Roe", me.Value.LastName);
+    }
+
+    [Fact]
+    public async Task UpdateProfile_should_fail_for_an_unknown_candidate()
+    {
+        // Arrange
+        var service = CreateService();
+
+        // Act
+        var result = await service.UpdateProfileAsync(Guid.NewGuid(), "Janet", "Roe");
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal(CandidateAuthErrors.NotFound.Code, result.Error.Code);
+    }
+
     private ICandidateAuthService CreateService()
     {
         var db = new CandidateAccountsDbContext(

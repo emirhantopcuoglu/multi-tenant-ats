@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAuth } from '@/app/auth/RequireAuth';
+import { RequireCandidateAuth } from '@/app/auth/RequireCandidateAuth';
 import { RequireRole } from '@/app/auth/RequireRole';
 import { AppShell } from '@/components/layout/AppShell';
 import { PagePlaceholder } from '@/components/layout/PagePlaceholder';
@@ -24,6 +25,7 @@ import { CandidateRegisterPage } from '@/features/candidates/pages/CandidateRegi
 import { CandidateApplicationsPage } from '@/features/candidates/pages/CandidateApplicationsPage';
 import { CandidateApplicationDetailPage } from '@/features/candidates/pages/CandidateApplicationDetailPage';
 import { CandidateNotificationsPage } from '@/features/notifications/pages/CandidateNotificationsPage';
+import { CandidateProfilePage } from '@/features/candidates/pages/CandidateProfilePage';
 import { CompanyNotificationsPage } from '@/features/notifications/pages/CompanyNotificationsPage';
 
 /* Public auth routes sit at the top. Everything else is nested under RequireAuth → AppShell, so the
@@ -41,10 +43,14 @@ export default function App() {
       <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
       <Route path="/candidate/login" element={<CandidateLoginPage />} />
       <Route path="/candidate/register" element={<CandidateRegisterPage />} />
-      <Route path="/candidate/applications" element={<CandidateApplicationsPage />} />
-      <Route path="/candidate/applications/:id" element={<CandidateApplicationDetailPage />} />
-      <Route path="/candidate/notifications" element={<CandidateNotificationsPage />} />
       <Route path="/playground" element={<PlaygroundPage />} />
+
+      <Route element={<RequireCandidateAuth />}>
+        <Route path="/candidate/applications" element={<CandidateApplicationsPage />} />
+        <Route path="/candidate/applications/:id" element={<CandidateApplicationDetailPage />} />
+        <Route path="/candidate/notifications" element={<CandidateNotificationsPage />} />
+        <Route path="/candidate/profile" element={<CandidateProfilePage />} />
+      </Route>
 
       {/* Anonymous careers pages. Static routes above (e.g. /login, /jobs) outrank these dynamic
           single-segment patterns, so they only match a tenant slug, never an app path. */}

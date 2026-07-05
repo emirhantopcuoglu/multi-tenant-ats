@@ -496,6 +496,17 @@
       "inReview": "Değerlendirme sürüyor"
     }
   },
+  "candidateProfile": {
+    "title": "Profilim",
+    "subtitle": "Hesap bilgilerin.",
+    "loadError": "Profilin yüklenemedi.",
+    "email": "E-posta",
+    "emailReadonlyHint": "E-posta adresin giriş kimliğindir, buradan değiştirilemez.",
+    "firstName": "Ad",
+    "lastName": "Soyad",
+    "saved": "Profil güncellendi.",
+    "saveError": "Profil kaydedilemedi. Tekrar dene."
+  },
   "notifications": {
     "title": "Bildirimler",
     "subtitle": "Başvurularınla ilgili gelişmeler.",
