@@ -391,10 +391,13 @@ builder.Services.AddMassTransit(bus =>
         outbox.UseBusOutbox();
     });
 
-    // Notifications consumers: email the candidate when an application is submitted, and again when
-    // it is rejected. ConfigureEndpoints below creates and binds each consumer's queue automatically.
+    // Notifications consumers: email the candidate when an application is submitted, rejected,
+    // moved to a new stage, or gets an interview scheduled (roadmap 3.4). ConfigureEndpoints below
+    // creates and binds each consumer's queue automatically.
     bus.AddConsumer<ApplicationSubmittedConsumer>();
     bus.AddConsumer<ApplicationRejectedConsumer>();
+    bus.AddConsumer<ApplicationStageChangedEmailConsumer>();
+    bus.AddConsumer<InterviewScheduledEmailConsumer>();
 
     // In-app notification writers (FAZ 3): each event lands in its own queue, independent of the
     // email consumers above, and becomes a row behind the candidate's bell icon.
