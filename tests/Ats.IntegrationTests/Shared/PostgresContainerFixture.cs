@@ -2,6 +2,7 @@ using Ats.Modules.Applications.Infrastructure;
 using Ats.Modules.CandidateAccounts.Infrastructure;
 using Ats.Modules.Interviews.Infrastructure;
 using Ats.Modules.Jobs.Infrastructure;
+using Ats.Modules.Notifications.Infrastructure;
 using Ats.Modules.Tenants.Infrastructure;
 using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
@@ -25,6 +26,7 @@ public sealed class PostgresContainerFixture : IAsyncLifetime
         await ApplyApplicationsMigrationsAsync();
         await ApplyInterviewsMigrationsAsync();
         await ApplyCandidateAccountsMigrationsAsync();
+        await ApplyNotificationsMigrationsAsync();
     }
 
     public async Task DisposeAsync()
@@ -64,6 +66,13 @@ public sealed class PostgresContainerFixture : IAsyncLifetime
     private async Task ApplyCandidateAccountsMigrationsAsync()
     {
         await using var db = new CandidateAccountsDbContext(BuildCandidateAccountsOptions(ConnectionString));
+        await db.Database.MigrateAsync();
+    }
+
+    // Notifications is recipient-scoped, not tenant-scoped, so it is tenant-less like candidate accounts.
+    private async Task ApplyNotificationsMigrationsAsync()
+    {
+        await using var db = new NotificationsDbContext(BuildNotificationsOptions(ConnectionString));
         await db.Database.MigrateAsync();
     }
 
@@ -109,5 +118,12 @@ public sealed class PostgresContainerFixture : IAsyncLifetime
         => new DbContextOptionsBuilder<CandidateAccountsDbContext>()
             .UseNpgsql(connectionString,
                 npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "candidate_accounts"))
+            .Options;
+
+    // Same deal as candidate accounts: no interceptors, matching Program.cs.
+    internal static DbContextOptions<NotificationsDbContext> BuildNotificationsOptions(string connectionString)
+        => new DbContextOptionsBuilder<NotificationsDbContext>()
+            .UseNpgsql(connectionString,
+                npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "notifications"))
             .Options;
 }

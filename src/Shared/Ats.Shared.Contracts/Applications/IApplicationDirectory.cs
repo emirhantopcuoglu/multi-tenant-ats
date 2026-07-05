@@ -34,13 +34,16 @@ public interface IApplicationDirectory
 // enum never leaks across the module boundary. The candidate contact and job title are here so the
 // Interviews module can publish a self-contained InterviewScheduledIntegrationEvent without ever
 // touching the Applications or Jobs schemas. JobTitle falls back to an empty string when the job
-// is gone; consumers already treat that as "the role you applied for". Returns null when no such
-// application exists in the current tenant.
+// is gone; consumers already treat that as "the role you applied for". CandidateAccountId is the
+// global marketplace account behind the application — where an in-app notification is routed —
+// and is null for applications submitted before candidate accounts existed. Returns null when no
+// such application exists in the current tenant.
 public sealed record ApplicationForScheduling(
     Guid Id,
     bool IsActive,
     Guid JobId,
     string JobTitle,
     Guid CandidateId,
+    Guid? CandidateAccountId,
     string CandidateEmail,
     string CandidateFirstName);

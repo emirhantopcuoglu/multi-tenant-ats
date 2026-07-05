@@ -8,12 +8,17 @@ namespace Ats.Shared.Contracts.Notifications;
 // the message. The interview type is a string, not the Interviews module's enum — a contract must
 // not drag a module's domain types across the boundary. The recruiter's scheduling notes are
 // deliberately absent: they are internal remarks, not something the candidate may ever see.
+//
+// CandidateAccountId is the global marketplace account the in-app notification is addressed to;
+// nullable because applications submitted before candidate accounts existed have none — those
+// messages produce no in-app notification, while email consumers keep working.
 public sealed record InterviewScheduledIntegrationEvent(
     Guid InterviewId,
     Guid ApplicationId,
     Guid JobId,
     string JobTitle,
     Guid CandidateId,
+    Guid? CandidateAccountId,
     string CandidateEmail,
     string CandidateFirstName,
     string InterviewType,

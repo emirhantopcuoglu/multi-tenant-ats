@@ -94,7 +94,8 @@ public sealed class ScheduleInterviewHandler : ICommandHandler<ScheduleInterview
         await _publisher.Publish(
             new InterviewScheduledEvent(
                 interview.Id, application.Id, application.JobId, application.JobTitle,
-                application.CandidateId, application.CandidateEmail, application.CandidateFirstName,
+                application.CandidateId, application.CandidateAccountId,
+                application.CandidateEmail, application.CandidateFirstName,
                 interview.Type, interview.ScheduledAtUtc, interview.DurationMinutes,
                 interview.Location, _currentTenant.TenantId ?? Guid.Empty),
             ct);

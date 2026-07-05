@@ -42,6 +42,7 @@ public sealed class PublishInterviewScheduledIntegrationEvent
                     notification.JobId,
                     notification.JobTitle,
                     notification.CandidateId,
+                    notification.CandidateAccountId,
                     notification.CandidateEmail,
                     notification.CandidateFirstName,
                     notification.Type.ToString(),

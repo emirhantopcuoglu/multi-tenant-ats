@@ -25,6 +25,7 @@ public sealed class MoveApplicationStageTests
         // Arrange — a default pipeline with an application sitting at its initial stage
         var tenant = new FixedTenant(Guid.NewGuid());
         var jobId = Guid.NewGuid();
+        var candidateAccountId = Guid.NewGuid();
 
         Pipeline pipeline;
         Application application;
@@ -36,7 +37,7 @@ public sealed class MoveApplicationStageTests
             candidate = Candidate.Create("move@acme.test", "Mova", "Stage");
             db.Candidates.Add(candidate);
             application = Application.Create(
-                jobId, candidate.Id, Guid.NewGuid(), pipeline.InitialStage.Id, "cv/move.pdf");
+                jobId, candidate.Id, candidateAccountId, pipeline.InitialStage.Id, "cv/move.pdf");
             db.Applications.Add(application);
             await db.SaveChangesAsync();
         }
@@ -63,6 +64,7 @@ public sealed class MoveApplicationStageTests
         Assert.Equal(jobId, stageChanged.JobId);
         Assert.Equal("Staff Engineer", stageChanged.JobTitle);
         Assert.Equal(candidate.Id, stageChanged.CandidateId);
+        Assert.Equal(candidateAccountId, stageChanged.CandidateAccountId);
         Assert.Equal("move@acme.test", stageChanged.CandidateEmail);
         Assert.Equal("Mova", stageChanged.CandidateFirstName);
         Assert.Equal(pipeline.InitialStage.Id, stageChanged.FromStageId);

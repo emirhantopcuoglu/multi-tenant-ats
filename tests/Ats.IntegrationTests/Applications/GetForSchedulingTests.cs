@@ -22,6 +22,7 @@ public sealed class GetForSchedulingTests
         // Arrange — one application with a real candidate behind it
         var tenant = new FixedTenant(Guid.NewGuid());
         var jobId = Guid.NewGuid();
+        var candidateAccountId = Guid.NewGuid();
 
         Candidate candidate;
         Application application;
@@ -30,7 +31,7 @@ public sealed class GetForSchedulingTests
             candidate = Candidate.Create("sched@acme.test", "Sked", "Uler");
             db.Candidates.Add(candidate);
             application = Application.Create(
-                jobId, candidate.Id, Guid.NewGuid(), Guid.NewGuid(), "cv/sched.pdf");
+                jobId, candidate.Id, candidateAccountId, Guid.NewGuid(), "cv/sched.pdf");
             db.Applications.Add(application);
             await db.SaveChangesAsync();
         }
@@ -48,6 +49,7 @@ public sealed class GetForSchedulingTests
         Assert.Equal(jobId, result.JobId);
         Assert.Equal("Platform Engineer", result.JobTitle);
         Assert.Equal(candidate.Id, result.CandidateId);
+        Assert.Equal(candidateAccountId, result.CandidateAccountId);
         Assert.Equal("sched@acme.test", result.CandidateEmail);
         Assert.Equal("Sked", result.CandidateFirstName);
     }

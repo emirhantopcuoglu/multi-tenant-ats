@@ -9,12 +9,15 @@ namespace Ats.Modules.Applications.Application.Events;
 //
 // It carries plain data — candidate contact, job title and the resolved stage names — because the
 // command handler is the only place that has the pipeline loaded; a consumer must be able to
-// describe the transition without reloading any aggregate.
+// describe the transition without reloading any aggregate. CandidateAccountId is the global
+// marketplace account (nullable: pre-account applications have none) — the address an in-app
+// notification is routed to, as opposed to the per-tenant CandidateId.
 public sealed record ApplicationStageChangedEvent(
     Guid ApplicationId,
     Guid JobId,
     string JobTitle,
     Guid CandidateId,
+    Guid? CandidateAccountId,
     string CandidateEmail,
     string CandidateFirstName,
     Guid FromStageId,
