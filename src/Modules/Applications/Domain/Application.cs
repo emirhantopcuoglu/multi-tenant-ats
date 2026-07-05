@@ -22,6 +22,10 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
     // application. Later views never move it — "first viewed" is the honest signal.
     public DateTime? FirstViewedAtUtc { get; private set; }
 
+    // Same idea as FirstViewedAtUtc, for the CV specifically: when someone at the company first
+    // downloaded it. A recruiter can re-download the same CV many times; only the first counts.
+    public DateTime? FirstCvDownloadedAtUtc { get; private set; }
+
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }
@@ -108,6 +112,16 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
             return false;
 
         FirstViewedAtUtc = DateTime.UtcNow;
+        return true;
+    }
+
+    // Same "first time only" contract as MarkViewed, for the CV download signal.
+    public bool MarkCvDownloaded()
+    {
+        if (FirstCvDownloadedAtUtc is not null)
+            return false;
+
+        FirstCvDownloadedAtUtc = DateTime.UtcNow;
         return true;
     }
 

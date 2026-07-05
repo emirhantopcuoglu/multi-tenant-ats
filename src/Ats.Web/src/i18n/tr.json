@@ -506,6 +506,7 @@
     "markAllRead": "Tümünü okundu işaretle",
     "viewAll": "Tüm bildirimleri gör",
     "applicationViewed": "\"{{jobTitle}}\" başvurun şirket tarafından görüntülendi",
+    "cvDownloaded": "\"{{jobTitle}}\" için CV'n şirket tarafından indirildi",
     "stageChanged": "\"{{jobTitle}}\" başvurun \"{{stage}}\" aşamasına taşındı",
     "interviewScheduled": "\"{{jobTitle}}\" için mülakat planlandı: {{type}}, {{date}}",
     "generic": "Yeni bir bildirimin var"

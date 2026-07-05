@@ -55,9 +55,15 @@ public sealed class ApplicationsController : ControllerBase
     public async Task<IActionResult> GetCvDownloadUrl(Guid id)
     {
         var result = await _sender.Send(new GetCvDownloadUrlQuery(id));
-        return result.IsSuccess
-            ? Ok(result.Value)
-            : NotFound(new { result.Error.Code, result.Error.Message });
+        if (!result.IsSuccess)
+            return NotFound(new { result.Error.Code, result.Error.Message });
+
+        // Read receipt for candidate transparency: requesting the URL stamps the first download.
+        // Best-effort by design, same as MarkApplicationViewedCommand above — the link the
+        // recruiter asked for never fails on it.
+        await _sender.Send(new MarkCvDownloadedCommand(id));
+
+        return Ok(result.Value);
     }
 
     [HttpGet("{id:guid}/activities")]

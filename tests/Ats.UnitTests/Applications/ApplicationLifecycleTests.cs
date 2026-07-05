@@ -79,6 +79,21 @@ public class ApplicationLifecycleTests
     }
 
     [Fact]
+    public void MarkCvDownloaded_should_stamp_only_the_first_download()
+    {
+        var application = CreateActive();
+
+        var firstCall = application.MarkCvDownloaded();
+        var stampedAt = application.FirstCvDownloadedAtUtc;
+        var secondCall = application.MarkCvDownloaded();
+
+        Assert.True(firstCall);
+        Assert.False(secondCall);
+        Assert.NotNull(stampedAt);
+        Assert.Equal(stampedAt, application.FirstCvDownloadedAtUtc);
+    }
+
+    [Fact]
     public void Reject_should_throw_when_reason_is_blank()
     {
         var application = CreateActive();

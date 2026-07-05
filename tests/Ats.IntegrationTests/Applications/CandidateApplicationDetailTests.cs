@@ -219,6 +219,90 @@ public sealed class MarkApplicationViewedHandlerTests
         new(PostgresContainerFixture.BuildApplicationsOptions(_fixture.ConnectionString, tenant), tenant);
 }
 
+[Collection("Integration")]
+public sealed class MarkCvDownloadedHandlerTests
+{
+    private readonly PostgresContainerFixture _fixture;
+
+    public MarkCvDownloadedHandlerTests(PostgresContainerFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
+    [Fact]
+    public async Task should_stamp_the_first_download_once_and_publish_once()
+    {
+        // Arrange
+        var tenant = new FixedTenant(Guid.NewGuid());
+        var jobId = Guid.NewGuid();
+        var candidateAccountId = Guid.NewGuid();
+        Application application;
+        Candidate candidate;
+        await using (var db = NewDb(tenant))
+        {
+            candidate = Candidate.Create("downloaded@acme.test", "Down", "Loaded");
+            db.Candidates.Add(candidate);
+            application = Application.Create(
+                jobId, candidate.Id, candidateAccountId, Guid.NewGuid(), "cv/d.pdf");
+            db.Applications.Add(application);
+            await db.SaveChangesAsync();
+        }
+
+        var publisher = new CapturingPublisher();
+
+        // Act — two consecutive downloads; only the first may stamp and publish.
+        await using (var db = NewDb(tenant))
+        {
+            var handler = new MarkCvDownloadedHandler(
+                db, publisher,
+                new FakeJobDirectory(new JobSummary(jobId, "Staff Engineer", "staff-engineer", tenant.TenantId!.Value)));
+            var first = await handler.Handle(
+                new MarkCvDownloadedCommand(application.Id), CancellationToken.None);
+            var second = await handler.Handle(
+                new MarkCvDownloadedCommand(application.Id), CancellationToken.None);
+
+            Assert.True(first.IsSuccess);
+            Assert.True(first.Value);
+            Assert.True(second.IsSuccess);
+            Assert.False(second.Value);
+        }
+
+        // Assert — the stamp persisted and exactly one event carries the routing fields.
+        await using (var db = NewDb(tenant))
+        {
+            var stored = db.Applications.Single(a => a.Id == application.Id);
+            Assert.NotNull(stored.FirstCvDownloadedAtUtc);
+        }
+        var published = Assert.Single(publisher.Published);
+        var downloaded = Assert.IsType<ApplicationCvDownloadedEvent>(published);
+        Assert.Equal(application.Id, downloaded.ApplicationId);
+        Assert.Equal(jobId, downloaded.JobId);
+        Assert.Equal("Staff Engineer", downloaded.JobTitle);
+        Assert.Equal(candidate.Id, downloaded.CandidateId);
+        Assert.Equal(candidateAccountId, downloaded.CandidateAccountId);
+        Assert.Equal(tenant.TenantId!.Value, downloaded.TenantId);
+    }
+
+    [Fact]
+    public async Task should_return_not_found_for_an_unknown_application()
+    {
+        // Arrange
+        await using var db = NewDb(new FixedTenant(Guid.NewGuid()));
+        var handler = new MarkCvDownloadedHandler(db, new CapturingPublisher(), new FakeJobDirectory(null));
+
+        // Act
+        var result = await handler.Handle(
+            new MarkCvDownloadedCommand(Guid.NewGuid()), CancellationToken.None);
+
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ApplicationErrors.NotFound.Code, result.Error.Code);
+    }
+
+    private ApplicationsDbContext NewDb(FixedTenant tenant) =>
+        new(PostgresContainerFixture.BuildApplicationsOptions(_fixture.ConnectionString, tenant), tenant);
+}
+
 // In-memory stand-in for the MongoDB activity log: reads serve the entries the test seeded,
 // writes are captured for assertion. Tenant scoping is not simulated — these tests exercise the
 // handlers' mapping and ownership logic, not the store's isolation (that lives in the Mongo
