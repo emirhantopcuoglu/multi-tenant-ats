@@ -173,6 +173,51 @@ public sealed class MarkApplicationViewedHandler : ICommandHandler<MarkApplicati
     }
 }
 
+// ---- MarkCvDownloaded (read receipt for the CV specifically) ----
+// Fired by the API layer when a company user requests a CV download URL. Same trust model as
+// MarkViewed: no client-callable "mark downloaded" endpoint, so a forged receipt cannot be
+// produced. Deliberately no activity-log entry — unlike Viewed/StageChanged/Rejected this signal
+// has no recruiter-facing audit surface today, only the candidate notification.
+public sealed record MarkCvDownloadedCommand(Guid ApplicationId) : ICommand<bool>;
+
+public sealed class MarkCvDownloadedHandler : ICommandHandler<MarkCvDownloadedCommand, bool>
+{
+    private readonly IApplicationsDbContext _db;
+    private readonly IPublisher _publisher;
+    private readonly IJobDirectory _jobs;
+
+    public MarkCvDownloadedHandler(IApplicationsDbContext db, IPublisher publisher, IJobDirectory jobs)
+    {
+        _db = db;
+        _publisher = publisher;
+        _jobs = jobs;
+    }
+
+    public async Task<Result<bool>> Handle(MarkCvDownloadedCommand command, CancellationToken ct)
+    {
+        var application = await _db.Applications
+            .FirstOrDefaultAsync(a => a.Id == command.ApplicationId, ct);
+        if (application is null)
+            return Result.Failure<bool>(ApplicationErrors.NotFound);
+
+        if (!application.MarkCvDownloaded())
+            return Result.Success(false);
+
+        // Publish before SaveChanges, matching MarkApplicationViewedHandler: the transactional
+        // outbox writes the message in the same transaction as the download stamp.
+        var jobTitle = await _jobs.GetJobTitleByIdAsync(application.JobId, ct);
+        await _publisher.Publish(
+            new ApplicationCvDownloadedEvent(
+                application.Id, application.JobId, jobTitle ?? string.Empty,
+                application.CandidateId, application.CandidateAccountId, application.TenantId),
+            ct);
+
+        await _db.SaveChangesAsync(ct);
+
+        return Result.Success(true);
+    }
+}
+
 // ---- Reject ----
 public sealed record RejectApplicationCommand(Guid ApplicationId, string Reason) : ICommand<bool>;
 

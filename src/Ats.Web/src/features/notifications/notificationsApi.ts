@@ -8,6 +8,7 @@ export const KNOWN_NOTIFICATION_TYPES = [
   'ApplicationStageChanged',
   'InterviewScheduled',
   'ApplicationViewed',
+  'ApplicationCvDownloaded',
 ] as const;
 
 export interface NotificationItem {

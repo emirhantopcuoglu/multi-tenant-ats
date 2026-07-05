@@ -31,5 +31,7 @@ public static class NotificationPayloads
 
     public sealed record ApplicationViewed(Guid ApplicationId, string JobTitle);
 
+    public sealed record ApplicationCvDownloaded(Guid ApplicationId, string JobTitle);
+
     public static string Serialize<T>(T payload) => JsonSerializer.Serialize(payload, SerializerOptions);
 }

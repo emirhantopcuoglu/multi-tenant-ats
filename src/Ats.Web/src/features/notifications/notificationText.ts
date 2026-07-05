@@ -24,6 +24,13 @@ export function renderNotification(
         }),
         applicationId: readString(item.payload, 'applicationId') || null,
       };
+    case 'ApplicationCvDownloaded':
+      return {
+        text: t('notifications.cvDownloaded', {
+          jobTitle: readString(item.payload, 'jobTitle'),
+        }),
+        applicationId: readString(item.payload, 'applicationId') || null,
+      };
     case 'ApplicationStageChanged':
       return {
         text: t('notifications.stageChanged', {

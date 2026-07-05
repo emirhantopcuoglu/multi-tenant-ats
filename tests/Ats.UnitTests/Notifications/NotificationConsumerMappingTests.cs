@@ -115,6 +115,39 @@ public sealed class NotificationConsumerMappingTests
         Assert.Null(ApplicationViewedNotificationConsumer.TryBuildNotification(message));
     }
 
+    [Fact]
+    public void should_build_cv_downloaded_notification_with_structured_payload()
+    {
+        // Arrange
+        var candidateAccountId = Guid.NewGuid();
+        var applicationId = Guid.NewGuid();
+        var message = CvDownloadedMessage(candidateAccountId, applicationId);
+
+        // Act
+        var notification = ApplicationCvDownloadedNotificationConsumer.TryBuildNotification(message);
+
+        // Assert
+        Assert.NotNull(notification);
+        Assert.Equal(NotificationRecipientType.Candidate, notification.RecipientType);
+        Assert.Equal(candidateAccountId, notification.RecipientId);
+        Assert.Equal(NotificationType.ApplicationCvDownloaded, notification.Type);
+        Assert.Null(notification.ReadAtUtc);
+
+        using var payload = JsonDocument.Parse(notification.Payload);
+        Assert.Equal(applicationId, payload.RootElement.GetProperty("applicationId").GetGuid());
+        Assert.Equal("Staff Engineer", payload.RootElement.GetProperty("jobTitle").GetString());
+    }
+
+    [Fact]
+    public void should_skip_cv_downloaded_notification_without_candidate_account()
+    {
+        // Arrange
+        var message = CvDownloadedMessage(candidateAccountId: null, Guid.NewGuid());
+
+        // Act & Assert
+        Assert.Null(ApplicationCvDownloadedNotificationConsumer.TryBuildNotification(message));
+    }
+
     private static ApplicationStageChangedIntegrationEvent StageChangedMessage(
         Guid? candidateAccountId, Guid applicationId) =>
         new(
@@ -130,6 +163,12 @@ public sealed class NotificationConsumerMappingTests
             "Technical", scheduledAtUtc, 60, "Google Meet", Guid.NewGuid());
 
     private static ApplicationViewedIntegrationEvent ViewedMessage(
+        Guid? candidateAccountId, Guid applicationId) =>
+        new(
+            applicationId, Guid.NewGuid(), "Staff Engineer",
+            Guid.NewGuid(), candidateAccountId, Guid.NewGuid());
+
+    private static ApplicationCvDownloadedIntegrationEvent CvDownloadedMessage(
         Guid? candidateAccountId, Guid applicationId) =>
         new(
             applicationId, Guid.NewGuid(), "Staff Engineer",

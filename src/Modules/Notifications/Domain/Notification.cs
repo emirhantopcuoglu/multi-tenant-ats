@@ -22,6 +22,7 @@ public enum NotificationType
     ApplicationStageChanged = 1,
     InterviewScheduled = 2,
     ApplicationViewed = 3,
+    ApplicationCvDownloaded = 4,
 }
 
 // A single in-app notification: an addressed, timestamped fact with a read marker. The payload is
