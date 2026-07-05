@@ -21,6 +21,7 @@ using Ats.Modules.Applications.Application.Applications;
 using Ats.Modules.CandidateAccounts.Application;
 using Ats.Modules.CandidateAccounts.Domain;
 using Ats.Modules.CandidateAccounts.Infrastructure;
+using Ats.Modules.Notifications.Application;
 using Ats.Modules.Notifications.Infrastructure;
 using Ats.Modules.Applications.Infrastructure;
 using Ats.Modules.Interviews.Api.Authorization;
@@ -179,6 +180,17 @@ builder.Services.AddDbContext<CandidateAccountsDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("Postgres"),
         npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "candidate_accounts")));
+
+// In-app notifications (FAZ 3). Like candidate accounts, no tenant/audit interceptors: a
+// Notification row is addressed to a recipient — a global candidate account today, a company user
+// later — and the recipient, not a tenant, is the ownership boundary its queries filter on.
+builder.Services.AddDbContext<NotificationsDbContext>(options =>
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("Postgres"),
+        npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "notifications")));
+
+builder.Services.AddScoped<INotificationsDbContext>(sp => sp.GetRequiredService<NotificationsDbContext>());
+builder.Services.AddNotificationsApplication();
 
 // MongoDB holds the append-only activity log (Sprint 4). The driver's MongoClient is thread-safe
 // and pools connections internally, so it is a singleton; the database handle is derived from it.
@@ -383,6 +395,11 @@ builder.Services.AddMassTransit(bus =>
     // it is rejected. ConfigureEndpoints below creates and binds each consumer's queue automatically.
     bus.AddConsumer<ApplicationSubmittedConsumer>();
     bus.AddConsumer<ApplicationRejectedConsumer>();
+
+    // In-app notification writers (FAZ 3): each event lands in its own queue, independent of the
+    // email consumers above, and becomes a row behind the candidate's bell icon.
+    bus.AddConsumer<ApplicationStageChangedNotificationConsumer>();
+    bus.AddConsumer<InterviewScheduledNotificationConsumer>();
 
     // CV-parsing consumer (Sprint 6.3): downloads the CV, extracts text, asks Claude for structured
     // data, and stores it in MongoDB. Inherits the retry/dead-letter policy configured below.

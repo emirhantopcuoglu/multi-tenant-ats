@@ -10,6 +10,16 @@
   <ItemGroup>
     <PackageReference Include="MassTransit.Abstractions" Version="8.5.10" />
     <PackageReference Include="prometheus-net" Version="8.2.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.9" />
+    <!-- Explicit so consumers resolve Relational at 9.0.9: Npgsql 9.0.4 only asks for 9.0.1, and a
+         test project referencing this module alone would otherwise hit an MSB3277 version conflict
+         (the sibling modules dodge it by accident via other packages in their consumers' graphs). -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.9">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
   </ItemGroup>
 
   <PropertyGroup>
