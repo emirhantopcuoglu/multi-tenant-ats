@@ -33,3 +33,7 @@ export type FeedbackRecommendation = (typeof FEEDBACK_RECOMMENDATIONS)[number];
 
 export const ROLES = ['Admin', 'Recruiter', 'HiringManager', 'ReadOnly'] as const;
 export type Role = (typeof ROLES)[number];
+
+/* Qualitative on purpose (mirrors CvJobFitRating on the backend) -- never a numeric score. */
+export const CV_JOB_FIT_RATINGS = ['Weak', 'Moderate', 'Strong'] as const;
+export type CvJobFitRating = (typeof CV_JOB_FIT_RATINGS)[number];

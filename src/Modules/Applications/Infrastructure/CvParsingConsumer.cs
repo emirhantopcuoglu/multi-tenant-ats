@@ -1,5 +1,6 @@
 using Ats.Modules.Applications.Application;
 using Ats.Shared.Contracts.Applications;
+using Ats.Shared.Contracts.Jobs;
 using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
 using MassTransit;
@@ -34,6 +35,7 @@ public sealed class CvParsingConsumer : IConsumer<CvParseRequestedIntegrationEve
     private readonly IDocxTextExtractor _docxTextExtractor;
     private readonly ICvParser _cvParser;
     private readonly ICvParseResultRepository _repository;
+    private readonly IJobDirectory _jobDirectory;
     private readonly ILogger<CvParsingConsumer> _logger;
 
     public CvParsingConsumer(
@@ -42,6 +44,7 @@ public sealed class CvParsingConsumer : IConsumer<CvParseRequestedIntegrationEve
         IDocxTextExtractor docxTextExtractor,
         ICvParser cvParser,
         ICvParseResultRepository repository,
+        IJobDirectory jobDirectory,
         ILogger<CvParsingConsumer> logger)
     {
         _fileStorage = fileStorage;
@@ -49,6 +52,7 @@ public sealed class CvParsingConsumer : IConsumer<CvParseRequestedIntegrationEve
         _docxTextExtractor = docxTextExtractor;
         _cvParser = cvParser;
         _repository = repository;
+        _jobDirectory = jobDirectory;
         _logger = logger;
     }
 
@@ -77,10 +81,17 @@ public sealed class CvParsingConsumer : IConsumer<CvParseRequestedIntegrationEve
             return;
         }
 
+        // A job that was deleted between application and parsing is an edge case with no requirements
+        // left to judge against; the parser still runs, just without job-specific fit (empty
+        // description reads as "no requirements stated" to the prompt, same as a job with no
+        // description written at all).
+        var job = await _jobDirectory.GetJobRequirementsAsync(
+            message.TenantId, message.JobId, context.CancellationToken);
+
         CvParseResult result;
         using (AppMetrics.CvParsingDurationSeconds.NewTimer())
         {
-            result = await _cvParser.ParseAsync(text, context.CancellationToken);
+            result = await _cvParser.ParseAsync(text, job?.Description ?? "", context.CancellationToken);
         }
 
         await _repository.SaveAsync(

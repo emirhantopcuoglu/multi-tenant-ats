@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Badge, Skeleton } from '@/components/ui';
 import { toApiError } from '@/lib/problemDetails';
+import { cvJobFitRatingTone } from '@/lib/statusColors';
 import { useCvParseResult } from '../useApplicationDetail';
 
 /* The async CV-parse result. A 404 with code "application.cv_not_parsed" is the expected "still
@@ -24,6 +25,46 @@ export function CvAnalysisTab({ applicationId }: { applicationId: string }) {
 
   return (
     <div className="space-y-5 text-sm">
+      <section className="space-y-2 rounded-lg border border-border p-4">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="font-semibold text-text">{t('applicationDetail.analysis.fitTitle')}</h3>
+          <Badge tone={cvJobFitRatingTone[data.jobFitRating]}>
+            {t(`applicationDetail.analysis.fitRating.${data.jobFitRating}`)}
+          </Badge>
+        </div>
+        {data.fitSummary && <p className="text-text-muted">{data.fitSummary}</p>}
+
+        {data.matchedRequirements.length > 0 && (
+          <div className="space-y-1.5 pt-1">
+            <h4 className="text-xs font-medium text-text-muted">
+              {t('applicationDetail.analysis.matchedRequirements')}
+            </h4>
+            <div className="flex flex-wrap gap-1.5">
+              {data.matchedRequirements.map((item) => (
+                <Badge key={item} tone="success">
+                  {item}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {data.missingRequirements.length > 0 && (
+          <div className="space-y-1.5 pt-1">
+            <h4 className="text-xs font-medium text-text-muted">
+              {t('applicationDetail.analysis.missingRequirements')}
+            </h4>
+            <div className="flex flex-wrap gap-1.5">
+              {data.missingRequirements.map((item) => (
+                <Badge key={item} tone="gray">
+                  {item}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
       <section className="space-y-2">
         <h3 className="font-semibold text-text">{t('applicationDetail.analysis.experience')}</h3>
         <p className="text-text-muted">

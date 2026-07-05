@@ -118,6 +118,14 @@
       "processing": "CV hâlâ analiz ediliyor. Birazdan tekrar bak.",
       "error": "CV analizi yüklenemedi.",
       "empty": "Analiz detayı çıkarılamadı.",
+      "fitTitle": "Bu ilana uygunluk",
+      "fitRating": {
+        "Strong": "Güçlü uyum",
+        "Moderate": "Orta uyum",
+        "Weak": "Zayıf uyum"
+      },
+      "matchedRequirements": "İlanın gereksinimleriyle eşleşen",
+      "missingRequirements": "CV'de görülmeyen",
       "experience": "Toplam deneyim",
       "years_one": "{{count}} yıl",
       "years_other": "{{count}} yıl",

@@ -118,6 +118,14 @@
       "processing": "The CV is still being analyzed. Check back shortly.",
       "error": "Couldn't load the CV analysis.",
       "empty": "No analysis details were extracted.",
+      "fitTitle": "Fit for this job",
+      "fitRating": {
+        "Strong": "Strong fit",
+        "Moderate": "Moderate fit",
+        "Weak": "Weak fit"
+      },
+      "matchedRequirements": "Matches the job's requirements",
+      "missingRequirements": "Not shown in the CV",
       "experience": "Total experience",
       "years_one": "{{count}} year",
       "years_other": "{{count}} years",

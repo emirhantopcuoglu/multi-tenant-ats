@@ -59,4 +59,17 @@ public sealed class JobDirectory : IJobDirectory
             .Select(j => new JobSummary(j.Id, j.Title, j.Slug, j.TenantId))
             .ToDictionaryAsync(j => j.Id, cancellationToken);
     }
+
+    public async Task<JobRequirements?> GetJobRequirementsAsync(
+        Guid tenantId, Guid jobId, CancellationToken cancellationToken = default)
+    {
+        // IgnoreQueryFilters + an explicit tenantId match, same reasoning as GetSummariesAsync: the
+        // caller here is a message consumer with no resolved ICurrentTenant to drive the global filter.
+        return await _db.Jobs
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(j => j.TenantId == tenantId && j.Id == jobId && !j.IsDeleted)
+            .Select(j => new JobRequirements(j.Title, j.Description))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 }

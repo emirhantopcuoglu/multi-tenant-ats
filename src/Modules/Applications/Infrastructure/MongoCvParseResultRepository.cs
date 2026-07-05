@@ -47,6 +47,10 @@ public sealed class MongoCvParseResultRepository : ICvParseResultRepository
                     EndDate = p.EndDate
                 })
                 .ToList(),
+            JobFitRating = result.JobFitRating,
+            FitSummary = result.FitSummary,
+            MatchedRequirements = result.MatchedRequirements.ToList(),
+            MissingRequirements = result.MissingRequirements.ToList(),
             ParsedAtUtc = parsedAtUtc
         };
 
@@ -79,7 +83,11 @@ public sealed class MongoCvParseResultRepository : ICvParseResultRepository
                 document.Education.Select(e => new CvEducation(e.Degree, e.Institution, e.Year)).ToList(),
                 document.RecentPositions
                     .Select(p => new CvPosition(p.Title, p.Company, p.StartDate, p.EndDate))
-                    .ToList()),
+                    .ToList(),
+                document.JobFitRating,
+                document.FitSummary,
+                document.MatchedRequirements,
+                document.MissingRequirements),
             document.ParsedAtUtc);
     }
 }

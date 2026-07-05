@@ -1,4 +1,4 @@
-import type { ApplicationActivityType, ApplicationStatus } from './enums';
+import type { ApplicationActivityType, ApplicationStatus, CvJobFitRating } from './enums';
 
 /* Recruiter list row (Applications.Application.ApplicationListItemDto). The candidate name/email and
    the current stage name are joined server-side; the job is referenced by id only (the screen
@@ -61,13 +61,20 @@ export interface CvPosition {
 }
 
 /* GET /api/v1/applications/{id}/cv-parse-result — produced asynchronously, so a fresh application may
-   404 (code "application.cv_not_parsed") until parsing finishes. */
+   404 (code "application.cv_not_parsed") until parsing finishes. jobFitRating/fitSummary/
+   matchedRequirements/missingRequirements are the CV judged against the specific job it was
+   submitted for; matchedRequirements/missingRequirements are limited to concrete technical
+   skills the job description names -- never career-gap or tenure-pattern inferences. */
 export interface CvParseResult {
   applicationId: string;
   skills: string[];
   totalExperienceYears: number;
   education: CvEducation[];
   recentPositions: CvPosition[];
+  jobFitRating: CvJobFitRating;
+  fitSummary: string;
+  matchedRequirements: string[];
+  missingRequirements: string[];
   parsedAtUtc: string;
 }
 
