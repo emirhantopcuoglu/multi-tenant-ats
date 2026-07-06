@@ -76,7 +76,7 @@ export function PublicJobDetailPage() {
           <div className="flex flex-wrap items-center gap-2 text-sm text-text-muted">
             <span>{job.department}</span>
             <span aria-hidden="true">·</span>
-            <span>{job.location}</span>
+            <span>{job.country ? `${job.city}, ${job.country}` : job.city}</span>
             {postedOn && (
               <>
                 <span aria-hidden="true">·</span>
@@ -202,7 +202,7 @@ function OtherJobRow({ slug, job }: { slug: string; job: Job }) {
           <div className="flex flex-wrap items-center gap-2 text-sm text-text-muted">
             <span>{job.department}</span>
             <span aria-hidden="true">·</span>
-            <span>{job.location}</span>
+            <span>{job.country ? `${job.city}, ${job.country}` : job.city}</span>
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge tone="neutral">{t(`employmentType.${job.employmentType}`)}</Badge>

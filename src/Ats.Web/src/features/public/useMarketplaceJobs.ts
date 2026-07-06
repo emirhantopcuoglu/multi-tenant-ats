@@ -14,6 +14,7 @@ export const marketplaceJobsKey = (page: number, filters: MarketplaceJobFilters)
     filters.search ?? '',
     filters.employmentType ?? '',
     filters.experienceLevel ?? '',
+    filters.workArrangement ?? '',
     filters.location ?? '',
   ] as const;
 

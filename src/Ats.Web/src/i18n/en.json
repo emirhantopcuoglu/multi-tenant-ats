@@ -39,6 +39,7 @@
       "location": "Location",
       "type": "Type",
       "level": "Level",
+      "workArrangement": "Work arrangement",
       "status": "Status",
       "created": "Created"
     },
@@ -295,6 +296,7 @@
       "resultCount_other": "{{count}} results",
       "filterType": "Employment type",
       "filterLevel": "Experience level",
+      "filterWorkArrangement": "Work arrangement",
       "filterLocation": "Location",
       "clearFilters": "Clear filters",
       "hirePitchTitle": "Run your hiring in one place",
@@ -424,6 +426,11 @@
     "Senior": "Senior",
     "Lead": "Lead"
   },
+  "workArrangement": {
+    "Remote": "Remote",
+    "Hybrid": "Hybrid",
+    "OnSite": "On-site"
+  },
   "jobForm": {
     "createTitle": "New job",
     "editTitle": "Edit job",
@@ -434,9 +441,11 @@
     "preview": "Preview",
     "previewEmpty": "Nothing to preview yet.",
     "department": "Department",
-    "location": "Location",
+    "city": "City",
+    "country": "Country",
     "employmentType": "Employment type",
     "experienceLevel": "Experience level",
+    "workArrangement": "Work arrangement",
     "salary": "Salary range (optional)",
     "salaryMin": "Min",
     "salaryMax": "Max",

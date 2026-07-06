@@ -29,7 +29,8 @@ public sealed class JobDirectoryRequirementsTests
         {
             var job = Job.Create(
                 "Senior Backend Engineer", "Needs 5+ years of C# and PostgreSQL.", "Engineering",
-                "Remote", EmploymentType.FullTime, ExperienceLevel.Senior, null, Guid.NewGuid());
+                "Remote", null, EmploymentType.FullTime, ExperienceLevel.Senior, WorkArrangement.Remote,
+                null, Guid.NewGuid());
             db.Jobs.Add(job);
             await db.SaveChangesAsync();
             jobId = job.Id;
@@ -54,8 +55,8 @@ public sealed class JobDirectoryRequirementsTests
         await using (var db = NewDb(tenant))
         {
             var job = Job.Create(
-                "Product Designer", "A description long enough to publish.", "Design", "Remote",
-                EmploymentType.FullTime, ExperienceLevel.Mid, null, Guid.NewGuid());
+                "Product Designer", "A description long enough to publish.", "Design", "Remote", null,
+                EmploymentType.FullTime, ExperienceLevel.Mid, WorkArrangement.Remote, null, Guid.NewGuid());
             db.Jobs.Add(job);
             await db.SaveChangesAsync();
             jobId = job.Id;

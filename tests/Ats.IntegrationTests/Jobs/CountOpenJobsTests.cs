@@ -26,8 +26,8 @@ public sealed class CountOpenJobsTests
             db.Jobs.Add(PublishedJob("Senior Backend Engineer"));
             db.Jobs.Add(PublishedJob("Product Designer"));
             db.Jobs.Add(Job.Create(
-                "Draft Role", "desc", "Eng", "Remote",
-                EmploymentType.FullTime, ExperienceLevel.Senior, null, Guid.NewGuid()));
+                "Draft Role", "desc", "Eng", "Remote", null,
+                EmploymentType.FullTime, ExperienceLevel.Senior, WorkArrangement.Remote, null, Guid.NewGuid()));
             await db.SaveChangesAsync();
         }
 
@@ -49,8 +49,8 @@ public sealed class CountOpenJobsTests
     private static Job PublishedJob(string title)
     {
         var job = Job.Create(
-            title, "A description long enough to publish.", "Engineering", "Remote",
-            EmploymentType.FullTime, ExperienceLevel.Senior, null, Guid.NewGuid());
+            title, "A description long enough to publish.", "Engineering", "Remote", null,
+            EmploymentType.FullTime, ExperienceLevel.Senior, WorkArrangement.Remote, null, Guid.NewGuid());
         job.Publish();
         return job;
     }

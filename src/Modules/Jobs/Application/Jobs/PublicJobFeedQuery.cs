@@ -10,7 +10,7 @@ namespace Ats.Modules.Jobs.Application.Jobs;
 // pair lets the frontend link to the existing careers detail page at /{companySlug}/jobs/{slug}.
 public sealed record PublicJobFeedItemDto(
     Guid Id, string Title, string CompanyName, string CompanySlug,
-    string Location, string EmploymentType, string ExperienceLevel,
+    string City, string? Country, string EmploymentType, string ExperienceLevel, string WorkArrangement,
     string Slug, DateTime? PublishedAtUtc);
 
 // The public marketplace feed: every tenant's Published jobs in one list, newest first, with an
@@ -20,7 +20,8 @@ public sealed record PublicJobFeedItemDto(
 // broken filter should never break the page.
 public sealed record ListPublicJobFeedQuery(
     int Page = 1, int PageSize = 20, string? Search = null,
-    string? EmploymentType = null, string? ExperienceLevel = null, string? Location = null)
+    string? EmploymentType = null, string? ExperienceLevel = null, string? WorkArrangement = null,
+    string? Location = null)
     : IQuery<PagedResult<PublicJobFeedItemDto>>;
 
 // Unlike every other query in this module, this one deliberately spans all tenants. The tenant
@@ -79,12 +80,20 @@ public sealed class ListPublicJobFeedHandler
             jobs = jobs.Where(j => j.ExperienceLevel == experienceLevel);
         }
 
+        if (Enum.TryParse<WorkArrangement>(query.WorkArrangement, ignoreCase: true, out var workArrangement)
+            && Enum.IsDefined(workArrangement))
+        {
+            jobs = jobs.Where(j => j.WorkArrangement == workArrangement);
+        }
+
         if (!string.IsNullOrWhiteSpace(query.Location))
         {
-            // Location is free text on the job, so a substring match ("istanbul" → "Istanbul, TR",
-            // "remote" → "Remote (EU)") is the honest granularity — no city taxonomy exists yet.
+            // City/Country are free text, so a substring match ("istanbul" → city "Istanbul",
+            // "turkey" → country "Turkey") is the honest granularity — no location taxonomy exists yet.
             var location = query.Location.Trim().ToLower();
-            jobs = jobs.Where(j => j.Location.ToLower().Contains(location));
+            jobs = jobs.Where(j =>
+                j.City.ToLower().Contains(location) ||
+                (j.Country != null && j.Country.ToLower().Contains(location)));
         }
 
         var totalCount = await jobs.CountAsync(ct);
@@ -94,8 +103,8 @@ public sealed class ListPublicJobFeedHandler
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(j => new PublicJobRow(
-                j.Id, j.Title, j.TenantId, j.Location,
-                j.EmploymentType.ToString(), j.ExperienceLevel.ToString(),
+                j.Id, j.Title, j.TenantId, j.City, j.Country,
+                j.EmploymentType.ToString(), j.ExperienceLevel.ToString(), j.WorkArrangement.ToString(),
                 j.Slug, j.PublishedAtUtc))
             .ToListAsync(ct);
 
@@ -112,7 +121,8 @@ public sealed class ListPublicJobFeedHandler
                 var company = companies[r.TenantId];
                 return new PublicJobFeedItemDto(
                     r.Id, r.Title, company.CompanyName, company.Slug,
-                    r.Location, r.EmploymentType, r.ExperienceLevel, r.Slug, r.PublishedAtUtc);
+                    r.City, r.Country, r.EmploymentType, r.ExperienceLevel, r.WorkArrangement,
+                    r.Slug, r.PublishedAtUtc);
             })
             .ToList();
 
@@ -123,6 +133,7 @@ public sealed class ListPublicJobFeedHandler
     // Intermediate projection: the job columns pulled from the database before the company name is
     // stitched in from the Tenants module. Kept private — it is a step, not part of the contract.
     private sealed record PublicJobRow(
-        Guid Id, string Title, Guid TenantId, string Location,
-        string EmploymentType, string ExperienceLevel, string Slug, DateTime? PublishedAtUtc);
+        Guid Id, string Title, Guid TenantId, string City, string? Country,
+        string EmploymentType, string ExperienceLevel, string WorkArrangement,
+        string Slug, DateTime? PublishedAtUtc);
 }

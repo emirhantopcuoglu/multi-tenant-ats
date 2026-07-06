@@ -5,8 +5,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Ats.Modules.Jobs.Application.Jobs;
 
 public sealed record JobDto(
-    Guid Id, string Title, string Department, string Location,
-    string EmploymentType, string ExperienceLevel, string Status,
+    Guid Id, string Title, string Department, string City, string? Country,
+    string EmploymentType, string ExperienceLevel, string WorkArrangement, string Status,
     string Slug, DateTime CreatedAtUtc);
 
 // Detail shape for GetById: adds the fields the edit form must prefill (Description + salary), which
@@ -15,8 +15,8 @@ public sealed record JobDto(
 // PublishedAtUtc is nullable because drafts have never been published; the public page shows it
 // as the posting date (CreatedAtUtc is the draft's birth date and would mislead the public).
 public sealed record JobDetailDto(
-    Guid Id, string Title, string Description, string Department, string Location,
-    string EmploymentType, string ExperienceLevel, string Status, string Slug,
+    Guid Id, string Title, string Description, string Department, string City, string? Country,
+    string EmploymentType, string ExperienceLevel, string WorkArrangement, string Status, string Slug,
     decimal? SalaryMin, decimal? SalaryMax, string? SalaryCurrency, DateTime CreatedAtUtc,
     DateTime? PublishedAtUtc);
 
@@ -36,8 +36,9 @@ public sealed class GetJobByIdHandler : IQueryHandler<GetJobByIdQuery, JobDetail
             .AsNoTracking()
             .Where(j => j.Id == query.JobId)
             .Select(j => new JobDetailDto(
-                j.Id, j.Title, j.Description, j.Department, j.Location,
-                j.EmploymentType.ToString(), j.ExperienceLevel.ToString(), j.Status.ToString(), j.Slug,
+                j.Id, j.Title, j.Description, j.Department, j.City, j.Country,
+                j.EmploymentType.ToString(), j.ExperienceLevel.ToString(), j.WorkArrangement.ToString(),
+                j.Status.ToString(), j.Slug,
                 j.SalaryRange == null ? null : (decimal?)j.SalaryRange.Min,
                 j.SalaryRange == null ? null : (decimal?)j.SalaryRange.Max,
                 j.SalaryRange == null ? null : j.SalaryRange.Currency,
@@ -86,9 +87,9 @@ public sealed class ListJobsHandler : IQueryHandler<ListJobsQuery, PagedResult<J
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(j => new JobDto(
-                j.Id, j.Title, j.Department, j.Location,
-                j.EmploymentType.ToString(), j.ExperienceLevel.ToString(), j.Status.ToString(),
-                j.Slug, j.CreatedAtUtc))
+                j.Id, j.Title, j.Department, j.City, j.Country,
+                j.EmploymentType.ToString(), j.ExperienceLevel.ToString(), j.WorkArrangement.ToString(),
+                j.Status.ToString(), j.Slug, j.CreatedAtUtc))
             .ToListAsync(ct);
 
         return Result.Success(new PagedResult<JobDto>(items, page, pageSize, totalCount));
@@ -123,9 +124,9 @@ public sealed class ListPublicJobsHandler : IQueryHandler<ListPublicJobsQuery, P
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(j => new JobDto(
-                j.Id, j.Title, j.Department, j.Location,
-                j.EmploymentType.ToString(), j.ExperienceLevel.ToString(), j.Status.ToString(),
-                j.Slug, j.CreatedAtUtc))
+                j.Id, j.Title, j.Department, j.City, j.Country,
+                j.EmploymentType.ToString(), j.ExperienceLevel.ToString(), j.WorkArrangement.ToString(),
+                j.Status.ToString(), j.Slug, j.CreatedAtUtc))
             .ToListAsync(ct);
 
         return Result.Success(new PagedResult<JobDto>(items, page, pageSize, totalCount));
@@ -150,8 +151,9 @@ public sealed class GetPublicJobBySlugHandler : IQueryHandler<GetPublicJobBySlug
             .AsNoTracking()
             .Where(j => j.Slug == query.Slug && j.Status == JobStatus.Published)
             .Select(j => new JobDetailDto(
-                j.Id, j.Title, j.Description, j.Department, j.Location,
-                j.EmploymentType.ToString(), j.ExperienceLevel.ToString(), j.Status.ToString(), j.Slug,
+                j.Id, j.Title, j.Description, j.Department, j.City, j.Country,
+                j.EmploymentType.ToString(), j.ExperienceLevel.ToString(), j.WorkArrangement.ToString(),
+                j.Status.ToString(), j.Slug,
                 j.SalaryRange == null ? null : (decimal?)j.SalaryRange.Min,
                 j.SalaryRange == null ? null : (decimal?)j.SalaryRange.Max,
                 j.SalaryRange == null ? null : j.SalaryRange.Currency,

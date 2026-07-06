@@ -143,8 +143,8 @@ public sealed class JobLifecycleHandlerTests
             PostgresContainerFixture.BuildJobsOptions(_fixture.ConnectionString, tenant), tenant);
 
         var job = Job.Create(
-            "Backend Developer", "Build APIs", "Engineering", "Remote",
-            EmploymentType.FullTime, ExperienceLevel.Mid, null, Guid.NewGuid());
+            "Backend Developer", "Build APIs", "Engineering", "Remote", null,
+            EmploymentType.FullTime, ExperienceLevel.Mid, WorkArrangement.Remote, null, Guid.NewGuid());
 
         db.Jobs.Add(job);
         await db.SaveChangesAsync();

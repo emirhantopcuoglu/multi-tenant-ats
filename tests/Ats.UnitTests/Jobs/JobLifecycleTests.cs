@@ -6,8 +6,9 @@ public class JobLifecycleTests
 {
     private static Job CreateDraft() =>
         Job.Create(
-            "Senior Developer", "Build things", "Engineering", "Remote",
-            EmploymentType.FullTime, ExperienceLevel.Senior, salaryRange: null, createdBy: Guid.NewGuid());
+            "Senior Developer", "Build things", "Engineering", "Remote", country: null,
+            EmploymentType.FullTime, ExperienceLevel.Senior, WorkArrangement.Remote,
+            salaryRange: null, createdBy: Guid.NewGuid());
 
     [Fact]
     public void Create_should_start_in_draft_status()
@@ -21,8 +22,8 @@ public class JobLifecycleTests
     public void Create_should_throw_when_title_is_blank()
     {
         var act = () => Job.Create(
-            "   ", "desc", "Eng", "Remote",
-            EmploymentType.FullTime, ExperienceLevel.Senior, null, Guid.NewGuid());
+            "   ", "desc", "Eng", "Remote", null,
+            EmploymentType.FullTime, ExperienceLevel.Senior, WorkArrangement.Remote, null, Guid.NewGuid());
 
         Assert.Throws<ArgumentException>(act);
     }
@@ -93,8 +94,8 @@ public class JobLifecycleTests
         job.Archive();
 
         var act = () => job.UpdateDetails(
-            "New title", "desc", "Eng", "Remote",
-            EmploymentType.FullTime, ExperienceLevel.Senior, null);
+            "New title", "desc", "Eng", "Remote", null,
+            EmploymentType.FullTime, ExperienceLevel.Senior, WorkArrangement.Remote, null);
 
         Assert.Throws<InvalidOperationException>(act);
     }

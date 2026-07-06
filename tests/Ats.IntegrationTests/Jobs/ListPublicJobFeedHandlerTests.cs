@@ -140,6 +140,23 @@ public sealed class ListPublicJobFeedHandlerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task should_filter_by_work_arrangement()
+    {
+        // Arrange — same company, different work arrangements
+        var acmeId = await SeedTenantAsync("Acme Inc", "acme");
+        await SeedPublishedJobAsync(acmeId, "Remote Engineer", workArrangement: WorkArrangement.Remote);
+        await SeedPublishedJobAsync(acmeId, "Office Manager", workArrangement: WorkArrangement.OnSite);
+
+        // Act — filter value arrives lowercase, as a query string would send it
+        var result = await HandleAsync(new ListPublicJobFeedQuery(WorkArrangement: "onsite"));
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value.Items);
+        Assert.Equal("Office Manager", result.Value.Items[0].Title);
+    }
+
+    [Fact]
     public async Task should_filter_by_location_fragment()
     {
         // Arrange — locations are free text, so the filter must match substrings case-insensitively
@@ -204,15 +221,19 @@ public sealed class ListPublicJobFeedHandlerTests : IAsyncLifetime
         Guid tenantId, string title,
         EmploymentType employmentType = EmploymentType.FullTime,
         ExperienceLevel experienceLevel = ExperienceLevel.Mid,
+        WorkArrangement workArrangement = WorkArrangement.Remote,
         string location = "Remote")
-        => SeedJobAsync(tenantId, title, publish: true, employmentType, experienceLevel, location);
+        => SeedJobAsync(tenantId, title, publish: true, employmentType, experienceLevel, workArrangement, location);
 
     private Task SeedDraftJobAsync(Guid tenantId, string title)
-        => SeedJobAsync(tenantId, title, publish: false, EmploymentType.FullTime, ExperienceLevel.Mid, "Remote");
+        => SeedJobAsync(
+            tenantId, title, publish: false,
+            EmploymentType.FullTime, ExperienceLevel.Mid, WorkArrangement.Remote, "Remote");
 
     private async Task SeedJobAsync(
         Guid tenantId, string title, bool publish,
-        EmploymentType employmentType, ExperienceLevel experienceLevel, string location)
+        EmploymentType employmentType, ExperienceLevel experienceLevel,
+        WorkArrangement workArrangement, string location)
     {
         // The save-changes interceptor stamps TenantId from the ambient tenant, so seeding under
         // FixedTenant(tenantId) ties the job to that company.
@@ -221,8 +242,8 @@ public sealed class ListPublicJobFeedHandlerTests : IAsyncLifetime
             PostgresContainerFixture.BuildJobsOptions(_fixture.ConnectionString, tenant), tenant);
 
         var job = Job.Create(
-            title, "A role", "Engineering", location,
-            employmentType, experienceLevel, salaryRange: null, Guid.NewGuid());
+            title, "A role", "Engineering", location, null,
+            employmentType, experienceLevel, workArrangement, salaryRange: null, createdBy: Guid.NewGuid());
         if (publish)
             job.Publish();
 
