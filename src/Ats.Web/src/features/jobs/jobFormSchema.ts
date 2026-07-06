@@ -4,13 +4,16 @@ import {
   CURRENCIES,
   EMPLOYMENT_TYPES,
   EXPERIENCE_LEVELS,
+  type Currency,
   type EmploymentType,
   type ExperienceLevel,
 } from '@/types/enums';
 import type { JobDetail, JobWriteRequest } from '@/types/job';
 
 /* Salary inputs stay as strings in the form (native number inputs surface empty as '' rather than a
-   number), and are parsed/validated together: a salary is either fully blank or fully provided. */
+   number), and are parsed/validated together: a salary is either fully blank or fully provided.
+   salaryCurrency narrows to the dropdown's own literal union (matching the zod schema below) rather
+   than a plain string, or zodResolver's inferred resolver type stops matching JobFormValues. */
 export interface JobFormValues {
   title: string;
   description: string;
@@ -20,7 +23,7 @@ export interface JobFormValues {
   experienceLevel: ExperienceLevel;
   salaryMin: string;
   salaryMax: string;
-  salaryCurrency: string;
+  salaryCurrency: Currency | '';
 }
 
 const TITLE_MAX = 200;
@@ -92,7 +95,9 @@ export function jobToValues(job: JobDetail): JobFormValues {
     experienceLevel: job.experienceLevel,
     salaryMin: job.salaryMin?.toString() ?? '',
     salaryMax: job.salaryMax?.toString() ?? '',
-    salaryCurrency: job.salaryCurrency ?? '',
+    // Cast is safe for display only: a legacy row outside the fixed list just won't match any
+    // <option> and the select shows blank -- it never throws.
+    salaryCurrency: (job.salaryCurrency as Currency | null) ?? '',
   };
 }
 
