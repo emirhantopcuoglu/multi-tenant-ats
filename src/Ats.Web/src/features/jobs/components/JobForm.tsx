@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Field, Input, Select } from '@/components/ui';
 import { CURRENCIES, EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, WORK_ARRANGEMENTS } from '@/types/enums';
+import { CITIES_BY_COUNTRY, COUNTRIES } from '@/types/location';
 import { buildJobSchema, type JobFormValues } from '../jobFormSchema';
 import { MarkdownField } from './MarkdownField';
 
@@ -22,11 +23,17 @@ interface JobFormProps {
 export function JobForm({ defaultValues, mode, showPublish, submitting, onSubmit, onCancel }: JobFormProps) {
   const { t } = useTranslation();
   const schema = useMemo(() => buildJobSchema(t), [t]);
-  const { register, handleSubmit, control, formState, setError } = useForm<JobFormValues>({
+  const { register, handleSubmit, control, formState, setError, watch, setValue } = useForm<JobFormValues>({
     resolver: zodResolver(schema),
     defaultValues,
   });
   const { errors } = formState;
+  // Which cities are offered depends on the selected country, so we read it live with watch().
+  // The country <Select>'s onChange also clears the city field -- otherwise switching country
+  // could leave a city selected that doesn't belong to it (e.g. "Istanbul" surviving a switch to
+  // "Germany").
+  const selectedCountry = watch('country');
+  const availableCities = selectedCountry ? CITIES_BY_COUNTRY[selectedCountry] : [];
 
   const submit = (publish: boolean) =>
     handleSubmit((values) => {
@@ -72,17 +79,44 @@ export function JobForm({ defaultValues, mode, showPublish, submitting, onSubmit
             <Input id={id} aria-describedby={describedById} invalid={invalid} {...register('department')} />
           )}
         </Field>
-        <Field label={t('jobForm.city')} error={errors.city?.message}>
+        <Field label={t('jobForm.country')} error={errors.country?.message}>
           {({ id, describedById, invalid }) => (
-            <Input id={id} aria-describedby={describedById} invalid={invalid} {...register('city')} />
+            <Select
+              id={id}
+              aria-describedby={describedById}
+              invalid={invalid}
+              {...register('country', { onChange: () => setValue('city', '') })}
+            >
+              <option value="">{t('jobForm.countryPlaceholder')}</option>
+              {COUNTRIES.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </Select>
           )}
         </Field>
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label={t('jobForm.country')} error={errors.country?.message}>
+        <Field label={t('jobForm.city')} error={errors.city?.message}>
           {({ id, describedById, invalid }) => (
-            <Input id={id} aria-describedby={describedById} invalid={invalid} {...register('country')} />
+            <Select
+              id={id}
+              aria-describedby={describedById}
+              invalid={invalid}
+              disabled={!selectedCountry}
+              {...register('city')}
+            >
+              <option value="">
+                {selectedCountry ? t('jobForm.cityPlaceholder') : t('jobForm.selectCountryFirst')}
+              </option>
+              {availableCities.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </Select>
           )}
         </Field>
         <Field label={t('jobForm.workArrangement')} error={errors.workArrangement?.message}>
