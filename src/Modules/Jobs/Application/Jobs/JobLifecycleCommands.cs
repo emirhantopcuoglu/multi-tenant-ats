@@ -124,7 +124,9 @@ public sealed class UpdateJobValidator : AbstractValidator<UpdateJobCommand>
         RuleFor(x => x.Title).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Description).NotEmpty();
         RuleFor(x => x.SalaryCurrency)
-            .NotEmpty().When(x => x.SalaryMin.HasValue || x.SalaryMax.HasValue);
+            .Must(currency => currency is not null && SupportedCurrencies.All.Contains(currency.ToUpperInvariant()))
+            .When(x => x.SalaryMin.HasValue || x.SalaryMax.HasValue)
+            .WithMessage($"Currency must be one of: {string.Join(", ", SupportedCurrencies.All)}.");
     }
 }
 

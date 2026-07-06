@@ -441,6 +441,7 @@
     "salaryMin": "Min",
     "salaryMax": "Max",
     "currency": "Currency",
+    "currencyPlaceholder": "Select currency",
     "saveDraft": "Save as draft",
     "saveChanges": "Save changes",
     "publish": "Publish",
