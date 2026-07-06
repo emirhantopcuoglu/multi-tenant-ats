@@ -441,6 +441,7 @@
     "salaryMin": "Alt",
     "salaryMax": "Üst",
     "currency": "Para birimi",
+    "currencyPlaceholder": "Para birimi seçin",
     "saveDraft": "Taslak olarak kaydet",
     "saveChanges": "Değişiklikleri kaydet",
     "publish": "Yayınla",

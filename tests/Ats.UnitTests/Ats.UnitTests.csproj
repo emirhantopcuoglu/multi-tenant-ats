@@ -27,6 +27,7 @@
     <ProjectReference Include="..\..\src\Modules\Applications\Domain\Ats.Modules.Applications.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\CandidateAccounts\Domain\Ats.Modules.CandidateAccounts.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Jobs\Domain\Ats.Modules.Jobs.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Jobs\Application\Ats.Modules.Jobs.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Interviews\Api\Ats.Modules.Interviews.Api.csproj" />
     <ProjectReference Include="..\..\src\Modules\Interviews\Domain\Ats.Modules.Interviews.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Notifications\Infrastructure\Ats.Modules.Notifications.Infrastructure.csproj" />

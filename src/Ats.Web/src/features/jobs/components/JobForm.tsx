@@ -3,7 +3,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Field, Input, Select } from '@/components/ui';
-import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS } from '@/types/enums';
+import { CURRENCIES, EMPLOYMENT_TYPES, EXPERIENCE_LEVELS } from '@/types/enums';
 import { buildJobSchema, type JobFormValues } from '../jobFormSchema';
 import { MarkdownField } from './MarkdownField';
 
@@ -121,13 +121,18 @@ export function JobForm({ defaultValues, mode, showPublish, submitting, onSubmit
             invalid={Boolean(errors.salaryMax)}
             {...register('salaryMax')}
           />
-          <Input
+          <Select
             aria-label={t('jobForm.currency')}
-            placeholder={t('jobForm.currency')}
-            maxLength={3}
             invalid={Boolean(errors.salaryCurrency)}
             {...register('salaryCurrency')}
-          />
+          >
+            <option value="">{t('jobForm.currencyPlaceholder')}</option>
+            {CURRENCIES.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </Select>
         </div>
         {(errors.salaryMin || errors.salaryMax || errors.salaryCurrency) && (
           <p className="text-xs text-danger">

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { TFunction } from 'i18next';
 import {
+  CURRENCIES,
   EMPLOYMENT_TYPES,
   EXPERIENCE_LEVELS,
   type EmploymentType,
@@ -43,7 +44,8 @@ export function buildJobSchema(t: TFunction) {
       experienceLevel: z.enum(EXPERIENCE_LEVELS),
       salaryMin: z.string(),
       salaryMax: z.string(),
-      salaryCurrency: z.string(),
+      // '' represents "no currency picked yet" -- the field is optional unless a salary is set.
+      salaryCurrency: z.enum(['', ...CURRENCIES]),
     })
     .superRefine((values, ctx) => {
       const hasAnySalary = Boolean(values.salaryMin || values.salaryMax || values.salaryCurrency);
@@ -60,7 +62,7 @@ export function buildJobSchema(t: TFunction) {
       if (values.salaryMin && values.salaryMax && !Number.isNaN(min) && !Number.isNaN(max) && max < min) {
         ctx.addIssue({ code: 'custom', path: ['salaryMax'], message: t('jobForm.salaryRange') });
       }
-      if (!values.salaryCurrency.trim()) {
+      if (!values.salaryCurrency) {
         ctx.addIssue({ code: 'custom', path: ['salaryCurrency'], message: t('jobForm.currencyRequired') });
       }
     });
@@ -95,7 +97,7 @@ export function jobToValues(job: JobDetail): JobFormValues {
 }
 
 export function valuesToRequest(values: JobFormValues): JobWriteRequest {
-  const hasSalary = Boolean(values.salaryMin && values.salaryMax && values.salaryCurrency.trim());
+  const hasSalary = Boolean(values.salaryMin && values.salaryMax && values.salaryCurrency);
   return {
     title: values.title.trim(),
     description: values.description,
@@ -105,6 +107,6 @@ export function valuesToRequest(values: JobFormValues): JobWriteRequest {
     experienceLevel: values.experienceLevel,
     salaryMin: hasSalary ? Number(values.salaryMin) : null,
     salaryMax: hasSalary ? Number(values.salaryMax) : null,
-    salaryCurrency: hasSalary ? values.salaryCurrency.trim().toUpperCase() : null,
+    salaryCurrency: hasSalary ? values.salaryCurrency : null,
   };
 }
