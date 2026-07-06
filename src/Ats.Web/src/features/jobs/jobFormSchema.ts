@@ -4,23 +4,31 @@ import {
   CURRENCIES,
   EMPLOYMENT_TYPES,
   EXPERIENCE_LEVELS,
+  WORK_ARRANGEMENTS,
   type Currency,
   type EmploymentType,
   type ExperienceLevel,
+  type WorkArrangement,
 } from '@/types/enums';
 import type { JobDetail, JobWriteRequest } from '@/types/job';
 
 /* Salary inputs stay as strings in the form (native number inputs surface empty as '' rather than a
    number), and are parsed/validated together: a salary is either fully blank or fully provided.
    salaryCurrency narrows to the dropdown's own literal union (matching the zod schema below) rather
-   than a plain string, or zodResolver's inferred resolver type stops matching JobFormValues. */
+   than a plain string, or zodResolver's inferred resolver type stops matching JobFormValues. City
+   replaces the old single free-text location field (backend renamed Location -> City); Country is
+   a second, optional free-text field rather than a fixed dropdown -- unlike currency's 4 codes,
+   there is no honestly "common" bounded list of countries, so a fixed list would just be the same
+   restrictiveness problem the currency dropdown was designed to avoid. */
 export interface JobFormValues {
   title: string;
   description: string;
   department: string;
-  location: string;
+  city: string;
+  country: string;
   employmentType: EmploymentType;
   experienceLevel: ExperienceLevel;
+  workArrangement: WorkArrangement;
   salaryMin: string;
   salaryMax: string;
   salaryCurrency: Currency | '';
@@ -28,7 +36,8 @@ export interface JobFormValues {
 
 const TITLE_MAX = 200;
 const DEPARTMENT_MAX = 100;
-const LOCATION_MAX = 200;
+const CITY_MAX = 200;
+const COUNTRY_MAX = 100;
 
 /* Schema built with `t` so validation messages are localized (same pattern as the auth forms).
    Description may be empty for a draft; the publish action enforces it separately in the form. */
@@ -42,9 +51,11 @@ export function buildJobSchema(t: TFunction) {
         .max(TITLE_MAX, t('jobForm.titleMax', { count: TITLE_MAX })),
       description: z.string(),
       department: z.string().max(DEPARTMENT_MAX, t('jobForm.fieldMax')),
-      location: z.string().max(LOCATION_MAX, t('jobForm.fieldMax')),
+      city: z.string().max(CITY_MAX, t('jobForm.fieldMax')),
+      country: z.string().max(COUNTRY_MAX, t('jobForm.fieldMax')),
       employmentType: z.enum(EMPLOYMENT_TYPES),
       experienceLevel: z.enum(EXPERIENCE_LEVELS),
+      workArrangement: z.enum(WORK_ARRANGEMENTS),
       salaryMin: z.string(),
       salaryMax: z.string(),
       // '' represents "no currency picked yet" -- the field is optional unless a salary is set.
@@ -76,9 +87,11 @@ export function emptyJobValues(): JobFormValues {
     title: '',
     description: '',
     department: '',
-    location: '',
+    city: '',
+    country: '',
     employmentType: 'FullTime',
     experienceLevel: 'Mid',
+    workArrangement: 'OnSite',
     salaryMin: '',
     salaryMax: '',
     salaryCurrency: '',
@@ -90,9 +103,11 @@ export function jobToValues(job: JobDetail): JobFormValues {
     title: job.title,
     description: job.description,
     department: job.department,
-    location: job.location,
+    city: job.city,
+    country: job.country ?? '',
     employmentType: job.employmentType,
     experienceLevel: job.experienceLevel,
+    workArrangement: job.workArrangement,
     salaryMin: job.salaryMin?.toString() ?? '',
     salaryMax: job.salaryMax?.toString() ?? '',
     // Cast is safe for display only: a legacy row outside the fixed list just won't match any
@@ -107,9 +122,11 @@ export function valuesToRequest(values: JobFormValues): JobWriteRequest {
     title: values.title.trim(),
     description: values.description,
     department: values.department.trim(),
-    location: values.location.trim(),
+    city: values.city.trim(),
+    country: values.country.trim() || null,
     employmentType: values.employmentType,
     experienceLevel: values.experienceLevel,
+    workArrangement: values.workArrangement,
     salaryMin: hasSalary ? Number(values.salaryMin) : null,
     salaryMax: hasSalary ? Number(values.salaryMax) : null,
     salaryCurrency: hasSalary ? values.salaryCurrency : null,

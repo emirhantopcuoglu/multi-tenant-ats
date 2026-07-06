@@ -39,6 +39,7 @@
       "location": "Konum",
       "type": "Tür",
       "level": "Seviye",
+      "workArrangement": "Çalışma şekli",
       "status": "Durum",
       "created": "Oluşturulma"
     },
@@ -295,6 +296,7 @@
       "resultCount_other": "{{count}} sonuç",
       "filterType": "İstihdam türü",
       "filterLevel": "Deneyim seviyesi",
+      "filterWorkArrangement": "Çalışma şekli",
       "filterLocation": "Lokasyon",
       "clearFilters": "Filtreleri temizle",
       "hirePitchTitle": "İşe alımınızı tek yerden yürütün",
@@ -424,6 +426,11 @@
     "Senior": "Kıdemli",
     "Lead": "Lider"
   },
+  "workArrangement": {
+    "Remote": "Uzaktan",
+    "Hybrid": "Hibrit",
+    "OnSite": "Ofisten"
+  },
   "jobForm": {
     "createTitle": "Yeni ilan",
     "editTitle": "İlanı düzenle",
@@ -434,9 +441,11 @@
     "preview": "Önizleme",
     "previewEmpty": "Henüz önizlenecek bir şey yok.",
     "department": "Departman",
-    "location": "Konum",
+    "city": "Şehir",
+    "country": "Ülke",
     "employmentType": "Çalışma türü",
     "experienceLevel": "Deneyim seviyesi",
+    "workArrangement": "Çalışma şekli",
     "salary": "Maaş aralığı (opsiyonel)",
     "salaryMin": "Alt",
     "salaryMax": "Üst",

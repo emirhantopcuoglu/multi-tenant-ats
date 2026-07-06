@@ -3,6 +3,7 @@ using System;
 using Ats.Modules.Jobs.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Ats.Modules.Jobs.Infrastructure.Migrations
 {
     [DbContext(typeof(JobsDbContext))]
-    partial class JobsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260706191025_AddCityCountryWorkArrangement")]
+    partial class AddCityCountryWorkArrangement
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

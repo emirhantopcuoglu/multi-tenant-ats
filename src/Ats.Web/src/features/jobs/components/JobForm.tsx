@@ -3,7 +3,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Field, Input, Select } from '@/components/ui';
-import { CURRENCIES, EMPLOYMENT_TYPES, EXPERIENCE_LEVELS } from '@/types/enums';
+import { CURRENCIES, EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, WORK_ARRANGEMENTS } from '@/types/enums';
 import { buildJobSchema, type JobFormValues } from '../jobFormSchema';
 import { MarkdownField } from './MarkdownField';
 
@@ -72,9 +72,28 @@ export function JobForm({ defaultValues, mode, showPublish, submitting, onSubmit
             <Input id={id} aria-describedby={describedById} invalid={invalid} {...register('department')} />
           )}
         </Field>
-        <Field label={t('jobForm.location')} error={errors.location?.message}>
+        <Field label={t('jobForm.city')} error={errors.city?.message}>
           {({ id, describedById, invalid }) => (
-            <Input id={id} aria-describedby={describedById} invalid={invalid} {...register('location')} />
+            <Input id={id} aria-describedby={describedById} invalid={invalid} {...register('city')} />
+          )}
+        </Field>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field label={t('jobForm.country')} error={errors.country?.message}>
+          {({ id, describedById, invalid }) => (
+            <Input id={id} aria-describedby={describedById} invalid={invalid} {...register('country')} />
+          )}
+        </Field>
+        <Field label={t('jobForm.workArrangement')} error={errors.workArrangement?.message}>
+          {({ id, describedById, invalid }) => (
+            <Select id={id} aria-describedby={describedById} invalid={invalid} {...register('workArrangement')}>
+              {WORK_ARRANGEMENTS.map((value) => (
+                <option key={value} value={value}>
+                  {t(`workArrangement.${value}`)}
+                </option>
+              ))}
+            </Select>
           )}
         </Field>
       </div>

@@ -28,12 +28,13 @@ public sealed class PublicJobFeedController : ControllerBase
         [FromQuery] string? search = null,
         [FromQuery] string? employmentType = null,
         [FromQuery] string? experienceLevel = null,
+        [FromQuery] string? workArrangement = null,
         [FromQuery] string? location = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
         var result = await _sender.Send(new ListPublicJobFeedQuery(
-            page, pageSize, search, employmentType, experienceLevel, location));
+            page, pageSize, search, employmentType, experienceLevel, workArrangement, location));
         return Ok(result.Value);
     }
 }

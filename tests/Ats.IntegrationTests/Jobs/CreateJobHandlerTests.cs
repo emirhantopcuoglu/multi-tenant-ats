@@ -26,8 +26,8 @@ public sealed class CreateJobHandlerTests
 
         var handler = new CreateJobHandler(db);
         var command = new CreateJobCommand(
-            "Senior Engineer", "Design and build systems", "Engineering", "Remote",
-            EmploymentType.FullTime, ExperienceLevel.Senior, null, null, null, Guid.NewGuid());
+            "Senior Engineer", "Design and build systems", "Engineering", "Remote", null,
+            EmploymentType.FullTime, ExperienceLevel.Senior, WorkArrangement.Remote, null, null, null, Guid.NewGuid());
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -55,8 +55,8 @@ public sealed class CreateJobHandlerTests
 
         var handler = new CreateJobHandler(db);
         var command = new CreateJobCommand(
-            "Product Manager", "Own the product roadmap", "Product", "New York",
-            EmploymentType.FullTime, ExperienceLevel.Mid, null, null, null, Guid.NewGuid());
+            "Product Manager", "Own the product roadmap", "Product", "New York", null,
+            EmploymentType.FullTime, ExperienceLevel.Mid, WorkArrangement.OnSite, null, null, null, Guid.NewGuid());
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);

@@ -198,8 +198,8 @@ public sealed class PublicCompaniesHandlerTests : IAsyncLifetime
             PostgresContainerFixture.BuildJobsOptions(_fixture.ConnectionString, tenant), tenant);
 
         var job = Job.Create(
-            title, "A role", "Engineering", "Remote",
-            EmploymentType.FullTime, ExperienceLevel.Mid, salaryRange: null, Guid.NewGuid());
+            title, "A role", "Engineering", "Remote", null,
+            EmploymentType.FullTime, ExperienceLevel.Mid, WorkArrangement.Remote, salaryRange: null, createdBy: Guid.NewGuid());
         if (publish)
             job.Publish();
 

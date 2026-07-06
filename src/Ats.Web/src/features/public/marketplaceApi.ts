@@ -9,6 +9,7 @@ export interface MarketplaceJobFilters {
   search?: string;
   employmentType?: string;
   experienceLevel?: string;
+  workArrangement?: string;
   location?: string;
 }
 
@@ -24,6 +25,7 @@ export async function listMarketplaceJobs(
       search: filters.search || undefined,
       employmentType: filters.employmentType || undefined,
       experienceLevel: filters.experienceLevel || undefined,
+      workArrangement: filters.workArrangement || undefined,
       location: filters.location || undefined,
     },
   });

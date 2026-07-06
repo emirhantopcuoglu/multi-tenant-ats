@@ -24,8 +24,8 @@ public sealed class GetJobByIdHandlerTests
             PostgresContainerFixture.BuildJobsOptions(_fixture.ConnectionString, tenant), tenant);
 
         var job = Job.Create(
-            "Staff Engineer", "Lead the platform team", "Engineering", "Remote",
-            EmploymentType.FullTime, ExperienceLevel.Lead,
+            "Staff Engineer", "Lead the platform team", "Engineering", "Remote", null,
+            EmploymentType.FullTime, ExperienceLevel.Lead, WorkArrangement.Remote,
             new SalaryRange(120000m, 160000m, "usd"), Guid.NewGuid());
         writeDb.Jobs.Add(job);
         await writeDb.SaveChangesAsync();
@@ -52,8 +52,8 @@ public sealed class GetJobByIdHandlerTests
             PostgresContainerFixture.BuildJobsOptions(_fixture.ConnectionString, tenant), tenant);
 
         var job = Job.Create(
-            "Recruiter", "Run hiring pipelines", "People", "Istanbul",
-            EmploymentType.FullTime, ExperienceLevel.Mid, salaryRange: null, Guid.NewGuid());
+            "Recruiter", "Run hiring pipelines", "People", "Istanbul", "Turkey",
+            EmploymentType.FullTime, ExperienceLevel.Mid, WorkArrangement.OnSite, salaryRange: null, createdBy: Guid.NewGuid());
         writeDb.Jobs.Add(job);
         await writeDb.SaveChangesAsync();
 

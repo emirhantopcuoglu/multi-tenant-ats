@@ -1,15 +1,18 @@
-import type { EmploymentType, ExperienceLevel, JobStatus } from './enums';
+import type { EmploymentType, ExperienceLevel, JobStatus, WorkArrangement } from './enums';
 
 /* The recruiter list/detail row (Jobs.Application.JobDto). Enums serialize as their string name and
    timestamps as ISO strings. The list DTO intentionally omits description/salary — those load with
-   the detail/edit screen, not the table. */
+   the detail/edit screen, not the table. City/Country replace the old single free-text Location
+   field (backend renamed Location -> City and added the optional Country column). */
 export interface Job {
   id: string;
   title: string;
   department: string;
-  location: string;
+  city: string;
+  country: string | null;
   employmentType: EmploymentType;
   experienceLevel: ExperienceLevel;
+  workArrangement: WorkArrangement;
   status: JobStatus;
   slug: string;
   createdAtUtc: string;
@@ -32,9 +35,11 @@ export interface JobWriteRequest {
   title: string;
   description: string;
   department: string;
-  location: string;
+  city: string;
+  country: string | null;
   employmentType: EmploymentType;
   experienceLevel: ExperienceLevel;
+  workArrangement: WorkArrangement;
   salaryMin: number | null;
   salaryMax: number | null;
   salaryCurrency: string | null;

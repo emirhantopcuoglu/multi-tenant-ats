@@ -28,10 +28,12 @@ public sealed class JobsDbContext : DbContext, IJobsDbContext
             entity.Property(j => j.Title).IsRequired().HasMaxLength(200);
             entity.Property(j => j.Description).IsRequired();
             entity.Property(j => j.Department).HasMaxLength(100);
-            entity.Property(j => j.Location).HasMaxLength(200);
+            entity.Property(j => j.City).HasMaxLength(200);
+            entity.Property(j => j.Country).HasMaxLength(100);
             entity.Property(j => j.Slug).IsRequired().HasMaxLength(250);
             entity.Property(j => j.EmploymentType).HasConversion<string>();
             entity.Property(j => j.ExperienceLevel).HasConversion<string>();
+            entity.Property(j => j.WorkArrangement).HasConversion<string>();
             entity.Property(j => j.Status).HasConversion<string>();
             entity.HasIndex(j => new { j.TenantId, j.Slug }).IsUnique();
             // Serves the hot public listing (ListPublicJobs): filter on (TenantId, Status=Published)

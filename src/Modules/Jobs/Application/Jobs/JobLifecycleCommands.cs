@@ -109,9 +109,11 @@ public sealed record UpdateJobCommand(
     string Title,
     string Description,
     string Department,
-    string Location,
+    string City,
+    string? Country,
     EmploymentType EmploymentType,
     ExperienceLevel ExperienceLevel,
+    WorkArrangement WorkArrangement,
     decimal? SalaryMin,
     decimal? SalaryMax,
     string? SalaryCurrency) : ICommand<bool>;
@@ -148,8 +150,8 @@ public sealed class UpdateJobHandler : ICommandHandler<UpdateJobCommand, bool>
         try
         {
             job.UpdateDetails(
-                command.Title, command.Description, command.Department, command.Location,
-                command.EmploymentType, command.ExperienceLevel, salary);
+                command.Title, command.Description, command.Department, command.City, command.Country,
+                command.EmploymentType, command.ExperienceLevel, command.WorkArrangement, salary);
         }
         catch (InvalidOperationException ex)
         {

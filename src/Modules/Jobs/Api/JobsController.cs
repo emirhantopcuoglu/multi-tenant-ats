@@ -32,8 +32,8 @@ public sealed class JobsController : ControllerBase
             return Unauthorized();
 
         var command = new CreateJobCommand(
-            body.Title, body.Description, body.Department, body.Location,
-            body.EmploymentType, body.ExperienceLevel,
+            body.Title, body.Description, body.Department, body.City, body.Country,
+            body.EmploymentType, body.ExperienceLevel, body.WorkArrangement,
             body.SalaryMin, body.SalaryMax, body.SalaryCurrency, createdBy);
 
         var result = await _sender.Send(command);
@@ -97,8 +97,9 @@ public sealed class JobsController : ControllerBase
     public async Task<IActionResult> Update(Guid id, UpdateJobBody body)
     {
         var command = new UpdateJobCommand(
-            id, body.Title, body.Description, body.Department, body.Location,
-            body.EmploymentType, body.ExperienceLevel, body.SalaryMin, body.SalaryMax, body.SalaryCurrency);
+            id, body.Title, body.Description, body.Department, body.City, body.Country,
+            body.EmploymentType, body.ExperienceLevel, body.WorkArrangement,
+            body.SalaryMin, body.SalaryMax, body.SalaryCurrency);
 
         var result = await _sender.Send(command);
         return result.IsSuccess
@@ -109,14 +110,16 @@ public sealed class JobsController : ControllerBase
     // Request shape for creation: deliberately omits CreatedBy so the client
     // cannot spoof authorship. The controller fills it from the JWT.
     public sealed record CreateJobBody(
-        string Title, string Description, string Department, string Location,
+        string Title, string Description, string Department, string City, string? Country,
         Ats.Modules.Jobs.Domain.EmploymentType EmploymentType,
         Ats.Modules.Jobs.Domain.ExperienceLevel ExperienceLevel,
+        Ats.Modules.Jobs.Domain.WorkArrangement WorkArrangement,
         decimal? SalaryMin, decimal? SalaryMax, string? SalaryCurrency);
 
     public sealed record UpdateJobBody(
-        string Title, string Description, string Department, string Location,
+        string Title, string Description, string Department, string City, string? Country,
         Ats.Modules.Jobs.Domain.EmploymentType EmploymentType,
         Ats.Modules.Jobs.Domain.ExperienceLevel ExperienceLevel,
+        Ats.Modules.Jobs.Domain.WorkArrangement WorkArrangement,
         decimal? SalaryMin, decimal? SalaryMax, string? SalaryCurrency);
 }

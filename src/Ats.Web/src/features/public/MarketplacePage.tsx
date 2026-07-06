@@ -3,7 +3,7 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Badge, Card, EmptyState, Pagination, Select, Skeleton } from '@/components/ui';
 import { useAuth } from '@/app/auth/auth-context';
-import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS } from '@/types/enums';
+import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, WORK_ARRANGEMENTS } from '@/types/enums';
 import { PublicLayout } from './components/PublicLayout';
 import { useMarketplaceJobs, useMarketplaceTotals } from './useMarketplaceJobs';
 
@@ -26,14 +26,21 @@ export function MarketplacePage() {
   const search = searchParams.get('q') ?? '';
   const employmentType = sanitizeChoice(searchParams.get('type'), EMPLOYMENT_TYPES);
   const experienceLevel = sanitizeChoice(searchParams.get('level'), EXPERIENCE_LEVELS);
+  const workArrangement = sanitizeChoice(searchParams.get('arrangement'), WORK_ARRANGEMENTS);
   const location = searchParams.get('loc') ?? '';
   const page = Math.max(1, Number(searchParams.get('page') ?? '1'));
-  const hasFilters = Boolean(employmentType || experienceLevel || location);
+  const hasFilters = Boolean(employmentType || experienceLevel || workArrangement || location);
 
   // All hooks must be called unconditionally, before any early return.
   const searchInputRef = useRef<HTMLInputElement>(null);
   const locationInputRef = useRef<HTMLInputElement>(null);
-  const jobsQuery = useMarketplaceJobs(page, { search, employmentType, experienceLevel, location });
+  const jobsQuery = useMarketplaceJobs(page, {
+    search,
+    employmentType,
+    experienceLevel,
+    workArrangement,
+    location,
+  });
   const totalsQuery = useMarketplaceTotals();
 
   // Company users have their own dashboard. This return sits after all hooks so React always
@@ -84,6 +91,7 @@ export function MarketplacePage() {
     updateParams((next) => {
       next.delete('type');
       next.delete('level');
+      next.delete('arrangement');
       next.delete('loc');
     });
   }
@@ -235,6 +243,20 @@ export function MarketplacePage() {
                 ))}
               </Select>
 
+              <Select
+                aria-label={t('public.marketplace.filterWorkArrangement')}
+                value={workArrangement}
+                onChange={(e) => updateParams((next) => setOrDelete(next, 'arrangement', e.target.value))}
+                className="w-40"
+              >
+                <option value="">{t('public.marketplace.filterWorkArrangement')}</option>
+                {WORK_ARRANGEMENTS.map((value) => (
+                  <option key={value} value={value}>
+                    {t(`workArrangement.${value}`)}
+                  </option>
+                ))}
+              </Select>
+
               <input
                 ref={locationInputRef}
                 type="search"
@@ -300,11 +322,12 @@ export function MarketplacePage() {
                           {t('public.marketplace.at', { company: job.companyName })}
                         </p>
                         <div className="flex flex-wrap items-center gap-2 text-sm text-text-muted">
-                          <span>{job.location}</span>
+                          <span>{job.country ? `${job.city}, ${job.country}` : job.city}</span>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <Badge tone="neutral">{t(`employmentType.${job.employmentType}`)}</Badge>
                           <Badge tone="neutral">{t(`experienceLevel.${job.experienceLevel}`)}</Badge>
+                          <Badge tone="neutral">{t(`workArrangement.${job.workArrangement}`)}</Badge>
                         </div>
                       </Card>
                     </Link>

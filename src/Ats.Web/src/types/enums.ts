@@ -22,6 +22,9 @@ export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 export const CURRENCIES = ['TRY', 'USD', 'EUR', 'GBP'] as const;
 export type Currency = (typeof CURRENCIES)[number];
 
+export const WORK_ARRANGEMENTS = ['Remote', 'Hybrid', 'OnSite'] as const;
+export type WorkArrangement = (typeof WORK_ARRANGEMENTS)[number];
+
 export const PIPELINE_STAGE_TYPES = ['Initial', 'Active', 'Interview', 'FinalHired', 'FinalRejected'] as const;
 export type PipelineStageType = (typeof PIPELINE_STAGE_TYPES)[number];
 

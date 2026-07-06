@@ -13,8 +13,8 @@ public class JobCommandValidatorTests
         var validator = new CreateJobValidator();
 
         var result = validator.Validate(new CreateJobCommand(
-            "Staff Engineer", "Lead the platform team", "Engineering", "Remote",
-            EmploymentType.FullTime, ExperienceLevel.Lead,
+            "Staff Engineer", "Lead the platform team", "Engineering", "Remote", null,
+            EmploymentType.FullTime, ExperienceLevel.Lead, WorkArrangement.Remote,
             120000m, 160000m, "CAD", Guid.NewGuid()));
 
         Assert.False(result.IsValid);
@@ -27,8 +27,8 @@ public class JobCommandValidatorTests
         var validator = new CreateJobValidator();
 
         var result = validator.Validate(new CreateJobCommand(
-            "Staff Engineer", "Lead the platform team", "Engineering", "Remote",
-            EmploymentType.FullTime, ExperienceLevel.Lead,
+            "Staff Engineer", "Lead the platform team", "Engineering", "Remote", null,
+            EmploymentType.FullTime, ExperienceLevel.Lead, WorkArrangement.Remote,
             120000m, 160000m, "usd", Guid.NewGuid()));
 
         Assert.True(result.IsValid);
@@ -40,8 +40,8 @@ public class JobCommandValidatorTests
         var validator = new CreateJobValidator();
 
         var result = validator.Validate(new CreateJobCommand(
-            "Recruiter", "Run hiring pipelines", "People", "Istanbul",
-            EmploymentType.FullTime, ExperienceLevel.Mid,
+            "Recruiter", "Run hiring pipelines", "People", "Istanbul", "Turkey",
+            EmploymentType.FullTime, ExperienceLevel.Mid, WorkArrangement.OnSite,
             null, null, null, Guid.NewGuid()));
 
         Assert.True(result.IsValid);
@@ -53,8 +53,8 @@ public class JobCommandValidatorTests
         var validator = new UpdateJobValidator();
 
         var result = validator.Validate(new UpdateJobCommand(
-            Guid.NewGuid(), "Staff Engineer", "Lead the platform team", "Engineering", "Remote",
-            EmploymentType.FullTime, ExperienceLevel.Lead,
+            Guid.NewGuid(), "Staff Engineer", "Lead the platform team", "Engineering", "Remote", null,
+            EmploymentType.FullTime, ExperienceLevel.Lead, WorkArrangement.Remote,
             120000m, 160000m, "Turkish Lira"));
 
         Assert.False(result.IsValid);
@@ -67,8 +67,8 @@ public class JobCommandValidatorTests
         var validator = new UpdateJobValidator();
 
         var result = validator.Validate(new UpdateJobCommand(
-            Guid.NewGuid(), "Staff Engineer", "Lead the platform team", "Engineering", "Remote",
-            EmploymentType.FullTime, ExperienceLevel.Lead,
+            Guid.NewGuid(), "Staff Engineer", "Lead the platform team", "Engineering", "Remote", null,
+            EmploymentType.FullTime, ExperienceLevel.Lead, WorkArrangement.Remote,
             120000m, 160000m, "EUR"));
 
         Assert.True(result.IsValid);

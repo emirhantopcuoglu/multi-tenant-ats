@@ -8,9 +8,11 @@ public sealed record CreateJobCommand(
     string Title,
     string Description,
     string Department,
-    string Location,
+    string City,
+    string? Country,
     EmploymentType EmploymentType,
     ExperienceLevel ExperienceLevel,
+    WorkArrangement WorkArrangement,
     decimal? SalaryMin,
     decimal? SalaryMax,
     string? SalaryCurrency,
@@ -45,8 +47,8 @@ public sealed class CreateJobHandler : ICommandHandler<CreateJobCommand, Guid>
             salary = new SalaryRange(command.SalaryMin.Value, command.SalaryMax.Value, command.SalaryCurrency);
 
         var job = Job.Create(
-            command.Title, command.Description, command.Department, command.Location,
-            command.EmploymentType, command.ExperienceLevel, salary, command.CreatedBy);
+            command.Title, command.Description, command.Department, command.City, command.Country,
+            command.EmploymentType, command.ExperienceLevel, command.WorkArrangement, salary, command.CreatedBy);
 
         _db.Jobs.Add(job);
         await _db.SaveChangesAsync(cancellationToken);
