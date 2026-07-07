@@ -3,7 +3,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Applications.Application.Applications;
 
-public sealed record PipelineStageDto(Guid Id, string Name, int Order);
+// Type travels with each stage so clients can tell working stages from terminal ones
+// (FinalHired/FinalRejected) — the move-stage UI must not offer terminal stages as targets.
+public sealed record PipelineStageDto(Guid Id, string Name, int Order, string Type);
 
 // Stages of a job's pipeline, ordered for display. Pipelines are per-job (one default pipeline per
 // job), so the job id selects exactly one pipeline. An unknown or not-yet-created pipeline yields an
@@ -25,7 +27,7 @@ public sealed class ListPipelineStagesHandler
             join s in _db.PipelineStages.AsNoTracking() on p.Id equals s.PipelineId
             where p.JobId == query.JobId
             orderby s.Order
-            select new PipelineStageDto(s.Id, s.Name, s.Order))
+            select new PipelineStageDto(s.Id, s.Name, s.Order, s.Type.ToString()))
             .ToListAsync(ct);
 
         return Result.Success<IReadOnlyList<PipelineStageDto>>(stages);

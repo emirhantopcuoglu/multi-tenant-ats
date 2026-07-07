@@ -136,6 +136,53 @@ public sealed class CandidateApplicationDetailTests
     }
 
     [Fact]
+    public async Task hired_activity_should_surface_in_the_candidate_timeline()
+    {
+        // Arrange — the happy ending: submitted, then hired.
+        var accountId = Guid.NewGuid();
+        var jobId = Guid.NewGuid();
+        var tenant = new FixedTenant(Guid.NewGuid());
+
+        Application application;
+        await using (var db = NewDb(tenant))
+        {
+            var pipeline = Pipeline.CreateDefault(jobId);
+            db.Pipelines.Add(pipeline);
+            var candidate = Candidate.Create("hired@acme.test", "Hip", "Hire");
+            db.Candidates.Add(candidate);
+            application = Application.Create(
+                jobId, candidate.Id, accountId, pipeline.InitialStage.Id, "cv/hired.pdf");
+            db.Applications.Add(application);
+            await db.SaveChangesAsync();
+        }
+
+        var baseTime = DateTime.UtcNow.AddDays(-1);
+        var activityLog = new InMemoryActivityLog(
+        [
+            Entry(application.Id, "Submitted", actor: null, "{}", baseTime),
+            Entry(application.Id, "Hired", actor: Guid.NewGuid(), "{}", baseTime.AddHours(4)),
+        ]);
+
+        // Act
+        await using var readDb = NewDb(tenant);
+        var handler = new GetCandidateApplicationDetailHandler(
+            readDb,
+            new FakeJobDirectory(new JobSummary(jobId, "Staff Engineer", "staff-engineer", tenant.TenantId!.Value)),
+            new FakeTenantDirectory(new TenantSummary(tenant.TenantId!.Value, "Acme", "acme")),
+            activityLog,
+            new FakeInterviewDirectory([]));
+        var result = await handler.Handle(
+            new GetCandidateApplicationDetailQuery(accountId, application.Id), CancellationToken.None);
+
+        // Assert — the hire surfaces as its own entry with just a type and a date
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            new[] { "Submitted", "Hired" },
+            result.Value.Timeline.Select(e => e.Type).ToArray());
+        Assert.Equal(baseTime.AddHours(4), result.Value.Timeline[1].OccurredAtUtc);
+    }
+
+    [Fact]
     public async Task should_return_not_found_for_another_candidates_application()
     {
         // Arrange — an application owned by someone else; probing its id must look identical

@@ -9,25 +9,34 @@ interface ApplicationHeaderProps {
   stages: PipelineStage[];
   canManage: boolean;
   onMove: (stageId: string) => void;
+  onHireClick: () => void;
   onRejectClick: () => void;
   busy: boolean;
 }
 
 /* Detail header: candidate identity, current stage + status, and (for managers, while the
-   application is still Active) the move-stage menu and reject action. */
+   application is still Active) the move-stage menu and the two terminal decisions. */
 export function ApplicationHeader({
   application,
   stages,
   canManage,
   onMove,
+  onHireClick,
   onRejectClick,
   busy,
 }: ApplicationHeaderProps) {
   const { t } = useTranslation();
   const isActive = application.status === 'Active';
 
+  /* Terminal stages are outcomes, not move targets: reaching them must flip the application's
+     status, which only the hire/reject actions do (the backend refuses them here too). */
   const moveItems: DropdownAction[] = stages
-    .filter((stage) => stage.id !== application.stageId)
+    .filter(
+      (stage) =>
+        stage.id !== application.stageId &&
+        stage.type !== 'FinalHired' &&
+        stage.type !== 'FinalRejected',
+    )
     .map((stage) => ({ key: stage.id, label: stageLabel(stage.name, t), onSelect: () => onMove(stage.id) }));
 
   return (
@@ -71,6 +80,9 @@ export function ApplicationHeader({
               }
             />
           )}
+          <Button variant="primary" onClick={onHireClick} disabled={busy}>
+            {t('applicationDetail.hire')}
+          </Button>
           <Button variant="danger" onClick={onRejectClick} disabled={busy}>
             {t('applicationDetail.reject')}
           </Button>

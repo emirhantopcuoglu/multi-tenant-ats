@@ -1,4 +1,4 @@
-import type { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 
 /* Pipeline stage names come from the backend as plain, English strings (the MVP's only pipeline
    template — see Pipeline.CreateDefault). The `stage.*` i18n keys already exist and are already
@@ -14,7 +14,7 @@ function isKnownStageName(name: string): name is KnownStageName {
   return (KNOWN_STAGE_NAMES as readonly string[]).includes(name);
 }
 
-export function stageLabel(name: string, t: ReturnType<typeof useTranslation>['t']): string {
+export function stageLabel(name: string, t: TFunction): string {
   // The key must stay a narrow literal union (KnownStageName), not a general string, or
   // react-i18next's typed `t` overload resolution blows up (excessively deep type instantiation) —
   // the same reason other call sites in this app only ever interpolate an already-typed enum value.

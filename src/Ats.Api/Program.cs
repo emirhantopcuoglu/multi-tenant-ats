@@ -392,10 +392,11 @@ builder.Services.AddMassTransit(bus =>
     });
 
     // Notifications consumers: email the candidate when an application is submitted, rejected,
-    // moved to a new stage, or gets an interview scheduled (roadmap 3.4). ConfigureEndpoints below
-    // creates and binds each consumer's queue automatically.
+    // hired, moved to a new stage, or gets an interview scheduled (roadmap 3.4). ConfigureEndpoints
+    // below creates and binds each consumer's queue automatically.
     bus.AddConsumer<ApplicationSubmittedConsumer>();
     bus.AddConsumer<ApplicationRejectedConsumer>();
+    bus.AddConsumer<ApplicationHiredConsumer>();
     bus.AddConsumer<ApplicationStageChangedEmailConsumer>();
     bus.AddConsumer<InterviewScheduledEmailConsumer>();
 

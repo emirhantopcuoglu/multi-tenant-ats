@@ -47,6 +47,11 @@ public sealed class ApplicationActivity : ITenantScoped
         new(applicationId, ApplicationActivityType.Rejected, actorUserId,
             JsonSerializer.Serialize(new { reason }));
 
+    // No payload: the hired stage is implied by the decision and the candidate-facing timeline
+    // only needs the fact and the timestamp.
+    public static ApplicationActivity Hired(Guid applicationId, Guid? actorUserId) =>
+        new(applicationId, ApplicationActivityType.Hired, actorUserId, "{}");
+
     // The actor is kept for internal auditing but is never exposed to the candidate — the
     // candidate-facing timeline says "the company viewed your application", not who.
     public static ApplicationActivity Viewed(Guid applicationId, Guid? actorUserId) =>

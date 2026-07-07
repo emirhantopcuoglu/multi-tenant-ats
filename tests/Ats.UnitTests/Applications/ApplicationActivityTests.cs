@@ -41,4 +41,16 @@ public class ApplicationActivityTests
         Assert.Equal(ApplicationActivityType.Rejected, activity.ActivityType);
         Assert.Contains("Position filled", activity.Payload);
     }
+
+    [Fact]
+    public void Hired_records_the_actor_and_no_payload()
+    {
+        var actor = Guid.NewGuid();
+
+        var activity = ApplicationActivity.Hired(Guid.NewGuid(), actor);
+
+        Assert.Equal(ApplicationActivityType.Hired, activity.ActivityType);
+        Assert.Equal(actor, activity.ActorUserId);
+        Assert.Equal("{}", activity.Payload);
+    }
 }

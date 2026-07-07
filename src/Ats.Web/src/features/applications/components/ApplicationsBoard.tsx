@@ -108,13 +108,23 @@ export function ApplicationsBoard({ stages, applications, canManage, onMove, onS
   // A small activation distance so a click on a card isn't mistaken for a drag.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
+  /* The board shows only Active applications and terminal stages can only be reached through the
+     hire/reject decisions, so Hired/Rejected columns would be permanently empty drop targets that
+     the backend refuses anyway — they are not rendered at all. */
+  const workingStages = useMemo(
+    () => stages.filter((stage) => stage.type !== 'FinalHired' && stage.type !== 'FinalRejected'),
+    [stages],
+  );
+
   const applicationsByStage = useMemo(() => {
-    const grouped = new Map<string, ApplicationListItem[]>(stages.map((stage) => [stage.id, []]));
+    const grouped = new Map<string, ApplicationListItem[]>(
+      workingStages.map((stage) => [stage.id, []]),
+    );
     for (const application of applications) {
       grouped.get(application.stageId)?.push(application);
     }
     return grouped;
-  }, [stages, applications]);
+  }, [workingStages, applications]);
 
   const activeApplication = applications.find((application) => application.id === activeId) ?? null;
 
@@ -138,7 +148,7 @@ export function ApplicationsBoard({ stages, applications, canManage, onMove, onS
       onDragCancel={() => setActiveId(null)}
     >
       <div className="flex gap-4 overflow-x-auto pb-2">
-        {stages.map((stage) => (
+        {workingStages.map((stage) => (
           <BoardColumn
             key={stage.id}
             stage={stage}

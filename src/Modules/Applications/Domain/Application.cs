@@ -81,20 +81,30 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
         CurrentStageId = stageId;
     }
 
-    public void Reject(string reason)
+    // Reject and Hire take the pipeline's matching terminal stage so the terminal status and the
+    // stage move commit as one operation — an application must never read "Rejected" while its
+    // card still sits in a working column, or vice versa.
+    public void Reject(string reason, Guid rejectedStageId)
     {
         if (string.IsNullOrWhiteSpace(reason))
             throw new ArgumentException("A rejection reason is required.", nameof(reason));
+        if (rejectedStageId == Guid.Empty)
+            throw new ArgumentException("The rejected stage is required.", nameof(rejectedStageId));
 
         EnsureActive("rejected");
         Status = ApplicationStatus.Rejected;
         RejectionReason = reason.Trim();
+        CurrentStageId = rejectedStageId;
     }
 
-    public void Hire()
+    public void Hire(Guid hiredStageId)
     {
+        if (hiredStageId == Guid.Empty)
+            throw new ArgumentException("The hired stage is required.", nameof(hiredStageId));
+
         EnsureActive("hired");
         Status = ApplicationStatus.Hired;
+        CurrentStageId = hiredStageId;
     }
 
     public void Withdraw()

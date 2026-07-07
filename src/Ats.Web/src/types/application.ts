@@ -1,4 +1,9 @@
-import type { ApplicationActivityType, ApplicationStatus, CvJobFitRating } from './enums';
+import type {
+  ApplicationActivityType,
+  ApplicationStatus,
+  CvJobFitRating,
+  PipelineStageType,
+} from './enums';
 
 /* Recruiter list row (Applications.Application.ApplicationListItemDto). The candidate name/email and
    the current stage name are joined server-side; the job is referenced by id only (the screen
@@ -15,11 +20,13 @@ export interface ApplicationListItem {
 }
 
 /* A stage of a job's pipeline (Applications.Application.PipelineStageDto), from
-   GET /jobs/{jobId}/stages. Drives the stage filter here and the Kanban columns later. */
+   GET /jobs/{jobId}/stages. Drives the stage filter, the Kanban columns, and — via type — which
+   stages the move-stage UI may offer (terminal stages are outcomes, not move targets). */
 export interface PipelineStage {
   id: string;
   name: string;
   order: number;
+  type: PipelineStageType;
 }
 
 /* GET /api/v1/applications/{id} (Applications.Application.ApplicationDetailDto). The detail screen's

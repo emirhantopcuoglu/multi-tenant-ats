@@ -254,6 +254,9 @@ public sealed class GetCandidateApplicationDetailHandler
                 case nameof(ApplicationActivityType.Rejected):
                     timeline.Add(new(nameof(ApplicationActivityType.Rejected), null, entry.OccurredAtUtc));
                     break;
+                case nameof(ApplicationActivityType.Hired):
+                    timeline.Add(new(nameof(ApplicationActivityType.Hired), null, entry.OccurredAtUtc));
+                    break;
             }
         }
 

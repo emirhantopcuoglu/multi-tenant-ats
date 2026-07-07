@@ -53,6 +53,8 @@ function toEventStep(entry: CandidateTimelineEntry, index: number): TrackingStep
       return { ...base, kind: 'viewed', tone: 'accent' };
     case 'Rejected':
       return { ...base, kind: 'rejected', tone: 'danger' };
+    case 'Hired':
+      return { ...base, kind: 'hired', tone: 'success' };
     case 'StageChanged':
       return { ...base, kind: 'movedTo', tone: 'accent' };
   }

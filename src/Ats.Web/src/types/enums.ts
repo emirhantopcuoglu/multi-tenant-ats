@@ -28,7 +28,7 @@ export type WorkArrangement = (typeof WORK_ARRANGEMENTS)[number];
 export const PIPELINE_STAGE_TYPES = ['Initial', 'Active', 'Interview', 'FinalHired', 'FinalRejected'] as const;
 export type PipelineStageType = (typeof PIPELINE_STAGE_TYPES)[number];
 
-export const APPLICATION_ACTIVITY_TYPES = ['Submitted', 'Viewed', 'StageChanged', 'Rejected'] as const;
+export const APPLICATION_ACTIVITY_TYPES = ['Submitted', 'Viewed', 'StageChanged', 'Rejected', 'Hired'] as const;
 export type ApplicationActivityType = (typeof APPLICATION_ACTIVITY_TYPES)[number];
 
 export const INTERVIEW_TYPES = ['PhoneScreen', 'Technical', 'Cultural', 'Final'] as const;

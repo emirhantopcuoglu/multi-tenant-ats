@@ -100,6 +100,7 @@
     "back": "Başvurulara dön",
     "linkedin": "LinkedIn",
     "moveStage": "Aşama değiştir",
+    "hire": "İşe al",
     "reject": "Reddet",
     "notFound": "Bu başvuru bulunamadı.",
     "tabs": {
@@ -141,7 +142,8 @@
       "submitted": "Başvuru gönderildi",
       "viewed": "Başvuru görüntülendi",
       "moved": "{{from}} aşamasından {{to}} aşamasına taşındı",
-      "rejected": "Başvuru reddedildi"
+      "rejected": "Başvuru reddedildi",
+      "hired": "Aday işe alındı"
     },
     "reject_modal": {
       "title": "Başvuruyu reddet",
@@ -151,9 +153,15 @@
       "reasonRequired": "Bir sebep zorunludur.",
       "confirm": "Başvuruyu reddet"
     },
+    "hire_modal": {
+      "title": "Adayı işe al",
+      "description": "Bu karar kesindir: aday tebrik edilir ve başvuru artık değiştirilemez.",
+      "confirm": "İşe al"
+    },
     "toast": {
       "moved": "Aşama güncellendi.",
       "rejected": "Başvuru reddedildi.",
+      "hired": "Aday işe alındı.",
       "error": "İşlem başarısız. Lütfen tekrar dene."
     }
   },

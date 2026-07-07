@@ -100,6 +100,7 @@
     "back": "Back to applications",
     "linkedin": "LinkedIn",
     "moveStage": "Move stage",
+    "hire": "Hire",
     "reject": "Reject",
     "notFound": "This application could not be found.",
     "tabs": {
@@ -141,7 +142,8 @@
       "submitted": "Application submitted",
       "viewed": "Application viewed",
       "moved": "Moved from {{from}} to {{to}}",
-      "rejected": "Application rejected"
+      "rejected": "Application rejected",
+      "hired": "Candidate hired"
     },
     "reject_modal": {
       "title": "Reject application",
@@ -151,9 +153,15 @@
       "reasonRequired": "A reason is required.",
       "confirm": "Reject application"
     },
+    "hire_modal": {
+      "title": "Hire candidate",
+      "description": "This is final: the candidate is congratulated and the application can no longer be changed.",
+      "confirm": "Hire candidate"
+    },
     "toast": {
       "moved": "Stage updated.",
       "rejected": "Application rejected.",
+      "hired": "Candidate hired.",
       "error": "Action failed. Please try again."
     }
   },
