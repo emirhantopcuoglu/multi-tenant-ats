@@ -23,7 +23,7 @@ export interface CandidatePipelineStage {
   order: number;
 }
 
-export type CandidateTimelineEntryType = 'Submitted' | 'Viewed' | 'StageChanged' | 'Rejected';
+export type CandidateTimelineEntryType = 'Submitted' | 'Viewed' | 'StageChanged' | 'Rejected' | 'Hired';
 
 export interface CandidateTimelineEntry {
   type: CandidateTimelineEntryType;

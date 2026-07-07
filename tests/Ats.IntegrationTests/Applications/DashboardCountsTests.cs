@@ -32,7 +32,7 @@ public sealed class DashboardCountsTests
 
             var candidateC = AddCandidate(db, "c@acme.test");
             var rejected = NewApplication(candidateC.Id);
-            rejected.Reject("Not a fit.");
+            rejected.Reject("Not a fit.", Guid.NewGuid());
             db.Applications.Add(rejected);
 
             await db.SaveChangesAsync();

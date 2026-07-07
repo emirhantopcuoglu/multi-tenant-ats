@@ -75,3 +75,9 @@ export async function moveApplicationStage(id: string, targetStageId: string): P
 export async function rejectApplication(id: string, reason: string): Promise<void> {
   await apiClient.post(`${APPLICATIONS_BASE}/${id}/reject`, { reason });
 }
+
+/* The positive terminal decision: flips the status to Hired and parks the application in the
+   pipeline's FinalHired stage. The only way into that stage — move-stage refuses terminal targets. */
+export async function hireApplication(id: string): Promise<void> {
+  await apiClient.post(`${APPLICATIONS_BASE}/${id}/hire`);
+}

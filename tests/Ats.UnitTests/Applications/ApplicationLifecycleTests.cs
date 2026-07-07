@@ -42,14 +42,16 @@ public class ApplicationLifecycleTests
     }
 
     [Fact]
-    public void Reject_should_set_status_and_keep_the_reason()
+    public void Reject_should_set_status_and_reason_and_move_to_the_rejected_stage()
     {
         var application = CreateActive();
+        var rejectedStage = Guid.NewGuid();
 
-        application.Reject("Not enough experience");
+        application.Reject("Not enough experience", rejectedStage);
 
         Assert.Equal(ApplicationStatus.Rejected, application.Status);
         Assert.Equal("Not enough experience", application.RejectionReason);
+        Assert.Equal(rejectedStage, application.CurrentStageId);
     }
 
     [Fact]
@@ -72,7 +74,7 @@ public class ApplicationLifecycleTests
     {
         // A rejected application can still be opened; the candidate deserves the receipt.
         var application = CreateActive();
-        application.Reject("Not a fit");
+        application.Reject("Not a fit", Guid.NewGuid());
 
         Assert.True(application.MarkViewed());
         Assert.NotNull(application.FirstViewedAtUtc);
@@ -98,17 +100,35 @@ public class ApplicationLifecycleTests
     {
         var application = CreateActive();
 
-        Assert.Throws<ArgumentException>(() => application.Reject(" "));
+        Assert.Throws<ArgumentException>(() => application.Reject(" ", Guid.NewGuid()));
     }
 
     [Fact]
-    public void Hire_should_set_status_to_hired()
+    public void Reject_should_throw_when_rejected_stage_is_empty()
     {
         var application = CreateActive();
 
-        application.Hire();
+        Assert.Throws<ArgumentException>(() => application.Reject("Not a fit", Guid.Empty));
+    }
+
+    [Fact]
+    public void Hire_should_set_status_and_move_to_the_hired_stage()
+    {
+        var application = CreateActive();
+        var hiredStage = Guid.NewGuid();
+
+        application.Hire(hiredStage);
 
         Assert.Equal(ApplicationStatus.Hired, application.Status);
+        Assert.Equal(hiredStage, application.CurrentStageId);
+    }
+
+    [Fact]
+    public void Hire_should_throw_when_hired_stage_is_empty()
+    {
+        var application = CreateActive();
+
+        Assert.Throws<ArgumentException>(() => application.Hire(Guid.Empty));
     }
 
     [Fact]
@@ -125,10 +145,10 @@ public class ApplicationLifecycleTests
     public void A_terminal_application_cannot_be_moved_or_decided_again()
     {
         var application = CreateActive();
-        application.Hire();
+        application.Hire(Guid.NewGuid());
 
         Assert.Throws<InvalidOperationException>(() => application.MoveToStage(Guid.NewGuid()));
-        Assert.Throws<InvalidOperationException>(() => application.Reject("x"));
+        Assert.Throws<InvalidOperationException>(() => application.Reject("x", Guid.NewGuid()));
         Assert.Throws<InvalidOperationException>(() => application.Withdraw());
     }
 }

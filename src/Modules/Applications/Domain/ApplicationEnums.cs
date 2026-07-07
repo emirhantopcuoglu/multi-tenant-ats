@@ -18,4 +18,4 @@ public enum PipelineStageType { Initial, Active, Interview, FinalHired, FinalRej
 
 // What happened to an application, recorded in the activity log. Each value pairs with a
 // payload shape produced by the matching ApplicationActivity factory.
-public enum ApplicationActivityType { Submitted, StageChanged, Rejected, Viewed }
+public enum ApplicationActivityType { Submitted, StageChanged, Rejected, Viewed, Hired }

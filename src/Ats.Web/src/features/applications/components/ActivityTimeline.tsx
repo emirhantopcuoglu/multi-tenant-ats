@@ -23,6 +23,7 @@ const displayByType: Record<ApplicationActivityType, { icon: IconTimelineIcon; t
   Viewed: { icon: 'viewed', tone: 'accent' },
   StageChanged: { icon: 'movedTo', tone: 'accent' },
   Rejected: { icon: 'rejected', tone: 'danger' },
+  Hired: { icon: 'hired', tone: 'success' },
 };
 
 /* An activity type the frontend doesn't know yet must never masquerade as a known event (a
@@ -67,6 +68,8 @@ export function ActivityTimeline({ activities, stages }: ActivityTimelineProps) 
         });
       case 'Rejected':
         return t('applicationDetail.activity.rejected');
+      case 'Hired':
+        return t('applicationDetail.activity.hired');
       default:
         return activity.activityType;
     }

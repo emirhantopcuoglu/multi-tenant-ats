@@ -37,7 +37,7 @@ public sealed class ListCandidateAppliedJobIdsTests
             db.Applications.Add(NewApplication(activeJob, candidate.Id, accountId));
 
             var rejected = NewApplication(rejectedJob, candidate.Id, accountId);
-            rejected.Reject("Not a fit.");
+            rejected.Reject("Not a fit.", Guid.NewGuid());
             db.Applications.Add(rejected);
 
             var withdrawn = NewApplication(withdrawnJob, candidate.Id, accountId);

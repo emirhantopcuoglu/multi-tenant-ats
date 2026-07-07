@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import { stageLabel } from '@/lib/stageLabel';
 import { INTERVIEW_TYPES, type InterviewType } from '@/types/enums';
 import type { NotificationItem } from './notificationsApi';
 
@@ -46,9 +47,11 @@ export function renderNotification(
       };
     case 'ApplicationStageChanged':
       return {
+        // The payload carries the raw backend stage name ("Interview"); stageLabel localizes the
+        // known default names so the bell doesn't speak English in a Turkish UI.
         text: t('notifications.stageChanged', {
           jobTitle: readString(item.payload, 'jobTitle'),
-          stage: readString(item.payload, 'toStageName'),
+          stage: stageLabel(readString(item.payload, 'toStageName'), t),
         }),
         applicationId: readString(item.payload, 'applicationId') || null,
       };

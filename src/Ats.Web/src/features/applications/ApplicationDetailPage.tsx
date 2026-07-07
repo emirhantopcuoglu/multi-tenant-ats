@@ -10,6 +10,7 @@ import { getCvDownloadUrl } from './applicationsApi';
 import { useJobStages } from './useApplications';
 import { useApplication, useApplicationActions, useApplicationActivities } from './useApplicationDetail';
 import { ApplicationHeader } from './components/ApplicationHeader';
+import { HireDialog } from './components/HireDialog';
 import { RejectDialog } from './components/RejectDialog';
 import { CvAnalysisTab } from './components/CvAnalysisTab';
 import { ActivityTimeline } from './components/ActivityTimeline';
@@ -33,10 +34,11 @@ function ApplicationDetailView({ id }: { id: string }) {
   const { data: application, isLoading, isError } = useApplication(id);
   const activitiesQuery = useApplicationActivities(id);
   const stagesQuery = useJobStages(application?.jobId);
-  const { move, reject } = useApplicationActions(id);
+  const { move, reject, hire } = useApplicationActions(id);
 
   const [tab, setTab] = useState('cv');
   const [rejectOpen, setRejectOpen] = useState(false);
+  const [hireOpen, setHireOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [cvLoading, setCvLoading] = useState(false);
 
@@ -59,7 +61,7 @@ function ApplicationDetailView({ id }: { id: string }) {
     );
   }
 
-  const busy = move.isPending || reject.isPending;
+  const busy = move.isPending || reject.isPending || hire.isPending;
 
   const handleMove = (stageId: string) =>
     move.mutate(stageId, {
@@ -72,6 +74,15 @@ function ApplicationDetailView({ id }: { id: string }) {
       onSuccess: () => {
         setRejectOpen(false);
         toast({ title: t('applicationDetail.toast.rejected'), tone: 'success' });
+      },
+      onError: () => toast({ title: t('applicationDetail.toast.error'), tone: 'danger' }),
+    });
+
+  const handleHire = () =>
+    hire.mutate(undefined, {
+      onSuccess: () => {
+        setHireOpen(false);
+        toast({ title: t('applicationDetail.toast.hired'), tone: 'success' });
       },
       onError: () => toast({ title: t('applicationDetail.toast.error'), tone: 'danger' }),
     });
@@ -106,6 +117,7 @@ function ApplicationDetailView({ id }: { id: string }) {
         stages={stagesQuery.data ?? []}
         canManage={canManage}
         onMove={handleMove}
+        onHireClick={() => setHireOpen(true)}
         onRejectClick={() => setRejectOpen(true)}
         busy={busy}
       />
@@ -169,6 +181,13 @@ function ApplicationDetailView({ id }: { id: string }) {
         onOpenChange={setRejectOpen}
         onConfirm={handleReject}
         submitting={reject.isPending}
+      />
+
+      <HireDialog
+        open={hireOpen}
+        onOpenChange={setHireOpen}
+        onConfirm={handleHire}
+        submitting={hire.isPending}
       />
 
       <ScheduleInterviewModal

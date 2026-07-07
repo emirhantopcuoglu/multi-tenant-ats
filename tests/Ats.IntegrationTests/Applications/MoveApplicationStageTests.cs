@@ -110,6 +110,53 @@ public sealed class MoveApplicationStageTests
         Assert.Empty(publisher.Published);
     }
 
+    [Theory]
+    [InlineData("Hired")]
+    [InlineData("Rejected")]
+    public async Task should_refuse_terminal_stages_as_move_targets(string terminalStageName)
+    {
+        // Arrange — terminal stages must be reached through the hire/reject decisions, never a
+        // plain move: a move leaves the status Active, which showed candidates "hired"/"rejected"
+        // timelines for applications that were still fully in play.
+        var tenant = new FixedTenant(Guid.NewGuid());
+        var jobId = Guid.NewGuid();
+
+        Pipeline pipeline;
+        Application application;
+        await using (var db = NewDb(tenant))
+        {
+            pipeline = Pipeline.CreateDefault(jobId);
+            db.Pipelines.Add(pipeline);
+            var candidate = Candidate.Create("terminal@acme.test", "Ter", "Minal");
+            db.Candidates.Add(candidate);
+            application = Application.Create(
+                jobId, candidate.Id, Guid.NewGuid(), pipeline.InitialStage.Id, "cv/terminal.pdf");
+            db.Applications.Add(application);
+            await db.SaveChangesAsync();
+        }
+
+        var terminalStage = pipeline.Stages.Single(s => s.Name == terminalStageName);
+        var publisher = new CapturingPublisher();
+
+        // Act — try to move straight into the terminal stage
+        await using var handlerDb = NewDb(tenant);
+        var handler = new MoveApplicationStageHandler(
+            handlerDb, publisher, new FakeJobDirectory(null), new NullCurrentUser(),
+            new InMemoryActivityLog([]), NullLogger<MoveApplicationStageHandler>.Instance);
+        var result = await handler.Handle(
+            new MoveApplicationStageCommand(application.Id, terminalStage.Id), CancellationToken.None);
+
+        // Assert — refused, nothing published, and the application did not move
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ApplicationErrors.TerminalStageRequiresDecision.Code, result.Error.Code);
+        Assert.Empty(publisher.Published);
+
+        await using var assertDb = NewDb(tenant);
+        var unchanged = await assertDb.Applications.FindAsync(application.Id);
+        Assert.Equal(pipeline.InitialStage.Id, unchanged!.CurrentStageId);
+        Assert.Equal(ApplicationStatus.Active, unchanged.Status);
+    }
+
     private ApplicationsDbContext NewDb(FixedTenant tenant) =>
         new(PostgresContainerFixture.BuildApplicationsOptions(_fixture.ConnectionString, tenant), tenant);
 }

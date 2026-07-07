@@ -104,6 +104,14 @@ public sealed class ApplicationsController : ControllerBase
         return result.IsSuccess ? NoContent() : MapFailure(result.Error);
     }
 
+    [HttpPost("{id:guid}/hire")]
+    [Authorize(Policy = Policies.CanManageApplications)]
+    public async Task<IActionResult> Hire(Guid id)
+    {
+        var result = await _sender.Send(new HireApplicationCommand(id));
+        return result.IsSuccess ? NoContent() : MapFailure(result.Error);
+    }
+
     private IActionResult MapFailure(Error error) => error.Code switch
     {
         "application.not_found" => NotFound(new { error.Code, error.Message }),
