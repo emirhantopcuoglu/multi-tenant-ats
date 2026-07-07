@@ -139,6 +139,7 @@
       "empty": "No activity yet.",
       "error": "Couldn't load the activity.",
       "submitted": "Application submitted",
+      "viewed": "Application viewed",
       "moved": "Moved from {{from}} to {{to}}",
       "rejected": "Application rejected"
     },

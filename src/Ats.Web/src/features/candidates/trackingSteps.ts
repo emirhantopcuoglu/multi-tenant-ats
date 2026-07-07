@@ -1,3 +1,4 @@
+import type { IconTimelineIcon, IconTimelineTone } from '@/components/ui';
 import type {
   CandidateApplicationDetail,
   CandidatePipelineStage,
@@ -10,14 +11,14 @@ import type {
      what happened (dated, coloured)  →  where the application is now  →  what comes next (grey)
 
    Pure on purpose: the page stays a dumb renderer and this logic is unit-testable without React.
-   Tones map onto the Timeline component's dot palette. */
+   Tones and kinds map onto the IconTimeline component's palette and icon set. */
 
-export type TrackingTone = 'accent' | 'success' | 'danger' | 'warning' | 'neutral';
+export type TrackingTone = IconTimelineTone;
 
 export interface TrackingStep {
   key: string;
   /* Which i18n label to render. 'stage' steps show the raw stage name instead. */
-  kind: 'submitted' | 'viewed' | 'movedTo' | 'hired' | 'rejected' | 'current' | 'upcoming';
+  kind: IconTimelineIcon;
   stageName: string | null;
   occurredAtUtc: string | null;
   tone: TrackingTone;
