@@ -36,5 +36,11 @@ export {
 export { Pagination } from './Pagination';
 export { Breadcrumb, type BreadcrumbItem } from './Breadcrumb';
 export { Timeline, TimelineItem, type TimelineDotTone } from './Timeline';
+export {
+  IconTimeline,
+  IconTimelineItem,
+  type IconTimelineIcon,
+  type IconTimelineTone,
+} from './IconTimeline';
 export { KanbanColumn, KanbanCard } from './Kanban';
 export { SidebarNavItem } from './SidebarNavItem';

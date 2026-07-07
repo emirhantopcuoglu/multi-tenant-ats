@@ -139,6 +139,7 @@
       "empty": "Henüz hareket yok.",
       "error": "Hareketler yüklenemedi.",
       "submitted": "Başvuru gönderildi",
+      "viewed": "Başvuru görüntülendi",
       "moved": "{{from}} aşamasından {{to}} aşamasına taşındı",
       "rejected": "Başvuru reddedildi"
     },

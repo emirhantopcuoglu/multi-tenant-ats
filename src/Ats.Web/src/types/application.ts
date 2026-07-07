@@ -79,7 +79,7 @@ export interface CvParseResult {
 }
 
 /* GET /api/v1/applications/{id}/activities — the append-only timeline. The payload shape depends on
-   activityType: Submitted { jobId, candidateEmail }, StageChanged { fromStageId, toStageId },
+   activityType: Submitted { jobId, candidateEmail }, Viewed {}, StageChanged { fromStageId, toStageId },
    Rejected { reason }. */
 export interface ApplicationActivity {
   id: string;
