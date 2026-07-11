@@ -18,9 +18,7 @@ export function CandidateLoginPage() {
   const location = useLocation();
   const [formError, setFormError] = useState<string | null>(null);
 
-  const from =
-    (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ??
-    '/candidate/applications';
+  const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/';
 
   const schema = useMemo(
     () =>
