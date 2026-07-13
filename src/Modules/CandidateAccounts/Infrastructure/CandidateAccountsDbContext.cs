@@ -27,6 +27,10 @@ public sealed class CandidateAccountsDbContext : DbContext
             entity.Property(c => c.PasswordHash).IsRequired();
             entity.Property(c => c.FirstName).IsRequired().HasMaxLength(100);
             entity.Property(c => c.LastName).IsRequired().HasMaxLength(100);
+            // 16 = E.164's 15-digit maximum plus the leading '+'; the domain normalizes before storing.
+            entity.Property(c => c.PhoneNumber).HasMaxLength(16);
+            entity.Property(c => c.Country).HasMaxLength(100);
+            entity.Property(c => c.City).HasMaxLength(100);
             entity.Property(c => c.CvFileKey).HasMaxLength(512);
             // One account per email across the whole marketplace. Enforced at the database, the only
             // place that holds under concurrent registrations.

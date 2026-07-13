@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace Ats.Modules.CandidateAccounts.Domain;
 
 // A person's account on the public job marketplace. This is deliberately NOT Applications.Candidate:
@@ -13,6 +15,15 @@ public sealed class CandidateAccount
     public string PasswordHash { get; private set; } = null!;
     public string FirstName { get; private set; } = null!;
     public string LastName { get; private set; } = null!;
+
+    // Optional profile data, all nullable: existing accounts predate these fields and the candidate
+    // fills them in from the profile page at their own pace. Country/City are constrained to the
+    // SupportedCountries catalogue at the application boundary (same split as Jobs: the domain owns
+    // self-contained invariants, the boundary owns catalogue membership).
+    public string? PhoneNumber { get; private set; }
+    public string? Country { get; private set; }
+    public string? City { get; private set; }
+    public DateOnly? BirthDate { get; private set; }
 
     // A CV uploaded once to the account and reused across applications, stored by its object-storage
     // key (same convention as Application.CvFileKey). Null until the candidate uploads one from their
@@ -55,17 +66,90 @@ public sealed class CandidateAccount
     // database collation: "Jane@x.com" and "jane@x.com" are the same account.
     public static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 
+    // Employment-law floor for most supported countries; anyone younger cannot legally be hired, so a
+    // younger birth date is a data-entry error, not an edge case to support.
+    public const int MinimumAgeYears = 15;
+
+    // Nobody above this age is realistically job hunting; a birth date beyond it is a typo (1925 for
+    // 1995) and rejecting it early beats storing silently wrong data.
+    public const int MaximumAgeYears = 100;
+
+    // E.164 caps phone numbers at 15 digits; 7 is a pragmatic floor below which no real number exists.
+    // Matched AFTER formatting characters are stripped, so it only sees '+' and digits.
+    private const string NormalizedPhonePattern = @"^\+?\d{7,15}$";
+
     // Email is deliberately not editable here: it is the login identity and the deduplication key for
     // Applications.Candidate records across tenants, so changing it is a bigger operation (verification,
-    // re-linking) than a profile edit — out of scope until a real need for it shows up.
-    public void UpdateProfile(string firstName, string lastName)
+    // re-linking) than a profile edit — it gets its own dedicated flow instead.
+    public void UpdateProfile(
+        string firstName,
+        string lastName,
+        string? phoneNumber,
+        string? country,
+        string? city,
+        DateOnly? birthDate)
     {
         if (string.IsNullOrWhiteSpace(firstName))
             throw new ArgumentException("First name is required.", nameof(firstName));
         if (string.IsNullOrWhiteSpace(lastName))
             throw new ArgumentException("Last name is required.", nameof(lastName));
 
+        var normalizedPhone = NormalizePhoneNumber(phoneNumber);
+        if (normalizedPhone is not null && !Regex.IsMatch(normalizedPhone, NormalizedPhonePattern))
+            throw new ArgumentException(
+                "Phone number must contain 7 to 15 digits, optionally prefixed with '+'.", nameof(phoneNumber));
+
+        var normalizedCountry = NullIfWhiteSpace(country);
+        var normalizedCity = NullIfWhiteSpace(city);
+
+        // Residence is stored as a validated (country, city) pair; a half-filled location can never be
+        // rendered or filtered on meaningfully, so it is rejected rather than stored.
+        if (normalizedCountry is null != normalizedCity is null)
+            throw new ArgumentException("Country and city must be provided together.", nameof(city));
+
+        ValidateBirthDate(birthDate);
+
         FirstName = firstName.Trim();
         LastName = lastName.Trim();
+        PhoneNumber = normalizedPhone;
+        Country = normalizedCountry;
+        City = normalizedCity;
+        BirthDate = birthDate;
+    }
+
+    private static void ValidateBirthDate(DateOnly? birthDate)
+    {
+        if (birthDate is not { } date)
+            return;
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (date > today)
+            throw new ArgumentException("Birth date cannot be in the future.", nameof(birthDate));
+        if (date > today.AddYears(-MinimumAgeYears))
+            throw new ArgumentException(
+                $"Candidate must be at least {MinimumAgeYears} years old.", nameof(birthDate));
+        if (date < today.AddYears(-MaximumAgeYears))
+            throw new ArgumentException(
+                $"Birth date implies an age above {MaximumAgeYears} years.", nameof(birthDate));
+    }
+
+    // People type phone numbers with local formatting ("+90 (532) 123-45-67"); storage keeps one
+    // canonical shape so the same number never exists as three different strings. Only known
+    // formatting characters are stripped — anything else (letters, symbols) survives into the regex
+    // check and fails there, instead of being silently discarded.
+    private static readonly char[] PhoneFormattingCharacters = [' ', '-', '(', ')', '.'];
+
+    private static string? NormalizePhoneNumber(string? phoneNumber)
+    {
+        if (string.IsNullOrWhiteSpace(phoneNumber))
+            return null;
+
+        return new string(phoneNumber.Where(c => !PhoneFormattingCharacters.Contains(c)).ToArray());
+    }
+
+    private static string? NullIfWhiteSpace(string? value)
+    {
+        var trimmed = value?.Trim();
+        return string.IsNullOrEmpty(trimmed) ? null : trimmed;
     }
 }

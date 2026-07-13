@@ -18,5 +18,4 @@ public interface ICandidateAuthService
     Task<Result<CandidateAuthResult>> RegisterAsync(string email, string password, string firstName, string lastName);
     Task<Result<CandidateAuthResult>> LoginAsync(string email, string password);
     Task<Result<CurrentCandidateDto>> GetCurrentCandidateAsync(Guid candidateAccountId);
-    Task<Result<CurrentCandidateDto>> UpdateProfileAsync(Guid candidateAccountId, string firstName, string lastName);
 }
