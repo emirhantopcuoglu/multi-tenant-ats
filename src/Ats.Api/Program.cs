@@ -487,6 +487,7 @@ builder.Services.AddSingleton<IPasswordHasher<CandidateAccount>, PasswordHasher<
 builder.Services.AddScoped<ICandidatePasswordHasher, CandidatePasswordHasher>();
 builder.Services.AddScoped<ICandidateTokenService, CandidateTokenService>();
 builder.Services.AddScoped<ICandidateAuthService, CandidateAuthService>();
+builder.Services.AddScoped<ICandidateProfileService, CandidateProfileService>();
 builder.Services.AddScoped<ICandidateAccountReader, CandidateAccountReader>();
 
 builder.Services.Configure<EmailOptions>(
