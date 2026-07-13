@@ -27,7 +27,6 @@ public sealed class CandidateAuthController : ControllerBase
 
     public sealed record RegisterRequest(string Email, string Password, string FirstName, string LastName);
     public sealed record LoginRequest(string Email, string Password);
-    public sealed record UpdateProfileRequest(string FirstName, string LastName);
 
     [HttpPost("register")]
     [EnableRateLimiting(RateLimitPolicies.PerIp)]
@@ -64,21 +63,6 @@ public sealed class CandidateAuthController : ControllerBase
         var result = await _authService.GetCurrentCandidateAsync(candidateAccountId);
 
         // A valid token whose account no longer exists is an inconsistent state, not a bad request.
-        return result.IsSuccess
-            ? Ok(result.Value)
-            : NotFound(new { result.Error.Code, result.Error.Message });
-    }
-
-    [HttpPut("profile")]
-    [Authorize(Policy = Policies.CandidateOnly)]
-    public async Task<IActionResult> UpdateProfile(UpdateProfileRequest request)
-    {
-        if (_currentUser.UserId is not { } candidateAccountId)
-            return Unauthorized();
-
-        var result = await _authService.UpdateProfileAsync(
-            candidateAccountId, request.FirstName, request.LastName);
-
         return result.IsSuccess
             ? Ok(result.Value)
             : NotFound(new { result.Error.Code, result.Error.Message });

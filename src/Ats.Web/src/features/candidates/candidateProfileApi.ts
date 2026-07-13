@@ -1,28 +1,39 @@
 import { apiClient, API_V1 } from '@/lib/apiClient';
 
-/* PUT /api/v1/candidate/auth/profile. The read side reuses GET .../me (useCandidateCurrentUser) —
-   the two return the same shape, so there is no separate "profile" read endpoint to call here.
-   Email is read-only (login identity, no update path); only first/last name are editable. Errors
-   come back as { code, message }. */
+/* GET/PUT /api/v1/candidate/profile — the dedicated profile resource, richer than GET .../me
+   (which stays a minimal "who am I" for the auth context). Email is read-only here (login
+   identity; changing it gets its own verified flow later). birthDate travels as a "yyyy-MM-dd"
+   string: the backend stores a DateOnly, so there is no time zone to reason about. Errors come
+   back as { code, message }. */
 
 export interface CandidateProfile {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
+  phoneNumber: string | null;
+  country: string | null;
+  city: string | null;
+  birthDate: string | null;
 }
 
 export interface UpdateCandidateProfileRequest {
   firstName: string;
   lastName: string;
+  phoneNumber: string | null;
+  country: string | null;
+  city: string | null;
+  birthDate: string | null;
+}
+
+export async function getCandidateProfile(): Promise<CandidateProfile> {
+  const { data } = await apiClient.get<CandidateProfile>(`${API_V1}/candidate/profile`);
+  return data;
 }
 
 export async function updateCandidateProfile(
   request: UpdateCandidateProfileRequest,
 ): Promise<CandidateProfile> {
-  const { data } = await apiClient.put<CandidateProfile>(
-    `${API_V1}/candidate/auth/profile`,
-    request,
-  );
+  const { data } = await apiClient.put<CandidateProfile>(`${API_V1}/candidate/profile`, request);
   return data;
 }

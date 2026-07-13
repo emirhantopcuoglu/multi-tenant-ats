@@ -79,21 +79,4 @@ public sealed class CandidateAuthService : ICandidateAuthService
         return Result.Success(
             new CurrentCandidateDto(account.Id, account.Email, account.FirstName, account.LastName));
     }
-
-    public async Task<Result<CurrentCandidateDto>> UpdateProfileAsync(
-        Guid candidateAccountId, string firstName, string lastName)
-    {
-        var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
-        if (account is null)
-            return Result.Failure<CurrentCandidateDto>(CandidateAuthErrors.NotFound);
-
-        // Names only from this legacy endpoint; the richer profile fields keep their current values
-        // until the dedicated profile endpoint takes over this write path.
-        account.UpdateProfile(
-            firstName, lastName, account.PhoneNumber, account.Country, account.City, account.BirthDate);
-        await _db.SaveChangesAsync();
-
-        return Result.Success(
-            new CurrentCandidateDto(account.Id, account.Email, account.FirstName, account.LastName));
-    }
 }
