@@ -1,10 +1,12 @@
-namespace Ats.Modules.Jobs.Domain;
+namespace Ats.Shared.Kernel;
 
-// Same reasoning as SupportedCurrencies: Job.City/Job.Country stay plain strings (no enum, no
-// migration) because this only tightens the input boundary, not the stored data shape. A curated
-// list rather than a full world dataset -- a well-maintained, permissively-licensed country+city
-// package does not exist (the common one, country-state-city, is GPL-3.0, which a private codebase
-// should not depend on), so this list is hand-maintained here and grown deliberately over time.
+// Lives in the shared kernel because two modules consume it: Jobs validates posting locations and
+// CandidateAccounts validates the candidate's residence. Same reasoning as SupportedCurrencies:
+// Country/City stay plain strings (no enum, no migration) because this only tightens the input
+// boundary, not the stored data shape. A curated list rather than a full world dataset -- a
+// well-maintained, permissively-licensed country+city package does not exist (the common one,
+// country-state-city, is GPL-3.0, which a private codebase should not depend on), so this list is
+// hand-maintained here and grown deliberately over time.
 public static class SupportedCountries
 {
     public const string Turkey = "Turkey";

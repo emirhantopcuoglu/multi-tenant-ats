@@ -1,4 +1,4 @@
-/* Mirrors the backend's Jobs.Domain.SupportedCountries constant list -- a curated, hand-maintained
+/* Mirrors the backend's Ats.Shared.Kernel.SupportedCountries constant list -- a curated, hand-maintained
    set rather than a full world dataset. The obvious npm package for a cascading country/city select
    (country-state-city) is GPL-3.0, which is not safe to depend on from a private codebase, and the
    MIT-licensed alternatives only cover countries, not cities. So this list is grown deliberately by
