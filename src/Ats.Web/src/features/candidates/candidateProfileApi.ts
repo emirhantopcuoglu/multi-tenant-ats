@@ -37,3 +37,25 @@ export async function updateCandidateProfile(
   const { data } = await apiClient.put<CandidateProfile>(`${API_V1}/candidate/profile`, request);
   return data;
 }
+
+export interface ChangeCandidatePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+/* The change rotates the account's security stamp, which kills every issued token — including the
+   one this request was made with. The fresh token in the response is what keeps the candidate's
+   own session alive; the caller must store it immediately. */
+export interface ChangeCandidatePasswordResult {
+  accessToken: string;
+}
+
+export async function changeCandidatePassword(
+  request: ChangeCandidatePasswordRequest,
+): Promise<ChangeCandidatePasswordResult> {
+  const { data } = await apiClient.post<ChangeCandidatePasswordResult>(
+    `${API_V1}/candidate/profile/password`,
+    request,
+  );
+  return data;
+}
