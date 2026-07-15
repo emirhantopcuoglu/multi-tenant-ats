@@ -575,12 +575,19 @@ builder.Services.AddAuthorization(options =>
     // the same key and passes JWT validation, but carries no token_type=candidate claim, so it fails
     // here. The reverse — a candidate token on a company endpoint — is already blocked by those
     // endpoints' role requirements, which a role-less candidate token cannot meet.
+    // The security-stamp requirement additionally rejects tokens issued before the account's last
+    // password change (the stamp rotates on change), revoking stolen or stale sessions immediately.
     options.AddPolicy(Policies.CandidateOnly, policy =>
-        policy.RequireClaim(TokenTypes.ClaimName, TokenTypes.Candidate));
+        policy.RequireClaim(TokenTypes.ClaimName, TokenTypes.Candidate)
+            .AddRequirements(new CandidateSecurityStampRequirement()));
 });
 
 // Stateless handler — singleton is safe and avoids allocating per-request.
 builder.Services.AddSingleton<IAuthorizationHandler, InterviewerAuthorizationHandler>();
+
+// Scoped, unlike the handler above: it reads the account's current security stamp through the
+// scoped CandidateAccountsDbContext on every authenticated candidate request.
+builder.Services.AddScoped<IAuthorizationHandler, CandidateSecurityStampHandler>();
 
 // Distributed tracing (Sprint 7.2). A single TracerProvider covers all instrumented activities.
 // The OTLP exporter forwards spans to Jaeger (http://localhost:4317 dev); swap the endpoint

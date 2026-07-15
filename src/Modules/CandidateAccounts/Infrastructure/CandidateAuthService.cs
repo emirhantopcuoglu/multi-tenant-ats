@@ -27,6 +27,10 @@ public sealed class CandidateAuthService : ICandidateAuthService
     public async Task<Result<CandidateAuthResult>> RegisterAsync(
         string email, string password, string firstName, string lastName)
     {
+        // Enforced here and not only in the frontend: the zod rule is UX, the server is the boundary.
+        if (!CandidatePasswordPolicy.IsAcceptable(password))
+            return Result.Failure<CandidateAuthResult>(CandidateAuthErrors.PasswordTooShort);
+
         var normalizedEmail = CandidateAccount.NormalizeEmail(email);
 
         // Cheap pre-check for the common case so the caller gets a clear error rather than a raw
@@ -50,7 +54,7 @@ public sealed class CandidateAuthService : ICandidateAuthService
             return Result.Failure<CandidateAuthResult>(CandidateAuthErrors.EmailAlreadyRegistered);
         }
 
-        var token = _tokenService.GenerateAccessToken(account.Id, account.Email);
+        var token = _tokenService.GenerateAccessToken(account.Id, account.Email, account.SecurityStamp);
         return Result.Success(new CandidateAuthResult(token));
     }
 
@@ -63,7 +67,7 @@ public sealed class CandidateAuthService : ICandidateAuthService
         if (account is null || !_passwordHasher.Verify(account.PasswordHash, password))
             return Result.Failure<CandidateAuthResult>(CandidateAuthErrors.InvalidCredentials);
 
-        var token = _tokenService.GenerateAccessToken(account.Id, account.Email);
+        var token = _tokenService.GenerateAccessToken(account.Id, account.Email, account.SecurityStamp);
         return Result.Success(new CandidateAuthResult(token));
     }
 

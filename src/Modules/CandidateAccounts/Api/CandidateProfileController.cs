@@ -3,6 +3,7 @@ using Ats.Modules.CandidateAccounts.Application;
 using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Ats.Modules.CandidateAccounts.Api;
 
@@ -61,6 +62,29 @@ public sealed class CandidateProfileController : ControllerBase
             return Ok(result.Value);
 
         // Only "account gone" is a 404; every other failure is the caller's input.
+        return result.Error == CandidateProfileErrors.NotFound
+            ? NotFound(new { result.Error.Code, result.Error.Message })
+            : BadRequest(new { result.Error.Code, result.Error.Message });
+    }
+
+    public sealed record ChangeCandidatePasswordRequest(string CurrentPassword, string NewPassword);
+
+    // Rate limited like login even though it is authenticated: the current-password check makes this
+    // endpoint a password oracle for anyone holding a stolen token, so it gets the same brute-force
+    // guard as the anonymous auth endpoints.
+    [HttpPost("password")]
+    [EnableRateLimiting(RateLimitPolicies.PerIp)]
+    public async Task<IActionResult> ChangePassword(ChangeCandidatePasswordRequest request)
+    {
+        if (_currentUser.UserId is not { } candidateAccountId)
+            return Unauthorized();
+
+        var command = new ChangeCandidatePasswordCommand(request.CurrentPassword, request.NewPassword);
+        var result = await _profileService.ChangePasswordAsync(candidateAccountId, command);
+
+        if (result.IsSuccess)
+            return Ok(result.Value);
+
         return result.Error == CandidateProfileErrors.NotFound
             ? NotFound(new { result.Error.Code, result.Error.Message })
             : BadRequest(new { result.Error.Code, result.Error.Message });
