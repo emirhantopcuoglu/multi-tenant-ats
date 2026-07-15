@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslation } from 'react-i18next';
@@ -13,6 +13,7 @@ import {
   useUpdateCandidateProfile,
 } from '../useCandidateProfile';
 import type { CandidateProfile } from '../candidateProfileApi';
+import { PhoneInput } from '../components/PhoneInput';
 
 /* Mirrors CandidateAccount.FirstName/LastName HasMaxLength(100) on the backend. */
 const NAME_MAX_LENGTH = 100;
@@ -24,9 +25,9 @@ const PASSWORD_MIN_LENGTH = 8;
    instead of the generic failure toast. */
 const INVALID_CURRENT_PASSWORD_CODE = 'candidate_profile.invalid_current_password';
 
-/* Loose on purpose: people type local formatting ("+90 (532) 123 45 67"); the backend strips it
-   and enforces E.164's 7-15 digit rule, so the client only rejects obvious non-phones. */
-const PHONE_PATTERN = /^\+?[0-9 ().-]{7,20}$/;
+/* Mirrors the backend's E.164 window. The masked input already guarantees the charset and caps
+   the maximum per dial country, so the only thing left to validate is "too few digits". */
+const PHONE_MIN_DIGITS = 7;
 
 /* Mirror CandidateAccount.MinimumAgeYears/MaximumAgeYears on the backend. */
 const MINIMUM_AGE_YEARS = 15;
@@ -225,16 +226,20 @@ function CandidateProfileForm({ profile }: { profile: CandidateProfile }) {
             .trim()
             .min(1, t('validation.required'))
             .max(NAME_MAX_LENGTH, t('validation.maxLength', { count: NAME_MAX_LENGTH })),
-          phoneNumber: z
-            .string()
-            .trim()
-            .regex(PHONE_PATTERN, t('candidateProfile.phoneInvalid'))
-            .or(z.literal('')),
+          phoneNumber: z.string(),
           country: z.string(),
           city: z.string(),
           birthDate: z.string(),
         })
         .superRefine((values, ctx) => {
+          const phoneDigits = values.phoneNumber.replace(/\D/g, '');
+          if (phoneDigits.length > 0 && phoneDigits.length < PHONE_MIN_DIGITS) {
+            ctx.addIssue({
+              code: 'custom',
+              path: ['phoneNumber'],
+              message: t('candidateProfile.phoneInvalid'),
+            });
+          }
           if (values.country && !values.city) {
             ctx.addIssue({ code: 'custom', path: ['city'], message: t('validation.required') });
           }
@@ -257,7 +262,7 @@ function CandidateProfileForm({ profile }: { profile: CandidateProfile }) {
   );
   type ProfileForm = z.infer<typeof schema>;
 
-  const { register, handleSubmit, reset, watch, setValue, formState } = useForm<ProfileForm>({
+  const { register, control, handleSubmit, reset, watch, setValue, formState } = useForm<ProfileForm>({
     resolver: zodResolver(schema),
     defaultValues: {
       firstName: profile.firstName,
@@ -333,14 +338,22 @@ function CandidateProfileForm({ profile }: { profile: CandidateProfile }) {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
+          {/* A masked, controlled component can't go through register() (that API hands out an
+              uncontrolled ref); Controller is react-hook-form's bridge for exactly this case. */}
           <Field label={t('candidateProfile.phone')} error={formState.errors.phoneNumber?.message}>
             {({ id, describedById, invalid }) => (
-              <Input
-                id={id}
-                type="tel"
-                aria-describedby={describedById}
-                invalid={invalid}
-                {...register('phoneNumber')}
+              <Controller
+                control={control}
+                name="phoneNumber"
+                render={({ field }) => (
+                  <PhoneInput
+                    id={id}
+                    value={field.value}
+                    onChange={field.onChange}
+                    describedById={describedById}
+                    invalid={invalid}
+                  />
+                )}
               />
             )}
           </Field>
