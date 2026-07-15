@@ -542,6 +542,7 @@
     "lastName": "Last name",
     "phone": "Phone number",
     "phoneInvalid": "Enter a valid phone number.",
+    "phoneCountryCode": "Country code",
     "birthDate": "Birth date",
     "birthDateTooYoung": "You must be at least {{age}} years old.",
     "birthDateInvalid": "Enter a valid birth date.",
