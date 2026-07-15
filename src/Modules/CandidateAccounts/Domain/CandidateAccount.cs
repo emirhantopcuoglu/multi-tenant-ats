@@ -13,6 +13,13 @@ public sealed class CandidateAccount
     public Guid Id { get; private set; }
     public string Email { get; private set; } = null!;
     public string PasswordHash { get; private set; } = null!;
+
+    // Versions the account's security state. It is minted into every access token as a claim and
+    // compared against this column on each authenticated request; rotating it (password change now,
+    // email change later) instantly invalidates every previously issued token. Chosen over a token
+    // blacklist (per-request cache lookups, eviction to reason about) and over building refresh-token
+    // rotation for candidates (a much larger piece of work than this sprint warrants).
+    public Guid SecurityStamp { get; private set; }
     public string FirstName { get; private set; } = null!;
     public string LastName { get; private set; } = null!;
 
@@ -43,6 +50,7 @@ public sealed class CandidateAccount
         FirstName = firstName;
         LastName = lastName;
         CreatedAtUtc = createdAtUtc;
+        SecurityStamp = Guid.NewGuid();
     }
 
     // Hashing (algorithm, work factor, salt) is an infrastructure concern, so the caller passes an
@@ -115,6 +123,18 @@ public sealed class CandidateAccount
         Country = normalizedCountry;
         City = normalizedCity;
         BirthDate = birthDate;
+    }
+
+    // Verifying the CURRENT password is the application layer's job (it owns the hasher); by the time
+    // this runs the caller has proven ownership and hashed the new secret. The guard runs before any
+    // mutation so a rejected change can never rotate the stamp and log the candidate out for nothing.
+    public void ChangePassword(string newPasswordHash)
+    {
+        if (string.IsNullOrWhiteSpace(newPasswordHash))
+            throw new ArgumentException("Password hash is required.", nameof(newPasswordHash));
+
+        PasswordHash = newPasswordHash;
+        SecurityStamp = Guid.NewGuid();
     }
 
     private static void ValidateBirthDate(DateOnly? birthDate)

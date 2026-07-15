@@ -5,12 +5,24 @@ import { z } from 'zod';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Field, Input, Select, Skeleton, useToast } from '@/components/ui';
 import { PublicLayout } from '@/features/public/components/PublicLayout';
+import { toApiError } from '@/lib/problemDetails';
 import { CITIES_BY_COUNTRY, COUNTRIES, type Country } from '@/types/location';
-import { useCandidateProfile, useUpdateCandidateProfile } from '../useCandidateProfile';
+import {
+  useCandidateProfile,
+  useChangeCandidatePassword,
+  useUpdateCandidateProfile,
+} from '../useCandidateProfile';
 import type { CandidateProfile } from '../candidateProfileApi';
 
 /* Mirrors CandidateAccount.FirstName/LastName HasMaxLength(100) on the backend. */
 const NAME_MAX_LENGTH = 100;
+
+/* Mirrors CandidatePasswordPolicy.MinimumLength on the backend (UX only — the server enforces). */
+const PASSWORD_MIN_LENGTH = 8;
+
+/* The backend's typed error code for a wrong current password; mapped to a field-level message
+   instead of the generic failure toast. */
+const INVALID_CURRENT_PASSWORD_CODE = 'candidate_profile.invalid_current_password';
 
 /* Loose on purpose: people type local formatting ("+90 (532) 123 45 67"); the backend strips it
    and enforces E.164's 7-15 digit rule, so the client only rejects obvious non-phones. */
@@ -51,10 +63,140 @@ export function CandidateProfilePage() {
             <p className="text-sm text-text-muted">{t('candidateProfile.loadError')}</p>
           </Card>
         ) : (
-          <CandidateProfileForm profile={profileQuery.data} />
+          <>
+            <CandidateProfileForm profile={profileQuery.data} />
+            <PasswordChangeCard />
+          </>
         )}
       </div>
     </PublicLayout>
+  );
+}
+
+/* Its own card and its own form on purpose: the password change shares no state with the profile
+   form (separate submit, separate dirty state), and merging them would make one Save button do two
+   unrelated things. Lands in the Security tab when the settings layout arrives. */
+function PasswordChangeCard() {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const changePassword = useChangeCandidatePassword();
+
+  const schema = useMemo(
+    () =>
+      z
+        .object({
+          currentPassword: z.string().min(1, t('validation.required')),
+          newPassword: z
+            .string()
+            .min(PASSWORD_MIN_LENGTH, t('validation.passwordMin', { count: PASSWORD_MIN_LENGTH })),
+          confirmPassword: z.string(),
+        })
+        .superRefine((values, ctx) => {
+          if (values.confirmPassword !== values.newPassword) {
+            ctx.addIssue({
+              code: 'custom',
+              path: ['confirmPassword'],
+              message: t('candidateProfile.passwordMismatch'),
+            });
+          }
+        }),
+    [t],
+  );
+  type PasswordForm = z.infer<typeof schema>;
+
+  const { register, handleSubmit, reset, setError, formState } = useForm<PasswordForm>({
+    resolver: zodResolver(schema),
+    defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
+  });
+
+  const onSubmit = handleSubmit((form) => {
+    changePassword.mutate(
+      { currentPassword: form.currentPassword, newPassword: form.newPassword },
+      {
+        onSuccess: () => {
+          toast({ title: t('candidateProfile.passwordChanged'), tone: 'success' });
+          reset();
+        },
+        onError: (error) => {
+          /* A wrong current password is the caller's own typo — point at the field. Anything
+             else (network, server) gets the generic failure toast. */
+          if (toApiError(error).code === INVALID_CURRENT_PASSWORD_CODE) {
+            setError('currentPassword', {
+              message: t('candidateProfile.currentPasswordInvalid'),
+            });
+          } else {
+            toast({ title: t('candidateProfile.passwordChangeError'), tone: 'danger' });
+          }
+        },
+      },
+    );
+  });
+
+  return (
+    <Card className="max-w-xl">
+      <form onSubmit={onSubmit} noValidate className="space-y-4">
+        <div className="space-y-1">
+          <h2 className="text-lg font-medium">{t('candidateProfile.passwordTitle')}</h2>
+          <p className="text-sm text-text-muted">{t('candidateProfile.passwordSubtitle')}</p>
+        </div>
+
+        <Field
+          label={t('candidateProfile.currentPassword')}
+          error={formState.errors.currentPassword?.message}
+        >
+          {({ id, describedById, invalid }) => (
+            <Input
+              id={id}
+              type="password"
+              autoComplete="current-password"
+              aria-describedby={describedById}
+              invalid={invalid}
+              {...register('currentPassword')}
+            />
+          )}
+        </Field>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label={t('candidateProfile.newPassword')}
+            error={formState.errors.newPassword?.message}
+          >
+            {({ id, describedById, invalid }) => (
+              <Input
+                id={id}
+                type="password"
+                autoComplete="new-password"
+                aria-describedby={describedById}
+                invalid={invalid}
+                {...register('newPassword')}
+              />
+            )}
+          </Field>
+
+          <Field
+            label={t('candidateProfile.confirmPassword')}
+            error={formState.errors.confirmPassword?.message}
+          >
+            {({ id, describedById, invalid }) => (
+              <Input
+                id={id}
+                type="password"
+                autoComplete="new-password"
+                aria-describedby={describedById}
+                invalid={invalid}
+                {...register('confirmPassword')}
+              />
+            )}
+          </Field>
+        </div>
+
+        <div className="flex justify-end">
+          <Button type="submit" disabled={changePassword.isPending}>
+            {t('candidateProfile.passwordSubmit')}
+          </Button>
+        </div>
+      </form>
+    </Card>
   );
 }
 

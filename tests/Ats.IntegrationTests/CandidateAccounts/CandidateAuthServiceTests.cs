@@ -93,6 +93,19 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Register_should_reject_a_password_below_the_minimum_length()
+    {
+        // The frontend enforces the same minimum via zod, but that is UX only — the server is the
+        // boundary that must hold against a raw HTTP client.
+        var service = CreateService();
+
+        var result = await service.RegisterAsync("jane@example.com", "short", "Jane", "Doe");
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(CandidateAuthErrors.PasswordTooShort.Code, result.Error.Code);
+    }
+
+    [Fact]
     public async Task Issued_token_should_mark_the_candidate_and_carry_no_company_claims()
     {
         // Arrange

@@ -550,7 +550,17 @@
     "city": "City",
     "cityPlaceholder": "Select a city",
     "saved": "Profile updated.",
-    "saveError": "Couldn't save your profile. Try again."
+    "saveError": "Couldn't save your profile. Try again.",
+    "passwordTitle": "Change password",
+    "passwordSubtitle": "After the change you stay signed in here; all your other sessions are signed out.",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "passwordMismatch": "Passwords don't match.",
+    "passwordSubmit": "Change password",
+    "passwordChanged": "Password changed.",
+    "passwordChangeError": "Couldn't change your password. Try again.",
+    "currentPasswordInvalid": "Your current password is incorrect."
   },
   "notifications": {
     "title": "Notifications",

@@ -2,16 +2,30 @@ using Ats.Modules.CandidateAccounts.Application;
 using Ats.Modules.CandidateAccounts.Domain;
 using Ats.Shared.Kernel;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.CandidateAccounts.Infrastructure;
 
 public sealed class CandidateProfileService : ICandidateProfileService
 {
     private readonly CandidateAccountsDbContext _db;
+    private readonly ICandidatePasswordHasher _passwordHasher;
+    private readonly ICandidateTokenService _tokenService;
+    private readonly IEmailSender _emailSender;
+    private readonly ILogger<CandidateProfileService> _logger;
 
-    public CandidateProfileService(CandidateAccountsDbContext db)
+    public CandidateProfileService(
+        CandidateAccountsDbContext db,
+        ICandidatePasswordHasher passwordHasher,
+        ICandidateTokenService tokenService,
+        IEmailSender emailSender,
+        ILogger<CandidateProfileService> logger)
     {
         _db = db;
+        _passwordHasher = passwordHasher;
+        _tokenService = tokenService;
+        _emailSender = emailSender;
+        _logger = logger;
     }
 
     public async Task<Result<CandidateProfileDto>> GetAsync(Guid candidateAccountId)
@@ -58,6 +72,58 @@ public sealed class CandidateProfileService : ICandidateProfileService
 
         await _db.SaveChangesAsync();
         return Result.Success(ToDto(account));
+    }
+
+    public async Task<Result<CandidatePasswordChangeResult>> ChangePasswordAsync(
+        Guid candidateAccountId, ChangeCandidatePasswordCommand command)
+    {
+        if (!CandidatePasswordPolicy.IsAcceptable(command.NewPassword))
+            return Result.Failure<CandidatePasswordChangeResult>(CandidateProfileErrors.PasswordTooShort);
+
+        var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
+        if (account is null)
+            return Result.Failure<CandidatePasswordChangeResult>(CandidateProfileErrors.NotFound);
+
+        // A valid token is not enough to change the password: a stolen session must not be able to
+        // lock the real owner out, so the current password re-proves ownership here.
+        if (!_passwordHasher.Verify(account.PasswordHash, command.CurrentPassword))
+            return Result.Failure<CandidatePasswordChangeResult>(CandidateProfileErrors.InvalidCurrentPassword);
+
+        account.ChangePassword(_passwordHasher.Hash(command.NewPassword));
+        await _db.SaveChangesAsync();
+
+        // Structured security-event log: the id is enough to investigate, and neither password nor
+        // hash may ever appear in a log line.
+        _logger.LogInformation(
+            "Password changed for candidate account {CandidateAccountId}", candidateAccountId);
+
+        await NotifyPasswordChangedAsync(account.Email);
+
+        // The rotation above just invalidated the token this request arrived with; hand back a fresh
+        // one so the candidate's own session survives their password change.
+        var accessToken = _tokenService.GenerateAccessToken(account.Id, account.Email, account.SecurityStamp);
+        return Result.Success(new CandidatePasswordChangeResult(accessToken));
+    }
+
+    // Best-effort by design: the password change is already committed, so a failing mail server must
+    // not turn a succeeded operation into an error response. The failure is logged, not swallowed.
+    private async Task NotifyPasswordChangedAsync(string email)
+    {
+        const string subject = "Your password was changed";
+        const string body = """
+            <p>The password of your candidate account was just changed.</p>
+            <p>If you made this change, no action is needed.</p>
+            <p>If you did not, someone else may have access to your account — please contact us immediately.</p>
+            """;
+
+        try
+        {
+            await _emailSender.SendAsync(email, subject, body);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Failed to send the password-changed notification email");
+        }
     }
 
     private static CandidateProfileDto ToDto(CandidateAccount account) =>

@@ -25,6 +25,9 @@ public sealed class CandidateAccountsDbContext : DbContext
             entity.HasKey(c => c.Id);
             entity.Property(c => c.Email).IsRequired().HasMaxLength(256);
             entity.Property(c => c.PasswordHash).IsRequired();
+            // The DB default only matters once: it backfills accounts that existed before the column
+            // did, giving each a unique stamp. New rows always arrive with a value from Register().
+            entity.Property(c => c.SecurityStamp).IsRequired().HasDefaultValueSql("gen_random_uuid()");
             entity.Property(c => c.FirstName).IsRequired().HasMaxLength(100);
             entity.Property(c => c.LastName).IsRequired().HasMaxLength(100);
             // 16 = E.164's 15-digit maximum plus the leading '+'; the domain normalizes before storing.

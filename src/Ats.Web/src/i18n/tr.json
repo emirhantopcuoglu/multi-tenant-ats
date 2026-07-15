@@ -550,7 +550,17 @@
     "city": "Şehir",
     "cityPlaceholder": "Şehir seç",
     "saved": "Profil güncellendi.",
-    "saveError": "Profil kaydedilemedi. Tekrar dene."
+    "saveError": "Profil kaydedilemedi. Tekrar dene.",
+    "passwordTitle": "Şifre değiştir",
+    "passwordSubtitle": "Değişiklikten sonra bu oturumun açık kalır; diğer tüm oturumların kapatılır.",
+    "currentPassword": "Mevcut şifre",
+    "newPassword": "Yeni şifre",
+    "confirmPassword": "Yeni şifre (tekrar)",
+    "passwordMismatch": "Şifreler eşleşmiyor.",
+    "passwordSubmit": "Şifreyi değiştir",
+    "passwordChanged": "Şifren değiştirildi.",
+    "passwordChangeError": "Şifre değiştirilemedi. Tekrar dene.",
+    "currentPasswordInvalid": "Mevcut şifren hatalı."
   },
   "notifications": {
     "title": "Bildirimler",

@@ -14,4 +14,8 @@ public static class CandidateAuthErrors
 
     public static readonly Error NotFound =
         new("candidate_auth.not_found", "Candidate account not found.");
+
+    public static readonly Error PasswordTooShort =
+        new("candidate_auth.password_too_short",
+            $"Password must be at least {CandidatePasswordPolicy.MinimumLength} characters.");
 }

@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getCandidateProfile, updateCandidateProfile } from './candidateProfileApi';
+import {
+  changeCandidatePassword,
+  getCandidateProfile,
+  updateCandidateProfile,
+} from './candidateProfileApi';
 import { candidateUserQueryKey } from './useCandidateCurrentUser';
+import { tokenStore } from '@/lib/tokenStore';
 import type { CandidateUser } from '@/types/auth';
 
 export const candidateProfileQueryKey = ['candidate', 'profile'] as const;
@@ -29,6 +34,18 @@ export function useUpdateCandidateProfile() {
         lastName: profile.lastName,
       };
       queryClient.setQueryData(candidateUserQueryKey, user);
+    },
+  });
+}
+
+/* Swapping the stored token in onSuccess is not optional: the backend rotated the security stamp,
+   so the token used for this very request is already dead. Persisting the fresh one here is what
+   makes the change seamless instead of a forced logout on the next request. */
+export function useChangeCandidatePassword() {
+  return useMutation({
+    mutationFn: changeCandidatePassword,
+    onSuccess: ({ accessToken }) => {
+      tokenStore.setCandidateToken(accessToken);
     },
   });
 }
