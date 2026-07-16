@@ -137,6 +137,20 @@ public sealed class CandidateAccount
         SecurityStamp = Guid.NewGuid();
     }
 
+    // Runs only after the two-phase verification flow proved the caller controls the new mailbox
+    // (EmailChangeRequest); nothing else may rename the login identity. Rotating the stamp here is
+    // deliberate and stricter than the password case: email IS the login handle, so a takeover via
+    // email change must drop every session — including the attacker's — forcing a fresh login that
+    // now requires the new address.
+    public void ChangeEmail(string newEmail)
+    {
+        if (string.IsNullOrWhiteSpace(newEmail))
+            throw new ArgumentException("Email is required.", nameof(newEmail));
+
+        Email = NormalizeEmail(newEmail);
+        SecurityStamp = Guid.NewGuid();
+    }
+
     private static void ValidateBirthDate(DateOnly? birthDate)
     {
         if (birthDate is not { } date)

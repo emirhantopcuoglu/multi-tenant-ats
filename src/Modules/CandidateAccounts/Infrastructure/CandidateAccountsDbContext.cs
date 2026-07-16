@@ -15,6 +15,7 @@ public sealed class CandidateAccountsDbContext : DbContext
     }
 
     public DbSet<CandidateAccount> CandidateAccounts => Set<CandidateAccount>();
+    public DbSet<EmailChangeRequest> EmailChangeRequests => Set<EmailChangeRequest>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -38,6 +39,24 @@ public sealed class CandidateAccountsDbContext : DbContext
             // One account per email across the whole marketplace. Enforced at the database, the only
             // place that holds under concurrent registrations.
             entity.HasIndex(c => c.Email).IsUnique();
+        });
+
+        builder.Entity<EmailChangeRequest>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.NewEmail).IsRequired().HasMaxLength(256);
+            // 44 = the exact length of a base64-encoded SHA-256 digest; anything longer is a bug.
+            entity.Property(r => r.TokenHash).IsRequired().HasMaxLength(44);
+            // Confirmation looks the request up by the hash of the presented token, so this is the
+            // hot path; unique because two requests sharing a token would make "which one did the
+            // click prove?" ambiguous.
+            entity.HasIndex(r => r.TokenHash).IsUnique();
+            // Deleting an account must take its pending requests with it — an orphaned request could
+            // otherwise rename a recycled account id later.
+            entity.HasOne<CandidateAccount>()
+                .WithMany()
+                .HasForeignKey(r => r.CandidateAccountId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
