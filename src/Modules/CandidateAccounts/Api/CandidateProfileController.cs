@@ -89,4 +89,44 @@ public sealed class CandidateProfileController : ControllerBase
             ? NotFound(new { result.Error.Code, result.Error.Message })
             : BadRequest(new { result.Error.Code, result.Error.Message });
     }
+
+    public sealed record RequestEmailChangeRequest(string NewEmail, string CurrentPassword);
+
+    public sealed record ConfirmEmailChangeRequest(string Token);
+
+    // Rate limited for the same reason as the password endpoint: verifying the current password
+    // makes this an oracle for anyone holding a stolen token.
+    [HttpPost("email")]
+    [EnableRateLimiting(RateLimitPolicies.PerIp)]
+    public async Task<IActionResult> RequestEmailChange(RequestEmailChangeRequest request)
+    {
+        if (_currentUser.UserId is not { } candidateAccountId)
+            return Unauthorized();
+
+        var command = new RequestCandidateEmailChangeCommand(request.NewEmail, request.CurrentPassword);
+        var result = await _profileService.RequestEmailChangeAsync(candidateAccountId, command);
+
+        if (result.IsSuccess)
+            return Ok();
+
+        return result.Error == CandidateProfileErrors.NotFound
+            ? NotFound(new { result.Error.Code, result.Error.Message })
+            : BadRequest(new { result.Error.Code, result.Error.Message });
+    }
+
+    // Anonymous inside an [Authorize] controller on purpose: the confirmer clicks a mailed link,
+    // possibly on a device with no session, and the 256-bit single-use token is the proof of
+    // ownership. Rate limited so token guessing is throttled on top of being cryptographically
+    // hopeless.
+    [HttpPost("email/confirm")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.PerIp)]
+    public async Task<IActionResult> ConfirmEmailChange(ConfirmEmailChangeRequest request)
+    {
+        var result = await _profileService.ConfirmEmailChangeAsync(request.Token);
+
+        return result.IsSuccess
+            ? Ok()
+            : BadRequest(new { result.Error.Code, result.Error.Message });
+    }
 }

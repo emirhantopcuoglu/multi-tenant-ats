@@ -483,6 +483,8 @@ builder.Services.AddScoped<ITenantDirectory, TenantDirectory>();
 // singleton) adapted to a subject-less port.
 builder.Services.Configure<CandidateJwtOptions>(
     builder.Configuration.GetSection(CandidateJwtOptions.SectionName));
+builder.Services.Configure<CandidateEmailChangeOptions>(
+    builder.Configuration.GetSection(CandidateEmailChangeOptions.SectionName));
 builder.Services.AddSingleton<IPasswordHasher<CandidateAccount>, PasswordHasher<CandidateAccount>>();
 builder.Services.AddScoped<ICandidatePasswordHasher, CandidatePasswordHasher>();
 builder.Services.AddScoped<ICandidateTokenService, CandidateTokenService>();
