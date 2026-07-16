@@ -39,6 +39,12 @@ public sealed class CandidateAccount
 
     public DateTime CreatedAtUtc { get; private set; }
 
+    // Lifecycle state. New accounts are born Active; the timestamps record when the current state
+    // was entered and are cleared/kept accordingly by the transition methods below.
+    public CandidateAccountStatus Status { get; private set; }
+    public DateTime? FrozenAtUtc { get; private set; }
+    public DateTime? DeletedAtUtc { get; private set; }
+
     private CandidateAccount() { }
 
     private CandidateAccount(
@@ -148,6 +154,67 @@ public sealed class CandidateAccount
             throw new ArgumentException("Email is required.", nameof(newEmail));
 
         Email = NormalizeEmail(newEmail);
+        SecurityStamp = Guid.NewGuid();
+    }
+
+    // What anonymized name fields hold after deletion. A recognizable constant, not an empty
+    // string: anywhere the name still renders (old application lists), "Deleted user" reads as an
+    // explanation instead of a blank.
+    public const string AnonymizedFirstName = "Deleted";
+    public const string AnonymizedLastName = "user";
+
+    // ".invalid" is reserved by RFC 2606 and can never resolve, so the placeholder is undeliverable
+    // by construction. Keyed by account id so it stays unique under the email index.
+    public static string BuildAnonymizedEmail(Guid accountId) =>
+        $"deleted-{accountId:N}@account.invalid";
+
+    // The stamp is NOT rotated here on purpose: a frozen account may keep its session — the locked
+    // product decision is that it can log in and is shown a reactivation screen, so killing the
+    // session that just clicked "freeze" would only force a pointless re-login.
+    public void Freeze()
+    {
+        if (Status != CandidateAccountStatus.Active)
+            throw new InvalidOperationException("Only an active account can be frozen.");
+
+        Status = CandidateAccountStatus.Frozen;
+        FrozenAtUtc = DateTime.UtcNow;
+    }
+
+    public void Reactivate()
+    {
+        if (Status != CandidateAccountStatus.Frozen)
+            throw new InvalidOperationException("Only a frozen account can be reactivated.");
+
+        Status = CandidateAccountStatus.Active;
+        FrozenAtUtc = null;
+    }
+
+    // Soft delete: the row must survive because applications reference this account, but the
+    // person has the right to erasure — so every personal field is anonymized in place. The email
+    // becomes a per-account placeholder, which both satisfies the unique index and frees the real
+    // address for a future registration (deletion is final; there is no recovery to preserve it
+    // for). Rotating the stamp kills every live session immediately; the global query filter then
+    // keeps the account out of login and all other reads.
+    public void Delete()
+    {
+        if (Status == CandidateAccountStatus.Deleted)
+            throw new InvalidOperationException("The account is already deleted.");
+
+        Status = CandidateAccountStatus.Deleted;
+        DeletedAtUtc = DateTime.UtcNow;
+        FrozenAtUtc = null;
+
+        // PasswordHash is intentionally kept: a salted PBKDF2 hash is not recoverable personal
+        // data, and overwriting it with a non-hash would make any accidental Verify() call throw
+        // instead of fail. The query filter already keeps the row out of every login path.
+        Email = BuildAnonymizedEmail(Id);
+        FirstName = AnonymizedFirstName;
+        LastName = AnonymizedLastName;
+        PhoneNumber = null;
+        Country = null;
+        City = null;
+        BirthDate = null;
+        CvFileKey = null;
         SecurityStamp = Guid.NewGuid();
     }
 
