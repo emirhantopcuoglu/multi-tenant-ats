@@ -59,3 +59,22 @@ export async function changeCandidatePassword(
   );
   return data;
 }
+
+/* Two-phase email change. Phase one (authenticated) mails a verification link to the NEW address;
+   nothing changes until that link is used. Phase two (anonymous — the link may be opened on a
+   device with no session) posts the token back. A successful confirm rotates the security stamp,
+   so every session dies and the candidate logs in again with the new address. */
+export interface RequestCandidateEmailChangeRequest {
+  newEmail: string;
+  currentPassword: string;
+}
+
+export async function requestCandidateEmailChange(
+  request: RequestCandidateEmailChangeRequest,
+): Promise<void> {
+  await apiClient.post(`${API_V1}/candidate/profile/email`, request);
+}
+
+export async function confirmCandidateEmailChange(token: string): Promise<void> {
+  await apiClient.post(`${API_V1}/candidate/profile/email/confirm`, { token });
+}

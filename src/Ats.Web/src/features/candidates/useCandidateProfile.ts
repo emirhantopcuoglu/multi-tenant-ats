@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   changeCandidatePassword,
+  confirmCandidateEmailChange,
   getCandidateProfile,
+  requestCandidateEmailChange,
   updateCandidateProfile,
 } from './candidateProfileApi';
 import { candidateUserQueryKey } from './useCandidateCurrentUser';
@@ -46,6 +48,22 @@ export function useChangeCandidatePassword() {
     mutationFn: changeCandidatePassword,
     onSuccess: ({ accessToken }) => {
       tokenStore.setCandidateToken(accessToken);
+    },
+  });
+}
+
+/* No cache updates on success: the profile's email is untouched until the mailed link is used. */
+export function useRequestCandidateEmailChange() {
+  return useMutation({ mutationFn: requestCandidateEmailChange });
+}
+
+/* Clears the stored token on success rather than swapping it: the stamp rotation killed every
+   session on purpose (email is the login identity), so the honest next step is a fresh login. */
+export function useConfirmCandidateEmailChange() {
+  return useMutation({
+    mutationFn: confirmCandidateEmailChange,
+    onSuccess: () => {
+      tokenStore.clearCandidateToken();
     },
   });
 }
