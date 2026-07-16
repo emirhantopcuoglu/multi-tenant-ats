@@ -36,9 +36,19 @@ public sealed class CandidateAccountsDbContext : DbContext
             entity.Property(c => c.Country).HasMaxLength(100);
             entity.Property(c => c.City).HasMaxLength(100);
             entity.Property(c => c.CvFileKey).HasMaxLength(512);
+            // Stored as the string name (project convention across modules); the default backfills
+            // rows that existed before the column did — new rows are always born Active in code.
+            entity.Property(c => c.Status)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .HasDefaultValue(CandidateAccountStatus.Active);
             // One account per email across the whole marketplace. Enforced at the database, the only
             // place that holds under concurrent registrations.
             entity.HasIndex(c => c.Email).IsUnique();
+            // Soft-deleted accounts vanish from every query — login, security-stamp check, the
+            // cross-module reader — without each call site remembering to filter. The one deliberate
+            // bypass is IgnoreQueryFilters(), which nothing uses today.
+            entity.HasQueryFilter(c => c.Status != CandidateAccountStatus.Deleted);
         });
 
         builder.Entity<EmailChangeRequest>(entity =>

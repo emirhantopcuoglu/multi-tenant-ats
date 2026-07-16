@@ -571,7 +571,25 @@
     "emailChangeError": "E-posta değişikliği başlatılamadı. Tekrar dene.",
     "emailInvalid": "Geçerli bir e-posta adresi gir.",
     "emailUnchanged": "Bu zaten mevcut e-posta adresin.",
-    "emailTaken": "Bu e-posta ile kayıtlı bir hesap zaten var."
+    "emailTaken": "Bu e-posta ile kayıtlı bir hesap zaten var.",
+    "accountTitle": "Hesap",
+    "freezeTitle": "Hesabı dondur",
+    "freezeDescription": "Hesabını sen yeniden aktifleştirene kadar duraklatır. İstediğin zaman giriş yapıp tek tıkla geri alabilirsin.",
+    "freezeSubmit": "Hesabı dondur",
+    "freezeError": "Hesap dondurulamadı. Tekrar dene.",
+    "deleteTitle": "Hesabı sil",
+    "deleteWarning": "Bu işlem kalıcıdır. Adın, telefonun, konumun ve doğum tarihin silinir ve geri getirilemez. E-posta adresin yeni bir kayıt için kullanılabilir hale gelir.",
+    "deleteSubmit": "Hesabımı sil",
+    "deleteError": "Hesap silinemedi. Tekrar dene.",
+    "deleted": "Hesabın silindi."
+  },
+  "reactivateAccount": {
+    "title": "Hesabın dondurulmuş",
+    "description": "Hesabın donuk olduğu sürece her şey duraklatılır. Kaldığın yerden devam etmek için yeniden aktifleştir.",
+    "confirm": "Hesabı yeniden aktifleştir",
+    "done": "Tekrar hoş geldin — hesabın yeniden aktif.",
+    "failed": "Hesap yeniden aktifleştirilemedi. Tekrar dene.",
+    "signOut": "Çıkış yap"
   },
   "confirmEmailChange": {
     "title": "E-posta değişikliğini onayla",

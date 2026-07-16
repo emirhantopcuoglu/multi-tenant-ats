@@ -80,7 +80,7 @@ public sealed class CandidateAuthService : ICandidateAuthService
         if (account is null)
             return Result.Failure<CurrentCandidateDto>(CandidateAuthErrors.NotFound);
 
-        return Result.Success(
-            new CurrentCandidateDto(account.Id, account.Email, account.FirstName, account.LastName));
+        return Result.Success(new CurrentCandidateDto(
+            account.Id, account.Email, account.FirstName, account.LastName, account.Status));
     }
 }
