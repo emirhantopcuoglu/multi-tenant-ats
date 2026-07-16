@@ -22,6 +22,7 @@ import { PublicApplyPage } from '@/features/public/PublicApplyPage';
 import { PlaygroundPage } from '@/features/playground/PlaygroundPage';
 import { CandidateLoginPage } from '@/features/candidates/pages/CandidateLoginPage';
 import { CandidateRegisterPage } from '@/features/candidates/pages/CandidateRegisterPage';
+import { ConfirmEmailChangePage } from '@/features/candidates/pages/ConfirmEmailChangePage';
 import { CandidateApplicationsPage } from '@/features/candidates/pages/CandidateApplicationsPage';
 import { CandidateApplicationDetailPage } from '@/features/candidates/pages/CandidateApplicationDetailPage';
 import { CandidateNotificationsPage } from '@/features/notifications/pages/CandidateNotificationsPage';
@@ -43,6 +44,8 @@ export default function App() {
       <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
       <Route path="/candidate/login" element={<CandidateLoginPage />} />
       <Route path="/candidate/register" element={<CandidateRegisterPage />} />
+      {/* Public like /accept-invitation: the mailed link may be opened without a session. */}
+      <Route path="/candidate/confirm-email" element={<ConfirmEmailChangePage />} />
       <Route path="/playground" element={<PlaygroundPage />} />
 
       <Route element={<RequireCandidateAuth />}>

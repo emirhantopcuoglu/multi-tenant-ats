@@ -537,7 +537,7 @@
     "subtitle": "Your account details.",
     "loadError": "Couldn't load your profile.",
     "email": "Email",
-    "emailReadonlyHint": "Your email is your sign-in ID and can't be changed here.",
+    "emailReadonlyHint": "Your email is your sign-in ID; change it from the \"Change email\" section below.",
     "firstName": "First name",
     "lastName": "Last name",
     "phone": "Phone number",
@@ -561,7 +561,27 @@
     "passwordSubmit": "Change password",
     "passwordChanged": "Password changed.",
     "passwordChangeError": "Couldn't change your password. Try again.",
-    "currentPasswordInvalid": "Your current password is incorrect."
+    "currentPasswordInvalid": "Your current password is incorrect.",
+    "emailTitle": "Change email",
+    "emailSubtitle": "We'll send a confirmation link to the new address. Your email changes only after you open that link; all your sessions are then signed out.",
+    "newEmail": "New email",
+    "emailSubmit": "Send confirmation link",
+    "emailRequested": "Confirmation link sent.",
+    "emailRequestedHint": "Check the inbox of {{email}} and open the link within 1 hour.",
+    "emailChangeError": "Couldn't start the email change. Try again.",
+    "emailInvalid": "Enter a valid email address.",
+    "emailUnchanged": "This is already your current email.",
+    "emailTaken": "An account with this email already exists."
+  },
+  "confirmEmailChange": {
+    "title": "Confirm email change",
+    "description": "Click the button below to make this address your new sign-in email.",
+    "confirm": "Confirm change",
+    "success": "Your email was changed.",
+    "successHint": "All your sessions were signed out. Sign in again with your new email.",
+    "goToLogin": "Go to sign in",
+    "missingToken": "This link is missing its code. Open the link from the email again.",
+    "failed": "This link is invalid, expired or already used."
   },
   "notifications": {
     "title": "Notifications",

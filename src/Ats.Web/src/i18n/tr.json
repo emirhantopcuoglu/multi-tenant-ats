@@ -537,7 +537,7 @@
     "subtitle": "Hesap bilgilerin.",
     "loadError": "Profilin yüklenemedi.",
     "email": "E-posta",
-    "emailReadonlyHint": "E-posta adresin giriş kimliğindir, buradan değiştirilemez.",
+    "emailReadonlyHint": "E-posta adresin giriş kimliğindir; aşağıdaki \"E-posta değiştir\" bölümünden değiştirebilirsin.",
     "firstName": "Ad",
     "lastName": "Soyad",
     "phone": "Telefon numarası",
@@ -561,7 +561,27 @@
     "passwordSubmit": "Şifreyi değiştir",
     "passwordChanged": "Şifren değiştirildi.",
     "passwordChangeError": "Şifre değiştirilemedi. Tekrar dene.",
-    "currentPasswordInvalid": "Mevcut şifren hatalı."
+    "currentPasswordInvalid": "Mevcut şifren hatalı.",
+    "emailTitle": "E-posta değiştir",
+    "emailSubtitle": "Yeni adrese bir onay bağlantısı göndereceğiz. E-postan ancak o bağlantıyı açınca değişir; ardından tüm oturumların kapatılır.",
+    "newEmail": "Yeni e-posta",
+    "emailSubmit": "Onay bağlantısı gönder",
+    "emailRequested": "Onay bağlantısı gönderildi.",
+    "emailRequestedHint": "{{email}} adresinin gelen kutusunu kontrol et ve bağlantıyı 1 saat içinde aç.",
+    "emailChangeError": "E-posta değişikliği başlatılamadı. Tekrar dene.",
+    "emailInvalid": "Geçerli bir e-posta adresi gir.",
+    "emailUnchanged": "Bu zaten mevcut e-posta adresin.",
+    "emailTaken": "Bu e-posta ile kayıtlı bir hesap zaten var."
+  },
+  "confirmEmailChange": {
+    "title": "E-posta değişikliğini onayla",
+    "description": "Bu adresi yeni giriş e-postan yapmak için aşağıdaki butona tıkla.",
+    "confirm": "Değişikliği onayla",
+    "success": "E-posta adresin değiştirildi.",
+    "successHint": "Tüm oturumların kapatıldı. Yeni e-postanla tekrar giriş yap.",
+    "goToLogin": "Girişe git",
+    "missingToken": "Bu bağlantıda onay kodu eksik. E-postadaki bağlantıyı yeniden aç.",
+    "failed": "Bu bağlantı geçersiz, süresi dolmuş ya da daha önce kullanılmış."
   },
   "notifications": {
     "title": "Bildirimler",

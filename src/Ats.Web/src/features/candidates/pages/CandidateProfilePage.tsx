@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,6 +10,7 @@ import { CITIES_BY_COUNTRY, COUNTRIES, type Country } from '@/types/location';
 import {
   useCandidateProfile,
   useChangeCandidatePassword,
+  useRequestCandidateEmailChange,
   useUpdateCandidateProfile,
 } from '../useCandidateProfile';
 import type { CandidateProfile } from '../candidateProfileApi';
@@ -21,9 +22,12 @@ const NAME_MAX_LENGTH = 100;
 /* Mirrors CandidatePasswordPolicy.MinimumLength on the backend (UX only — the server enforces). */
 const PASSWORD_MIN_LENGTH = 8;
 
-/* The backend's typed error code for a wrong current password; mapped to a field-level message
-   instead of the generic failure toast. */
+/* The backend's typed error codes, each mapped to a field-level message instead of the generic
+   failure toast — every one of them is something the caller can fix by editing the form. */
 const INVALID_CURRENT_PASSWORD_CODE = 'candidate_profile.invalid_current_password';
+const EMAIL_ALREADY_REGISTERED_CODE = 'candidate_profile.email_already_registered';
+const EMAIL_UNCHANGED_CODE = 'candidate_profile.email_unchanged';
+const INVALID_EMAIL_CODE = 'candidate_profile.invalid_email';
 
 /* Mirrors the backend's E.164 window. The masked input already guarantees the charset and caps
    the maximum per dial country, so the only thing left to validate is "too few digits". */
@@ -66,11 +70,119 @@ export function CandidateProfilePage() {
         ) : (
           <>
             <CandidateProfileForm profile={profileQuery.data} />
+            <EmailChangeCard />
             <PasswordChangeCard />
           </>
         )}
       </div>
     </PublicLayout>
+  );
+}
+
+/* Same structure as PasswordChangeCard: its own card, its own form, its own submit. Submitting
+   changes nothing yet — it mails a confirmation link to the new address, so the success state is
+   "go check that inbox", kept on screen (not just a toast) because the user leaves the app to act
+   on it. Lands in the Security tab when the settings layout arrives. */
+function EmailChangeCard() {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const requestEmailChange = useRequestCandidateEmailChange();
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+
+  const schema = useMemo(
+    () =>
+      z.object({
+        newEmail: z.string().email(t('validation.email')),
+        currentPassword: z.string().min(1, t('validation.required')),
+      }),
+    [t],
+  );
+  type EmailForm = z.infer<typeof schema>;
+
+  const { register, handleSubmit, reset, setError, formState } = useForm<EmailForm>({
+    resolver: zodResolver(schema),
+    defaultValues: { newEmail: '', currentPassword: '' },
+  });
+
+  const onSubmit = handleSubmit((form) => {
+    requestEmailChange.mutate(
+      { newEmail: form.newEmail, currentPassword: form.currentPassword },
+      {
+        onSuccess: () => {
+          setPendingEmail(form.newEmail);
+          toast({ title: t('candidateProfile.emailRequested'), tone: 'success' });
+          reset();
+        },
+        onError: (error) => {
+          const code = toApiError(error).code;
+          if (code === INVALID_CURRENT_PASSWORD_CODE) {
+            setError('currentPassword', { message: t('candidateProfile.currentPasswordInvalid') });
+          } else if (code === EMAIL_ALREADY_REGISTERED_CODE) {
+            setError('newEmail', { message: t('candidateProfile.emailTaken') });
+          } else if (code === EMAIL_UNCHANGED_CODE) {
+            setError('newEmail', { message: t('candidateProfile.emailUnchanged') });
+          } else if (code === INVALID_EMAIL_CODE) {
+            setError('newEmail', { message: t('candidateProfile.emailInvalid') });
+          } else {
+            toast({ title: t('candidateProfile.emailChangeError'), tone: 'danger' });
+          }
+        },
+      },
+    );
+  });
+
+  return (
+    <Card className="max-w-xl">
+      <form onSubmit={onSubmit} noValidate className="space-y-4">
+        <div className="space-y-1">
+          <h2 className="text-lg font-medium">{t('candidateProfile.emailTitle')}</h2>
+          <p className="text-sm text-text-muted">{t('candidateProfile.emailSubtitle')}</p>
+        </div>
+
+        {pendingEmail && (
+          <p className="rounded-lg bg-info-bg px-3 py-2 text-sm text-info">
+            {t('candidateProfile.emailRequestedHint', { email: pendingEmail })}
+          </p>
+        )}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label={t('candidateProfile.newEmail')} error={formState.errors.newEmail?.message}>
+            {({ id, describedById, invalid }) => (
+              <Input
+                id={id}
+                type="email"
+                autoComplete="email"
+                aria-describedby={describedById}
+                invalid={invalid}
+                {...register('newEmail')}
+              />
+            )}
+          </Field>
+
+          <Field
+            label={t('candidateProfile.currentPassword')}
+            error={formState.errors.currentPassword?.message}
+          >
+            {({ id, describedById, invalid }) => (
+              <Input
+                id={id}
+                type="password"
+                autoComplete="current-password"
+                aria-describedby={describedById}
+                invalid={invalid}
+                {...register('currentPassword')}
+              />
+            )}
+          </Field>
+        </div>
+
+        <div className="flex justify-end">
+          <Button type="submit" disabled={requestEmailChange.isPending}>
+            {t('candidateProfile.emailSubmit')}
+          </Button>
+        </div>
+      </form>
+    </Card>
   );
 }
 

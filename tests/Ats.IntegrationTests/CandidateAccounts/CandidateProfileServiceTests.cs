@@ -17,12 +17,12 @@ namespace Ats.IntegrationTests.CandidateAccounts;
 // profile service only needs "was a mail handed to the port" to be observable.
 internal sealed class RecordingEmailSender : IEmailSender
 {
-    public List<(string ToEmail, string Subject)> Sent { get; } = [];
+    public List<(string ToEmail, string Subject, string Body)> Sent { get; } = [];
 
     public Task SendAsync(
         string toEmail, string subject, string htmlBody, CancellationToken cancellationToken = default)
     {
-        Sent.Add((toEmail, subject));
+        Sent.Add((toEmail, subject, htmlBody));
         return Task.CompletedTask;
     }
 }
@@ -226,6 +226,217 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         Assert.True(freshResult);
     }
 
+    [Fact]
+    public async Task RequestEmailChange_should_mail_a_link_to_the_new_address_and_store_only_a_hash()
+    {
+        // Arrange
+        var accountId = await SeedAccountAsync("Old!passw0rd");
+        var emailSender = new RecordingEmailSender();
+
+        // Act
+        var result = await CreateService(emailSender).RequestEmailChangeAsync(
+            accountId, new RequestCandidateEmailChangeCommand("new@example.com", "Old!passw0rd"));
+
+        // Assert — the mail goes to the address being claimed, and the raw token from the link is
+        // nowhere in the database (only its hash is)
+        Assert.True(result.IsSuccess);
+        var sent = Assert.Single(emailSender.Sent);
+        Assert.Equal("new@example.com", sent.ToEmail);
+        var rawToken = ExtractToken(sent.Body);
+
+        await using var db = CreateDbContext();
+        var request = await db.EmailChangeRequests.SingleAsync();
+        Assert.Equal("new@example.com", request.NewEmail);
+        Assert.NotEqual(rawToken, request.TokenHash);
+        Assert.True(request.ExpiresAtUtc > DateTime.UtcNow);
+    }
+
+    [Fact]
+    public async Task RequestEmailChange_should_reject_a_wrong_current_password()
+    {
+        // Arrange
+        var accountId = await SeedAccountAsync("Old!passw0rd");
+        var emailSender = new RecordingEmailSender();
+
+        // Act
+        var result = await CreateService(emailSender).RequestEmailChangeAsync(
+            accountId, new RequestCandidateEmailChangeCommand("new@example.com", "not-the-password"));
+
+        // Assert — no row, no mail: a stolen token alone must not start the flow
+        Assert.True(result.IsFailure);
+        Assert.Equal(CandidateProfileErrors.InvalidCurrentPassword.Code, result.Error.Code);
+        Assert.Empty(emailSender.Sent);
+        await using var db = CreateDbContext();
+        Assert.False(await db.EmailChangeRequests.AnyAsync());
+    }
+
+    [Theory]
+    [InlineData("jane@example.com", "candidate_profile.email_unchanged")]
+    [InlineData("not-an-email", "candidate_profile.invalid_email")]
+    public async Task RequestEmailChange_should_reject_unusable_addresses(string newEmail, string expectedCode)
+    {
+        // Arrange
+        var accountId = await SeedAccountAsync("Old!passw0rd");
+
+        // Act
+        var result = await CreateService().RequestEmailChangeAsync(
+            accountId, new RequestCandidateEmailChangeCommand(newEmail, "Old!passw0rd"));
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal(expectedCode, result.Error.Code);
+    }
+
+    [Fact]
+    public async Task RequestEmailChange_should_reject_an_email_already_registered_to_another_account()
+    {
+        // Arrange — a second account already owns the coveted address
+        var accountId = await SeedAccountAsync("Old!passw0rd");
+        await SeedAccountAsync(email: "taken@example.com");
+
+        // Act
+        var result = await CreateService().RequestEmailChangeAsync(
+            accountId, new RequestCandidateEmailChangeCommand("taken@example.com", "Old!passw0rd"));
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal(CandidateProfileErrors.EmailAlreadyRegistered.Code, result.Error.Code);
+    }
+
+    [Fact]
+    public async Task ConfirmEmailChange_should_apply_the_change_and_notify_the_old_address()
+    {
+        // Arrange — full round trip: request, then confirm with the token from the mailed link
+        var accountId = await SeedAccountAsync("Old!passw0rd");
+        var stampBefore = (await LoadAccountAsync(accountId)).SecurityStamp;
+        var emailSender = new RecordingEmailSender();
+        var service = CreateService(emailSender);
+        await service.RequestEmailChangeAsync(
+            accountId, new RequestCandidateEmailChangeCommand("new@example.com", "Old!passw0rd"));
+        var rawToken = ExtractToken(emailSender.Sent.Single().Body);
+
+        // Act
+        var result = await service.ConfirmEmailChangeAsync(rawToken);
+
+        // Assert — email swapped, stamp rotated (all sessions dead), old mailbox tipped off
+        Assert.True(result.IsSuccess);
+        var account = await LoadAccountAsync(accountId);
+        Assert.Equal("new@example.com", account.Email);
+        Assert.NotEqual(stampBefore, account.SecurityStamp);
+        Assert.Contains(emailSender.Sent, mail => mail.ToEmail == "jane@example.com");
+    }
+
+    [Fact]
+    public async Task ConfirmEmailChange_should_reject_a_reused_token()
+    {
+        // Arrange
+        var accountId = await SeedAccountAsync("Old!passw0rd");
+        var emailSender = new RecordingEmailSender();
+        var service = CreateService(emailSender);
+        await service.RequestEmailChangeAsync(
+            accountId, new RequestCandidateEmailChangeCommand("new@example.com", "Old!passw0rd"));
+        var rawToken = ExtractToken(emailSender.Sent.Single().Body);
+        await service.ConfirmEmailChangeAsync(rawToken);
+
+        // Act — the same link clicked a second time
+        var result = await service.ConfirmEmailChangeAsync(rawToken);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal(CandidateProfileErrors.InvalidEmailChangeToken.Code, result.Error.Code);
+    }
+
+    [Fact]
+    public async Task ConfirmEmailChange_should_reject_an_unknown_token()
+    {
+        // Act
+        var result = await CreateService().ConfirmEmailChangeAsync("never-issued");
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal(CandidateProfileErrors.InvalidEmailChangeToken.Code, result.Error.Code);
+    }
+
+    [Fact]
+    public async Task ConfirmEmailChange_should_reject_an_expired_token()
+    {
+        // Arrange — backdate the expiry directly in the database; the clock cannot be faked here
+        var accountId = await SeedAccountAsync("Old!passw0rd");
+        var emailSender = new RecordingEmailSender();
+        var service = CreateService(emailSender);
+        await service.RequestEmailChangeAsync(
+            accountId, new RequestCandidateEmailChangeCommand("new@example.com", "Old!passw0rd"));
+        var rawToken = ExtractToken(emailSender.Sent.Single().Body);
+        await using (var db = CreateDbContext())
+        {
+            await db.Database.ExecuteSqlRawAsync(
+                "UPDATE candidate_accounts.\"EmailChangeRequests\" SET \"ExpiresAtUtc\" = now() at time zone 'utc' - interval '1 minute'");
+        }
+
+        // Act — a FRESH service, as in production where request and confirm are separate HTTP
+        // requests: the requesting service's change tracker still holds the row with the original
+        // expiry and would mask the SQL backdate above.
+        var result = await CreateService().ConfirmEmailChangeAsync(rawToken);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal(CandidateProfileErrors.InvalidEmailChangeToken.Code, result.Error.Code);
+    }
+
+    [Fact]
+    public async Task ConfirmEmailChange_should_reject_when_the_address_was_registered_meanwhile()
+    {
+        // Arrange — someone registers the coveted address inside the one-hour window
+        var accountId = await SeedAccountAsync("Old!passw0rd");
+        var emailSender = new RecordingEmailSender();
+        var service = CreateService(emailSender);
+        await service.RequestEmailChangeAsync(
+            accountId, new RequestCandidateEmailChangeCommand("new@example.com", "Old!passw0rd"));
+        var rawToken = ExtractToken(emailSender.Sent.Single().Body);
+        await SeedAccountAsync(email: "new@example.com");
+
+        // Act
+        var result = await service.ConfirmEmailChangeAsync(rawToken);
+
+        // Assert — the account keeps its old login identity
+        Assert.True(result.IsFailure);
+        Assert.Equal(CandidateProfileErrors.EmailAlreadyRegistered.Code, result.Error.Code);
+        Assert.Equal("jane@example.com", (await LoadAccountAsync(accountId)).Email);
+    }
+
+    [Fact]
+    public async Task A_second_request_should_supersede_the_first_one()
+    {
+        // Arrange — the candidate typo'd the address, then requested again with the right one
+        var accountId = await SeedAccountAsync("Old!passw0rd");
+        var emailSender = new RecordingEmailSender();
+        var service = CreateService(emailSender);
+        await service.RequestEmailChangeAsync(
+            accountId, new RequestCandidateEmailChangeCommand("typo@example.com", "Old!passw0rd"));
+        var firstToken = ExtractToken(emailSender.Sent[0].Body);
+        await service.RequestEmailChangeAsync(
+            accountId, new RequestCandidateEmailChangeCommand("right@example.com", "Old!passw0rd"));
+        var secondToken = ExtractToken(emailSender.Sent[1].Body);
+
+        // Act
+        var firstResult = await service.ConfirmEmailChangeAsync(firstToken);
+        var secondResult = await service.ConfirmEmailChangeAsync(secondToken);
+
+        // Assert — only the latest mailed link may ever work
+        Assert.True(firstResult.IsFailure);
+        Assert.True(secondResult.IsSuccess);
+        Assert.Equal("right@example.com", (await LoadAccountAsync(accountId)).Email);
+    }
+
+    // The raw token exists only inside the mailed link; tests recover it the same way a candidate
+    // would — by reading the mail.
+    private static string ExtractToken(string mailBody)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(mailBody, @"token=([A-Za-z0-9_\-]+)");
+        Assert.True(match.Success, "The confirmation mail should contain a token link.");
+        return match.Groups[1].Value;
+    }
+
     private async Task<bool> RunStampHandlerAsync(Guid accountId, Guid tokenStamp)
     {
         var requirement = new CandidateSecurityStampRequirement();
@@ -261,13 +472,14 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         CreatePasswordHasher(),
         CreateTokenService(),
         emailSender ?? new RecordingEmailSender(),
+        Options.Create(new CandidateEmailChangeOptions()),
         NullLogger<CandidateProfileService>.Instance);
 
-    private async Task<Guid> SeedAccountAsync(string? password = null)
+    private async Task<Guid> SeedAccountAsync(string? password = null, string email = "jane@example.com")
     {
         await using var db = CreateDbContext();
         var passwordHash = password is null ? "hashed-password" : CreatePasswordHasher().Hash(password);
-        var account = CandidateAccount.Register("jane@example.com", passwordHash, "Jane", "Doe");
+        var account = CandidateAccount.Register(email, passwordHash, "Jane", "Doe");
         db.CandidateAccounts.Add(account);
         await db.SaveChangesAsync();
         return account.Id;
