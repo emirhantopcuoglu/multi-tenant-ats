@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAuth } from '@/app/auth/RequireAuth';
 import { RequireCandidateAuth } from '@/app/auth/RequireCandidateAuth';
+import { RequireActiveCandidate } from '@/app/auth/RequireActiveCandidate';
 import { RequireRole } from '@/app/auth/RequireRole';
 import { AppShell } from '@/components/layout/AppShell';
 import { PagePlaceholder } from '@/components/layout/PagePlaceholder';
@@ -27,6 +28,7 @@ import { CandidateApplicationsPage } from '@/features/candidates/pages/Candidate
 import { CandidateApplicationDetailPage } from '@/features/candidates/pages/CandidateApplicationDetailPage';
 import { CandidateNotificationsPage } from '@/features/notifications/pages/CandidateNotificationsPage';
 import { CandidateProfilePage } from '@/features/candidates/pages/CandidateProfilePage';
+import { CandidateReactivatePage } from '@/features/candidates/pages/CandidateReactivatePage';
 import { CompanyNotificationsPage } from '@/features/notifications/pages/CompanyNotificationsPage';
 
 /* Public auth routes sit at the top. Everything else is nested under RequireAuth → AppShell, so the
@@ -49,10 +51,14 @@ export default function App() {
       <Route path="/playground" element={<PlaygroundPage />} />
 
       <Route element={<RequireCandidateAuth />}>
-        <Route path="/candidate/applications" element={<CandidateApplicationsPage />} />
-        <Route path="/candidate/applications/:id" element={<CandidateApplicationDetailPage />} />
-        <Route path="/candidate/notifications" element={<CandidateNotificationsPage />} />
-        <Route path="/candidate/profile" element={<CandidateProfilePage />} />
+        {/* Outside RequireActiveCandidate on purpose: it is the one screen a frozen account may see. */}
+        <Route path="/candidate/reactivate" element={<CandidateReactivatePage />} />
+        <Route element={<RequireActiveCandidate />}>
+          <Route path="/candidate/applications" element={<CandidateApplicationsPage />} />
+          <Route path="/candidate/applications/:id" element={<CandidateApplicationDetailPage />} />
+          <Route path="/candidate/notifications" element={<CandidateNotificationsPage />} />
+          <Route path="/candidate/profile" element={<CandidateProfilePage />} />
+        </Route>
       </Route>
 
       {/* Anonymous careers pages. Static routes above (e.g. /login, /jobs) outrank these dynamic

@@ -13,6 +13,7 @@ import {
   useRequestCandidateEmailChange,
   useUpdateCandidateProfile,
 } from '../useCandidateProfile';
+import { useDeleteCandidateAccount, useFreezeCandidateAccount } from '../useCandidateAccount';
 import type { CandidateProfile } from '../candidateProfileApi';
 import { PhoneInput } from '../components/PhoneInput';
 
@@ -28,6 +29,7 @@ const INVALID_CURRENT_PASSWORD_CODE = 'candidate_profile.invalid_current_passwor
 const EMAIL_ALREADY_REGISTERED_CODE = 'candidate_profile.email_already_registered';
 const EMAIL_UNCHANGED_CODE = 'candidate_profile.email_unchanged';
 const INVALID_EMAIL_CODE = 'candidate_profile.invalid_email';
+const DELETE_INVALID_PASSWORD_CODE = 'candidate_account.invalid_current_password';
 
 /* Mirrors the backend's E.164 window. The masked input already guarantees the charset and caps
    the maximum per dial country, so the only thing left to validate is "too few digits". */
@@ -72,6 +74,7 @@ export function CandidateProfilePage() {
             <CandidateProfileForm profile={profileQuery.data} />
             <EmailChangeCard />
             <PasswordChangeCard />
+            <AccountCard />
           </>
         )}
       </div>
@@ -306,6 +309,102 @@ function PasswordChangeCard() {
         <div className="flex justify-end">
           <Button type="submit" disabled={changePassword.isPending}>
             {t('candidateProfile.passwordSubmit')}
+          </Button>
+        </div>
+      </form>
+    </Card>
+  );
+}
+
+/* The account's danger zone: freeze (reversible, one click undoes it from the reactivation screen)
+   and delete (permanent — the backend anonymizes the row, so there is nothing to restore). Delete
+   demands the current password because the backend does; the form exists to collect it, not as a
+   UX flourish. Lands in the Account tab when the settings layout arrives. */
+function AccountCard() {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const freeze = useFreezeCandidateAccount();
+  const deleteAccount = useDeleteCandidateAccount();
+
+  const schema = useMemo(
+    () => z.object({ currentPassword: z.string().min(1, t('validation.required')) }),
+    [t],
+  );
+  type DeleteForm = z.infer<typeof schema>;
+
+  const { register, handleSubmit, setError, formState } = useForm<DeleteForm>({
+    resolver: zodResolver(schema),
+    defaultValues: { currentPassword: '' },
+  });
+
+  const onDelete = handleSubmit((form) => {
+    deleteAccount.mutate(
+      { currentPassword: form.currentPassword },
+      {
+        onSuccess: () => {
+          /* The success hook already ended the session and routed to the login page; the toast is
+             the only trace of why. */
+          toast({ title: t('candidateProfile.deleted'), tone: 'success' });
+        },
+        onError: (error) => {
+          if (toApiError(error).code === DELETE_INVALID_PASSWORD_CODE) {
+            setError('currentPassword', { message: t('candidateProfile.currentPasswordInvalid') });
+          } else {
+            toast({ title: t('candidateProfile.deleteError'), tone: 'danger' });
+          }
+        },
+      },
+    );
+  });
+
+  return (
+    <Card className="max-w-xl space-y-6">
+      <div className="space-y-1">
+        <h2 className="text-lg font-medium">{t('candidateProfile.accountTitle')}</h2>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium">{t('candidateProfile.freezeTitle')}</h3>
+        <p className="text-sm text-text-muted">{t('candidateProfile.freezeDescription')}</p>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={freeze.isPending}
+          onClick={() =>
+            freeze.mutate(undefined, {
+              onError: () => toast({ title: t('candidateProfile.freezeError'), tone: 'danger' }),
+            })
+          }
+        >
+          {t('candidateProfile.freezeSubmit')}
+        </Button>
+      </div>
+
+      <form onSubmit={onDelete} noValidate className="space-y-2 border-t border-border pt-4">
+        <h3 className="text-sm font-medium text-danger">{t('candidateProfile.deleteTitle')}</h3>
+        <p className="rounded-lg bg-danger-bg px-3 py-2 text-sm text-danger">
+          {t('candidateProfile.deleteWarning')}
+        </p>
+
+        <Field
+          label={t('candidateProfile.currentPassword')}
+          error={formState.errors.currentPassword?.message}
+        >
+          {({ id, describedById, invalid }) => (
+            <Input
+              id={id}
+              type="password"
+              autoComplete="current-password"
+              aria-describedby={describedById}
+              invalid={invalid}
+              {...register('currentPassword')}
+            />
+          )}
+        </Field>
+
+        <div className="flex justify-end">
+          <Button type="submit" variant="danger" disabled={deleteAccount.isPending}>
+            {t('candidateProfile.deleteSubmit')}
           </Button>
         </div>
       </form>

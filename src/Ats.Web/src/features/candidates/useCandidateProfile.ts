@@ -28,14 +28,18 @@ export function useUpdateCandidateProfile() {
     mutationFn: updateCandidateProfile,
     onSuccess: (profile) => {
       queryClient.setQueryData(candidateProfileQueryKey, profile);
-      const user: CandidateUser = {
-        kind: 'candidate',
-        id: profile.id,
-        email: profile.email,
-        firstName: profile.firstName,
-        lastName: profile.lastName,
-      };
-      queryClient.setQueryData(candidateUserQueryKey, user);
+      /* Merge instead of rebuild: the "me" entry carries fields the profile payload doesn't know
+         about (account status), and a rebuilt object would silently drop them. */
+      queryClient.setQueryData<CandidateUser>(candidateUserQueryKey, (user) =>
+        user
+          ? {
+              ...user,
+              email: profile.email,
+              firstName: profile.firstName,
+              lastName: profile.lastName,
+            }
+          : user,
+      );
     },
   });
 }

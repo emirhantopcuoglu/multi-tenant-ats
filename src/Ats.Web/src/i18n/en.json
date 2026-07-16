@@ -571,7 +571,25 @@
     "emailChangeError": "Couldn't start the email change. Try again.",
     "emailInvalid": "Enter a valid email address.",
     "emailUnchanged": "This is already your current email.",
-    "emailTaken": "An account with this email already exists."
+    "emailTaken": "An account with this email already exists.",
+    "accountTitle": "Account",
+    "freezeTitle": "Freeze account",
+    "freezeDescription": "Pauses your account until you reactivate it. You can sign in at any time and undo this with one click.",
+    "freezeSubmit": "Freeze account",
+    "freezeError": "Couldn't freeze your account. Try again.",
+    "deleteTitle": "Delete account",
+    "deleteWarning": "This is permanent. Your name, phone number, location and birth date are erased and cannot be recovered. Your email address becomes available for a new registration.",
+    "deleteSubmit": "Delete my account",
+    "deleteError": "Couldn't delete your account. Try again.",
+    "deleted": "Your account was deleted."
+  },
+  "reactivateAccount": {
+    "title": "Your account is frozen",
+    "description": "Everything is paused while your account is frozen. Reactivate it to pick up where you left off.",
+    "confirm": "Reactivate account",
+    "done": "Welcome back — your account is active again.",
+    "failed": "Couldn't reactivate your account. Try again.",
+    "signOut": "Sign out"
   },
   "confirmEmailChange": {
     "title": "Confirm email change",
