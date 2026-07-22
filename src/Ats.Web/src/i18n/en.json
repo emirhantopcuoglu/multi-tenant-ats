@@ -512,7 +512,8 @@
     "signInLink": "Sign in",
     "publicSignIn": "Sign in",
     "publicRegister": "Create account",
-    "myApplications": "My applications"
+    "myApplications": "My applications",
+    "myInterviews": "My interviews"
   },
   "candidatePortal": {
     "applicationsTitle": "My applications",
@@ -521,6 +522,12 @@
     "exploreJobs": "Explore open positions",
     "loadError": "Couldn't load your applications.",
     "retry": "Try again",
+    "interviews": {
+      "title": "My interviews",
+      "subtitle": "Every interview scheduled across your applications.",
+      "empty": "You don't have any interviews scheduled yet.",
+      "openRoom": "Open room"
+    },
     "col": {
       "position": "Position",
       "company": "Company",
@@ -544,6 +551,24 @@
       "interviews": {
         "title": "Interviews"
       }
+    }
+  },
+  "interviewRoom": {
+    "signInTitle": "Sign in to open this room",
+    "signInBody": "This link leads to an interview room. Sign in as a candidate or a company user to continue.",
+    "notFoundTitle": "Room not found",
+    "notFoundBody": "This link is invalid, or you don't have access to this interview.",
+    "errorTitle": "Something went wrong",
+    "errorBody": "Couldn't load this interview room. Please try again.",
+    "openBody": "The room is open. Live video isn't available yet — check back soon.",
+    "tooEarlyBody": "The room opens at {{time}}.",
+    "endedBody": "This interview has already ended.",
+    "unavailableBody": "This interview is no longer scheduled.",
+    "state": {
+      "TooEarly": "Not yet open",
+      "Open": "Open",
+      "Ended": "Ended",
+      "Unavailable": "Unavailable"
     }
   },
   "candidateSettings": {

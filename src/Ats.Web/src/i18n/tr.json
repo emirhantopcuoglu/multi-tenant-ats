@@ -512,7 +512,8 @@
     "signInLink": "Giriş yap",
     "publicSignIn": "Giriş yap",
     "publicRegister": "Hesap oluştur",
-    "myApplications": "Başvurularım"
+    "myApplications": "Başvurularım",
+    "myInterviews": "Mülakatlarım"
   },
   "candidatePortal": {
     "applicationsTitle": "Başvurularım",
@@ -521,6 +522,12 @@
     "exploreJobs": "Açık pozisyonları keşfet",
     "loadError": "Başvurular yüklenemedi.",
     "retry": "Tekrar dene",
+    "interviews": {
+      "title": "Mülakatlarım",
+      "subtitle": "Tüm başvuruların genelinde planlanan mülakatlar.",
+      "empty": "Henüz planlanmış bir mülakatın yok.",
+      "openRoom": "Odayı aç"
+    },
     "col": {
       "position": "Pozisyon",
       "company": "Şirket",
@@ -544,6 +551,24 @@
       "interviews": {
         "title": "Mülakatlar"
       }
+    }
+  },
+  "interviewRoom": {
+    "signInTitle": "Bu odayı açmak için giriş yap",
+    "signInBody": "Bu link bir mülakat odasına götürüyor. Devam etmek için aday veya şirket kullanıcısı olarak giriş yap.",
+    "notFoundTitle": "Oda bulunamadı",
+    "notFoundBody": "Bu link geçersiz veya bu mülakata erişimin yok.",
+    "errorTitle": "Bir şeyler ters gitti",
+    "errorBody": "Mülakat odası yüklenemedi. Lütfen tekrar dene.",
+    "openBody": "Oda açık. Canlı görüntü henüz aktif değil — yakında kullanıma açılacak.",
+    "tooEarlyBody": "Oda {{time}} tarihinde açılacak.",
+    "endedBody": "Bu mülakat sona erdi.",
+    "unavailableBody": "Bu mülakat artık planlı değil.",
+    "state": {
+      "TooEarly": "Henüz açılmadı",
+      "Open": "Açık",
+      "Ended": "Sona erdi",
+      "Unavailable": "Kullanılamıyor"
     }
   },
   "candidateSettings": {
