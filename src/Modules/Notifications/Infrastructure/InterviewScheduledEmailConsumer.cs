@@ -5,6 +5,7 @@ using Ats.Shared.Contracts.Notifications;
 using Ats.Shared.Kernel;
 using MassTransit;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
@@ -21,15 +22,18 @@ public sealed partial class InterviewScheduledEmailConsumer
 
     private readonly IEmailSender _emailSender;
     private readonly IIdempotencyGuard _idempotencyGuard;
+    private readonly InterviewRoomOptions _roomOptions;
     private readonly ILogger<InterviewScheduledEmailConsumer> _logger;
 
     public InterviewScheduledEmailConsumer(
         IEmailSender emailSender,
         IIdempotencyGuard idempotencyGuard,
+        IOptions<InterviewRoomOptions> roomOptions,
         ILogger<InterviewScheduledEmailConsumer> logger)
     {
         _emailSender = emailSender;
         _idempotencyGuard = idempotencyGuard;
+        _roomOptions = roomOptions.Value;
         _logger = logger;
     }
 
@@ -49,6 +53,11 @@ public sealed partial class InterviewScheduledEmailConsumer
             ? string.Empty
             : $"<p>Location: {WebUtility.HtmlEncode(message.Location)}</p>";
 
+        // The token is a URL-safe base64 string by construction (see Interview.GenerateRoomToken) —
+        // no HTML-unsafe characters possible — but it is still HTML-encoded here on principle, the
+        // same rule applied to every other field in this email.
+        var roomUrl = $"{_roomOptions.BaseUrl}/{WebUtility.HtmlEncode(message.RoomToken)}";
+
         var body = $"""
             <p>Hi {firstName},</p>
             <p>An interview has been scheduled for your application to <strong>{jobTitle}</strong>.</p>
@@ -56,6 +65,7 @@ public sealed partial class InterviewScheduledEmailConsumer
             When: {scheduledAt}<br/>
             Duration: {message.DurationMinutes} minutes</p>
             {locationLine}
+            <p>Join the interview room here when it opens: <a href="{roomUrl}">{roomUrl}</a></p>
             <p>We look forward to speaking with you.</p>
             """;
 

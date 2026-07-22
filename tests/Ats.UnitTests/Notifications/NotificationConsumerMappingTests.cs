@@ -69,6 +69,7 @@ public sealed class NotificationConsumerMappingTests
         Assert.Equal(scheduledAt, payload.RootElement.GetProperty("scheduledAtUtc").GetDateTime());
         Assert.Equal(60, payload.RootElement.GetProperty("durationMinutes").GetInt32());
         Assert.Equal("Google Meet", payload.RootElement.GetProperty("location").GetString());
+        Assert.Equal("room-token-abc", payload.RootElement.GetProperty("roomToken").GetString());
     }
 
     [Fact]
@@ -200,7 +201,7 @@ public sealed class NotificationConsumerMappingTests
         new(
             Guid.NewGuid(), applicationId, Guid.NewGuid(), "Staff Engineer",
             Guid.NewGuid(), candidateAccountId, "jane@acme.test", "Jane",
-            "Technical", scheduledAtUtc, 60, "Google Meet", Guid.NewGuid());
+            "Technical", scheduledAtUtc, 60, "Google Meet", "room-token-abc", Guid.NewGuid());
 
     private static ApplicationViewedIntegrationEvent ViewedMessage(
         Guid? candidateAccountId, Guid applicationId) =>

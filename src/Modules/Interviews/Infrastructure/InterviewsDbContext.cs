@@ -30,6 +30,12 @@ public sealed class InterviewsDbContext : DbContext, IInterviewsDbContext
             entity.Property(i => i.Status).HasConversion<string>().HasMaxLength(20);
             entity.Property(i => i.Location).HasMaxLength(300);
             entity.Property(i => i.Notes).HasMaxLength(5000);
+            entity.Property(i => i.RoomToken).HasMaxLength(64).IsRequired();
+
+            // Looked up directly by token (the join endpoint has no tenant context yet — the token
+            // itself is what identifies the interview), so it must be globally unique, not just
+            // unique within a tenant.
+            entity.HasIndex(i => i.RoomToken).IsUnique();
 
             // The interviewers live in a native uuid[] column, read/written through the backing field.
             entity.PrimitiveCollection(i => i.InterviewerUserIds)

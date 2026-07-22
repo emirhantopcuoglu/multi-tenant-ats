@@ -10,6 +10,7 @@ import { useApplicationsBoard } from './useApplicationsBoard';
 import { ApplicationsToolbar } from './components/ApplicationsToolbar';
 import { ApplicationsTable, ApplicationsTableSkeleton } from './components/ApplicationsTable';
 import { ApplicationsBoard } from './components/ApplicationsBoard';
+import { ScheduleInterviewModal } from '@/features/interviews/components/ScheduleInterviewModal';
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 350;
@@ -101,6 +102,12 @@ export function ApplicationsPage() {
       else params.set('view', value);
       params.delete('page');
     });
+
+  // Dropping a board card onto the Interview column opens this instead of moving it directly — the
+  // move itself happens server-side once the interview is actually scheduled.
+  const [interviewPrompt, setInterviewPrompt] = useState<{ applicationId: string; candidateName: string } | null>(
+    null,
+  );
 
   const [searchInput, setSearchInput] = useState(search);
   useEffect(() => {
@@ -236,11 +243,24 @@ export function ApplicationsPage() {
               applications={board.applicationsQuery.data?.items ?? []}
               canManage={canManage}
               onMove={(id, targetStageId) => board.move.mutate({ id, targetStageId })}
+              onScheduleInterview={(applicationId, candidateName) =>
+                setInterviewPrompt({ applicationId, candidateName })
+              }
               onSelect={openApplication}
             />
           )}
         </div>
       )}
+
+      <ScheduleInterviewModal
+        open={interviewPrompt !== null}
+        onOpenChange={(open) => {
+          if (!open) setInterviewPrompt(null);
+        }}
+        applicationId={interviewPrompt?.applicationId}
+        candidateName={interviewPrompt?.candidateName}
+        onScheduled={() => board.applicationsQuery.refetch()}
+      />
     </div>
   );
 }

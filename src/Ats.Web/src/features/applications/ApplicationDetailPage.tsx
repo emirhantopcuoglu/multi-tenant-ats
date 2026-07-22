@@ -65,11 +65,21 @@ function ApplicationDetailView({ id }: { id: string }) {
 
   const busy = move.isPending || correctStage.isPending || reject.isPending || hire.isPending;
 
-  const handleMove = (stageId: string) =>
+  const handleMove = (stageId: string) => {
+    // Moving into the Interview stage doesn't move the application directly — it opens the same
+    // scheduling dialog as the standalone "Schedule interview" button. The move itself happens
+    // server-side once an interview is actually scheduled (AdvanceToInterviewStageConsumer).
+    const targetStage = stagesQuery.data?.find((stage) => stage.id === stageId);
+    if (targetStage?.type === 'Interview') {
+      setScheduleOpen(true);
+      return;
+    }
+
     move.mutate(stageId, {
       onSuccess: () => toast({ title: t('applicationDetail.toast.moved'), tone: 'success' }),
       onError: () => toast({ title: t('applicationDetail.toast.error'), tone: 'danger' }),
     });
+  };
 
   const handleCorrectStage = (targetStageId: string, reason: string) =>
     correctStage.mutate(

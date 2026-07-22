@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Ats.Shared.Kernel;
 
 namespace Ats.Modules.Interviews.Domain;
@@ -8,6 +9,12 @@ namespace Ats.Modules.Interviews.Domain;
 // (Scheduled -> terminal) is enforced here, not in a service.
 public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
 {
+    // How long before the scheduled time the room becomes reachable, and how long it stays
+    // reachable afterwards. Generous enough to absorb early joiners and a running-over interview
+    // without becoming a permanently-open door once the interview is clearly over.
+    public const int RoomOpenLeadMinutes = 10;
+    public const int RoomCloseGraceMinutes = 15;
+
     private readonly List<Guid> _interviewerUserIds = new();
 
     public Guid Id { get; private set; }
@@ -17,6 +24,14 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
     public DateTime ScheduledAtUtc { get; private set; }
     public int DurationMinutes { get; private set; }
     public string? Location { get; private set; }
+
+    // Unique locator for the (future) live room. Not a bearer secret hashed like an email-confirm
+    // token: both the candidate and the interviewer revisit the same link repeatedly, and the
+    // candidate portal needs to render it back to them, so it is stored as plain, unguessable
+    // (256-bit random) text with a unique index rather than a one-time hashed token. The join
+    // endpoint is what actually gates access (auth + participant membership + time window) — the
+    // token only keeps the URL from being enumerable.
+    public string RoomToken { get; private set; } = string.Empty;
 
     // The interviewers, stored as a native PostgreSQL uuid[] column rather than a child table: the
     // list is small, owned wholly by the interview, and queried with "is this user an interviewer"
@@ -48,6 +63,7 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
         Location = location;
         Notes = notes;
         Status = InterviewStatus.Scheduled;
+        RoomToken = GenerateRoomToken();
         _interviewerUserIds.AddRange(interviewerUserIds);
     }
 
@@ -103,6 +119,17 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
         Status = InterviewStatus.NoShow;
     }
 
+    // The room opens a fixed lead time before the scheduled start and stays reachable until a fixed
+    // grace period after the scheduled end — computed on read, not stored, so there is nothing to
+    // keep in sync when an interview is rescheduled or the query simply runs at a different time.
+    public DateTime RoomOpensAtUtc => ScheduledAtUtc.AddMinutes(-RoomOpenLeadMinutes);
+
+    public DateTime RoomClosesAtUtc =>
+        ScheduledAtUtc.AddMinutes(DurationMinutes).AddMinutes(RoomCloseGraceMinutes);
+
+    public bool IsRoomOpen(DateTime nowUtc) =>
+        Status == InterviewStatus.Scheduled && nowUtc >= RoomOpensAtUtc && nowUtc <= RoomClosesAtUtc;
+
     private void EnsureScheduled(string action)
     {
         if (Status != InterviewStatus.Scheduled)
@@ -112,4 +139,14 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
 
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    // Same construction as Tenants.InvitationService/CandidateProfileService's GenerateToken: 256
+    // bits of CSPRNG randomness, URL-safe base64. Duplicated locally rather than shared — the
+    // codebase's established preference for these few lines over a cross-module abstraction.
+    private static string GenerateRoomToken()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(32);
+        return Convert.ToBase64String(bytes)
+            .Replace("+", "-").Replace("/", "_").Replace("=", "");
+    }
 }
