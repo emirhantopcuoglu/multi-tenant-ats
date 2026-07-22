@@ -27,7 +27,10 @@ import { ConfirmEmailChangePage } from '@/features/candidates/pages/ConfirmEmail
 import { CandidateApplicationsPage } from '@/features/candidates/pages/CandidateApplicationsPage';
 import { CandidateApplicationDetailPage } from '@/features/candidates/pages/CandidateApplicationDetailPage';
 import { CandidateNotificationsPage } from '@/features/notifications/pages/CandidateNotificationsPage';
-import { CandidateProfilePage } from '@/features/candidates/pages/CandidateProfilePage';
+import { CandidateSettingsPage } from '@/features/candidates/pages/CandidateSettingsPage';
+import { CandidateProfileSettingsTab } from '@/features/candidates/pages/CandidateProfileSettingsTab';
+import { CandidateSecuritySettingsTab } from '@/features/candidates/pages/CandidateSecuritySettingsTab';
+import { CandidateAccountSettingsTab } from '@/features/candidates/pages/CandidateAccountSettingsTab';
 import { CandidateReactivatePage } from '@/features/candidates/pages/CandidateReactivatePage';
 import { CompanyNotificationsPage } from '@/features/notifications/pages/CompanyNotificationsPage';
 
@@ -57,7 +60,12 @@ export default function App() {
           <Route path="/candidate/applications" element={<CandidateApplicationsPage />} />
           <Route path="/candidate/applications/:id" element={<CandidateApplicationDetailPage />} />
           <Route path="/candidate/notifications" element={<CandidateNotificationsPage />} />
-          <Route path="/candidate/profile" element={<CandidateProfilePage />} />
+          <Route path="/candidate/settings" element={<CandidateSettingsPage />}>
+            <Route index element={<Navigate to="profile" replace />} />
+            <Route path="profile" element={<CandidateProfileSettingsTab />} />
+            <Route path="security" element={<CandidateSecuritySettingsTab />} />
+            <Route path="account" element={<CandidateAccountSettingsTab />} />
+          </Route>
         </Route>
       </Route>
 
