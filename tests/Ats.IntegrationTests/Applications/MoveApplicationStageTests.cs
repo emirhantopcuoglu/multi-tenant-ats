@@ -157,6 +157,128 @@ public sealed class MoveApplicationStageTests
         Assert.Equal(ApplicationStatus.Active, unchanged.Status);
     }
 
+    [Fact]
+    public async Task should_refuse_a_backward_move()
+    {
+        // Arrange — an application already past Applied, sitting in Interview
+        var tenant = new FixedTenant(Guid.NewGuid());
+        var jobId = Guid.NewGuid();
+
+        Pipeline pipeline;
+        Application application;
+        await using (var db = NewDb(tenant))
+        {
+            pipeline = Pipeline.CreateDefault(jobId);
+            db.Pipelines.Add(pipeline);
+            var candidate = Candidate.Create("backward@acme.test", "Back", "Ward");
+            db.Candidates.Add(candidate);
+            var interview = pipeline.Stages.Single(s => s.Name == "Interview");
+            application = Application.Create(
+                jobId, candidate.Id, Guid.NewGuid(), interview.Id, "cv/backward.pdf");
+            db.Applications.Add(application);
+            await db.SaveChangesAsync();
+        }
+
+        var applied = pipeline.Stages.Single(s => s.Name == "Applied");
+        var publisher = new CapturingPublisher();
+
+        // Act — try to move it back to Applied
+        await using var handlerDb = NewDb(tenant);
+        var handler = new MoveApplicationStageHandler(
+            handlerDb, publisher, new FakeJobDirectory(null), new NullCurrentUser(),
+            new InMemoryActivityLog([]), NullLogger<MoveApplicationStageHandler>.Instance);
+        var result = await handler.Handle(
+            new MoveApplicationStageCommand(application.Id, applied.Id), CancellationToken.None);
+
+        // Assert — refused, nothing published, and the application stayed at Interview
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ApplicationErrors.CannotMoveBackward.Code, result.Error.Code);
+        Assert.Empty(publisher.Published);
+
+        await using var assertDb = NewDb(tenant);
+        var unchanged = await assertDb.Applications.FindAsync(application.Id);
+        Assert.Equal(pipeline.Stages.Single(s => s.Name == "Interview").Id, unchanged!.CurrentStageId);
+    }
+
+    [Fact]
+    public async Task should_refuse_moving_to_the_same_stage()
+    {
+        // Arrange
+        var tenant = new FixedTenant(Guid.NewGuid());
+        var jobId = Guid.NewGuid();
+
+        Pipeline pipeline;
+        Application application;
+        await using (var db = NewDb(tenant))
+        {
+            pipeline = Pipeline.CreateDefault(jobId);
+            db.Pipelines.Add(pipeline);
+            var candidate = Candidate.Create("stuck-same@acme.test", "Sta", "Ay");
+            db.Candidates.Add(candidate);
+            application = Application.Create(
+                jobId, candidate.Id, Guid.NewGuid(), pipeline.InitialStage.Id, "cv/same.pdf");
+            db.Applications.Add(application);
+            await db.SaveChangesAsync();
+        }
+
+        var publisher = new CapturingPublisher();
+
+        // Act — "move" to the stage it's already in
+        await using var handlerDb = NewDb(tenant);
+        var handler = new MoveApplicationStageHandler(
+            handlerDb, publisher, new FakeJobDirectory(null), new NullCurrentUser(),
+            new InMemoryActivityLog([]), NullLogger<MoveApplicationStageHandler>.Instance);
+        var result = await handler.Handle(
+            new MoveApplicationStageCommand(application.Id, pipeline.InitialStage.Id), CancellationToken.None);
+
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ApplicationErrors.CannotMoveBackward.Code, result.Error.Code);
+        Assert.Empty(publisher.Published);
+    }
+
+    [Fact]
+    public async Task should_allow_skipping_ahead_to_a_later_stage()
+    {
+        // Arrange — an application at Applied, its pipeline's very first stage
+        var tenant = new FixedTenant(Guid.NewGuid());
+        var jobId = Guid.NewGuid();
+
+        Pipeline pipeline;
+        Application application;
+        await using (var db = NewDb(tenant))
+        {
+            pipeline = Pipeline.CreateDefault(jobId);
+            db.Pipelines.Add(pipeline);
+            var candidate = Candidate.Create("skip@acme.test", "Ski", "Pah");
+            db.Candidates.Add(candidate);
+            application = Application.Create(
+                jobId, candidate.Id, Guid.NewGuid(), pipeline.InitialStage.Id, "cv/skip.pdf");
+            db.Applications.Add(application);
+            await db.SaveChangesAsync();
+        }
+
+        var offer = pipeline.Stages.Single(s => s.Name == "Offer");
+        var publisher = new CapturingPublisher();
+
+        // Act — jump straight to Offer, skipping Screening and Interview
+        await using var handlerDb = NewDb(tenant);
+        var handler = new MoveApplicationStageHandler(
+            handlerDb, publisher, new FakeJobDirectory(null), new NullCurrentUser(),
+            new InMemoryActivityLog([]), NullLogger<MoveApplicationStageHandler>.Instance);
+        var result = await handler.Handle(
+            new MoveApplicationStageCommand(application.Id, offer.Id), CancellationToken.None);
+
+        // Assert — a forward skip is a legitimate business decision, not a mistake, so it succeeds
+        Assert.True(result.IsSuccess);
+        var published = Assert.Single(publisher.Published);
+        Assert.IsType<ApplicationStageChangedEvent>(published);
+
+        await using var assertDb = NewDb(tenant);
+        var moved = await assertDb.Applications.FindAsync(application.Id);
+        Assert.Equal(offer.Id, moved!.CurrentStageId);
+    }
+
     private ApplicationsDbContext NewDb(FixedTenant tenant) =>
         new(PostgresContainerFixture.BuildApplicationsOptions(_fixture.ConnectionString, tenant), tenant);
 }

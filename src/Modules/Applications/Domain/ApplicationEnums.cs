@@ -18,4 +18,8 @@ public enum PipelineStageType { Initial, Active, Interview, FinalHired, FinalRej
 
 // What happened to an application, recorded in the activity log. Each value pairs with a
 // payload shape produced by the matching ApplicationActivity factory.
-public enum ApplicationActivityType { Submitted, StageChanged, Rejected, Viewed, Hired }
+//   StageChanged   - a normal, forward-only pipeline move
+//   StageCorrected - an out-of-band fix (any direction) for a wrong StageChanged, always
+//                    carrying a reason; kept distinct from StageChanged so the timeline never
+//                    implies a corrected mistake was real progress
+public enum ApplicationActivityType { Submitted, StageChanged, Rejected, Viewed, Hired, StageCorrected }

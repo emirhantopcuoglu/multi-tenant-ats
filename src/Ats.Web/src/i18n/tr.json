@@ -100,6 +100,7 @@
     "back": "Başvurulara dön",
     "linkedin": "LinkedIn",
     "moveStage": "Aşama değiştir",
+    "correctStage": "Aşamayı düzelt (yanlışlığı gider)",
     "hire": "İşe al",
     "reject": "Reddet",
     "notFound": "Bu başvuru bulunamadı.",
@@ -142,6 +143,7 @@
       "submitted": "Başvuru gönderildi",
       "viewed": "Başvuru görüntülendi",
       "moved": "{{from}} aşamasından {{to}} aşamasına taşındı",
+      "corrected": "{{from}} aşamasından {{to}} aşamasına düzeltildi",
       "rejected": "Başvuru reddedildi",
       "hired": "Aday işe alındı"
     },
@@ -158,8 +160,20 @@
       "description": "Bu karar kesindir: aday tebrik edilir ve başvuru artık değiştirilemez.",
       "confirm": "İşe al"
     },
+    "correct_stage_modal": {
+      "title": "Aşamayı düzelt",
+      "description": "Bunu yalnızca yanlış bir hareketi düzeltmek için kullan — her yöne gidebilir ve aday bilgilendirilmez. Sebep yalnızca dahili tutulur.",
+      "stageLabel": "Doğru aşama",
+      "stagePlaceholder": "Doğru aşamayı seç…",
+      "stageRequired": "Bir aşama seç.",
+      "reasonLabel": "Sebep",
+      "reasonPlaceholder": "Bu neden normal bir hareket değil de düzeltme?",
+      "reasonRequired": "Bir sebep zorunludur.",
+      "confirm": "Aşamayı düzelt"
+    },
     "toast": {
       "moved": "Aşama güncellendi.",
+      "corrected": "Aşama düzeltildi.",
       "rejected": "Başvuru reddedildi.",
       "hired": "Aday işe alındı.",
       "error": "İşlem başarısız. Lütfen tekrar dene."

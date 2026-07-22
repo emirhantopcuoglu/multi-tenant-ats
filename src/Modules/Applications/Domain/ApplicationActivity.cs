@@ -43,6 +43,13 @@ public sealed class ApplicationActivity : ITenantScoped
         new(applicationId, ApplicationActivityType.StageChanged, actorUserId,
             JsonSerializer.Serialize(new { fromStageId, toStageId }));
 
+    // Unlike StageChanged, always carries a reason: a correction is a deliberate out-of-band fix,
+    // never an automated move.
+    public static ApplicationActivity StageCorrected(
+        Guid applicationId, Guid? actorUserId, Guid fromStageId, Guid toStageId, string reason) =>
+        new(applicationId, ApplicationActivityType.StageCorrected, actorUserId,
+            JsonSerializer.Serialize(new { fromStageId, toStageId, reason }));
+
     public static ApplicationActivity Rejected(Guid applicationId, Guid? actorUserId, string reason) =>
         new(applicationId, ApplicationActivityType.Rejected, actorUserId,
             JsonSerializer.Serialize(new { reason }));

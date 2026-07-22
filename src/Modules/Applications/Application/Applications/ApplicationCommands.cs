@@ -73,6 +73,15 @@ public sealed class MoveApplicationStageHandler : ICommandHandler<MoveApplicatio
         if (targetStage.Type is PipelineStageType.FinalHired or PipelineStageType.FinalRejected)
             return Result.Failure<bool>(ApplicationErrors.TerminalStageRequiresDecision);
 
+        // A plain move is forward-only: it is the everyday "the candidate progressed" action, so
+        // a same-or-earlier target is refused outright rather than silently accepted. Undoing a
+        // wrong move is a deliberate correction (CorrectApplicationStageCommand), not a drag on
+        // the board — that keeps a misclick from ever reading as real progress, and from firing
+        // the candidate-facing stage-changed notification a second time to walk it back.
+        var currentStage = pipeline.Stages.FirstOrDefault(s => s.Id == application.CurrentStageId);
+        if (currentStage is not null && targetStage.Order <= currentStage.Order)
+            return Result.Failure<bool>(ApplicationErrors.CannotMoveBackward);
+
         var fromStageId = application.CurrentStageId;
 
         try
@@ -115,6 +124,96 @@ public sealed class MoveApplicationStageHandler : ICommandHandler<MoveApplicatio
         await _activityLog.TryAddAsync(
             ApplicationActivity.StageChanged(
                 application.Id, _currentUser.UserId, fromStageId, command.TargetStageId),
+            _logger, ct);
+
+        return Result.Success(true);
+    }
+}
+
+// ---- CorrectStage ----
+// The escape hatch for MoveApplicationStageCommand's forward-only rule: the one way to move an
+// application to an earlier (or, in principle, any other) stage, for when a recruiter's earlier
+// move was a mistake. Deliberately a separate command rather than a flag on MoveStage — a
+// correction is a rarer, more consequential action, so it gets its own surface (a reason,
+// mandatory) instead of hiding behind the same everyday "move" button.
+public sealed record CorrectApplicationStageCommand(Guid ApplicationId, Guid TargetStageId, string Reason)
+    : ICommand<bool>;
+
+public sealed class CorrectApplicationStageValidator : AbstractValidator<CorrectApplicationStageCommand>
+{
+    public CorrectApplicationStageValidator()
+    {
+        RuleFor(x => x.ApplicationId).NotEmpty();
+        RuleFor(x => x.TargetStageId).NotEmpty();
+        RuleFor(x => x.Reason).NotEmpty().MaximumLength(1000);
+    }
+}
+
+public sealed class CorrectApplicationStageHandler : ICommandHandler<CorrectApplicationStageCommand, bool>
+{
+    private readonly IApplicationsDbContext _db;
+    private readonly ICurrentUser _currentUser;
+    private readonly IActivityLogRepository _activityLog;
+    private readonly ILogger<CorrectApplicationStageHandler> _logger;
+
+    public CorrectApplicationStageHandler(
+        IApplicationsDbContext db,
+        ICurrentUser currentUser,
+        IActivityLogRepository activityLog,
+        ILogger<CorrectApplicationStageHandler> logger)
+    {
+        _db = db;
+        _currentUser = currentUser;
+        _activityLog = activityLog;
+        _logger = logger;
+    }
+
+    public async Task<Result<bool>> Handle(CorrectApplicationStageCommand command, CancellationToken ct)
+    {
+        var application = await _db.Applications
+            .FirstOrDefaultAsync(a => a.Id == command.ApplicationId, ct);
+        if (application is null)
+            return Result.Failure<bool>(ApplicationErrors.NotFound);
+
+        // Same cross-aggregate checks as MoveApplicationStageCommand: the target must belong to
+        // this job's pipeline, and terminal stages are still only reachable through hire/reject.
+        // Unlike Move, there is no Order comparison — a correction may go in either direction.
+        var pipeline = await _db.Pipelines
+            .Include(p => p.Stages)
+            .FirstOrDefaultAsync(p => p.JobId == application.JobId, ct);
+        if (pipeline is null)
+            return Result.Failure<bool>(ApplicationErrors.StageNotInPipeline);
+
+        var targetStage = pipeline.Stages.FirstOrDefault(s => s.Id == command.TargetStageId);
+        if (targetStage is null)
+            return Result.Failure<bool>(ApplicationErrors.StageNotInPipeline);
+
+        if (targetStage.Type is PipelineStageType.FinalHired or PipelineStageType.FinalRejected)
+            return Result.Failure<bool>(ApplicationErrors.TerminalStageRequiresDecision);
+
+        var fromStageId = application.CurrentStageId;
+        if (fromStageId == command.TargetStageId)
+            return Result.Failure<bool>(ApplicationErrors.CannotMoveBackward);
+
+        try
+        {
+            application.MoveToStage(command.TargetStageId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Result.Failure<bool>(ApplicationErrors.InvalidOperation(ex.Message));
+        }
+
+        // No ApplicationStageChangedEvent here — a correction is not real progress, so the
+        // candidate must not receive a second, contradictory "your stage changed" email for a
+        // move that only undoes a recruiter's mistake.
+        await _db.SaveChangesAsync(ct);
+
+        // Logged with the reason attached so the audit trail explains why an application moved
+        // backward, unlike an ordinary StageChanged entry.
+        await _activityLog.TryAddAsync(
+            ApplicationActivity.StageCorrected(
+                application.Id, _currentUser.UserId, fromStageId, command.TargetStageId, command.Reason),
             _logger, ct);
 
         return Result.Success(true);

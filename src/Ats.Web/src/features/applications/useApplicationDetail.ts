@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  correctApplicationStage,
   getApplication,
   getApplicationActivities,
   getCvParseResult,
@@ -40,6 +41,11 @@ export function useApplicationActions(id: string) {
     mutationFn: (targetStageId: string) => moveApplicationStage(id, targetStageId),
     onSuccess: invalidate,
   });
+  const correctStage = useMutation({
+    mutationFn: ({ targetStageId, reason }: { targetStageId: string; reason: string }) =>
+      correctApplicationStage(id, targetStageId, reason),
+    onSuccess: invalidate,
+  });
   const reject = useMutation({
     mutationFn: (reason: string) => rejectApplication(id, reason),
     onSuccess: invalidate,
@@ -49,5 +55,5 @@ export function useApplicationActions(id: string) {
     onSuccess: invalidate,
   });
 
-  return { move, reject, hire };
+  return { move, correctStage, reject, hire };
 }

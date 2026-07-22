@@ -22,6 +22,8 @@ const displayByType: Record<ApplicationActivityType, { icon: IconTimelineIcon; t
   Submitted: { icon: 'submitted', tone: 'success' },
   Viewed: { icon: 'viewed', tone: 'accent' },
   StageChanged: { icon: 'movedTo', tone: 'accent' },
+  // Same arrow icon as an ordinary move, but a warning tone — a correction is a fix, not progress.
+  StageCorrected: { icon: 'movedTo', tone: 'warning' },
   Rejected: { icon: 'rejected', tone: 'danger' },
   Hired: { icon: 'hired', tone: 'success' },
 };
@@ -66,6 +68,11 @@ export function ActivityTimeline({ activities, stages }: ActivityTimelineProps) 
           from: stageName(activity.payload.fromStageId),
           to: stageName(activity.payload.toStageId),
         });
+      case 'StageCorrected':
+        return t('applicationDetail.activity.corrected', {
+          from: stageName(activity.payload.fromStageId),
+          to: stageName(activity.payload.toStageId),
+        });
       case 'Rejected':
         return t('applicationDetail.activity.rejected');
       case 'Hired':
@@ -89,9 +96,10 @@ export function ActivityTimeline({ activities, stages }: ActivityTimelineProps) 
             title={titleOf(activity)}
             meta={formatter.format(new Date(activity.occurredAtUtc))}
           >
-            {activity.activityType === 'Rejected' && typeof activity.payload.reason === 'string' && (
-              <p className="text-sm text-text-muted">{activity.payload.reason}</p>
-            )}
+            {(activity.activityType === 'Rejected' || activity.activityType === 'StageCorrected') &&
+              typeof activity.payload.reason === 'string' && (
+                <p className="text-sm text-text-muted">{activity.payload.reason}</p>
+              )}
           </IconTimelineItem>
         );
       })}
