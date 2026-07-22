@@ -96,6 +96,14 @@ public sealed class ApplicationsController : ControllerBase
         return result.IsSuccess ? NoContent() : MapFailure(result.Error);
     }
 
+    [HttpPost("{id:guid}/correct-stage")]
+    [Authorize(Policy = Policies.CanManageApplications)]
+    public async Task<IActionResult> CorrectStage(Guid id, CorrectStageBody body)
+    {
+        var result = await _sender.Send(new CorrectApplicationStageCommand(id, body.TargetStageId, body.Reason));
+        return result.IsSuccess ? NoContent() : MapFailure(result.Error);
+    }
+
     [HttpPost("{id:guid}/reject")]
     [Authorize(Policy = Policies.CanManageApplications)]
     public async Task<IActionResult> Reject(Guid id, RejectBody body)
@@ -119,5 +127,6 @@ public sealed class ApplicationsController : ControllerBase
     };
 
     public sealed record MoveStageBody(Guid TargetStageId);
+    public sealed record CorrectStageBody(Guid TargetStageId, string Reason);
     public sealed record RejectBody(string Reason);
 }

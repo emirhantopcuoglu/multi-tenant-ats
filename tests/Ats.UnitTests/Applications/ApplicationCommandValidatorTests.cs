@@ -40,4 +40,27 @@ public class ApplicationCommandValidatorTests
         Assert.Contains(result.Errors, e => e.PropertyName == nameof(MoveApplicationStageCommand.ApplicationId));
         Assert.Contains(result.Errors, e => e.PropertyName == nameof(MoveApplicationStageCommand.TargetStageId));
     }
+
+    [Fact]
+    public void CorrectStage_requires_a_reason()
+    {
+        var validator = new CorrectApplicationStageValidator();
+
+        var result = validator.Validate(
+            new CorrectApplicationStageCommand(Guid.NewGuid(), Guid.NewGuid(), "  "));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CorrectApplicationStageCommand.Reason));
+    }
+
+    [Fact]
+    public void CorrectStage_passes_with_both_ids_and_a_reason()
+    {
+        var validator = new CorrectApplicationStageValidator();
+
+        var result = validator.Validate(
+            new CorrectApplicationStageCommand(Guid.NewGuid(), Guid.NewGuid(), "Recruiter misclicked"));
+
+        Assert.True(result.IsValid);
+    }
 }

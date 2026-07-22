@@ -74,17 +74,28 @@ function BoardColumn({
   stage,
   applications,
   canManage,
+  isValidDropTarget,
   onSelect,
 }: {
   stage: PipelineStage;
   applications: ApplicationListItem[];
   canManage: boolean;
+  /** False while a card is being dragged from a stage at or after this column's order — a plain
+      move is forward-only, so backward columns must not accept the drop at all. */
+  isValidDropTarget: boolean;
   onSelect: (id: string) => void;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: stage.id });
+  const { setNodeRef, isOver } = useDroppable({ id: stage.id, disabled: !isValidDropTarget });
   const { t } = useTranslation();
   return (
-    <div ref={setNodeRef} className={cn('rounded-2xl', isOver && 'ring-2 ring-accent')}>
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'rounded-2xl transition-opacity',
+        isOver && 'ring-2 ring-accent',
+        !isValidDropTarget && 'opacity-50',
+      )}
+    >
       <KanbanColumn title={stageLabel(stage.name, t)} count={applications.length}>
         {applications.map((application) => (
           <BoardCard
@@ -127,6 +138,9 @@ export function ApplicationsBoard({ stages, applications, canManage, onMove, onS
   }, [workingStages, applications]);
 
   const activeApplication = applications.find((application) => application.id === activeId) ?? null;
+  const activeStageOrder = activeApplication
+    ? (workingStages.find((stage) => stage.id === activeApplication.stageId)?.order ?? null)
+    : null;
 
   const handleDragStart = (event: DragStartEvent) => setActiveId(String(event.active.id));
 
@@ -154,6 +168,7 @@ export function ApplicationsBoard({ stages, applications, canManage, onMove, onS
             stage={stage}
             applications={applicationsByStage.get(stage.id) ?? []}
             canManage={canManage}
+            isValidDropTarget={activeStageOrder === null || stage.order > activeStageOrder}
             onSelect={onSelect}
           />
         ))}

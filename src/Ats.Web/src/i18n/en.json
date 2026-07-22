@@ -100,6 +100,7 @@
     "back": "Back to applications",
     "linkedin": "LinkedIn",
     "moveStage": "Move stage",
+    "correctStage": "Correct stage (fix a mistake)",
     "hire": "Hire",
     "reject": "Reject",
     "notFound": "This application could not be found.",
@@ -142,6 +143,7 @@
       "submitted": "Application submitted",
       "viewed": "Application viewed",
       "moved": "Moved from {{from}} to {{to}}",
+      "corrected": "Stage corrected from {{from}} to {{to}}",
       "rejected": "Application rejected",
       "hired": "Candidate hired"
     },
@@ -158,8 +160,20 @@
       "description": "This is final: the candidate is congratulated and the application can no longer be changed.",
       "confirm": "Hire candidate"
     },
+    "correct_stage_modal": {
+      "title": "Correct stage",
+      "description": "Use this only to fix a wrong move — it can go in any direction and the candidate is not notified. The reason is kept internal.",
+      "stageLabel": "Correct stage",
+      "stagePlaceholder": "Select the correct stage…",
+      "stageRequired": "Select a stage.",
+      "reasonLabel": "Reason",
+      "reasonPlaceholder": "Why is this a correction rather than a normal move?",
+      "reasonRequired": "A reason is required.",
+      "confirm": "Correct stage"
+    },
     "toast": {
       "moved": "Stage updated.",
+      "corrected": "Stage corrected.",
       "rejected": "Application rejected.",
       "hired": "Candidate hired.",
       "error": "Action failed. Please try again."
