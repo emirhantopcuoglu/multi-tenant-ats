@@ -1,6 +1,12 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Timeline, TimelineItem, type TimelineDotTone } from '@/components/ui';
+import {
+  IconTimeline,
+  IconTimelineItem,
+  type IconTimelineIcon,
+  type IconTimelineTone,
+} from '@/components/ui';
+import { stageLabel } from '@/lib/stageLabel';
 import type { ApplicationActivity, PipelineStage } from '@/types/application';
 import type { ApplicationActivityType } from '@/types/enums';
 
@@ -10,72 +16,93 @@ interface ActivityTimelineProps {
   stages: PipelineStage[];
 }
 
-const toneByType: Record<ApplicationActivityType, TimelineDotTone> = {
-  Submitted: 'accent',
-  StageChanged: 'neutral',
-  Rejected: 'danger',
+/* Tones mirror the candidate tracking page (trackingSteps.ts) so both sides of the pipeline
+   speak the same visual language. */
+const displayByType: Record<ApplicationActivityType, { icon: IconTimelineIcon; tone: IconTimelineTone }> = {
+  Submitted: { icon: 'submitted', tone: 'success' },
+  Viewed: { icon: 'viewed', tone: 'accent' },
+  StageChanged: { icon: 'movedTo', tone: 'accent' },
+  // Same arrow icon as an ordinary move, but a warning tone — a correction is a fix, not progress.
+  StageCorrected: { icon: 'movedTo', tone: 'warning' },
+  Rejected: { icon: 'rejected', tone: 'danger' },
+  Hired: { icon: 'hired', tone: 'success' },
 };
 
-/* Renders the append-only application history. The actor's display name isn't available yet (the
-   activity carries only actorUserId and there's no user-lookup endpoint), so entries show the action
-   and timestamp; resolving names can come once such an endpoint exists. */
+/* An activity type the frontend doesn't know yet must never masquerade as a known event (a
+   missing 'Viewed' branch once rendered view receipts as "Application submitted"), so it falls
+   back to the raw type name in a neutral tone. */
+const unknownDisplay = { icon: 'upcoming' as IconTimelineIcon, tone: 'neutral' as IconTimelineTone };
+
+/* Renders the append-only application history in story order (oldest first), matching the
+   candidate tracking page. The actor's display name isn't available yet (the activity carries
+   only actorUserId and there's no user-lookup endpoint), so entries show the action and
+   timestamp. */
 export function ActivityTimeline({ activities, stages }: ActivityTimelineProps) {
   const { t, i18n } = useTranslation();
   const formatter = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });
 
+  const ordered = useMemo(
+    () =>
+      [...activities].sort(
+        (a, b) => new Date(a.occurredAtUtc).getTime() - new Date(b.occurredAtUtc).getTime(),
+      ),
+    [activities],
+  );
+
   const stageName = useMemo(() => {
     const byId = new Map(stages.map((stage) => [stage.id, stage.name]));
-    return (id: unknown) => byId.get(String(id)) ?? '—';
-  }, [stages]);
+    return (id: unknown) => {
+      const rawName = byId.get(String(id));
+      return rawName ? stageLabel(rawName, t) : '—';
+    };
+  }, [stages, t]);
+
+  const titleOf = (activity: ApplicationActivity): string => {
+    switch (activity.activityType) {
+      case 'Submitted':
+        return t('applicationDetail.activity.submitted');
+      case 'Viewed':
+        return t('applicationDetail.activity.viewed');
+      case 'StageChanged':
+        return t('applicationDetail.activity.moved', {
+          from: stageName(activity.payload.fromStageId),
+          to: stageName(activity.payload.toStageId),
+        });
+      case 'StageCorrected':
+        return t('applicationDetail.activity.corrected', {
+          from: stageName(activity.payload.fromStageId),
+          to: stageName(activity.payload.toStageId),
+        });
+      case 'Rejected':
+        return t('applicationDetail.activity.rejected');
+      case 'Hired':
+        return t('applicationDetail.activity.hired');
+      default:
+        return activity.activityType;
+    }
+  };
 
   return (
-    <Timeline>
-      {activities.map((activity, index) => {
-        const last = index === activities.length - 1;
-        const tone = toneByType[activity.activityType] ?? 'neutral';
-        const meta = formatter.format(new Date(activity.occurredAtUtc));
-
-        if (activity.activityType === 'StageChanged') {
-          return (
-            <TimelineItem
-              key={activity.id}
-              tone={tone}
-              last={last}
-              meta={meta}
-              title={t('applicationDetail.activity.moved', {
-                from: stageName(activity.payload.fromStageId),
-                to: stageName(activity.payload.toStageId),
-              })}
-            />
-          );
-        }
-
-        if (activity.activityType === 'Rejected') {
-          return (
-            <TimelineItem
-              key={activity.id}
-              tone={tone}
-              last={last}
-              meta={meta}
-              title={t('applicationDetail.activity.rejected')}
-            >
-              {typeof activity.payload.reason === 'string' && (
-                <p className="text-sm text-text-muted">{activity.payload.reason}</p>
-              )}
-            </TimelineItem>
-          );
-        }
+    <IconTimeline>
+      {ordered.map((activity, index) => {
+        const { icon, tone } = displayByType[activity.activityType] ?? unknownDisplay;
 
         return (
-          <TimelineItem
+          <IconTimelineItem
             key={activity.id}
+            icon={icon}
             tone={tone}
-            last={last}
-            meta={meta}
-            title={t('applicationDetail.activity.submitted')}
-          />
+            last={index === ordered.length - 1}
+            title={titleOf(activity)}
+            meta={formatter.format(new Date(activity.occurredAtUtc))}
+          >
+            {(activity.activityType === 'Rejected' || activity.activityType === 'StageCorrected') &&
+              typeof activity.payload.reason === 'string' && (
+                <p className="text-sm text-text-muted">{activity.payload.reason}</p>
+              )}
+          </IconTimelineItem>
         );
       })}
-    </Timeline>
+    </IconTimeline>
   );
 }

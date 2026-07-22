@@ -7,6 +7,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Abstractions only: this layer publishes integration events through IPublishEndpoint but
+         never touches the transport. -->
+    <PackageReference Include="MassTransit.Abstractions" Version="8.5.10" />
     <PackageReference Include="MediatR" Version="12.4.1" />
     <PackageReference Include="FluentValidation" Version="11.10.0" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.10.0" />

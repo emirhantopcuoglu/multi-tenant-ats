@@ -18,4 +18,5 @@ public sealed record ApplicationSubmittedEvent(
     Guid CandidateId,
     string CandidateEmail,
     string CandidateFirstName,
+    string CandidateLastName,
     Guid TenantId) : INotification;

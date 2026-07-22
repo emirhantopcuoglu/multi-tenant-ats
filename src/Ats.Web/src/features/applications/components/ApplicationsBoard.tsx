@@ -10,8 +10,10 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
+import { useTranslation } from 'react-i18next';
 import { KanbanCard, KanbanColumn } from '@/components/ui';
 import { cn } from '@/lib/cn';
+import { stageLabel } from '@/lib/stageLabel';
 import type { ApplicationListItem, PipelineStage } from '@/types/application';
 
 interface ApplicationsBoardProps {
@@ -72,17 +74,29 @@ function BoardColumn({
   stage,
   applications,
   canManage,
+  isValidDropTarget,
   onSelect,
 }: {
   stage: PipelineStage;
   applications: ApplicationListItem[];
   canManage: boolean;
+  /** False while a card is being dragged from a stage at or after this column's order — a plain
+      move is forward-only, so backward columns must not accept the drop at all. */
+  isValidDropTarget: boolean;
   onSelect: (id: string) => void;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: stage.id });
+  const { setNodeRef, isOver } = useDroppable({ id: stage.id, disabled: !isValidDropTarget });
+  const { t } = useTranslation();
   return (
-    <div ref={setNodeRef} className={cn('rounded-2xl', isOver && 'ring-2 ring-accent')}>
-      <KanbanColumn title={stage.name} count={applications.length}>
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'rounded-2xl transition-opacity',
+        isOver && 'ring-2 ring-accent',
+        !isValidDropTarget && 'opacity-50',
+      )}
+    >
+      <KanbanColumn title={stageLabel(stage.name, t)} count={applications.length}>
         {applications.map((application) => (
           <BoardCard
             key={application.id}
@@ -105,15 +119,28 @@ export function ApplicationsBoard({ stages, applications, canManage, onMove, onS
   // A small activation distance so a click on a card isn't mistaken for a drag.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
+  /* The board shows only Active applications and terminal stages can only be reached through the
+     hire/reject decisions, so Hired/Rejected columns would be permanently empty drop targets that
+     the backend refuses anyway — they are not rendered at all. */
+  const workingStages = useMemo(
+    () => stages.filter((stage) => stage.type !== 'FinalHired' && stage.type !== 'FinalRejected'),
+    [stages],
+  );
+
   const applicationsByStage = useMemo(() => {
-    const grouped = new Map<string, ApplicationListItem[]>(stages.map((stage) => [stage.id, []]));
+    const grouped = new Map<string, ApplicationListItem[]>(
+      workingStages.map((stage) => [stage.id, []]),
+    );
     for (const application of applications) {
       grouped.get(application.stageId)?.push(application);
     }
     return grouped;
-  }, [stages, applications]);
+  }, [workingStages, applications]);
 
   const activeApplication = applications.find((application) => application.id === activeId) ?? null;
+  const activeStageOrder = activeApplication
+    ? (workingStages.find((stage) => stage.id === activeApplication.stageId)?.order ?? null)
+    : null;
 
   const handleDragStart = (event: DragStartEvent) => setActiveId(String(event.active.id));
 
@@ -135,12 +162,13 @@ export function ApplicationsBoard({ stages, applications, canManage, onMove, onS
       onDragCancel={() => setActiveId(null)}
     >
       <div className="flex gap-4 overflow-x-auto pb-2">
-        {stages.map((stage) => (
+        {workingStages.map((stage) => (
           <BoardColumn
             key={stage.id}
             stage={stage}
             applications={applicationsByStage.get(stage.id) ?? []}
             canManage={canManage}
+            isValidDropTarget={activeStageOrder === null || stage.order > activeStageOrder}
             onSelect={onSelect}
           />
         ))}

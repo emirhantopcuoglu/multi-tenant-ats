@@ -24,12 +24,17 @@ export interface CompanyUser {
   tenant: CurrentUserTenant;
 }
 
+/* What /candidate/auth/me can report. Never 'Deleted': a deleted account's token dies with the
+   stamp rotation, so no signed-in session ever sees that state. */
+export type CandidateAccountStatus = 'Active' | 'Frozen';
+
 export interface CandidateUser {
   kind: 'candidate';
   id: string;
   firstName: string;
   lastName: string;
   email: string;
+  status: CandidateAccountStatus;
 }
 
 export type CurrentUser = CompanyUser | CandidateUser;

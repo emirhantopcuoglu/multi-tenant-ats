@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -29,13 +30,29 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
     // json_object mode guarantees valid JSON but not a schema, so the field contract is stated in the
     // prompt. Unknown values come back as their empty form (see CvParseResult). The word "JSON" must
     // appear in the prompt for json_object mode to be accepted.
+    // The fit fields exist so a recruiter gets a job-specific read in seconds instead of re-reading
+    // the whole CV themselves (the actual reason this feature is worth having) -- so the prompt is
+    // explicit both about what to compare against (the job description that follows the CV in the
+    // user message) and, just as importantly, what NOT to reason about: anything adjacent to a
+    // protected characteristic. That instruction is enforced here, at the only place that can
+    // enforce it -- the model itself has no other guardrail.
     private const string SystemPrompt =
-        "You extract structured data from a candidate's CV. Use only information present in the CV. " +
-        "Do not invent or infer values that are not stated. If a field is unknown, use an empty " +
-        "string, 0, or an empty array. Return a JSON object with exactly these fields: skills (array " +
-        "of strings), total_experience_years (number), education (array of objects with degree, " +
-        "institution, year), recent_positions (array of objects with title, company, start_date, " +
-        "end_date).";
+        "You extract structured data from a candidate's CV and assess their fit for a specific job. " +
+        "Use only information present in the CV and the job description. Do not invent or infer " +
+        "values that are not stated. If a field is unknown, use an empty string, 0, or an empty " +
+        "array. Return a JSON object with exactly these fields: skills (array of strings), " +
+        "total_experience_years (number), education (array of objects with degree, institution, " +
+        "year), recent_positions (array of objects with title, company, start_date, end_date), " +
+        "job_fit_rating (exactly one of \"Strong\", \"Moderate\", \"Weak\"), fit_summary (2-3 " +
+        "sentences grounded in specifics from the CV, explaining the rating), matched_requirements " +
+        "(array of concrete skills/technologies the job description asks for and the CV shows), " +
+        "missing_requirements (array of concrete skills/technologies the job description asks for " +
+        "that the CV does not show). Base job_fit_rating, matched_requirements, and " +
+        "missing_requirements strictly on concrete technical skills, tools, and experience the job " +
+        "description names. Never mention or infer employment gaps, job-hopping, age, how long ago " +
+        "someone graduated, or any other characteristic unrelated to the job's stated technical " +
+        "requirements -- these must never appear in fit_summary, matched_requirements, or " +
+        "missing_requirements.";
 
     // No naming policy: anonymous-object member names (model, max_tokens, response_format, ...) are
     // sent verbatim as the OpenAI wire keys.
@@ -44,10 +61,49 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
+    // json_object mode guarantees valid JSON syntax but not per-field types or values: the model has
+    // returned a quoted number ("total_experience_years": "5") and, for a CV with no stated graduation
+    // year, an empty string ("year": ""). Neither is a bare number nor a parseable numeric string, so
+    // the two numeric fields most exposed to this (TotalExperienceYears, EducationDto.Year) carry their
+    // own lenient converters below instead of relying on JsonNumberHandling, which still throws on a
+    // non-numeric string like "".
     private static readonly JsonSerializerOptions DeserializeOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
     };
+
+    // Reads a number, a numeric string, or falls back to 0 for anything else (empty string, "N/A",
+    // null) -- the CV parse prompt asks for 0 on unknown values, but the model doesn't always comply.
+    private sealed class LenientInt32Converter : JsonConverter<int>
+    {
+        public override int Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.Number)
+                return reader.GetInt32();
+            if (reader.TokenType == JsonTokenType.String && int.TryParse(reader.GetString(), out var value))
+                return value;
+            return 0;
+        }
+
+        public override void Write(Utf8JsonWriter writer, int value, JsonSerializerOptions options) =>
+            writer.WriteNumberValue(value);
+    }
+
+    private sealed class LenientDoubleConverter : JsonConverter<double>
+    {
+        public override double Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.Number)
+                return reader.GetDouble();
+            if (reader.TokenType == JsonTokenType.String &&
+                double.TryParse(reader.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+                return value;
+            return 0;
+        }
+
+        public override void Write(Utf8JsonWriter writer, double value, JsonSerializerOptions options) =>
+            writer.WriteNumberValue(value);
+    }
 
     public OpenAiCompatibleCvParser(
         IHttpClientFactory httpClientFactory,
@@ -81,8 +137,13 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
             .Build();
     }
 
-    public async Task<CvParseResult> ParseAsync(string cvText, CancellationToken cancellationToken = default)
+    public async Task<CvParseResult> ParseAsync(
+        string cvText, string jobDescription, CancellationToken cancellationToken = default)
     {
+        var userContent =
+            "Job description:\n\n" + jobDescription +
+            "\n\nCandidate CV:\n\n" + cvText;
+
         var requestBody = new
         {
             model = _options.Model,
@@ -92,7 +153,7 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
             messages = new[]
             {
                 new { role = "system", content = SystemPrompt },
-                new { role = "user", content = "Extract the fields from this CV:\n\n" + cvText }
+                new { role = "user", content = userContent }
             }
         };
 
@@ -125,8 +186,23 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
         if (string.IsNullOrWhiteSpace(json))
             throw new InvalidOperationException("The model returned no content for the CV parse request.");
 
-        var dto = JsonSerializer.Deserialize<CvParseDto>(json, DeserializeOptions)
-            ?? throw new InvalidOperationException("The model returned a CV parse result that could not be deserialized.");
+        CvParseDto? dto;
+        try
+        {
+            dto = JsonSerializer.Deserialize<CvParseDto>(json, DeserializeOptions);
+        }
+        catch (JsonException ex)
+        {
+            // The model's JSON is syntactically valid (json_object mode guarantees that) but its
+            // field *values* are not contractually guaranteed, so log the raw payload on a shape
+            // mismatch -- without it, a new quirk is undiagnosable after the fact (the text is
+            // gone once this throws).
+            _logger.LogError(ex, "CV parse response had an unexpected shape: {Json}", json);
+            throw;
+        }
+
+        if (dto is null)
+            throw new InvalidOperationException("The model returned a CV parse result that could not be deserialized.");
 
         return dto.ToResult();
     }
@@ -149,9 +225,14 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
     // ---- Parsed CV payload (snake_case fields), mapped to the Kernel's CvParseResult ----
     private sealed record CvParseDto(
         [property: JsonPropertyName("skills")] List<string>? Skills,
-        [property: JsonPropertyName("total_experience_years")] double TotalExperienceYears,
+        [property: JsonPropertyName("total_experience_years"), JsonConverter(typeof(LenientDoubleConverter))]
+        double TotalExperienceYears,
         [property: JsonPropertyName("education")] List<EducationDto>? Education,
-        [property: JsonPropertyName("recent_positions")] List<PositionDto>? RecentPositions)
+        [property: JsonPropertyName("recent_positions")] List<PositionDto>? RecentPositions,
+        [property: JsonPropertyName("job_fit_rating")] string? JobFitRating,
+        [property: JsonPropertyName("fit_summary")] string? FitSummary,
+        [property: JsonPropertyName("matched_requirements")] List<string>? MatchedRequirements,
+        [property: JsonPropertyName("missing_requirements")] List<string>? MissingRequirements)
     {
         public CvParseResult ToResult() => new(
             Skills ?? [],
@@ -159,13 +240,28 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
             Education?.Select(e => new CvEducation(e.Degree ?? "", e.Institution ?? "", e.Year)).ToList() ?? [],
             RecentPositions?
                 .Select(p => new CvPosition(p.Title ?? "", p.Company ?? "", p.StartDate ?? "", p.EndDate ?? ""))
-                .ToList() ?? []);
+                .ToList() ?? [],
+            ParseFitRating(JobFitRating),
+            FitSummary ?? "",
+            MatchedRequirements ?? [],
+            MissingRequirements ?? []);
     }
+
+    // Moderate is the safe fallback when the model doesn't return exactly one of the three asked-for
+    // values -- never silently defaulting to the most flattering (Strong) or least flattering (Weak)
+    // reading of a rating we couldn't actually parse.
+    public static CvJobFitRating ParseFitRating(string? value) => value?.Trim().ToLowerInvariant() switch
+    {
+        "strong" => CvJobFitRating.Strong,
+        "weak" => CvJobFitRating.Weak,
+        _ => CvJobFitRating.Moderate
+    };
 
     private sealed record EducationDto(
         [property: JsonPropertyName("degree")] string? Degree,
         [property: JsonPropertyName("institution")] string? Institution,
-        [property: JsonPropertyName("year")] int Year);
+        [property: JsonPropertyName("year"), JsonConverter(typeof(LenientInt32Converter))]
+        int Year);
 
     private sealed record PositionDto(
         [property: JsonPropertyName("title")] string? Title,

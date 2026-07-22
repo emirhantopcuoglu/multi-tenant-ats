@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Avatar, Badge, Button, Card, Dropdown, type DropdownAction } from '@/components/ui';
 import { applicationStatusTone } from '@/lib/statusColors';
+import { stageLabel } from '@/lib/stageLabel';
 import type { ApplicationDetail, PipelineStage } from '@/types/application';
 
 interface ApplicationHeaderProps {
@@ -8,26 +9,47 @@ interface ApplicationHeaderProps {
   stages: PipelineStage[];
   canManage: boolean;
   onMove: (stageId: string) => void;
+  onCorrectStageClick: () => void;
+  onHireClick: () => void;
   onRejectClick: () => void;
   busy: boolean;
 }
 
 /* Detail header: candidate identity, current stage + status, and (for managers, while the
-   application is still Active) the move-stage menu and reject action. */
+   application is still Active) the move-stage menu, the correction escape hatch, and the two
+   terminal decisions. */
 export function ApplicationHeader({
   application,
   stages,
   canManage,
   onMove,
+  onCorrectStageClick,
+  onHireClick,
   onRejectClick,
   busy,
 }: ApplicationHeaderProps) {
   const { t } = useTranslation();
   const isActive = application.status === 'Active';
+  const currentOrder = stages.find((stage) => stage.id === application.stageId)?.order;
 
+  /* Terminal stages are outcomes, not move targets: reaching them must flip the application's
+     status, which only the hire/reject actions do (the backend refuses them here too). A plain
+     move is also forward-only — a same-or-earlier stage isn't offered here at all; fixing a wrong
+     move is the separate, reason-required "correct stage" action below. */
   const moveItems: DropdownAction[] = stages
-    .filter((stage) => stage.id !== application.stageId)
-    .map((stage) => ({ key: stage.id, label: stage.name, onSelect: () => onMove(stage.id) }));
+    .filter(
+      (stage) =>
+        stage.type !== 'FinalHired' &&
+        stage.type !== 'FinalRejected' &&
+        (currentOrder === undefined || stage.order > currentOrder),
+    )
+    .map((stage) => ({ key: stage.id, label: stageLabel(stage.name, t), onSelect: () => onMove(stage.id) }));
+
+  /* Whether there is any other working stage to correct into — independent of moveItems, since a
+     correction may also go backward. */
+  const canCorrectStage = stages.some(
+    (stage) => stage.id !== application.stageId && stage.type !== 'FinalHired' && stage.type !== 'FinalRejected',
+  );
 
   return (
     <Card className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -50,11 +72,21 @@ export function ApplicationHeader({
             )}
           </div>
           <div className="flex items-center gap-2 pt-1">
-            <Badge tone="neutral">{application.stageName}</Badge>
+            <Badge tone="neutral">{stageLabel(application.stageName, t)}</Badge>
             <Badge tone={applicationStatusTone[application.status]} dot>
               {t(`status.${application.status}`)}
             </Badge>
           </div>
+          {canManage && isActive && canCorrectStage && (
+            <button
+              type="button"
+              onClick={onCorrectStageClick}
+              disabled={busy}
+              className="pt-1 text-xs text-text-muted underline-offset-2 hover:text-text hover:underline disabled:cursor-not-allowed disabled:text-text-disabled"
+            >
+              {t('applicationDetail.correctStage')}
+            </button>
+          )}
         </div>
       </div>
 
@@ -70,6 +102,9 @@ export function ApplicationHeader({
               }
             />
           )}
+          <Button variant="primary" onClick={onHireClick} disabled={busy}>
+            {t('applicationDetail.hire')}
+          </Button>
           <Button variant="danger" onClick={onRejectClick} disabled={busy}>
             {t('applicationDetail.reject')}
           </Button>

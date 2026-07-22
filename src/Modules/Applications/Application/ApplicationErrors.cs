@@ -27,6 +27,14 @@ public static class ApplicationErrors
     public static readonly Error StageNotInPipeline =
         new("application.stage_not_in_pipeline", "The target stage does not belong to this job's pipeline.");
 
+    public static readonly Error CannotMoveBackward =
+        new("application.cannot_move_backward",
+            "An application cannot be moved to the same or an earlier stage. Use stage correction instead.");
+
+    public static readonly Error TerminalStageRequiresDecision =
+        new("application.terminal_stage_requires_decision",
+            "Hired and Rejected are outcomes, not stages to move into. Use the hire or reject action instead.");
+
     public static Error InvalidOperation(string message) =>
         new("application.invalid_operation", message);
 }

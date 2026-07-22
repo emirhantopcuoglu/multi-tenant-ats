@@ -1,5 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAuth } from '@/app/auth/RequireAuth';
+import { RequireCandidateAuth } from '@/app/auth/RequireCandidateAuth';
+import { RequireActiveCandidate } from '@/app/auth/RequireActiveCandidate';
 import { RequireRole } from '@/app/auth/RequireRole';
 import { AppShell } from '@/components/layout/AppShell';
 import { PagePlaceholder } from '@/components/layout/PagePlaceholder';
@@ -21,6 +23,16 @@ import { PublicApplyPage } from '@/features/public/PublicApplyPage';
 import { PlaygroundPage } from '@/features/playground/PlaygroundPage';
 import { CandidateLoginPage } from '@/features/candidates/pages/CandidateLoginPage';
 import { CandidateRegisterPage } from '@/features/candidates/pages/CandidateRegisterPage';
+import { ConfirmEmailChangePage } from '@/features/candidates/pages/ConfirmEmailChangePage';
+import { CandidateApplicationsPage } from '@/features/candidates/pages/CandidateApplicationsPage';
+import { CandidateApplicationDetailPage } from '@/features/candidates/pages/CandidateApplicationDetailPage';
+import { CandidateNotificationsPage } from '@/features/notifications/pages/CandidateNotificationsPage';
+import { CandidateSettingsPage } from '@/features/candidates/pages/CandidateSettingsPage';
+import { CandidateProfileSettingsTab } from '@/features/candidates/pages/CandidateProfileSettingsTab';
+import { CandidateSecuritySettingsTab } from '@/features/candidates/pages/CandidateSecuritySettingsTab';
+import { CandidateAccountSettingsTab } from '@/features/candidates/pages/CandidateAccountSettingsTab';
+import { CandidateReactivatePage } from '@/features/candidates/pages/CandidateReactivatePage';
+import { CompanyNotificationsPage } from '@/features/notifications/pages/CompanyNotificationsPage';
 
 /* Public auth routes sit at the top. Everything else is nested under RequireAuth → AppShell, so the
    shell (sidebar + topbar) wraps every authenticated screen and the routed page renders through its
@@ -37,7 +49,25 @@ export default function App() {
       <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
       <Route path="/candidate/login" element={<CandidateLoginPage />} />
       <Route path="/candidate/register" element={<CandidateRegisterPage />} />
+      {/* Public like /accept-invitation: the mailed link may be opened without a session. */}
+      <Route path="/candidate/confirm-email" element={<ConfirmEmailChangePage />} />
       <Route path="/playground" element={<PlaygroundPage />} />
+
+      <Route element={<RequireCandidateAuth />}>
+        {/* Outside RequireActiveCandidate on purpose: it is the one screen a frozen account may see. */}
+        <Route path="/candidate/reactivate" element={<CandidateReactivatePage />} />
+        <Route element={<RequireActiveCandidate />}>
+          <Route path="/candidate/applications" element={<CandidateApplicationsPage />} />
+          <Route path="/candidate/applications/:id" element={<CandidateApplicationDetailPage />} />
+          <Route path="/candidate/notifications" element={<CandidateNotificationsPage />} />
+          <Route path="/candidate/settings" element={<CandidateSettingsPage />}>
+            <Route index element={<Navigate to="profile" replace />} />
+            <Route path="profile" element={<CandidateProfileSettingsTab />} />
+            <Route path="security" element={<CandidateSecuritySettingsTab />} />
+            <Route path="account" element={<CandidateAccountSettingsTab />} />
+          </Route>
+        </Route>
+      </Route>
 
       {/* Anonymous careers pages. Static routes above (e.g. /login, /jobs) outrank these dynamic
           single-segment patterns, so they only match a tenant slug, never an app path. */}
@@ -48,6 +78,7 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
           <Route path="/dashboard" element={<OverviewPage />} />
+          <Route path="/notifications" element={<CompanyNotificationsPage />} />
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/jobs/new" element={<JobFormPage />} />
           <Route path="/jobs/:id/edit" element={<JobFormPage />} />

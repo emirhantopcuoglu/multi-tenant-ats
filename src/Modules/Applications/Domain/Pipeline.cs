@@ -46,7 +46,7 @@ public sealed class Pipeline : ITenantScoped, IAuditable, ISoftDeletable
         var pipeline = new Pipeline(Guid.NewGuid(), jobId);
         pipeline.AddStage(AppliedStage, order: 1, PipelineStageType.Initial);
         pipeline.AddStage(ScreeningStage, order: 2, PipelineStageType.Active);
-        pipeline.AddStage(InterviewStage, order: 3, PipelineStageType.Active);
+        pipeline.AddStage(InterviewStage, order: 3, PipelineStageType.Interview);
         pipeline.AddStage(OfferStage, order: 4, PipelineStageType.Active);
         pipeline.AddStage(HiredStage, order: 5, PipelineStageType.FinalHired);
         pipeline.AddStage(RejectedStage, order: 6, PipelineStageType.FinalRejected);

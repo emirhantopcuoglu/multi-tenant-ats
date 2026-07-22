@@ -21,6 +21,7 @@ using Ats.Modules.Applications.Application.Applications;
 using Ats.Modules.CandidateAccounts.Application;
 using Ats.Modules.CandidateAccounts.Domain;
 using Ats.Modules.CandidateAccounts.Infrastructure;
+using Ats.Modules.Notifications.Application;
 using Ats.Modules.Notifications.Infrastructure;
 using Ats.Modules.Applications.Infrastructure;
 using Ats.Modules.Interviews.Api.Authorization;
@@ -180,6 +181,17 @@ builder.Services.AddDbContext<CandidateAccountsDbContext>(options =>
         builder.Configuration.GetConnectionString("Postgres"),
         npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "candidate_accounts")));
 
+// In-app notifications (FAZ 3). Like candidate accounts, no tenant/audit interceptors: a
+// Notification row is addressed to a recipient — a global candidate account today, a company user
+// later — and the recipient, not a tenant, is the ownership boundary its queries filter on.
+builder.Services.AddDbContext<NotificationsDbContext>(options =>
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("Postgres"),
+        npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "notifications")));
+
+builder.Services.AddScoped<INotificationsDbContext>(sp => sp.GetRequiredService<NotificationsDbContext>());
+builder.Services.AddNotificationsApplication();
+
 // MongoDB holds the append-only activity log (Sprint 4). The driver's MongoClient is thread-safe
 // and pools connections internally, so it is a singleton; the database handle is derived from it.
 // The repository is scoped because it depends on the per-request ICurrentTenant for isolation.
@@ -215,6 +227,7 @@ builder.Services.Configure<LlmOptions>(
     builder.Configuration.GetSection(LlmOptions.SectionName));
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IPdfTextExtractor, PdfPigTextExtractor>();
+builder.Services.AddSingleton<IDocxTextExtractor, DocxTextExtractor>();
 builder.Services.AddSingleton<ICvParser, OpenAiCompatibleCvParser>();
 
 // One Redis connection shared by the whole app. StackExchange.Redis multiplexes all traffic over a
@@ -365,20 +378,44 @@ builder.Services.AddMassTransit(bus =>
     // same SaveChanges as the business change. A background delivery service then forwards it to
     // RabbitMQ and marks it delivered. The result is atomicity (both the row and the message commit,
     // or neither) and durability (a broker outage delays delivery, never loses or blocks the request).
+    // CONSTRAINT: exactly one bus outbox per container in MassTransit 8.x. UseBusOutbox routes
+    // every scoped IPublishEndpoint into this DbContext; registering a second one (e.g. for
+    // InterviewsDbContext) silently replaces this registration, and every Applications publish
+    // then lands in a context that request never saves — messages vanish without an error.
+    // Verified empirically before the Interviews module's outbox was rolled back. Modules other
+    // than Applications must publish via IBus (direct, after their own SaveChanges) until the
+    // stack supports multiple bus outboxes (MassTransit v9.1+, commercial).
     bus.AddEntityFrameworkOutbox<ApplicationsDbContext>(outbox =>
     {
         outbox.UsePostgres();
         outbox.UseBusOutbox();
     });
 
-    // Notifications consumers: email the candidate when an application is submitted, and again when
-    // it is rejected. ConfigureEndpoints below creates and binds each consumer's queue automatically.
+    // Notifications consumers: email the candidate when an application is submitted, rejected,
+    // hired, moved to a new stage, or gets an interview scheduled (roadmap 3.4). ConfigureEndpoints
+    // below creates and binds each consumer's queue automatically.
     bus.AddConsumer<ApplicationSubmittedConsumer>();
     bus.AddConsumer<ApplicationRejectedConsumer>();
+    bus.AddConsumer<ApplicationHiredConsumer>();
+    bus.AddConsumer<ApplicationStageChangedEmailConsumer>();
+    bus.AddConsumer<InterviewScheduledEmailConsumer>();
+
+    // In-app notification writers (FAZ 3): each event lands in its own queue, independent of the
+    // email consumers above, and becomes a row behind the candidate's bell icon.
+    bus.AddConsumer<ApplicationStageChangedNotificationConsumer>();
+    bus.AddConsumer<InterviewScheduledNotificationConsumer>();
+    bus.AddConsumer<ApplicationViewedNotificationConsumer>();
+    bus.AddConsumer<ApplicationCvDownloadedNotificationConsumer>();
+    bus.AddConsumer<NewApplicationNotificationConsumer>();
 
     // CV-parsing consumer (Sprint 6.3): downloads the CV, extracts text, asks Claude for structured
     // data, and stores it in MongoDB. Inherits the retry/dead-letter policy configured below.
     bus.AddConsumer<CvParsingConsumer>();
+
+    // Pipeline/interview consistency (Faz 4.2): silently advances an application into its
+    // pipeline's Interview stage when a recruiter schedules an interview against it. Own queue,
+    // independent of the notification consumers above.
+    bus.AddConsumer<AdvanceToInterviewStageConsumer>();
 
     bus.UsingRabbitMq((context, configurator) =>
     {
@@ -434,6 +471,7 @@ builder.Services
 
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ITenantProfileService, TenantProfileService>();
 
 // The Tenants module's cross-module read port, consumed (e.g.) by the Jobs public feed to name the
 // company behind each job without reaching into the Tenants schema.
@@ -445,10 +483,14 @@ builder.Services.AddScoped<ITenantDirectory, TenantDirectory>();
 // singleton) adapted to a subject-less port.
 builder.Services.Configure<CandidateJwtOptions>(
     builder.Configuration.GetSection(CandidateJwtOptions.SectionName));
+builder.Services.Configure<CandidateEmailChangeOptions>(
+    builder.Configuration.GetSection(CandidateEmailChangeOptions.SectionName));
 builder.Services.AddSingleton<IPasswordHasher<CandidateAccount>, PasswordHasher<CandidateAccount>>();
 builder.Services.AddScoped<ICandidatePasswordHasher, CandidatePasswordHasher>();
 builder.Services.AddScoped<ICandidateTokenService, CandidateTokenService>();
 builder.Services.AddScoped<ICandidateAuthService, CandidateAuthService>();
+builder.Services.AddScoped<ICandidateProfileService, CandidateProfileService>();
+builder.Services.AddScoped<ICandidateAccountLifecycleService, CandidateAccountLifecycleService>();
 builder.Services.AddScoped<ICandidateAccountReader, CandidateAccountReader>();
 
 builder.Services.Configure<EmailOptions>(
@@ -509,6 +551,11 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(Policies.CanManageUsers, policy =>
         policy.RequireRole(Roles.Admin));
 
+    // Company-wide presentation (the public profile). Same trust level as managing users today,
+    // but a distinct policy: the two capabilities have no inherent reason to stay coupled.
+    options.AddPolicy(Policies.CanManageTenant, policy =>
+        policy.RequireRole(Roles.Admin));
+
     options.AddPolicy(Policies.CanViewApplications, policy =>
         policy.RequireRole(Roles.Admin, Roles.Recruiter, Roles.HiringManager, Roles.ReadOnly));
 
@@ -531,12 +578,19 @@ builder.Services.AddAuthorization(options =>
     // the same key and passes JWT validation, but carries no token_type=candidate claim, so it fails
     // here. The reverse — a candidate token on a company endpoint — is already blocked by those
     // endpoints' role requirements, which a role-less candidate token cannot meet.
+    // The security-stamp requirement additionally rejects tokens issued before the account's last
+    // password change (the stamp rotates on change), revoking stolen or stale sessions immediately.
     options.AddPolicy(Policies.CandidateOnly, policy =>
-        policy.RequireClaim(TokenTypes.ClaimName, TokenTypes.Candidate));
+        policy.RequireClaim(TokenTypes.ClaimName, TokenTypes.Candidate)
+            .AddRequirements(new CandidateSecurityStampRequirement()));
 });
 
 // Stateless handler — singleton is safe and avoids allocating per-request.
 builder.Services.AddSingleton<IAuthorizationHandler, InterviewerAuthorizationHandler>();
+
+// Scoped, unlike the handler above: it reads the account's current security stamp through the
+// scoped CandidateAccountsDbContext on every authenticated candidate request.
+builder.Services.AddScoped<IAuthorizationHandler, CandidateSecurityStampHandler>();
 
 // Distributed tracing (Sprint 7.2). A single TracerProvider covers all instrumented activities.
 // The OTLP exporter forwards spans to Jaeger (http://localhost:4317 dev); swap the endpoint

@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace Ats.Modules.CandidateAccounts.Domain;
 
 // A person's account on the public job marketplace. This is deliberately NOT Applications.Candidate:
@@ -11,8 +13,24 @@ public sealed class CandidateAccount
     public Guid Id { get; private set; }
     public string Email { get; private set; } = null!;
     public string PasswordHash { get; private set; } = null!;
+
+    // Versions the account's security state. It is minted into every access token as a claim and
+    // compared against this column on each authenticated request; rotating it (password change now,
+    // email change later) instantly invalidates every previously issued token. Chosen over a token
+    // blacklist (per-request cache lookups, eviction to reason about) and over building refresh-token
+    // rotation for candidates (a much larger piece of work than this sprint warrants).
+    public Guid SecurityStamp { get; private set; }
     public string FirstName { get; private set; } = null!;
     public string LastName { get; private set; } = null!;
+
+    // Optional profile data, all nullable: existing accounts predate these fields and the candidate
+    // fills them in from the profile page at their own pace. Country/City are constrained to the
+    // SupportedCountries catalogue at the application boundary (same split as Jobs: the domain owns
+    // self-contained invariants, the boundary owns catalogue membership).
+    public string? PhoneNumber { get; private set; }
+    public string? Country { get; private set; }
+    public string? City { get; private set; }
+    public DateOnly? BirthDate { get; private set; }
 
     // A CV uploaded once to the account and reused across applications, stored by its object-storage
     // key (same convention as Application.CvFileKey). Null until the candidate uploads one from their
@@ -20,6 +38,12 @@ public sealed class CandidateAccount
     public string? CvFileKey { get; private set; }
 
     public DateTime CreatedAtUtc { get; private set; }
+
+    // Lifecycle state. New accounts are born Active; the timestamps record when the current state
+    // was entered and are cleared/kept accordingly by the transition methods below.
+    public CandidateAccountStatus Status { get; private set; }
+    public DateTime? FrozenAtUtc { get; private set; }
+    public DateTime? DeletedAtUtc { get; private set; }
 
     private CandidateAccount() { }
 
@@ -32,6 +56,7 @@ public sealed class CandidateAccount
         FirstName = firstName;
         LastName = lastName;
         CreatedAtUtc = createdAtUtc;
+        SecurityStamp = Guid.NewGuid();
     }
 
     // Hashing (algorithm, work factor, salt) is an infrastructure concern, so the caller passes an
@@ -54,4 +79,178 @@ public sealed class CandidateAccount
     // Stored normalised so the global unique-email constraint is case-insensitive without relying on
     // database collation: "Jane@x.com" and "jane@x.com" are the same account.
     public static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
+
+    // Employment-law floor for most supported countries; anyone younger cannot legally be hired, so a
+    // younger birth date is a data-entry error, not an edge case to support.
+    public const int MinimumAgeYears = 15;
+
+    // Nobody above this age is realistically job hunting; a birth date beyond it is a typo (1925 for
+    // 1995) and rejecting it early beats storing silently wrong data.
+    public const int MaximumAgeYears = 100;
+
+    // E.164 caps phone numbers at 15 digits; 7 is a pragmatic floor below which no real number exists.
+    // Matched AFTER formatting characters are stripped, so it only sees '+' and digits.
+    private const string NormalizedPhonePattern = @"^\+?\d{7,15}$";
+
+    // Email is deliberately not editable here: it is the login identity and the deduplication key for
+    // Applications.Candidate records across tenants, so changing it is a bigger operation (verification,
+    // re-linking) than a profile edit — it gets its own dedicated flow instead.
+    public void UpdateProfile(
+        string firstName,
+        string lastName,
+        string? phoneNumber,
+        string? country,
+        string? city,
+        DateOnly? birthDate)
+    {
+        if (string.IsNullOrWhiteSpace(firstName))
+            throw new ArgumentException("First name is required.", nameof(firstName));
+        if (string.IsNullOrWhiteSpace(lastName))
+            throw new ArgumentException("Last name is required.", nameof(lastName));
+
+        var normalizedPhone = NormalizePhoneNumber(phoneNumber);
+        if (normalizedPhone is not null && !Regex.IsMatch(normalizedPhone, NormalizedPhonePattern))
+            throw new ArgumentException(
+                "Phone number must contain 7 to 15 digits, optionally prefixed with '+'.", nameof(phoneNumber));
+
+        var normalizedCountry = NullIfWhiteSpace(country);
+        var normalizedCity = NullIfWhiteSpace(city);
+
+        // Residence is stored as a validated (country, city) pair; a half-filled location can never be
+        // rendered or filtered on meaningfully, so it is rejected rather than stored.
+        if (normalizedCountry is null != normalizedCity is null)
+            throw new ArgumentException("Country and city must be provided together.", nameof(city));
+
+        ValidateBirthDate(birthDate);
+
+        FirstName = firstName.Trim();
+        LastName = lastName.Trim();
+        PhoneNumber = normalizedPhone;
+        Country = normalizedCountry;
+        City = normalizedCity;
+        BirthDate = birthDate;
+    }
+
+    // Verifying the CURRENT password is the application layer's job (it owns the hasher); by the time
+    // this runs the caller has proven ownership and hashed the new secret. The guard runs before any
+    // mutation so a rejected change can never rotate the stamp and log the candidate out for nothing.
+    public void ChangePassword(string newPasswordHash)
+    {
+        if (string.IsNullOrWhiteSpace(newPasswordHash))
+            throw new ArgumentException("Password hash is required.", nameof(newPasswordHash));
+
+        PasswordHash = newPasswordHash;
+        SecurityStamp = Guid.NewGuid();
+    }
+
+    // Runs only after the two-phase verification flow proved the caller controls the new mailbox
+    // (EmailChangeRequest); nothing else may rename the login identity. Rotating the stamp here is
+    // deliberate and stricter than the password case: email IS the login handle, so a takeover via
+    // email change must drop every session — including the attacker's — forcing a fresh login that
+    // now requires the new address.
+    public void ChangeEmail(string newEmail)
+    {
+        if (string.IsNullOrWhiteSpace(newEmail))
+            throw new ArgumentException("Email is required.", nameof(newEmail));
+
+        Email = NormalizeEmail(newEmail);
+        SecurityStamp = Guid.NewGuid();
+    }
+
+    // What anonymized name fields hold after deletion. A recognizable constant, not an empty
+    // string: anywhere the name still renders (old application lists), "Deleted user" reads as an
+    // explanation instead of a blank.
+    public const string AnonymizedFirstName = "Deleted";
+    public const string AnonymizedLastName = "user";
+
+    // ".invalid" is reserved by RFC 2606 and can never resolve, so the placeholder is undeliverable
+    // by construction. Keyed by account id so it stays unique under the email index.
+    public static string BuildAnonymizedEmail(Guid accountId) =>
+        $"deleted-{accountId:N}@account.invalid";
+
+    // The stamp is NOT rotated here on purpose: a frozen account may keep its session — the locked
+    // product decision is that it can log in and is shown a reactivation screen, so killing the
+    // session that just clicked "freeze" would only force a pointless re-login.
+    public void Freeze()
+    {
+        if (Status != CandidateAccountStatus.Active)
+            throw new InvalidOperationException("Only an active account can be frozen.");
+
+        Status = CandidateAccountStatus.Frozen;
+        FrozenAtUtc = DateTime.UtcNow;
+    }
+
+    public void Reactivate()
+    {
+        if (Status != CandidateAccountStatus.Frozen)
+            throw new InvalidOperationException("Only a frozen account can be reactivated.");
+
+        Status = CandidateAccountStatus.Active;
+        FrozenAtUtc = null;
+    }
+
+    // Soft delete: the row must survive because applications reference this account, but the
+    // person has the right to erasure — so every personal field is anonymized in place. The email
+    // becomes a per-account placeholder, which both satisfies the unique index and frees the real
+    // address for a future registration (deletion is final; there is no recovery to preserve it
+    // for). Rotating the stamp kills every live session immediately; the global query filter then
+    // keeps the account out of login and all other reads.
+    public void Delete()
+    {
+        if (Status == CandidateAccountStatus.Deleted)
+            throw new InvalidOperationException("The account is already deleted.");
+
+        Status = CandidateAccountStatus.Deleted;
+        DeletedAtUtc = DateTime.UtcNow;
+        FrozenAtUtc = null;
+
+        // PasswordHash is intentionally kept: a salted PBKDF2 hash is not recoverable personal
+        // data, and overwriting it with a non-hash would make any accidental Verify() call throw
+        // instead of fail. The query filter already keeps the row out of every login path.
+        Email = BuildAnonymizedEmail(Id);
+        FirstName = AnonymizedFirstName;
+        LastName = AnonymizedLastName;
+        PhoneNumber = null;
+        Country = null;
+        City = null;
+        BirthDate = null;
+        CvFileKey = null;
+        SecurityStamp = Guid.NewGuid();
+    }
+
+    private static void ValidateBirthDate(DateOnly? birthDate)
+    {
+        if (birthDate is not { } date)
+            return;
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (date > today)
+            throw new ArgumentException("Birth date cannot be in the future.", nameof(birthDate));
+        if (date > today.AddYears(-MinimumAgeYears))
+            throw new ArgumentException(
+                $"Candidate must be at least {MinimumAgeYears} years old.", nameof(birthDate));
+        if (date < today.AddYears(-MaximumAgeYears))
+            throw new ArgumentException(
+                $"Birth date implies an age above {MaximumAgeYears} years.", nameof(birthDate));
+    }
+
+    // People type phone numbers with local formatting ("+90 (532) 123-45-67"); storage keeps one
+    // canonical shape so the same number never exists as three different strings. Only known
+    // formatting characters are stripped — anything else (letters, symbols) survives into the regex
+    // check and fails there, instead of being silently discarded.
+    private static readonly char[] PhoneFormattingCharacters = [' ', '-', '(', ')', '.'];
+
+    private static string? NormalizePhoneNumber(string? phoneNumber)
+    {
+        if (string.IsNullOrWhiteSpace(phoneNumber))
+            return null;
+
+        return new string(phoneNumber.Where(c => !PhoneFormattingCharacters.Contains(c)).ToArray());
+    }
+
+    private static string? NullIfWhiteSpace(string? value)
+    {
+        var trimmed = value?.Trim();
+        return string.IsNullOrEmpty(trimmed) ? null : trimmed;
+    }
 }

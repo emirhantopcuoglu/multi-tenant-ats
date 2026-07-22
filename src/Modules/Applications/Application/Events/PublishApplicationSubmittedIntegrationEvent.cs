@@ -32,6 +32,7 @@ public sealed class PublishApplicationSubmittedIntegrationEvent
                 notification.CandidateId,
                 notification.CandidateEmail,
                 notification.CandidateFirstName,
+                notification.CandidateLastName,
                 notification.TenantId),
             cancellationToken);
     }

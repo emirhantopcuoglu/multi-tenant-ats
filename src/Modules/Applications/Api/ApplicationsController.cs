@@ -39,9 +39,15 @@ public sealed class ApplicationsController : ControllerBase
     public async Task<IActionResult> GetById(Guid id)
     {
         var result = await _sender.Send(new GetApplicationByIdQuery(id));
-        return result.IsSuccess
-            ? Ok(result.Value)
-            : NotFound(new { result.Error.Code, result.Error.Message });
+        if (!result.IsSuccess)
+            return NotFound(new { result.Error.Code, result.Error.Message });
+
+        // Read receipt for candidate transparency: opening the detail stamps the first view.
+        // Best-effort by design — the detail the recruiter asked for never fails on it, and the
+        // handler itself logs any activity-write problem.
+        await _sender.Send(new MarkApplicationViewedCommand(id));
+
+        return Ok(result.Value);
     }
 
     [HttpGet("{id:guid}/cv-download-url")]
@@ -49,9 +55,15 @@ public sealed class ApplicationsController : ControllerBase
     public async Task<IActionResult> GetCvDownloadUrl(Guid id)
     {
         var result = await _sender.Send(new GetCvDownloadUrlQuery(id));
-        return result.IsSuccess
-            ? Ok(result.Value)
-            : NotFound(new { result.Error.Code, result.Error.Message });
+        if (!result.IsSuccess)
+            return NotFound(new { result.Error.Code, result.Error.Message });
+
+        // Read receipt for candidate transparency: requesting the URL stamps the first download.
+        // Best-effort by design, same as MarkApplicationViewedCommand above — the link the
+        // recruiter asked for never fails on it.
+        await _sender.Send(new MarkCvDownloadedCommand(id));
+
+        return Ok(result.Value);
     }
 
     [HttpGet("{id:guid}/activities")]
@@ -84,11 +96,27 @@ public sealed class ApplicationsController : ControllerBase
         return result.IsSuccess ? NoContent() : MapFailure(result.Error);
     }
 
+    [HttpPost("{id:guid}/correct-stage")]
+    [Authorize(Policy = Policies.CanManageApplications)]
+    public async Task<IActionResult> CorrectStage(Guid id, CorrectStageBody body)
+    {
+        var result = await _sender.Send(new CorrectApplicationStageCommand(id, body.TargetStageId, body.Reason));
+        return result.IsSuccess ? NoContent() : MapFailure(result.Error);
+    }
+
     [HttpPost("{id:guid}/reject")]
     [Authorize(Policy = Policies.CanManageApplications)]
     public async Task<IActionResult> Reject(Guid id, RejectBody body)
     {
         var result = await _sender.Send(new RejectApplicationCommand(id, body.Reason));
+        return result.IsSuccess ? NoContent() : MapFailure(result.Error);
+    }
+
+    [HttpPost("{id:guid}/hire")]
+    [Authorize(Policy = Policies.CanManageApplications)]
+    public async Task<IActionResult> Hire(Guid id)
+    {
+        var result = await _sender.Send(new HireApplicationCommand(id));
         return result.IsSuccess ? NoContent() : MapFailure(result.Error);
     }
 
@@ -99,5 +127,6 @@ public sealed class ApplicationsController : ControllerBase
     };
 
     public sealed record MoveStageBody(Guid TargetStageId);
+    public sealed record CorrectStageBody(Guid TargetStageId, string Reason);
     public sealed record RejectBody(string Reason);
 }

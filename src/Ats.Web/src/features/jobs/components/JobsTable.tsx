@@ -22,6 +22,7 @@ function ColumnHeaders({ canManage }: { canManage: boolean }) {
       <TH>{t('jobs.col.location')}</TH>
       <TH>{t('jobs.col.type')}</TH>
       <TH>{t('jobs.col.level')}</TH>
+      <TH>{t('jobs.col.workArrangement')}</TH>
       <TH>{t('jobs.col.status')}</TH>
       <TH>{t('jobs.col.created')}</TH>
       {canManage && <TH className="sr-only">{t('jobs.rowActions')}</TH>}
@@ -43,9 +44,10 @@ export function JobsTable({ jobs, canManage, onAction }: JobsTableProps) {
           <TR key={job.id} interactive>
             <TD className="font-medium">{job.title}</TD>
             <TD className="text-text-muted">{job.department || '—'}</TD>
-            <TD className="text-text-muted">{job.location || '—'}</TD>
+            <TD className="text-text-muted">{job.city || '—'}</TD>
             <TD className="text-text-muted">{t(`employmentType.${job.employmentType}`)}</TD>
             <TD className="text-text-muted">{t(`experienceLevel.${job.experienceLevel}`)}</TD>
+            <TD className="text-text-muted">{t(`workArrangement.${job.workArrangement}`)}</TD>
             <TD>
               <Badge tone={jobStatusTone[job.status]} dot>
                 {t(`status.${job.status}`)}
@@ -68,7 +70,7 @@ export function JobsTable({ jobs, canManage, onAction }: JobsTableProps) {
 
 /* Loading skeleton with the same column count, so the table doesn't reflow when real rows arrive. */
 export function JobsTableSkeleton({ canManage }: { canManage: boolean }) {
-  const columnCount = canManage ? 8 : 7;
+  const columnCount = canManage ? 9 : 8;
 
   return (
     <Table>

@@ -7,6 +7,7 @@ import type { ApiError } from '@/types/api';
    `as const` keeps the values as literal translation keys so the type-safe t() accepts them. */
 const codeToKey = {
   'auth.invalid_credentials': 'authError.invalidCredentials',
+  'candidate_auth.invalid_credentials': 'authError.invalidCredentials',
   'invite.invalid_token': 'authError.invitationInvalid',
   'invite.email_in_use': 'authError.emailInUse',
 } as const;

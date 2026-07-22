@@ -9,9 +9,11 @@ public sealed class Job : ITenantScoped, IAuditable, ISoftDeletable
     public string Title { get; private set; } = null!;
     public string Description { get; private set; } = null!;
     public string Department { get; private set; } = null!;
-    public string Location { get; private set; } = null!;
+    public string City { get; private set; } = null!;
+    public string? Country { get; private set; }
     public EmploymentType EmploymentType { get; private set; }
     public ExperienceLevel ExperienceLevel { get; private set; }
+    public WorkArrangement WorkArrangement { get; private set; }
     public SalaryRange? SalaryRange { get; private set; }
     public JobStatus Status { get; private set; }
     public string Slug { get; private set; } = null!;
@@ -27,17 +29,19 @@ public sealed class Job : ITenantScoped, IAuditable, ISoftDeletable
     public Guid? DeletedBy { get; private set; }
 
     private Job(
-        Guid id, string title, string description, string department, string location,
-        EmploymentType employmentType, ExperienceLevel experienceLevel, SalaryRange? salaryRange,
-        string slug, Guid createdBy)
+        Guid id, string title, string description, string department, string city, string? country,
+        EmploymentType employmentType, ExperienceLevel experienceLevel, WorkArrangement workArrangement,
+        SalaryRange? salaryRange, string slug, Guid createdBy)
     {
         Id = id;
         Title = title;
         Description = description;
         Department = department;
-        Location = location;
+        City = city;
+        Country = country;
         EmploymentType = employmentType;
         ExperienceLevel = experienceLevel;
+        WorkArrangement = workArrangement;
         SalaryRange = salaryRange;
         Slug = slug;
         Status = JobStatus.Draft;
@@ -48,8 +52,8 @@ public sealed class Job : ITenantScoped, IAuditable, ISoftDeletable
     private Job() { }
 
     public static Job Create(
-        string title, string description, string department, string location,
-        EmploymentType employmentType, ExperienceLevel experienceLevel,
+        string title, string description, string department, string city, string? country,
+        EmploymentType employmentType, ExperienceLevel experienceLevel, WorkArrangement workArrangement,
         SalaryRange? salaryRange, Guid createdBy)
     {
         if (string.IsNullOrWhiteSpace(title))
@@ -59,7 +63,8 @@ public sealed class Job : ITenantScoped, IAuditable, ISoftDeletable
 
         return new Job(
             Guid.NewGuid(), title, description ?? string.Empty, department ?? string.Empty,
-            location ?? string.Empty, employmentType, experienceLevel, salaryRange, slug, createdBy);
+            city ?? string.Empty, country, employmentType, experienceLevel, workArrangement,
+            salaryRange, slug, createdBy);
     }
 
     public void Publish()
@@ -91,8 +96,9 @@ public sealed class Job : ITenantScoped, IAuditable, ISoftDeletable
     }
 
     public void UpdateDetails(
-        string title, string description, string department, string location,
-        EmploymentType employmentType, ExperienceLevel experienceLevel, SalaryRange? salaryRange)
+        string title, string description, string department, string city, string? country,
+        EmploymentType employmentType, ExperienceLevel experienceLevel,
+        WorkArrangement workArrangement, SalaryRange? salaryRange)
     {
         if (Status == JobStatus.Archived)
             throw new InvalidOperationException("An archived job cannot be edited.");
@@ -100,9 +106,11 @@ public sealed class Job : ITenantScoped, IAuditable, ISoftDeletable
         Title = string.IsNullOrWhiteSpace(title) ? Title : title;
         Description = description ?? Description;
         Department = department ?? Department;
-        Location = location ?? Location;
+        City = city ?? City;
+        Country = country;
         EmploymentType = employmentType;
         ExperienceLevel = experienceLevel;
+        WorkArrangement = workArrangement;
         SalaryRange = salaryRange;
     }
 

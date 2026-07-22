@@ -43,7 +43,24 @@ public sealed class ApplicationActivity : ITenantScoped
         new(applicationId, ApplicationActivityType.StageChanged, actorUserId,
             JsonSerializer.Serialize(new { fromStageId, toStageId }));
 
+    // Unlike StageChanged, always carries a reason: a correction is a deliberate out-of-band fix,
+    // never an automated move.
+    public static ApplicationActivity StageCorrected(
+        Guid applicationId, Guid? actorUserId, Guid fromStageId, Guid toStageId, string reason) =>
+        new(applicationId, ApplicationActivityType.StageCorrected, actorUserId,
+            JsonSerializer.Serialize(new { fromStageId, toStageId, reason }));
+
     public static ApplicationActivity Rejected(Guid applicationId, Guid? actorUserId, string reason) =>
         new(applicationId, ApplicationActivityType.Rejected, actorUserId,
             JsonSerializer.Serialize(new { reason }));
+
+    // No payload: the hired stage is implied by the decision and the candidate-facing timeline
+    // only needs the fact and the timestamp.
+    public static ApplicationActivity Hired(Guid applicationId, Guid? actorUserId) =>
+        new(applicationId, ApplicationActivityType.Hired, actorUserId, "{}");
+
+    // The actor is kept for internal auditing but is never exposed to the candidate — the
+    // candidate-facing timeline says "the company viewed your application", not who.
+    public static ApplicationActivity Viewed(Guid applicationId, Guid? actorUserId) =>
+        new(applicationId, ApplicationActivityType.Viewed, actorUserId, "{}");
 }

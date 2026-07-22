@@ -35,7 +35,7 @@ public sealed class GetCandidateNamesByApplicationTests
         await using var readDb = new ApplicationsDbContext(
             PostgresContainerFixture.BuildApplicationsOptions(_fixture.ConnectionString, tenant), tenant);
         var unknownId = Guid.NewGuid();
-        var names = await new ApplicationDirectory(readDb)
+        var names = await new ApplicationDirectory(readDb, new FakeJobDirectory(null))
             .GetCandidateNamesByApplicationAsync(new[] { application.Id, unknownId });
 
         // Assert — the known application resolves to the full name; the unknown id is absent
@@ -50,7 +50,8 @@ public sealed class GetCandidateNamesByApplicationTests
         await using var db = new ApplicationsDbContext(
             PostgresContainerFixture.BuildApplicationsOptions(_fixture.ConnectionString, tenant), tenant);
 
-        var names = await new ApplicationDirectory(db).GetCandidateNamesByApplicationAsync([]);
+        var names = await new ApplicationDirectory(db, new FakeJobDirectory(null))
+            .GetCandidateNamesByApplicationAsync([]);
 
         Assert.Empty(names);
     }

@@ -27,6 +27,17 @@ public class PipelineTests
     }
 
     [Fact]
+    public void CreateDefault_should_mark_the_interview_stage_with_the_interview_type()
+    {
+        // The auto-advance-on-interview-scheduled consumer finds this stage by Type, not by
+        // matching the user-facing Name, so the funnel must carry the distinct Interview type.
+        var pipeline = Pipeline.CreateDefault(Guid.NewGuid());
+
+        var interviewStage = Assert.Single(pipeline.Stages, s => s.Name == "Interview");
+        Assert.Equal(PipelineStageType.Interview, interviewStage.Type);
+    }
+
+    [Fact]
     public void InitialStage_should_be_the_applied_stage()
     {
         var pipeline = Pipeline.CreateDefault(Guid.NewGuid());

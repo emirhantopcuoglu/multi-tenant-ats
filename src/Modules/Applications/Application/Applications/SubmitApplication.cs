@@ -30,13 +30,43 @@ public sealed record SubmitApplicationCommand(
 
 public sealed class SubmitApplicationValidator : AbstractValidator<SubmitApplicationCommand>
 {
+    // Phone numbers arrive pasted in every format ("+90 (555) 111-22-33", "0555.111.2233"),
+    // so the shape check only constrains the character set; plausibility is the digit count.
+    // ITU E.164 caps subscriber numbers at 15 digits; 7 is the shortest national number in use.
+    private const string PhoneAllowedCharactersPattern = @"^\+?[\d\s().-]+$";
+    private const int PhoneMinDigits = 7;
+    private const int PhoneMaxDigits = 15;
+
     public SubmitApplicationValidator()
     {
         RuleFor(x => x.CandidateAccountId).NotEmpty();
-        RuleFor(x => x.Phone).MaximumLength(40);
-        RuleFor(x => x.LinkedInUrl).MaximumLength(300);
+
+        RuleFor(x => x.Phone)
+            .MaximumLength(40)
+            .Matches(PhoneAllowedCharactersPattern)
+                .WithMessage("Phone may only contain digits, spaces, and ()+.- separators.")
+            .Must(HaveAPlausibleDigitCount!)
+                .WithMessage($"Phone must contain {PhoneMinDigits} to {PhoneMaxDigits} digits.")
+            .When(x => !string.IsNullOrWhiteSpace(x.Phone));
+
+        RuleFor(x => x.LinkedInUrl)
+            .MaximumLength(300)
+            .Must(BeAnAbsoluteHttpUrl!)
+                .WithMessage("LinkedIn must be a full http(s) URL.")
+            .When(x => !string.IsNullOrWhiteSpace(x.LinkedInUrl));
+
         RuleFor(x => x.CoverLetter).MaximumLength(5000);
     }
+
+    private static bool HaveAPlausibleDigitCount(string phone)
+    {
+        var digits = phone.Count(char.IsDigit);
+        return digits is >= PhoneMinDigits and <= PhoneMaxDigits;
+    }
+
+    private static bool BeAnAbsoluteHttpUrl(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri)
+        && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 }
 
 public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplicationCommand, Guid>
@@ -147,14 +177,14 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
         await _publisher.Publish(
             new ApplicationSubmittedEvent(
                 application.Id, job.Id, job.Title, candidate.Id,
-                candidate.Email, candidate.FirstName, tenantId),
+                candidate.Email, candidate.FirstName, candidate.LastName, tenantId),
             ct);
 
         // Also request CV parsing. Like the event above, this is bridged onto RabbitMQ via the
         // outbox, so it commits in the same transaction as the application row: a parse can never be
         // requested for an application that was not saved, and vice versa.
         await _publisher.Publish(
-            new CvParseRequestedEvent(application.Id, candidate.Id, cvKey, tenantId),
+            new CvParseRequestedEvent(application.Id, job.Id, candidate.Id, cvKey, tenantId),
             ct);
 
         try

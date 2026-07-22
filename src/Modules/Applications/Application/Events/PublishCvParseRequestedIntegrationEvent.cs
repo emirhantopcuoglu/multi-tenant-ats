@@ -25,6 +25,7 @@ public sealed class PublishCvParseRequestedIntegrationEvent
         return _publishEndpoint.Publish(
             new CvParseRequestedIntegrationEvent(
                 notification.ApplicationId,
+                notification.JobId,
                 notification.CandidateId,
                 notification.CvFileKey,
                 notification.TenantId),

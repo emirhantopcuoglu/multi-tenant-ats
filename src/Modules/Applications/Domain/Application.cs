@@ -18,6 +18,13 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
     public ApplicationStatus Status { get; private set; }
     public string? RejectionReason { get; private set; }
     public DateTime AppliedAtUtc { get; private set; }
+    // Read receipt for candidate transparency: when someone at the company first opened this
+    // application. Later views never move it — "first viewed" is the honest signal.
+    public DateTime? FirstViewedAtUtc { get; private set; }
+
+    // Same idea as FirstViewedAtUtc, for the CV specifically: when someone at the company first
+    // downloaded it. A recruiter can re-download the same CV many times; only the first counts.
+    public DateTime? FirstCvDownloadedAtUtc { get; private set; }
 
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
@@ -74,26 +81,58 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
         CurrentStageId = stageId;
     }
 
-    public void Reject(string reason)
+    // Reject and Hire take the pipeline's matching terminal stage so the terminal status and the
+    // stage move commit as one operation — an application must never read "Rejected" while its
+    // card still sits in a working column, or vice versa.
+    public void Reject(string reason, Guid rejectedStageId)
     {
         if (string.IsNullOrWhiteSpace(reason))
             throw new ArgumentException("A rejection reason is required.", nameof(reason));
+        if (rejectedStageId == Guid.Empty)
+            throw new ArgumentException("The rejected stage is required.", nameof(rejectedStageId));
 
         EnsureActive("rejected");
         Status = ApplicationStatus.Rejected;
         RejectionReason = reason.Trim();
+        CurrentStageId = rejectedStageId;
     }
 
-    public void Hire()
+    public void Hire(Guid hiredStageId)
     {
+        if (hiredStageId == Guid.Empty)
+            throw new ArgumentException("The hired stage is required.", nameof(hiredStageId));
+
         EnsureActive("hired");
         Status = ApplicationStatus.Hired;
+        CurrentStageId = hiredStageId;
     }
 
     public void Withdraw()
     {
         EnsureActive("withdrawn");
         Status = ApplicationStatus.Withdrawn;
+    }
+
+    // Returns true only on the first call so the caller knows whether to record a timeline
+    // entry. Deliberately valid in any status: a terminal application can still be opened, and
+    // the candidate deserves to know it was looked at.
+    public bool MarkViewed()
+    {
+        if (FirstViewedAtUtc is not null)
+            return false;
+
+        FirstViewedAtUtc = DateTime.UtcNow;
+        return true;
+    }
+
+    // Same "first time only" contract as MarkViewed, for the CV download signal.
+    public bool MarkCvDownloaded()
+    {
+        if (FirstCvDownloadedAtUtc is not null)
+            return false;
+
+        FirstCvDownloadedAtUtc = DateTime.UtcNow;
+        return true;
     }
 
     private void EnsureActive(string action)

@@ -5,17 +5,24 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 /* Split-screen auth shell (form left, brand panel right), matching Auth.dc.html. The brand panel is
    hidden below lg so small screens get a focused single column. Theme + language toggles stay
-   visible, as in the prototype. */
+   visible, as in the prototype.
+
+   `audience` swaps the brand-panel copy so the screen itself says who it is for: hiring language
+   on company screens, job-search language on candidate screens. Company is the default because
+   the invitation-accept screen is a company flow and predates the split. */
 export function AuthLayout({
   title,
   subtitle,
+  audience = 'company',
   children,
 }: {
   title: ReactNode;
   subtitle: ReactNode;
+  audience?: 'company' | 'candidate';
   children: ReactNode;
 }) {
   const { t } = useTranslation();
+  const isCandidate = audience === 'candidate';
 
   return (
     <div className="flex min-h-screen bg-bg text-text">
@@ -46,10 +53,14 @@ export function AuthLayout({
 
       <aside className="hidden flex-col justify-center bg-accent p-12 text-accent-fg lg:flex lg:w-1/2">
         <span className="mb-6 inline-flex w-fit rounded-full bg-white/15 px-3 py-1 text-xs font-medium">
-          {t('auth.tagline')}
+          {isCandidate ? t('candidateAuth.tagline') : t('auth.tagline')}
         </span>
-        <h2 className="max-w-md text-3xl font-semibold tracking-tight">{t('auth.brandHead')}</h2>
-        <p className="mt-4 max-w-md text-sm text-accent-fg/80">{t('auth.brandSub')}</p>
+        <h2 className="max-w-md text-3xl font-semibold tracking-tight">
+          {isCandidate ? t('candidateAuth.brandHead') : t('auth.brandHead')}
+        </h2>
+        <p className="mt-4 max-w-md text-sm text-accent-fg/80">
+          {isCandidate ? t('candidateAuth.brandSub') : t('auth.brandSub')}
+        </p>
       </aside>
     </div>
   );

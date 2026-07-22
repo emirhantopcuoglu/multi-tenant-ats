@@ -105,6 +105,92 @@ public sealed class ListPublicJobFeedHandlerTests : IAsyncLifetime
         Assert.All(result.Value.Items, i => Assert.Contains("Engineer", i.Title));
     }
 
+    [Fact]
+    public async Task should_filter_by_employment_type()
+    {
+        // Arrange — same company, different employment types
+        var acmeId = await SeedTenantAsync("Acme Inc", "acme");
+        await SeedPublishedJobAsync(acmeId, "Backend Engineer", employmentType: EmploymentType.FullTime);
+        await SeedPublishedJobAsync(acmeId, "Support Intern", employmentType: EmploymentType.Internship);
+
+        // Act — filter value arrives lowercase, as a query string would send it
+        var result = await HandleAsync(new ListPublicJobFeedQuery(EmploymentType: "internship"));
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value.Items);
+        Assert.Equal("Support Intern", result.Value.Items[0].Title);
+    }
+
+    [Fact]
+    public async Task should_filter_by_experience_level()
+    {
+        // Arrange
+        var acmeId = await SeedTenantAsync("Acme Inc", "acme");
+        await SeedPublishedJobAsync(acmeId, "Junior Developer", experienceLevel: ExperienceLevel.Junior);
+        await SeedPublishedJobAsync(acmeId, "Staff Engineer", experienceLevel: ExperienceLevel.Senior);
+
+        // Act
+        var result = await HandleAsync(new ListPublicJobFeedQuery(ExperienceLevel: "Senior"));
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value.Items);
+        Assert.Equal("Staff Engineer", result.Value.Items[0].Title);
+    }
+
+    [Fact]
+    public async Task should_filter_by_work_arrangement()
+    {
+        // Arrange — same company, different work arrangements
+        var acmeId = await SeedTenantAsync("Acme Inc", "acme");
+        await SeedPublishedJobAsync(acmeId, "Remote Engineer", workArrangement: WorkArrangement.Remote);
+        await SeedPublishedJobAsync(acmeId, "Office Manager", workArrangement: WorkArrangement.OnSite);
+
+        // Act — filter value arrives lowercase, as a query string would send it
+        var result = await HandleAsync(new ListPublicJobFeedQuery(WorkArrangement: "onsite"));
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value.Items);
+        Assert.Equal("Office Manager", result.Value.Items[0].Title);
+    }
+
+    [Fact]
+    public async Task should_filter_by_location_fragment()
+    {
+        // Arrange — locations are free text, so the filter must match substrings case-insensitively
+        var acmeId = await SeedTenantAsync("Acme Inc", "acme");
+        await SeedPublishedJobAsync(acmeId, "Office Manager", location: "Istanbul, TR");
+        await SeedPublishedJobAsync(acmeId, "Backend Engineer", location: "Remote (EU)");
+
+        // Act
+        var result = await HandleAsync(new ListPublicJobFeedQuery(Location: "istanbul"));
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value.Items);
+        Assert.Equal("Office Manager", result.Value.Items[0].Title);
+    }
+
+    [Fact]
+    public async Task should_ignore_unparseable_filter_values()
+    {
+        // Arrange — a hand-edited public URL with junk filters must degrade to the unfiltered list.
+        // "99" specifically covers Enum.TryParse's numeric quirk (it parses into an undefined value).
+        var acmeId = await SeedTenantAsync("Acme Inc", "acme");
+        await SeedPublishedJobAsync(acmeId, "Backend Engineer");
+        await SeedPublishedJobAsync(acmeId, "Product Designer");
+
+        // Act
+        var result = await HandleAsync(new ListPublicJobFeedQuery(
+            EmploymentType: "not-a-type", ExperienceLevel: "99"));
+
+        // Assert — both filters are ignored, nothing is silently hidden
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, result.Value.TotalCount);
+    }
+
     private async Task<Result<PagedResult<PublicJobFeedItemDto>>> HandleAsync(ListPublicJobFeedQuery query)
     {
         // The handler ignores the ambient tenant (IgnoreQueryFilters), so any tenant on the context is
@@ -131,11 +217,23 @@ public sealed class ListPublicJobFeedHandlerTests : IAsyncLifetime
         return company.Id;
     }
 
-    private Task SeedPublishedJobAsync(Guid tenantId, string title) => SeedJobAsync(tenantId, title, publish: true);
+    private Task SeedPublishedJobAsync(
+        Guid tenantId, string title,
+        EmploymentType employmentType = EmploymentType.FullTime,
+        ExperienceLevel experienceLevel = ExperienceLevel.Mid,
+        WorkArrangement workArrangement = WorkArrangement.Remote,
+        string location = "Remote")
+        => SeedJobAsync(tenantId, title, publish: true, employmentType, experienceLevel, workArrangement, location);
 
-    private Task SeedDraftJobAsync(Guid tenantId, string title) => SeedJobAsync(tenantId, title, publish: false);
+    private Task SeedDraftJobAsync(Guid tenantId, string title)
+        => SeedJobAsync(
+            tenantId, title, publish: false,
+            EmploymentType.FullTime, ExperienceLevel.Mid, WorkArrangement.Remote, "Remote");
 
-    private async Task SeedJobAsync(Guid tenantId, string title, bool publish)
+    private async Task SeedJobAsync(
+        Guid tenantId, string title, bool publish,
+        EmploymentType employmentType, ExperienceLevel experienceLevel,
+        WorkArrangement workArrangement, string location)
     {
         // The save-changes interceptor stamps TenantId from the ambient tenant, so seeding under
         // FixedTenant(tenantId) ties the job to that company.
@@ -144,8 +242,8 @@ public sealed class ListPublicJobFeedHandlerTests : IAsyncLifetime
             PostgresContainerFixture.BuildJobsOptions(_fixture.ConnectionString, tenant), tenant);
 
         var job = Job.Create(
-            title, "A role", "Engineering", "Remote",
-            EmploymentType.FullTime, ExperienceLevel.Mid, salaryRange: null, Guid.NewGuid());
+            title, "A role", "Engineering", location, null,
+            employmentType, experienceLevel, workArrangement, salaryRange: null, createdBy: Guid.NewGuid());
         if (publish)
             job.Publish();
 

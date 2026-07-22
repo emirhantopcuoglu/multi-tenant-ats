@@ -39,6 +39,7 @@
       "location": "Location",
       "type": "Type",
       "level": "Level",
+      "workArrangement": "Work arrangement",
       "status": "Status",
       "created": "Created"
     },
@@ -99,12 +100,15 @@
     "back": "Back to applications",
     "linkedin": "LinkedIn",
     "moveStage": "Move stage",
+    "correctStage": "Correct stage (fix a mistake)",
+    "hire": "Hire",
     "reject": "Reject",
     "notFound": "This application could not be found.",
     "tabs": {
       "cv": "CV",
       "cover": "Cover letter",
       "analysis": "AI analysis",
+      "interviews": "Interviews",
       "activity": "Activity"
     },
     "cv": {
@@ -118,6 +122,14 @@
       "processing": "The CV is still being analyzed. Check back shortly.",
       "error": "Couldn't load the CV analysis.",
       "empty": "No analysis details were extracted.",
+      "fitTitle": "Fit for this job",
+      "fitRating": {
+        "Strong": "Strong fit",
+        "Moderate": "Moderate fit",
+        "Weak": "Weak fit"
+      },
+      "matchedRequirements": "Matches the job's requirements",
+      "missingRequirements": "Not shown in the CV",
       "experience": "Total experience",
       "years_one": "{{count}} year",
       "years_other": "{{count}} years",
@@ -129,8 +141,11 @@
       "empty": "No activity yet.",
       "error": "Couldn't load the activity.",
       "submitted": "Application submitted",
+      "viewed": "Application viewed",
       "moved": "Moved from {{from}} to {{to}}",
-      "rejected": "Application rejected"
+      "corrected": "Stage corrected from {{from}} to {{to}}",
+      "rejected": "Application rejected",
+      "hired": "Candidate hired"
     },
     "reject_modal": {
       "title": "Reject application",
@@ -140,9 +155,27 @@
       "reasonRequired": "A reason is required.",
       "confirm": "Reject application"
     },
+    "hire_modal": {
+      "title": "Hire candidate",
+      "description": "This is final: the candidate is congratulated and the application can no longer be changed.",
+      "confirm": "Hire candidate"
+    },
+    "correct_stage_modal": {
+      "title": "Correct stage",
+      "description": "Use this only to fix a wrong move — it can go in any direction and the candidate is not notified. The reason is kept internal.",
+      "stageLabel": "Correct stage",
+      "stagePlaceholder": "Select the correct stage…",
+      "stageRequired": "Select a stage.",
+      "reasonLabel": "Reason",
+      "reasonPlaceholder": "Why is this a correction rather than a normal move?",
+      "reasonRequired": "A reason is required.",
+      "confirm": "Correct stage"
+    },
     "toast": {
       "moved": "Stage updated.",
+      "corrected": "Stage corrected.",
       "rejected": "Application rejected.",
+      "hired": "Candidate hired.",
       "error": "Action failed. Please try again."
     }
   },
@@ -169,7 +202,15 @@
     "company": {
       "name": "Company name",
       "slug": "Workspace URL",
-      "readonlyHint": "These are set when the workspace is created and can't be changed here yet."
+      "readonlyHint": "Name and URL are set when the workspace is created and can't be changed here yet.",
+      "description": "About the company",
+      "descriptionPlaceholder": "What you do, your mission, why candidates should care…",
+      "website": "Website",
+      "location": "Location",
+      "locationPlaceholder": "e.g. Istanbul, TR",
+      "saved": "Company profile saved.",
+      "saveError": "Couldn't save the profile. Please try again.",
+      "loadError": "Couldn't load the company profile."
     },
     "users": {
       "title": "Team members",
@@ -197,11 +238,21 @@
   "public": {
     "careers": {
       "title": "Open positions",
-      "empty": "There are no open positions right now."
+      "empty": "There are no open positions right now.",
+      "website": "Visit website",
+      "openCount_one": "{{count}} open role",
+      "openCount_other": "{{count}} open roles"
     },
     "detail": {
       "back": "← Back to all positions",
-      "apply": "Apply for this role"
+      "apply": "Apply for this role",
+      "applied": "Applied",
+      "viewApplications": "View my applications",
+      "postedOn": "Posted on {{date}}",
+      "otherJobsAt": "Other open roles at {{name}}",
+      "otherJobs": "Other open roles",
+      "allJobs": "View all open roles",
+      "viewCompany": "View company page"
     },
     "apply": {
       "title": "Apply: {{title}}",
@@ -210,6 +261,7 @@
       "lastName": "Last name",
       "email": "Email",
       "phone": "Phone",
+      "phonePlaceholder": "+90 555 111 22 33",
       "linkedIn": "LinkedIn",
       "linkedInPlaceholder": "https://linkedin.com/in/…",
       "coverLetter": "Cover letter",
@@ -232,7 +284,11 @@
       "error": "Something went wrong. Please try again.",
       "successTitle": "Application received",
       "successBody": "Thanks for applying to {{title}}. We'll be in touch.",
-      "backToJobs": "Back to all positions"
+      "backToJobs": "Back to all positions",
+      "applyingAs": "Applying as",
+      "alreadyAppliedTitle": "You've already applied",
+      "alreadyAppliedBody": "You have an active application for {{title}}. You can track its progress from your applications.",
+      "viewApplications": "View my applications"
     },
     "notFound": {
       "title": "Page not found",
@@ -245,8 +301,44 @@
       "searchBtn": "Search",
       "empty": "No open positions match your search.",
       "emptyGeneral": "There are no open positions right now. Check back later.",
-      "at": "at {{company}}"
-    }
+      "at": "at {{company}}",
+      "seekerCardTitle": "Looking for a job?",
+      "seekerCardText": "Create a free candidate account to apply and track your applications.",
+      "seekerSignIn": "Candidate sign in",
+      "seekerRegister": "Create candidate account",
+      "hireCardTitle": "Hiring?",
+      "hireCardText": "Post jobs and manage applicants from your company workspace.",
+      "hireSignIn": "Company sign in",
+      "hireRegister": "Create company workspace",
+      "statsJobs_one": "open position",
+      "statsJobs_other": "open positions",
+      "statsCompanies_one": "company hiring",
+      "statsCompanies_other": "companies hiring",
+      "jobsHeading": "Open positions",
+      "resultCount_one": "{{count}} result",
+      "resultCount_other": "{{count}} results",
+      "filterType": "Employment type",
+      "filterLevel": "Experience level",
+      "filterWorkArrangement": "Work arrangement",
+      "filterLocation": "Location",
+      "clearFilters": "Clear filters",
+      "hirePitchTitle": "Run your hiring in one place",
+      "hirePitchText": "Post jobs, collect applications and move candidates through your pipeline — with your whole team.",
+      "hireFeaturePostingTitle": "Post once, reach everyone",
+      "hireFeaturePostingText": "Publish a job and it appears on your careers page and this marketplace instantly.",
+      "hireFeaturePipelineTitle": "A pipeline your team shares",
+      "hireFeaturePipelineText": "Track every applicant through your stages, schedule interviews and collect structured feedback.",
+      "hireFeatureCvTitle": "AI-assisted CV screening",
+      "hireFeatureCvText": "Every CV is analyzed against the job so you start from a shortlist, not a pile."
+    },
+    "footer": {
+      "tagline": "The hiring platform that keeps candidates and companies on the same page.",
+      "candidatesHeading": "For candidates",
+      "companiesHeading": "For companies",
+      "browseJobs": "Browse open positions",
+      "copyright": "© {{year}} Ats. All rights reserved."
+    },
+    "forCompanies": "For companies"
   },
   "interviewType": {
     "PhoneScreen": "Phone screen",
@@ -357,6 +449,11 @@
     "Senior": "Senior",
     "Lead": "Lead"
   },
+  "workArrangement": {
+    "Remote": "Remote",
+    "Hybrid": "Hybrid",
+    "OnSite": "On-site"
+  },
   "jobForm": {
     "createTitle": "New job",
     "editTitle": "Edit job",
@@ -367,18 +464,26 @@
     "preview": "Preview",
     "previewEmpty": "Nothing to preview yet.",
     "department": "Department",
-    "location": "Location",
+    "city": "City",
+    "country": "Country",
+    "countryPlaceholder": "Select country",
+    "cityPlaceholder": "Select city",
+    "selectCountryFirst": "Select a country first",
     "employmentType": "Employment type",
     "experienceLevel": "Experience level",
+    "workArrangement": "Work arrangement",
     "salary": "Salary range (optional)",
     "salaryMin": "Min",
     "salaryMax": "Max",
     "currency": "Currency",
+    "currencyPlaceholder": "Select currency",
     "saveDraft": "Save as draft",
     "saveChanges": "Save changes",
     "publish": "Publish",
     "titleMax": "Title must be at most {{count}} characters.",
     "fieldMax": "This value is too long.",
+    "countryRequired": "Select a country.",
+    "cityRequired": "Select a valid city for the chosen country.",
     "salaryNumber": "Enter a valid amount.",
     "salaryRange": "Max must be greater than or equal to min.",
     "currencyRequired": "Currency is required when a salary is set.",
@@ -387,7 +492,15 @@
     "publishedToast": "Job published.",
     "loadError": "Couldn't load this job."
   },
+  "authSwitch": {
+    "label": "Account type",
+    "candidate": "Job seeker",
+    "company": "Employer"
+  },
   "candidateAuth": {
+    "tagline": "Your next role starts here",
+    "brandHead": "Find the job. Track every application.",
+    "brandSub": "Search openings across companies, apply in minutes and follow every application from one place.",
     "loginTitle": "Sign in",
     "loginSub": "Continue your job search.",
     "registerTitle": "Create account",
@@ -398,7 +511,149 @@
     "haveAccount": "Already have an account?",
     "signInLink": "Sign in",
     "publicSignIn": "Sign in",
-    "publicRegister": "Create account"
+    "publicRegister": "Create account",
+    "myApplications": "My applications"
+  },
+  "candidatePortal": {
+    "applicationsTitle": "My applications",
+    "applicationsSubtitle": "All positions you've applied to.",
+    "empty": "You haven't applied to any positions yet.",
+    "exploreJobs": "Explore open positions",
+    "loadError": "Couldn't load your applications.",
+    "retry": "Try again",
+    "col": {
+      "position": "Position",
+      "company": "Company",
+      "stage": "Stage",
+      "status": "Status",
+      "applied": "Applied"
+    },
+    "tracking": {
+      "title": "Application progress",
+      "back": "← Back to my applications",
+      "detailLink": "View progress",
+      "notFound": "This application could not be found.",
+      "appliedOn": "Applied on {{date}}",
+      "submitted": "Application submitted",
+      "viewed": "The company viewed your application",
+      "movedTo": "Moved to the \"{{stage}}\" stage",
+      "moved": "Moved to a new stage",
+      "rejected": "The process ended unsuccessfully",
+      "hiredEvent": "Congratulations — you were hired!",
+      "inReview": "In review",
+      "interviews": {
+        "title": "Interviews"
+      }
+    }
+  },
+  "candidateSettings": {
+    "title": "Settings",
+    "subtitle": "Manage your profile, security and account.",
+    "currentPassword": "Current password",
+    "currentPasswordInvalid": "Your current password is incorrect.",
+    "nav": {
+      "profile": "Profile",
+      "security": "Security",
+      "account": "Account"
+    },
+    "profile": {
+      "heading": "Profile information",
+      "subheading": "Your personal and contact details.",
+      "loadError": "Couldn't load your profile.",
+      "email": "Email",
+      "emailReadonlyHint": "Your email is your sign-in ID; change it from the \"Change email\" section in Security.",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "phone": "Phone number",
+      "phoneInvalid": "Enter a valid phone number.",
+      "phoneCountryCode": "Country code",
+      "birthDate": "Birth date",
+      "birthDateTooYoung": "You must be at least {{age}} years old.",
+      "birthDateInvalid": "Enter a valid birth date.",
+      "country": "Country",
+      "countryPlaceholder": "Select a country",
+      "city": "City",
+      "cityPlaceholder": "Select a city",
+      "saved": "Profile updated.",
+      "saveError": "Couldn't save your profile. Try again."
+    },
+    "security": {
+      "heading": "Security",
+      "subheading": "Your password and sign-in email.",
+      "passwordTitle": "Change password",
+      "passwordSubtitle": "After the change you stay signed in here; all your other sessions are signed out.",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "passwordMismatch": "Passwords don't match.",
+      "passwordSubmit": "Change password",
+      "passwordChanged": "Password changed.",
+      "passwordChangeError": "Couldn't change your password. Try again.",
+      "emailTitle": "Change email",
+      "emailSubtitle": "We'll send a confirmation link to the new address. Your email changes only after you open that link; all your sessions are then signed out.",
+      "newEmail": "New email",
+      "emailSubmit": "Send confirmation link",
+      "emailRequested": "Confirmation link sent.",
+      "emailRequestedHint": "Check the inbox of {{email}} and open the link within 1 hour.",
+      "emailChangeError": "Couldn't start the email change. Try again.",
+      "emailInvalid": "Enter a valid email address.",
+      "emailUnchanged": "This is already your current email.",
+      "emailTaken": "An account with this email already exists."
+    },
+    "account": {
+      "heading": "Account",
+      "subheading": "Freeze your account temporarily, or delete it permanently.",
+      "freezeTitle": "Freeze account",
+      "freezeDescription": "Pauses your account until you reactivate it. You can sign in at any time and undo this with one click.",
+      "freezeSubmit": "Freeze account",
+      "freezeError": "Couldn't freeze your account. Try again.",
+      "freezeDialogTitle": "Freeze your account?",
+      "freezeDialogDescription": "Everything pauses until you reactivate. Sign in any time and undo this with one click.",
+      "freezeDialogConfirm": "Yes, freeze it",
+      "deleteTitle": "Delete account",
+      "deleteWarning": "This is permanent. Your name, phone number, location and birth date are erased and cannot be recovered. Your email address becomes available for a new registration.",
+      "deleteSubmit": "Delete my account",
+      "deleteError": "Couldn't delete your account. Try again.",
+      "deleted": "Your account was deleted.",
+      "deleteDialogTitle": "Delete your account?",
+      "deleteConfirmLabel": "Type {{word}} to confirm",
+      "deleteConfirmMismatch": "Type DELETE exactly to confirm.",
+      "deleteDialogConfirm": "Delete permanently"
+    }
+  },
+  "reactivateAccount": {
+    "title": "Your account is frozen",
+    "description": "Everything is paused while your account is frozen. Reactivate it to pick up where you left off.",
+    "confirm": "Reactivate account",
+    "done": "Welcome back — your account is active again.",
+    "failed": "Couldn't reactivate your account. Try again.",
+    "signOut": "Sign out"
+  },
+  "confirmEmailChange": {
+    "title": "Confirm email change",
+    "description": "Click the button below to make this address your new sign-in email.",
+    "confirm": "Confirm change",
+    "success": "Your email was changed.",
+    "successHint": "All your sessions were signed out. Sign in again with your new email.",
+    "goToLogin": "Go to sign in",
+    "missingToken": "This link is missing its code. Open the link from the email again.",
+    "failed": "This link is invalid, expired or already used."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "Updates about your applications.",
+    "companySubtitle": "Updates about your team's hiring.",
+    "bellLabel": "Notifications",
+    "empty": "No notifications yet.",
+    "loadError": "Couldn't load notifications.",
+    "retry": "Try again",
+    "markAllRead": "Mark all as read",
+    "viewAll": "View all notifications",
+    "applicationViewed": "Your application for \"{{jobTitle}}\" was viewed by the company",
+    "cvDownloaded": "Your CV for \"{{jobTitle}}\" was downloaded by the company",
+    "newApplication": "{{candidateName}} applied for \"{{jobTitle}}\"",
+    "stageChanged": "Your application for \"{{jobTitle}}\" moved to the \"{{stage}}\" stage",
+    "interviewScheduled": "An interview for \"{{jobTitle}}\" was scheduled: {{type}}, {{date}}",
+    "generic": "You have a new notification"
   },
   "auth": {
     "tagline": "Applicant Tracking, done right",
@@ -442,7 +697,10 @@
     "required": "This field is required.",
     "email": "Enter a valid email address.",
     "passwordMin": "Password must be at least {{count}} characters.",
-    "slugFormat": "Use lowercase letters, numbers, and hyphens only."
+    "slugFormat": "Use lowercase letters, numbers, and hyphens only.",
+    "phone": "Enter a valid phone number.",
+    "url": "Enter a full URL starting with http:// or https://.",
+    "maxLength": "Must be {{count}} characters or fewer."
   },
   "authError": {
     "invalidCredentials": "Invalid email or password.",

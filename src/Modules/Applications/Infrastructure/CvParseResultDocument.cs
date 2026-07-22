@@ -1,3 +1,4 @@
+using Ats.Shared.Kernel;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
@@ -33,6 +34,19 @@ internal sealed class CvParseResultDocument
 
     [BsonElement("recentPositions")]
     public List<PositionDocument> RecentPositions { get; set; } = [];
+
+    [BsonElement("jobFitRating")]
+    [BsonRepresentation(BsonType.String)]
+    public CvJobFitRating JobFitRating { get; set; }
+
+    [BsonElement("fitSummary")]
+    public string FitSummary { get; set; } = "";
+
+    [BsonElement("matchedRequirements")]
+    public List<string> MatchedRequirements { get; set; } = [];
+
+    [BsonElement("missingRequirements")]
+    public List<string> MissingRequirements { get; set; } = [];
 
     [BsonElement("parsedAtUtc")]
     public DateTime ParsedAtUtc { get; set; }

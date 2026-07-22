@@ -80,4 +80,5 @@ public class CandidateAccountRegistrationTests
         Assert.Throws<ArgumentException>(
             () => CandidateAccount.Register("jane@example.com", PasswordHash, "Jane", lastName!));
     }
+
 }

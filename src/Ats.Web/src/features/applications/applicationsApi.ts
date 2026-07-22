@@ -66,12 +66,25 @@ export async function getCvDownloadUrl(id: string): Promise<CvDownloadUrl> {
   return data;
 }
 
-/* Move an application to another stage of its job's pipeline (the Kanban drag target). Allowed only
-   while the application is Active; the backend rejects terminal applications with a 400. */
+/* Move an application to another stage of its job's pipeline (the Kanban drag target). Forward-only:
+   the backend rejects a same-or-earlier target with a 400, same as a terminal one. */
 export async function moveApplicationStage(id: string, targetStageId: string): Promise<void> {
   await apiClient.post(`${APPLICATIONS_BASE}/${id}/move-stage`, { targetStageId });
 }
 
+/* The escape hatch for a wrong move: unlike moveApplicationStage this allows any direction
+   (including backward), requires a reason, and never notifies the candidate. Reserved for
+   correcting a mistake, not for routine pipeline progress. */
+export async function correctApplicationStage(id: string, targetStageId: string, reason: string): Promise<void> {
+  await apiClient.post(`${APPLICATIONS_BASE}/${id}/correct-stage`, { targetStageId, reason });
+}
+
 export async function rejectApplication(id: string, reason: string): Promise<void> {
   await apiClient.post(`${APPLICATIONS_BASE}/${id}/reject`, { reason });
+}
+
+/* The positive terminal decision: flips the status to Hired and parks the application in the
+   pipeline's FinalHired stage. The only way into that stage — move-stage refuses terminal targets. */
+export async function hireApplication(id: string): Promise<void> {
+  await apiClient.post(`${APPLICATIONS_BASE}/${id}/hire`);
 }

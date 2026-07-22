@@ -39,6 +39,7 @@
       "location": "Konum",
       "type": "Tür",
       "level": "Seviye",
+      "workArrangement": "Çalışma şekli",
       "status": "Durum",
       "created": "Oluşturulma"
     },
@@ -99,12 +100,15 @@
     "back": "Başvurulara dön",
     "linkedin": "LinkedIn",
     "moveStage": "Aşama değiştir",
+    "correctStage": "Aşamayı düzelt (yanlışlığı gider)",
+    "hire": "İşe al",
     "reject": "Reddet",
     "notFound": "Bu başvuru bulunamadı.",
     "tabs": {
       "cv": "CV",
       "cover": "Ön yazı",
       "analysis": "AI analizi",
+      "interviews": "Mülakatlar",
       "activity": "Hareketler"
     },
     "cv": {
@@ -118,6 +122,14 @@
       "processing": "CV hâlâ analiz ediliyor. Birazdan tekrar bak.",
       "error": "CV analizi yüklenemedi.",
       "empty": "Analiz detayı çıkarılamadı.",
+      "fitTitle": "Bu ilana uygunluk",
+      "fitRating": {
+        "Strong": "Güçlü uyum",
+        "Moderate": "Orta uyum",
+        "Weak": "Zayıf uyum"
+      },
+      "matchedRequirements": "İlanın gereksinimleriyle eşleşen",
+      "missingRequirements": "CV'de görülmeyen",
       "experience": "Toplam deneyim",
       "years_one": "{{count}} yıl",
       "years_other": "{{count}} yıl",
@@ -129,8 +141,11 @@
       "empty": "Henüz hareket yok.",
       "error": "Hareketler yüklenemedi.",
       "submitted": "Başvuru gönderildi",
+      "viewed": "Başvuru görüntülendi",
       "moved": "{{from}} aşamasından {{to}} aşamasına taşındı",
-      "rejected": "Başvuru reddedildi"
+      "corrected": "{{from}} aşamasından {{to}} aşamasına düzeltildi",
+      "rejected": "Başvuru reddedildi",
+      "hired": "Aday işe alındı"
     },
     "reject_modal": {
       "title": "Başvuruyu reddet",
@@ -140,9 +155,27 @@
       "reasonRequired": "Bir sebep zorunludur.",
       "confirm": "Başvuruyu reddet"
     },
+    "hire_modal": {
+      "title": "Adayı işe al",
+      "description": "Bu karar kesindir: aday tebrik edilir ve başvuru artık değiştirilemez.",
+      "confirm": "İşe al"
+    },
+    "correct_stage_modal": {
+      "title": "Aşamayı düzelt",
+      "description": "Bunu yalnızca yanlış bir hareketi düzeltmek için kullan — her yöne gidebilir ve aday bilgilendirilmez. Sebep yalnızca dahili tutulur.",
+      "stageLabel": "Doğru aşama",
+      "stagePlaceholder": "Doğru aşamayı seç…",
+      "stageRequired": "Bir aşama seç.",
+      "reasonLabel": "Sebep",
+      "reasonPlaceholder": "Bu neden normal bir hareket değil de düzeltme?",
+      "reasonRequired": "Bir sebep zorunludur.",
+      "confirm": "Aşamayı düzelt"
+    },
     "toast": {
       "moved": "Aşama güncellendi.",
+      "corrected": "Aşama düzeltildi.",
       "rejected": "Başvuru reddedildi.",
+      "hired": "Aday işe alındı.",
       "error": "İşlem başarısız. Lütfen tekrar dene."
     }
   },
@@ -169,7 +202,15 @@
     "company": {
       "name": "Şirket adı",
       "slug": "Çalışma alanı adresi",
-      "readonlyHint": "Bunlar çalışma alanı oluşturulurken belirlenir ve şimdilik buradan değiştirilemez."
+      "readonlyHint": "Ad ve adres çalışma alanı oluşturulurken belirlenir ve şimdilik buradan değiştirilemez.",
+      "description": "Şirket hakkında",
+      "descriptionPlaceholder": "Ne yaptığınız, misyonunuz, adaylar neden sizi seçmeli…",
+      "website": "Web sitesi",
+      "location": "Lokasyon",
+      "locationPlaceholder": "örn. İstanbul, TR",
+      "saved": "Şirket profili kaydedildi.",
+      "saveError": "Profil kaydedilemedi. Lütfen tekrar deneyin.",
+      "loadError": "Şirket profili yüklenemedi."
     },
     "users": {
       "title": "Ekip üyeleri",
@@ -197,11 +238,21 @@
   "public": {
     "careers": {
       "title": "Açık pozisyonlar",
-      "empty": "Şu anda açık pozisyon bulunmuyor."
+      "empty": "Şu anda açık pozisyon bulunmuyor.",
+      "website": "Web sitesine git",
+      "openCount_one": "{{count}} açık pozisyon",
+      "openCount_other": "{{count}} açık pozisyon"
     },
     "detail": {
       "back": "← Tüm pozisyonlara dön",
-      "apply": "Bu pozisyona başvur"
+      "apply": "Bu pozisyona başvur",
+      "applied": "Başvuruldu",
+      "viewApplications": "Başvurularımı görüntüle",
+      "postedOn": "{{date}} tarihinde yayınlandı",
+      "otherJobsAt": "{{name}} şirketindeki diğer açık pozisyonlar",
+      "otherJobs": "Diğer açık pozisyonlar",
+      "allJobs": "Tüm açık pozisyonları gör",
+      "viewCompany": "Şirket sayfasını görüntüle"
     },
     "apply": {
       "title": "Başvuru: {{title}}",
@@ -210,6 +261,7 @@
       "lastName": "Soyad",
       "email": "E-posta",
       "phone": "Telefon",
+      "phonePlaceholder": "+90 555 111 22 33",
       "linkedIn": "LinkedIn",
       "linkedInPlaceholder": "https://linkedin.com/in/…",
       "coverLetter": "Ön yazı",
@@ -232,7 +284,11 @@
       "error": "Bir şeyler ters gitti. Lütfen tekrar deneyin.",
       "successTitle": "Başvurunuz alındı",
       "successBody": "{{title}} pozisyonuna başvurduğunuz için teşekkürler. Sizinle iletişime geçeceğiz.",
-      "backToJobs": "Tüm pozisyonlara dön"
+      "backToJobs": "Tüm pozisyonlara dön",
+      "applyingAs": "Başvuru sahibi",
+      "alreadyAppliedTitle": "Bu pozisyona zaten başvurdunuz",
+      "alreadyAppliedBody": "{{title}} pozisyonu için aktif bir başvurunuz var. Durumunu başvurularınızdan takip edebilirsiniz.",
+      "viewApplications": "Başvurularımı görüntüle"
     },
     "notFound": {
       "title": "Sayfa bulunamadı",
@@ -245,8 +301,44 @@
       "searchBtn": "Ara",
       "empty": "Aramanızla eşleşen açık pozisyon bulunamadı.",
       "emptyGeneral": "Şu an açık pozisyon bulunmuyor. Daha sonra tekrar kontrol edin.",
-      "at": "{{company}}'de"
-    }
+      "at": "{{company}}'de",
+      "seekerCardTitle": "İş mi arıyorsun?",
+      "seekerCardText": "Ücretsiz aday hesabı oluştur, ilanlara başvur ve başvurularını takip et.",
+      "seekerSignIn": "Aday girişi",
+      "seekerRegister": "Aday hesabı oluştur",
+      "hireCardTitle": "İşe alım mı yapıyorsunuz?",
+      "hireCardText": "Şirket çalışma alanınızdan ilan yayınlayın ve başvuruları yönetin.",
+      "hireSignIn": "Şirket girişi",
+      "hireRegister": "Şirket kaydı",
+      "statsJobs_one": "açık pozisyon",
+      "statsJobs_other": "açık pozisyon",
+      "statsCompanies_one": "işe alım yapan şirket",
+      "statsCompanies_other": "işe alım yapan şirket",
+      "jobsHeading": "Açık pozisyonlar",
+      "resultCount_one": "{{count}} sonuç",
+      "resultCount_other": "{{count}} sonuç",
+      "filterType": "İstihdam türü",
+      "filterLevel": "Deneyim seviyesi",
+      "filterWorkArrangement": "Çalışma şekli",
+      "filterLocation": "Lokasyon",
+      "clearFilters": "Filtreleri temizle",
+      "hirePitchTitle": "İşe alımınızı tek yerden yürütün",
+      "hirePitchText": "İlan yayınlayın, başvuruları toplayın ve adayları ekibinizle birlikte süreç boyunca ilerletin.",
+      "hireFeaturePostingTitle": "Bir kez yayınlayın, herkese ulaşın",
+      "hireFeaturePostingText": "Yayınladığınız ilan, kariyer sayfanızda ve bu pazaryerinde anında görünür.",
+      "hireFeaturePipelineTitle": "Ekipçe paylaşılan bir süreç",
+      "hireFeaturePipelineText": "Her adayı aşamalarınız boyunca takip edin, mülakat planlayın ve yapılandırılmış geri bildirim toplayın.",
+      "hireFeatureCvTitle": "Yapay zekâ destekli CV taraması",
+      "hireFeatureCvText": "Her CV ilana göre analiz edilir; yığından değil, kısa listeden başlarsınız."
+    },
+    "footer": {
+      "tagline": "Adayları ve şirketleri aynı sayfada tutan işe alım platformu.",
+      "candidatesHeading": "Adaylar için",
+      "companiesHeading": "Şirketler için",
+      "browseJobs": "Açık pozisyonlara göz at",
+      "copyright": "© {{year}} Ats. Tüm hakları saklıdır."
+    },
+    "forCompanies": "Şirketler için"
   },
   "interviewType": {
     "PhoneScreen": "Telefon görüşmesi",
@@ -357,6 +449,11 @@
     "Senior": "Kıdemli",
     "Lead": "Lider"
   },
+  "workArrangement": {
+    "Remote": "Uzaktan",
+    "Hybrid": "Hibrit",
+    "OnSite": "Ofisten"
+  },
   "jobForm": {
     "createTitle": "Yeni ilan",
     "editTitle": "İlanı düzenle",
@@ -367,18 +464,26 @@
     "preview": "Önizleme",
     "previewEmpty": "Henüz önizlenecek bir şey yok.",
     "department": "Departman",
-    "location": "Konum",
+    "city": "Şehir",
+    "country": "Ülke",
+    "countryPlaceholder": "Ülke seçin",
+    "cityPlaceholder": "Şehir seçin",
+    "selectCountryFirst": "Önce ülke seçin",
     "employmentType": "Çalışma türü",
     "experienceLevel": "Deneyim seviyesi",
+    "workArrangement": "Çalışma şekli",
     "salary": "Maaş aralığı (opsiyonel)",
     "salaryMin": "Alt",
     "salaryMax": "Üst",
     "currency": "Para birimi",
+    "currencyPlaceholder": "Para birimi seçin",
     "saveDraft": "Taslak olarak kaydet",
     "saveChanges": "Değişiklikleri kaydet",
     "publish": "Yayınla",
     "titleMax": "Başlık en fazla {{count}} karakter olmalı.",
     "fieldMax": "Bu değer çok uzun.",
+    "countryRequired": "Bir ülke seçin.",
+    "cityRequired": "Seçilen ülke için geçerli bir şehir seçin.",
     "salaryNumber": "Geçerli bir tutar girin.",
     "salaryRange": "Üst sınır alt sınırdan küçük olamaz.",
     "currencyRequired": "Maaş girildiğinde para birimi zorunludur.",
@@ -387,7 +492,15 @@
     "publishedToast": "İlan yayınlandı.",
     "loadError": "Bu ilan yüklenemedi."
   },
+  "authSwitch": {
+    "label": "Hesap türü",
+    "candidate": "İş arayan",
+    "company": "İşveren"
+  },
   "candidateAuth": {
+    "tagline": "Yeni işin burada başlıyor",
+    "brandHead": "İşi bul. Her başvurunu takip et.",
+    "brandSub": "Şirketler arasında açık pozisyonları ara, dakikalar içinde başvur ve tüm başvurularını tek yerden izle.",
     "loginTitle": "Giriş yap",
     "loginSub": "İş arayışına devam et.",
     "registerTitle": "Hesap oluştur",
@@ -398,7 +511,149 @@
     "haveAccount": "Zaten hesabın var mı?",
     "signInLink": "Giriş yap",
     "publicSignIn": "Giriş yap",
-    "publicRegister": "Hesap oluştur"
+    "publicRegister": "Hesap oluştur",
+    "myApplications": "Başvurularım"
+  },
+  "candidatePortal": {
+    "applicationsTitle": "Başvurularım",
+    "applicationsSubtitle": "Başvurduğun tüm pozisyonlar.",
+    "empty": "Henüz bir pozisyona başvurmadın.",
+    "exploreJobs": "Açık pozisyonları keşfet",
+    "loadError": "Başvurular yüklenemedi.",
+    "retry": "Tekrar dene",
+    "col": {
+      "position": "Pozisyon",
+      "company": "Şirket",
+      "stage": "Aşama",
+      "status": "Durum",
+      "applied": "Başvuru tarihi"
+    },
+    "tracking": {
+      "title": "Başvuru süreci",
+      "back": "← Başvurularıma dön",
+      "detailLink": "Süreci görüntüle",
+      "notFound": "Bu başvuru bulunamadı.",
+      "appliedOn": "{{date}} tarihinde başvuruldu",
+      "submitted": "Başvurun iletildi",
+      "viewed": "Şirket başvurunu görüntüledi",
+      "movedTo": "\"{{stage}}\" aşamasına geçtin",
+      "moved": "Yeni bir aşamaya geçtin",
+      "rejected": "Süreç olumsuz sonuçlandı",
+      "hiredEvent": "Tebrikler — işe alındın!",
+      "inReview": "Değerlendirme sürüyor",
+      "interviews": {
+        "title": "Mülakatlar"
+      }
+    }
+  },
+  "candidateSettings": {
+    "title": "Ayarlar",
+    "subtitle": "Profilini, güvenliğini ve hesabını yönet.",
+    "currentPassword": "Mevcut şifre",
+    "currentPasswordInvalid": "Mevcut şifren hatalı.",
+    "nav": {
+      "profile": "Profil",
+      "security": "Güvenlik",
+      "account": "Hesap"
+    },
+    "profile": {
+      "heading": "Profil bilgileri",
+      "subheading": "Kişisel ve iletişim bilgilerin.",
+      "loadError": "Profilin yüklenemedi.",
+      "email": "E-posta",
+      "emailReadonlyHint": "E-posta adresin giriş kimliğindir; Güvenlik sekmesindeki \"E-posta değiştir\" bölümünden değiştirebilirsin.",
+      "firstName": "Ad",
+      "lastName": "Soyad",
+      "phone": "Telefon numarası",
+      "phoneInvalid": "Geçerli bir telefon numarası gir.",
+      "phoneCountryCode": "Ülke kodu",
+      "birthDate": "Doğum tarihi",
+      "birthDateTooYoung": "En az {{age}} yaşında olmalısın.",
+      "birthDateInvalid": "Geçerli bir doğum tarihi gir.",
+      "country": "Ülke",
+      "countryPlaceholder": "Ülke seç",
+      "city": "Şehir",
+      "cityPlaceholder": "Şehir seç",
+      "saved": "Profil güncellendi.",
+      "saveError": "Profil kaydedilemedi. Tekrar dene."
+    },
+    "security": {
+      "heading": "Güvenlik",
+      "subheading": "Şifren ve giriş e-postan.",
+      "passwordTitle": "Şifre değiştir",
+      "passwordSubtitle": "Değişiklikten sonra bu oturumun açık kalır; diğer tüm oturumların kapatılır.",
+      "newPassword": "Yeni şifre",
+      "confirmPassword": "Yeni şifre (tekrar)",
+      "passwordMismatch": "Şifreler eşleşmiyor.",
+      "passwordSubmit": "Şifreyi değiştir",
+      "passwordChanged": "Şifren değiştirildi.",
+      "passwordChangeError": "Şifre değiştirilemedi. Tekrar dene.",
+      "emailTitle": "E-posta değiştir",
+      "emailSubtitle": "Yeni adrese bir onay bağlantısı göndereceğiz. E-postan ancak o bağlantıyı açınca değişir; ardından tüm oturumların kapatılır.",
+      "newEmail": "Yeni e-posta",
+      "emailSubmit": "Onay bağlantısı gönder",
+      "emailRequested": "Onay bağlantısı gönderildi.",
+      "emailRequestedHint": "{{email}} adresinin gelen kutusunu kontrol et ve bağlantıyı 1 saat içinde aç.",
+      "emailChangeError": "E-posta değişikliği başlatılamadı. Tekrar dene.",
+      "emailInvalid": "Geçerli bir e-posta adresi gir.",
+      "emailUnchanged": "Bu zaten mevcut e-posta adresin.",
+      "emailTaken": "Bu e-posta ile kayıtlı bir hesap zaten var."
+    },
+    "account": {
+      "heading": "Hesap",
+      "subheading": "Hesabını geçici olarak durdur ya da kalıcı olarak sil.",
+      "freezeTitle": "Hesabı dondur",
+      "freezeDescription": "Hesabını sen yeniden aktifleştirene kadar duraklatır. İstediğin zaman giriş yapıp tek tıkla geri alabilirsin.",
+      "freezeSubmit": "Hesabı dondur",
+      "freezeError": "Hesap dondurulamadı. Tekrar dene.",
+      "freezeDialogTitle": "Hesabını dondurmak istiyor musun?",
+      "freezeDialogDescription": "Sen yeniden aktifleştirene kadar her şey duraklar. İstediğin zaman giriş yapıp tek tıkla geri alabilirsin.",
+      "freezeDialogConfirm": "Evet, dondur",
+      "deleteTitle": "Hesabı sil",
+      "deleteWarning": "Bu işlem kalıcıdır. Adın, telefonun, konumun ve doğum tarihin silinir ve geri getirilemez. E-posta adresin yeni bir kayıt için kullanılabilir hale gelir.",
+      "deleteSubmit": "Hesabımı sil",
+      "deleteError": "Hesap silinemedi. Tekrar dene.",
+      "deleted": "Hesabın silindi.",
+      "deleteDialogTitle": "Hesabını silmek istiyor musun?",
+      "deleteConfirmLabel": "Onaylamak için {{word}} yaz",
+      "deleteConfirmMismatch": "Onaylamak için tam olarak DELETE yaz.",
+      "deleteDialogConfirm": "Kalıcı olarak sil"
+    }
+  },
+  "reactivateAccount": {
+    "title": "Hesabın dondurulmuş",
+    "description": "Hesabın donuk olduğu sürece her şey duraklatılır. Kaldığın yerden devam etmek için yeniden aktifleştir.",
+    "confirm": "Hesabı yeniden aktifleştir",
+    "done": "Tekrar hoş geldin — hesabın yeniden aktif.",
+    "failed": "Hesap yeniden aktifleştirilemedi. Tekrar dene.",
+    "signOut": "Çıkış yap"
+  },
+  "confirmEmailChange": {
+    "title": "E-posta değişikliğini onayla",
+    "description": "Bu adresi yeni giriş e-postan yapmak için aşağıdaki butona tıkla.",
+    "confirm": "Değişikliği onayla",
+    "success": "E-posta adresin değiştirildi.",
+    "successHint": "Tüm oturumların kapatıldı. Yeni e-postanla tekrar giriş yap.",
+    "goToLogin": "Girişe git",
+    "missingToken": "Bu bağlantıda onay kodu eksik. E-postadaki bağlantıyı yeniden aç.",
+    "failed": "Bu bağlantı geçersiz, süresi dolmuş ya da daha önce kullanılmış."
+  },
+  "notifications": {
+    "title": "Bildirimler",
+    "subtitle": "Başvurularınla ilgili gelişmeler.",
+    "companySubtitle": "Ekibinin işe alım süreciyle ilgili gelişmeler.",
+    "bellLabel": "Bildirimler",
+    "empty": "Henüz bildirimin yok.",
+    "loadError": "Bildirimler yüklenemedi.",
+    "retry": "Tekrar dene",
+    "markAllRead": "Tümünü okundu işaretle",
+    "viewAll": "Tüm bildirimleri gör",
+    "applicationViewed": "\"{{jobTitle}}\" başvurun şirket tarafından görüntülendi",
+    "cvDownloaded": "\"{{jobTitle}}\" için CV'n şirket tarafından indirildi",
+    "newApplication": "{{candidateName}}, \"{{jobTitle}}\" pozisyonuna başvurdu",
+    "stageChanged": "\"{{jobTitle}}\" başvurun \"{{stage}}\" aşamasına taşındı",
+    "interviewScheduled": "\"{{jobTitle}}\" için mülakat planlandı: {{type}}, {{date}}",
+    "generic": "Yeni bir bildirimin var"
   },
   "auth": {
     "tagline": "Aday takibi, doğru şekilde",
@@ -442,7 +697,10 @@
     "required": "Bu alan zorunludur.",
     "email": "Geçerli bir e-posta adresi girin.",
     "passwordMin": "Parola en az {{count}} karakter olmalı.",
-    "slugFormat": "Yalnızca küçük harf, rakam ve tire kullanın."
+    "slugFormat": "Yalnızca küçük harf, rakam ve tire kullanın.",
+    "phone": "Geçerli bir telefon numarası girin.",
+    "url": "http:// veya https:// ile başlayan tam bir URL girin.",
+    "maxLength": "En fazla {{count}} karakter olmalı."
   },
   "authError": {
     "invalidCredentials": "E-posta veya parola hatalı.",

@@ -97,11 +97,34 @@ public sealed class PublicCompaniesHandlerTests : IAsyncLifetime
         // Act
         var result = await GetBySlugAsync("acme");
 
-        // Assert — the profile counts only published roles, not the draft
+        // Assert — the profile counts only published roles, not the draft; profile fields were
+        // never filled in, so they read as null (the page hides those sections).
         Assert.True(result.IsSuccess);
         Assert.Equal("Acme Inc", result.Value.CompanyName);
         Assert.Equal("acme", result.Value.Slug);
         Assert.Equal(1, result.Value.OpenJobCount);
+        Assert.Null(result.Value.Description);
+        Assert.Null(result.Value.Website);
+        Assert.Null(result.Value.Location);
+    }
+
+    [Fact]
+    public async Task should_include_the_tenant_profile_fields_in_the_company_profile()
+    {
+        // Arrange — a tenant that has filled in its public profile
+        var acmeId = await SeedTenantAsync("Acme Inc", "acme");
+        await UpdateTenantProfileAsync(
+            acmeId, "We build rockets.", "https://acme.example.com", "Istanbul, TR");
+        await SeedPublishedJobAsync(acmeId, "Backend Engineer");
+
+        // Act
+        var result = await GetBySlugAsync("acme");
+
+        // Assert — the edited fields flow through the port into the public profile
+        Assert.True(result.IsSuccess);
+        Assert.Equal("We build rockets.", result.Value.Description);
+        Assert.Equal("https://acme.example.com", result.Value.Website);
+        Assert.Equal("Istanbul, TR", result.Value.Location);
     }
 
     [Fact]
@@ -127,7 +150,7 @@ public sealed class PublicCompaniesHandlerTests : IAsyncLifetime
         return await new ListPublicCompaniesHandler(jobsDb, directory).Handle(query, CancellationToken.None);
     }
 
-    private async Task<Result<PublicCompanyDto>> GetBySlugAsync(string slug)
+    private async Task<Result<PublicCompanyProfileDto>> GetBySlugAsync(string slug)
     {
         var tenant = new FixedTenant(Guid.NewGuid());
         await using var jobsDb = new JobsDbContext(
@@ -152,6 +175,18 @@ public sealed class PublicCompaniesHandlerTests : IAsyncLifetime
         return company.Id;
     }
 
+    private async Task UpdateTenantProfileAsync(
+        Guid tenantId, string description, string website, string location)
+    {
+        var tenant = new FixedTenant(null);
+        await using var db = new TenantsDbContext(
+            PostgresContainerFixture.BuildTenantsOptions(_fixture.ConnectionString, tenant), tenant);
+
+        var company = await db.Tenants.SingleAsync(t => t.Id == tenantId);
+        company.UpdateProfile(description, website, location);
+        await db.SaveChangesAsync();
+    }
+
     private Task SeedPublishedJobAsync(Guid tenantId, string title) => SeedJobAsync(tenantId, title, publish: true);
 
     private Task SeedDraftJobAsync(Guid tenantId, string title) => SeedJobAsync(tenantId, title, publish: false);
@@ -163,8 +198,8 @@ public sealed class PublicCompaniesHandlerTests : IAsyncLifetime
             PostgresContainerFixture.BuildJobsOptions(_fixture.ConnectionString, tenant), tenant);
 
         var job = Job.Create(
-            title, "A role", "Engineering", "Remote",
-            EmploymentType.FullTime, ExperienceLevel.Mid, salaryRange: null, Guid.NewGuid());
+            title, "A role", "Engineering", "Remote", null,
+            EmploymentType.FullTime, ExperienceLevel.Mid, WorkArrangement.Remote, salaryRange: null, createdBy: Guid.NewGuid());
         if (publish)
             job.Publish();
 

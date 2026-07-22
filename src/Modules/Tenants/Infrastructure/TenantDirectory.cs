@@ -48,7 +48,7 @@ public sealed class TenantDirectory : ITenantDirectory
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<TenantSummary?> GetSummaryBySlugAsync(
+    public async Task<TenantPublicProfile?> GetPublicProfileBySlugAsync(
         string slug, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(slug))
@@ -60,7 +60,21 @@ public sealed class TenantDirectory : ITenantDirectory
         return await _db.Tenants
             .AsNoTracking()
             .Where(t => t.Slug == normalized)
-            .Select(t => new TenantSummary(t.Id, t.Name, t.Slug))
+            .Select(t => new TenantPublicProfile(
+                t.Id, t.Name, t.Slug, t.Description, t.Website, t.Location))
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<Guid>> GetTenantUserIdsAsync(
+        Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        // ApplicationUser is not ITenantScoped (it is an Identity entity), so the tenant filter is
+        // explicit here rather than coming from the global query filter — same reasoning as
+        // AuthService.ListTenantUsersAsync.
+        return await _db.Users
+            .AsNoTracking()
+            .Where(u => u.TenantId == tenantId)
+            .Select(u => u.Id)
+            .ToListAsync(cancellationToken);
     }
 }

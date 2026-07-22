@@ -21,14 +21,17 @@ public sealed class CandidateTokenService : ICandidateTokenService
         _options = options.Value;
     }
 
-    public string GenerateAccessToken(Guid candidateAccountId, string email)
+    public string GenerateAccessToken(Guid candidateAccountId, string email, Guid securityStamp)
     {
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, candidateAccountId.ToString()),
             new(JwtRegisteredClaimNames.Email, email),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new(TokenTypes.ClaimName, TokenTypes.Candidate)
+            new(TokenTypes.ClaimName, TokenTypes.Candidate),
+            // Compared against the account's current stamp on every authenticated request; when the
+            // stamp rotates (password change), tokens carrying the old value stop working instantly.
+            new(CandidateClaims.SecurityStamp, securityStamp.ToString())
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Secret));

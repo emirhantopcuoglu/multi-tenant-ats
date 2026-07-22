@@ -109,9 +109,11 @@ public sealed record UpdateJobCommand(
     string Title,
     string Description,
     string Department,
-    string Location,
+    string City,
+    string? Country,
     EmploymentType EmploymentType,
     ExperienceLevel ExperienceLevel,
+    WorkArrangement WorkArrangement,
     decimal? SalaryMin,
     decimal? SalaryMax,
     string? SalaryCurrency) : ICommand<bool>;
@@ -123,8 +125,19 @@ public sealed class UpdateJobValidator : AbstractValidator<UpdateJobCommand>
         RuleFor(x => x.JobId).NotEmpty();
         RuleFor(x => x.Title).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Description).NotEmpty();
+        RuleFor(x => x.Country)
+            .Must(country => country is not null && SupportedCountries.All.Contains(country))
+            .WithMessage($"Country must be one of: {string.Join(", ", SupportedCountries.All)}.");
+        RuleFor(x => x.City)
+            .Must((command, city) =>
+                command.Country is not null &&
+                SupportedCountries.CitiesByCountry.TryGetValue(command.Country, out var cities) &&
+                cities.Contains(city))
+            .WithMessage("City must be a valid city for the selected country.");
         RuleFor(x => x.SalaryCurrency)
-            .NotEmpty().When(x => x.SalaryMin.HasValue || x.SalaryMax.HasValue);
+            .Must(currency => currency is not null && SupportedCurrencies.All.Contains(currency.ToUpperInvariant()))
+            .When(x => x.SalaryMin.HasValue || x.SalaryMax.HasValue)
+            .WithMessage($"Currency must be one of: {string.Join(", ", SupportedCurrencies.All)}.");
     }
 }
 
@@ -146,8 +159,8 @@ public sealed class UpdateJobHandler : ICommandHandler<UpdateJobCommand, bool>
         try
         {
             job.UpdateDetails(
-                command.Title, command.Description, command.Department, command.Location,
-                command.EmploymentType, command.ExperienceLevel, salary);
+                command.Title, command.Description, command.Department, command.City, command.Country,
+                command.EmploymentType, command.ExperienceLevel, command.WorkArrangement, salary);
         }
         catch (InvalidOperationException ex)
         {

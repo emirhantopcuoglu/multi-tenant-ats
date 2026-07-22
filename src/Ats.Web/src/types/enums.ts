@@ -16,10 +16,20 @@ export type ExperienceLevel = (typeof EXPERIENCE_LEVELS)[number];
 export const APPLICATION_STATUSES = ['Active', 'Withdrawn', 'Rejected', 'Hired'] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
-export const PIPELINE_STAGE_TYPES = ['Initial', 'Active', 'FinalHired', 'FinalRejected'] as const;
+/* Mirrors the backend's Jobs.Domain.SupportedCurrencies constant list (not a real backend enum
+   -- kept as plain strings there so existing rows with any legacy value can still be read). This
+   is the frontend-only source of truth that constrains the salary currency dropdown. */
+export const CURRENCIES = ['TRY', 'USD', 'EUR', 'GBP'] as const;
+export type Currency = (typeof CURRENCIES)[number];
+
+export const WORK_ARRANGEMENTS = ['Remote', 'Hybrid', 'OnSite'] as const;
+export type WorkArrangement = (typeof WORK_ARRANGEMENTS)[number];
+
+export const PIPELINE_STAGE_TYPES = ['Initial', 'Active', 'Interview', 'FinalHired', 'FinalRejected'] as const;
 export type PipelineStageType = (typeof PIPELINE_STAGE_TYPES)[number];
 
-export const APPLICATION_ACTIVITY_TYPES = ['Submitted', 'StageChanged', 'Rejected'] as const;
+export const APPLICATION_ACTIVITY_TYPES =
+  ['Submitted', 'Viewed', 'StageChanged', 'StageCorrected', 'Rejected', 'Hired'] as const;
 export type ApplicationActivityType = (typeof APPLICATION_ACTIVITY_TYPES)[number];
 
 export const INTERVIEW_TYPES = ['PhoneScreen', 'Technical', 'Cultural', 'Final'] as const;
@@ -33,3 +43,7 @@ export type FeedbackRecommendation = (typeof FEEDBACK_RECOMMENDATIONS)[number];
 
 export const ROLES = ['Admin', 'Recruiter', 'HiringManager', 'ReadOnly'] as const;
 export type Role = (typeof ROLES)[number];
+
+/* Qualitative on purpose (mirrors CvJobFitRating on the backend) -- never a numeric score. */
+export const CV_JOB_FIT_RATINGS = ['Weak', 'Moderate', 'Strong'] as const;
+export type CvJobFitRating = (typeof CV_JOB_FIT_RATINGS)[number];

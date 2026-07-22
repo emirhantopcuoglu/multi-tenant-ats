@@ -10,9 +10,12 @@ import { getCvDownloadUrl } from './applicationsApi';
 import { useJobStages } from './useApplications';
 import { useApplication, useApplicationActions, useApplicationActivities } from './useApplicationDetail';
 import { ApplicationHeader } from './components/ApplicationHeader';
+import { CorrectStageDialog } from './components/CorrectStageDialog';
+import { HireDialog } from './components/HireDialog';
 import { RejectDialog } from './components/RejectDialog';
 import { CvAnalysisTab } from './components/CvAnalysisTab';
 import { ActivityTimeline } from './components/ActivityTimeline';
+import { ApplicationInterviewsTab } from './components/ApplicationInterviewsTab';
 
 /* Thin wrapper so the inner view can take a guaranteed-present id and keep its hooks unconditional. */
 export function ApplicationDetailPage() {
@@ -32,10 +35,12 @@ function ApplicationDetailView({ id }: { id: string }) {
   const { data: application, isLoading, isError } = useApplication(id);
   const activitiesQuery = useApplicationActivities(id);
   const stagesQuery = useJobStages(application?.jobId);
-  const { move, reject } = useApplicationActions(id);
+  const { move, correctStage, reject, hire } = useApplicationActions(id);
 
   const [tab, setTab] = useState('cv');
   const [rejectOpen, setRejectOpen] = useState(false);
+  const [hireOpen, setHireOpen] = useState(false);
+  const [correctStageOpen, setCorrectStageOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [cvLoading, setCvLoading] = useState(false);
 
@@ -58,7 +63,7 @@ function ApplicationDetailView({ id }: { id: string }) {
     );
   }
 
-  const busy = move.isPending || reject.isPending;
+  const busy = move.isPending || correctStage.isPending || reject.isPending || hire.isPending;
 
   const handleMove = (stageId: string) =>
     move.mutate(stageId, {
@@ -66,11 +71,32 @@ function ApplicationDetailView({ id }: { id: string }) {
       onError: () => toast({ title: t('applicationDetail.toast.error'), tone: 'danger' }),
     });
 
+  const handleCorrectStage = (targetStageId: string, reason: string) =>
+    correctStage.mutate(
+      { targetStageId, reason },
+      {
+        onSuccess: () => {
+          setCorrectStageOpen(false);
+          toast({ title: t('applicationDetail.toast.corrected'), tone: 'success' });
+        },
+        onError: () => toast({ title: t('applicationDetail.toast.error'), tone: 'danger' }),
+      },
+    );
+
   const handleReject = (reason: string) =>
     reject.mutate(reason, {
       onSuccess: () => {
         setRejectOpen(false);
         toast({ title: t('applicationDetail.toast.rejected'), tone: 'success' });
+      },
+      onError: () => toast({ title: t('applicationDetail.toast.error'), tone: 'danger' }),
+    });
+
+  const handleHire = () =>
+    hire.mutate(undefined, {
+      onSuccess: () => {
+        setHireOpen(false);
+        toast({ title: t('applicationDetail.toast.hired'), tone: 'success' });
       },
       onError: () => toast({ title: t('applicationDetail.toast.error'), tone: 'danger' }),
     });
@@ -105,6 +131,8 @@ function ApplicationDetailView({ id }: { id: string }) {
         stages={stagesQuery.data ?? []}
         canManage={canManage}
         onMove={handleMove}
+        onCorrectStageClick={() => setCorrectStageOpen(true)}
+        onHireClick={() => setHireOpen(true)}
         onRejectClick={() => setRejectOpen(true)}
         busy={busy}
       />
@@ -117,6 +145,7 @@ function ApplicationDetailView({ id }: { id: string }) {
             { value: 'cv', label: t('applicationDetail.tabs.cv') },
             { value: 'cover', label: t('applicationDetail.tabs.cover') },
             { value: 'analysis', label: t('applicationDetail.tabs.analysis') },
+            { value: 'interviews', label: t('applicationDetail.tabs.interviews') },
             { value: 'activity', label: t('applicationDetail.tabs.activity') },
           ]}
         >
@@ -144,6 +173,10 @@ function ApplicationDetailView({ id }: { id: string }) {
             <CvAnalysisTab applicationId={id} />
           </TabPanel>
 
+          <TabPanel value="interviews">
+            <ApplicationInterviewsTab applicationId={id} />
+          </TabPanel>
+
           <TabPanel value="activity">
             {activitiesQuery.isLoading ? (
               <Skeleton className="h-32 w-full" />
@@ -158,11 +191,29 @@ function ApplicationDetailView({ id }: { id: string }) {
         </Tabs>
       </Card>
 
+      <CorrectStageDialog
+        open={correctStageOpen}
+        onOpenChange={setCorrectStageOpen}
+        stageOptions={(stagesQuery.data ?? []).filter(
+          (stage) =>
+            stage.id !== application.stageId && stage.type !== 'FinalHired' && stage.type !== 'FinalRejected',
+        )}
+        onConfirm={handleCorrectStage}
+        submitting={correctStage.isPending}
+      />
+
       <RejectDialog
         open={rejectOpen}
         onOpenChange={setRejectOpen}
         onConfirm={handleReject}
         submitting={reject.isPending}
+      />
+
+      <HireDialog
+        open={hireOpen}
+        onOpenChange={setHireOpen}
+        onConfirm={handleHire}
+        submitting={hire.isPending}
       />
 
       <ScheduleInterviewModal

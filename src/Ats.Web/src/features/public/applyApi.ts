@@ -1,29 +1,23 @@
 import { apiClient } from '@/lib/apiClient';
 
-/* The fields a candidate submits. The CV is a real File; the rest are plain text. Mirrors the
-   backend ApplyController.ApplyForm — field names are PascalCase to match its model binding. */
+/* Fields submitted with a job application. Identity (name, email) is omitted — the backend reads
+   those from the CandidateAccount linked to the JWT. Only the supplemental fields remain. */
 export interface ApplyRequest {
-  firstName: string;
-  lastName: string;
-  email: string;
   phone?: string;
   linkedInUrl?: string;
   coverLetter?: string;
   cv: File;
 }
 
-/* Submits a public job application as multipart/form-data. Axios sets the multipart boundary header
-   automatically when handed a FormData. The endpoint lives at the URL root (tenant from the slug),
-   is anonymous, and returns 201 with the new application id. */
+/* Submits a candidate application as multipart/form-data. The endpoint is gated behind the
+   CandidateOnly policy, so the apiClient request interceptor attaches the candidate access token
+   automatically. Axios sets the multipart boundary header when handed a FormData. */
 export async function submitApplication(
   slug: string,
   jobSlug: string,
   request: ApplyRequest,
 ): Promise<{ id: string }> {
   const form = new FormData();
-  form.append('FirstName', request.firstName);
-  form.append('LastName', request.lastName);
-  form.append('Email', request.email);
   if (request.phone) form.append('Phone', request.phone);
   if (request.linkedInUrl) form.append('LinkedInUrl', request.linkedInUrl);
   if (request.coverLetter) form.append('CoverLetter', request.coverLetter);

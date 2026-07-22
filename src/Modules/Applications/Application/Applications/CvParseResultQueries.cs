@@ -12,6 +12,10 @@ public sealed record CvParseResultDto(
     double TotalExperienceYears,
     IReadOnlyList<CvEducation> Education,
     IReadOnlyList<CvPosition> RecentPositions,
+    CvJobFitRating JobFitRating,
+    string FitSummary,
+    IReadOnlyList<string> MatchedRequirements,
+    IReadOnlyList<string> MissingRequirements,
     DateTime ParsedAtUtc);
 
 public sealed record GetCvParseResultQuery(Guid ApplicationId) : IQuery<CvParseResultDto>;
@@ -48,6 +52,10 @@ public sealed class GetCvParseResultHandler : IQueryHandler<GetCvParseResultQuer
             result.TotalExperienceYears,
             result.Education,
             result.RecentPositions,
+            result.JobFitRating,
+            result.FitSummary,
+            result.MatchedRequirements,
+            result.MissingRequirements,
             stored.ParsedAtUtc));
     }
 }

@@ -32,7 +32,7 @@ public sealed class DashboardCountsTests
 
             var candidateC = AddCandidate(db, "c@acme.test");
             var rejected = NewApplication(candidateC.Id);
-            rejected.Reject("Not a fit.");
+            rejected.Reject("Not a fit.", Guid.NewGuid());
             db.Applications.Add(rejected);
 
             await db.SaveChangesAsync();
@@ -48,7 +48,8 @@ public sealed class DashboardCountsTests
 
         // Act
         await using var readDb = NewDb(tenant);
-        var count = await new ApplicationDirectory(readDb).CountActiveCandidatesAsync();
+        var count = await new ApplicationDirectory(readDb, new FakeJobDirectory(null))
+            .CountActiveCandidatesAsync();
 
         // Assert — candidates A and B; the rejected one and the other tenant are excluded
         Assert.Equal(2, count);
@@ -69,7 +70,7 @@ public sealed class DashboardCountsTests
         }
 
         await using var readDb = NewDb(tenant);
-        var directory = new ApplicationDirectory(readDb);
+        var directory = new ApplicationDirectory(readDb, new FakeJobDirectory(null));
 
         // Act + Assert — a window opening in the past captures all three; one opening in the future none.
         Assert.Equal(3, await directory.CountApplicationsSinceAsync(DateTime.UtcNow.AddDays(-1)));
