@@ -10,7 +10,8 @@ public sealed record InterviewListItemDto(
 
 public sealed record InterviewDetailDto(
     Guid Id, Guid ApplicationId, string Type, DateTime ScheduledAtUtc, int DurationMinutes,
-    string? Location, string Status, string? Notes, IReadOnlyList<Guid> InterviewerUserIds);
+    string? Location, string Status, string? Notes, IReadOnlyList<Guid> InterviewerUserIds,
+    string RoomToken);
 
 // ---- ListInterviews (filtered by date range / interviewer, paginated) ----
 public sealed record ListInterviewsQuery(
@@ -93,6 +94,6 @@ public sealed class GetInterviewByIdHandler : IQueryHandler<GetInterviewByIdQuer
         return Result.Success(new InterviewDetailDto(
             interview.Id, interview.ApplicationId, interview.Type.ToString(), interview.ScheduledAtUtc,
             interview.DurationMinutes, interview.Location, interview.Status.ToString(),
-            interview.Notes, interview.InterviewerUserIds.ToList()));
+            interview.Notes, interview.InterviewerUserIds.ToList(), interview.RoomToken));
     }
 }

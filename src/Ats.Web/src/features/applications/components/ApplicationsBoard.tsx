@@ -22,6 +22,9 @@ interface ApplicationsBoardProps {
   /** Read-only roles see the board but can't drag cards. */
   canManage: boolean;
   onMove: (applicationId: string, targetStageId: string) => void;
+  /** Dropped onto an Interview-typed column: the move itself is deferred until the recruiter
+      actually schedules something (see ApplicationsPage) rather than happening immediately. */
+  onScheduleInterview: (applicationId: string, candidateName: string) => void;
   /** Clicking a card (without dragging) opens its detail page. */
   onSelect: (id: string) => void;
 }
@@ -114,7 +117,14 @@ function BoardColumn({
    floating DragOverlay, and droppable columns without hand-rolling the HTML5 drag API. Only
    cross-column moves are meaningful (there's no intra-column order to persist), so plain
    draggable/droppable suffices — no sortable. Cards are grouped by their current stage id. */
-export function ApplicationsBoard({ stages, applications, canManage, onMove, onSelect }: ApplicationsBoardProps) {
+export function ApplicationsBoard({
+  stages,
+  applications,
+  canManage,
+  onMove,
+  onScheduleInterview,
+  onSelect,
+}: ApplicationsBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   // A small activation distance so a click on a card isn't mistaken for a drag.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -149,9 +159,18 @@ export function ApplicationsBoard({ stages, applications, canManage, onMove, onS
     const targetStageId = event.over ? String(event.over.id) : null;
     if (!targetStageId) return;
     const application = applications.find((item) => item.id === String(event.active.id));
-    if (application && application.stageId !== targetStageId) {
-      onMove(application.id, targetStageId);
+    if (!application || application.stageId === targetStageId) return;
+
+    const targetStage = stages.find((stage) => stage.id === targetStageId);
+    // Dropping onto the Interview stage doesn't move the card by itself — it opens the scheduling
+    // dialog instead, and the move happens server-side once an interview is actually scheduled
+    // (AdvanceToInterviewStageConsumer). Any other column moves immediately, as before.
+    if (targetStage?.type === 'Interview') {
+      onScheduleInterview(application.id, application.candidateName);
+      return;
     }
+
+    onMove(application.id, targetStageId);
   };
 
   return (

@@ -97,7 +97,7 @@ public sealed class ScheduleInterviewHandler : ICommandHandler<ScheduleInterview
                 application.CandidateId, application.CandidateAccountId,
                 application.CandidateEmail, application.CandidateFirstName,
                 interview.Type, interview.ScheduledAtUtc, interview.DurationMinutes,
-                interview.Location, _currentTenant.TenantId ?? Guid.Empty),
+                interview.Location, interview.RoomToken, _currentTenant.TenantId ?? Guid.Empty),
             ct);
 
         return Result.Success(interview.Id);

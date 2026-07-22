@@ -49,6 +49,7 @@ public sealed class PublishInterviewScheduledIntegrationEvent
                     notification.ScheduledAtUtc,
                     notification.DurationMinutes,
                     notification.Location,
+                    notification.RoomToken,
                     notification.TenantId),
                 cancellationToken);
         }

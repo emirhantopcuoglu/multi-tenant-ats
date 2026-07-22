@@ -62,6 +62,7 @@ public sealed class ScheduleInterviewPublishTests
         Assert.Equal(scheduledAt, scheduled.ScheduledAtUtc);
         Assert.Equal(60, scheduled.DurationMinutes);
         Assert.Equal("Google Meet", scheduled.Location);
+        Assert.False(string.IsNullOrWhiteSpace(scheduled.RoomToken));
         Assert.Equal(tenant.TenantId!.Value, scheduled.TenantId);
 
         await using var readDb = NewDb(tenant);

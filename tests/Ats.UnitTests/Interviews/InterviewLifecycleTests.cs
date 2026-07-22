@@ -23,6 +23,64 @@ public class InterviewLifecycleTests
     }
 
     [Fact]
+    public void Schedule_should_generate_a_unique_room_token()
+    {
+        var first = ScheduleValid();
+        var second = ScheduleValid();
+
+        Assert.False(string.IsNullOrWhiteSpace(first.RoomToken));
+        Assert.NotEqual(first.RoomToken, second.RoomToken);
+    }
+
+    [Fact]
+    public void Reschedule_should_keep_the_same_room_token()
+    {
+        var interview = ScheduleValid();
+        var originalToken = interview.RoomToken;
+
+        interview.Reschedule(DateTime.UtcNow.AddDays(2), 45);
+
+        Assert.Equal(originalToken, interview.RoomToken);
+    }
+
+    [Fact]
+    public void IsRoomOpen_should_be_false_before_the_lead_window()
+    {
+        var interview = ScheduleValid();
+
+        var justBeforeOpen = interview.RoomOpensAtUtc.AddSeconds(-1);
+
+        Assert.False(interview.IsRoomOpen(justBeforeOpen));
+    }
+
+    [Fact]
+    public void IsRoomOpen_should_be_true_inside_the_lead_window_and_during_the_interview()
+    {
+        var interview = ScheduleValid();
+
+        Assert.True(interview.IsRoomOpen(interview.RoomOpensAtUtc));
+        Assert.True(interview.IsRoomOpen(interview.ScheduledAtUtc));
+    }
+
+    [Fact]
+    public void IsRoomOpen_should_be_true_within_the_grace_period_and_false_after()
+    {
+        var interview = ScheduleValid();
+
+        Assert.True(interview.IsRoomOpen(interview.RoomClosesAtUtc));
+        Assert.False(interview.IsRoomOpen(interview.RoomClosesAtUtc.AddSeconds(1)));
+    }
+
+    [Fact]
+    public void IsRoomOpen_should_be_false_once_the_interview_is_no_longer_scheduled()
+    {
+        var interview = ScheduleValid();
+        interview.Cancel();
+
+        Assert.False(interview.IsRoomOpen(interview.ScheduledAtUtc));
+    }
+
+    [Fact]
     public void Schedule_should_deduplicate_interviewers()
     {
         var interviewer = Guid.NewGuid();
