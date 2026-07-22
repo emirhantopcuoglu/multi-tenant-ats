@@ -43,7 +43,7 @@ export function PublicLayout({ children, wide = false }: { children: ReactNode; 
                   {t('candidateAuth.myApplications')}
                 </Link>
                 <Link
-                  to="/candidate/profile"
+                  to="/candidate/settings"
                   className="text-sm font-medium text-text hover:text-accent"
                 >
                   {user.firstName}

@@ -17,7 +17,7 @@ export function CandidateReactivatePage() {
 
   /* An active account has nothing to reactivate — e.g. a stale bookmark of this page. */
   if (user?.kind === 'candidate' && user.status === 'Active') {
-    return <Navigate to="/candidate/profile" replace />;
+    return <Navigate to="/candidate/settings" replace />;
   }
 
   return (
@@ -37,7 +37,7 @@ export function CandidateReactivatePage() {
             reactivate.mutate(undefined, {
               onSuccess: () => {
                 toast({ title: t('reactivateAccount.done'), tone: 'success' });
-                navigate('/candidate/profile', { replace: true });
+                navigate('/candidate/settings', { replace: true });
               },
             })
           }

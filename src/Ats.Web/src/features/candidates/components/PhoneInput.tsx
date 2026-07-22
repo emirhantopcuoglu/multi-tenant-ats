@@ -80,7 +80,7 @@ export function PhoneInput({ id, value, onChange, describedById, invalid }: Phon
         <Select
           value={country.iso}
           onChange={handleCountryChange}
-          aria-label={t('candidateProfile.phoneCountryCode')}
+          aria-label={t('candidateSettings.profile.phoneCountryCode')}
         >
           {PHONE_COUNTRIES.map((c) => (
             <option key={c.iso} value={c.iso}>

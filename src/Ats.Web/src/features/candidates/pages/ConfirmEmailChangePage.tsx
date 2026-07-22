@@ -48,7 +48,7 @@ export function ConfirmEmailChangePage() {
 
   const errorMessage = confirm.isError
     ? toApiError(confirm.error).code === EMAIL_ALREADY_REGISTERED_CODE
-      ? t('candidateProfile.emailTaken')
+      ? t('candidateSettings.security.emailTaken')
       : t('confirmEmailChange.failed')
     : null;
 
