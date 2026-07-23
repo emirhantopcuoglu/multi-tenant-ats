@@ -12,6 +12,13 @@ public interface IApplicationDirectory
     Task<ApplicationForScheduling?> GetForSchedulingAsync(
         Guid applicationId, CancellationToken cancellationToken = default);
 
+    // Same read, but for a caller with no ambient tenant of its own (e.g. resolving an interview
+    // room by its token, where the tenant comes from the interview row, not from the current
+    // request). Bypasses the global query filter and matches the given tenant explicitly instead —
+    // the same reasoning as IInterviewDirectory.GetForApplicationAsync.
+    Task<ApplicationForScheduling?> GetForSchedulingAsync(
+        Guid tenantId, Guid applicationId, CancellationToken cancellationToken = default);
+
     // Resolves candidate display names for a set of applications. The interview list holds only
     // application ids; this lets it show the candidate without the Interviews module knowing the
     // Applications schema. Ids with no match (e.g. another tenant's) are simply absent from the map.

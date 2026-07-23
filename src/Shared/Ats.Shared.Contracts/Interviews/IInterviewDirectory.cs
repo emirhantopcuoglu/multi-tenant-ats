@@ -20,14 +20,25 @@ public interface IInterviewDirectory
     // the same reasoning as IJobDirectory.GetJobRequirementsAsync.
     Task<IReadOnlyList<CandidateInterviewInfo>> GetForApplicationAsync(
         Guid tenantId, Guid applicationId, CancellationToken cancellationToken = default);
+
+    // The batched counterpart, for the candidate's own "My interviews" view across every
+    // application they hold (possibly spanning several tenants). No tenant parameter — the caller
+    // has already verified these application ids belong to the requesting candidate account, the
+    // same trust boundary IApplicationDirectory.GetCandidateNamesByApplicationAsync relies on.
+    Task<IReadOnlyList<CandidateInterviewInfo>> GetForApplicationsAsync(
+        IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default);
 }
 
 // Candidate-safe by shape: no interviewer ids, no recruiter notes. A mapping bug can't leak either
-// one because there is no field here to carry them.
+// one because there is no field here to carry them. RoomToken is safe to include — see
+// Interview.RoomToken — it is a locator, not a bearer secret, and the candidate portal needs it to
+// link into the (future) room.
 public sealed record CandidateInterviewInfo(
     Guid Id,
+    Guid ApplicationId,
     string Type,
     DateTime ScheduledAtUtc,
     int DurationMinutes,
     string? Location,
-    string Status);
+    string Status,
+    string RoomToken);

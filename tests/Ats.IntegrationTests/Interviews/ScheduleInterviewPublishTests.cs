@@ -111,6 +111,10 @@ internal sealed class FakeApplicationDirectory : IApplicationDirectory
         Guid applicationId, CancellationToken cancellationToken = default) =>
         Task.FromResult(_application?.Id == applicationId ? _application : null);
 
+    public Task<ApplicationForScheduling?> GetForSchedulingAsync(
+        Guid tenantId, Guid applicationId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_application?.Id == applicationId ? _application : null);
+
     public Task<IReadOnlyDictionary<Guid, string>> GetCandidateNamesByApplicationAsync(
         IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyDictionary<Guid, string>>(new Dictionary<Guid, string>());
