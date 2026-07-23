@@ -41,7 +41,7 @@ public sealed class ScheduleInterviewPublishTests
         var result = await handler.Handle(
             new ScheduleInterviewCommand(
                 applicationId, InterviewType.Technical, scheduledAt, DurationMinutes: 60,
-                Location: "Google Meet", [Guid.NewGuid()], Notes: "internal prep notes"),
+                [Guid.NewGuid()], Notes: "internal prep notes"),
             CancellationToken.None);
 
         // Assert — the interview is persisted and exactly one event describes it. The event type
@@ -61,7 +61,7 @@ public sealed class ScheduleInterviewPublishTests
         Assert.Equal(InterviewType.Technical, scheduled.Type);
         Assert.Equal(scheduledAt, scheduled.ScheduledAtUtc);
         Assert.Equal(60, scheduled.DurationMinutes);
-        Assert.Equal("Google Meet", scheduled.Location);
+        Assert.False(string.IsNullOrWhiteSpace(scheduled.RoomToken));
         Assert.Equal(tenant.TenantId!.Value, scheduled.TenantId);
 
         await using var readDb = NewDb(tenant);
@@ -85,7 +85,7 @@ public sealed class ScheduleInterviewPublishTests
         var result = await handler.Handle(
             new ScheduleInterviewCommand(
                 applicationId, InterviewType.PhoneScreen, DateTime.UtcNow.AddDays(1), 30,
-                null, [Guid.NewGuid()], null),
+                [Guid.NewGuid()], null),
             CancellationToken.None);
 
         // Assert
@@ -104,15 +104,30 @@ internal sealed class FakeApplicationDirectory : IApplicationDirectory
 {
     private readonly ApplicationForScheduling? _application;
 
+    // Optional candidate → application-ids override, for conflict tests where one candidate spans
+    // several applications. Empty by default: fall back to the single seeded application.
+    public Dictionary<Guid, IReadOnlyList<Guid>> ApplicationIdsByCandidate { get; } = new();
+
     public FakeApplicationDirectory(ApplicationForScheduling? application) => _application = application;
 
     public Task<ApplicationForScheduling?> GetForSchedulingAsync(
         Guid applicationId, CancellationToken cancellationToken = default) =>
         Task.FromResult(_application?.Id == applicationId ? _application : null);
 
+    public Task<ApplicationForScheduling?> GetForSchedulingAsync(
+        Guid tenantId, Guid applicationId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_application?.Id == applicationId ? _application : null);
+
     public Task<IReadOnlyDictionary<Guid, string>> GetCandidateNamesByApplicationAsync(
         IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyDictionary<Guid, string>>(new Dictionary<Guid, string>());
+
+    public Task<IReadOnlyList<Guid>> GetApplicationIdsForCandidateAsync(
+        Guid candidateId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Guid>>(
+            ApplicationIdsByCandidate.TryGetValue(candidateId, out var ids)
+                ? ids
+                : _application?.CandidateId == candidateId ? [_application.Id] : []);
 
     public Task<int> CountApplicationsSinceAsync(
         DateTime sinceUtc, CancellationToken cancellationToken = default) =>

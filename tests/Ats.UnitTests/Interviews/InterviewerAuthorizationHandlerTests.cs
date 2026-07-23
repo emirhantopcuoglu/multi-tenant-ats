@@ -12,7 +12,7 @@ public class InterviewerAuthorizationHandlerTests
 
     private static InterviewDetailDto MakeDto(params Guid[] interviewerIds) =>
         new(Guid.NewGuid(), Guid.NewGuid(), "Technical", DateTime.UtcNow.AddDays(1),
-            60, "Zoom", "Scheduled", null, interviewerIds.ToList());
+            60, "Scheduled", null, interviewerIds.ToList(), "room-token");
 
     private static ClaimsPrincipal MakeUser(Guid? userId) =>
         new(new ClaimsIdentity(

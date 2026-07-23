@@ -19,8 +19,14 @@ public static class InterviewErrors
         new("interview.invalid_operation", message);
 
     public static readonly Error FeedbackNotEligible =
-        new("interview.feedback_not_eligible", "Feedback cannot be submitted for a cancelled interview.");
+        new("interview.feedback_not_eligible", "Feedback can only be submitted once the interview has taken place.");
 
     public static readonly Error DuplicateFeedback =
         new("interview.duplicate_feedback", "Feedback has already been submitted by this interviewer for this interview.");
+
+    public static readonly Error InterviewerConflict =
+        new("interview.interviewer_conflict", "An interviewer already has another interview at this time.");
+
+    public static readonly Error CandidateConflict =
+        new("interview.candidate_conflict", "The candidate already has another interview at this time.");
 }

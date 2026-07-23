@@ -101,6 +101,7 @@
     "linkedin": "LinkedIn",
     "moveStage": "Move stage",
     "correctStage": "Correct stage (fix a mistake)",
+    "scheduleAnotherInterview": "Schedule another interview",
     "hire": "Hire",
     "reject": "Reject",
     "notFound": "This application could not be found.",
@@ -379,20 +380,23 @@
     },
     "form": {
       "candidate": "Candidate",
-      "candidatePlaceholder": "Select a candidate…",
-      "applicationRequired": "Select a candidate.",
       "type": "Interview type",
       "when": "Date & time",
-      "whenRequired": "Pick a date and time.",
-      "duration": "Duration (minutes)",
-      "durationInvalid": "Enter a valid duration.",
-      "location": "Location",
-      "locationPlaceholder": "Meet link or room",
+      "date": "Date",
+      "time": "Time",
+      "dateRequired": "Pick a date.",
+      "timeRequired": "Pick a time.",
+      "whenPast": "Pick a future date and time.",
+      "duration": "Duration",
       "interviewers": "Interviewers",
       "loadingUsers": "Loading team…",
       "noUsers": "No team members found.",
       "notes": "Notes",
       "notesPlaceholder": "Agenda, focus areas…"
+    },
+    "conflict": {
+      "interviewer": "An interviewer already has another interview at this time.",
+      "candidate": "The candidate already has another interview at this time."
     },
     "reschedule": {
       "title": "Reschedule interview",
@@ -426,6 +430,7 @@
       "toast": "Feedback submitted.",
       "locked": "Only assigned interviewers can submit feedback for this interview.",
       "lockedCancelled": "This interview was cancelled, so feedback is closed.",
+      "lockedNotYet": "You can submit feedback once the interview has taken place.",
       "notEligible": "Feedback can't be submitted for this interview."
     },
     "toast": {
@@ -512,7 +517,8 @@
     "signInLink": "Sign in",
     "publicSignIn": "Sign in",
     "publicRegister": "Create account",
-    "myApplications": "My applications"
+    "myApplications": "My applications",
+    "myInterviews": "My interviews"
   },
   "candidatePortal": {
     "applicationsTitle": "My applications",
@@ -521,6 +527,13 @@
     "exploreJobs": "Explore open positions",
     "loadError": "Couldn't load your applications.",
     "retry": "Try again",
+    "interviews": {
+      "title": "My interviews",
+      "subtitle": "Every interview scheduled across your applications.",
+      "empty": "You don't have any interviews scheduled yet.",
+      "openRoom": "Open room",
+      "phone": "Phone interview"
+    },
     "col": {
       "position": "Position",
       "company": "Company",
@@ -544,6 +557,24 @@
       "interviews": {
         "title": "Interviews"
       }
+    }
+  },
+  "interviewRoom": {
+    "signInTitle": "Sign in to open this room",
+    "signInBody": "This link leads to an interview room. Sign in as a candidate or a company user to continue.",
+    "notFoundTitle": "Room not found",
+    "notFoundBody": "This link is invalid, or you don't have access to this interview.",
+    "errorTitle": "Something went wrong",
+    "errorBody": "Couldn't load this interview room. Please try again.",
+    "openBody": "The room is open. Live video isn't available yet — check back soon.",
+    "tooEarlyBody": "The room opens at {{time}}.",
+    "endedBody": "This interview has already ended.",
+    "unavailableBody": "This interview is no longer scheduled.",
+    "state": {
+      "TooEarly": "Not yet open",
+      "Open": "Open",
+      "Ended": "Ended",
+      "Unavailable": "Unavailable"
     }
   },
   "candidateSettings": {

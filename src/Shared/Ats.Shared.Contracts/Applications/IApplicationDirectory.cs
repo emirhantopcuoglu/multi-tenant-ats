@@ -12,11 +12,25 @@ public interface IApplicationDirectory
     Task<ApplicationForScheduling?> GetForSchedulingAsync(
         Guid applicationId, CancellationToken cancellationToken = default);
 
+    // Same read, but for a caller with no ambient tenant of its own (e.g. resolving an interview
+    // room by its token, where the tenant comes from the interview row, not from the current
+    // request). Bypasses the global query filter and matches the given tenant explicitly instead —
+    // the same reasoning as IInterviewDirectory.GetForApplicationAsync.
+    Task<ApplicationForScheduling?> GetForSchedulingAsync(
+        Guid tenantId, Guid applicationId, CancellationToken cancellationToken = default);
+
     // Resolves candidate display names for a set of applications. The interview list holds only
     // application ids; this lets it show the candidate without the Interviews module knowing the
     // Applications schema. Ids with no match (e.g. another tenant's) are simply absent from the map.
     Task<IReadOnlyDictionary<Guid, string>> GetCandidateNamesByApplicationAsync(
         IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default);
+
+    // Every application the given candidate holds in the current tenant. The Interviews module uses
+    // it to detect a candidate double-booked across two different applications (each interview
+    // stores only its own application id). In-tenant: the ambient global filter scopes the result,
+    // so a candidate's applications at other companies are neither seen nor relevant here.
+    Task<IReadOnlyList<Guid>> GetApplicationIdsForCandidateAsync(
+        Guid candidateId, CancellationToken cancellationToken = default);
 
     // Number of applications submitted at or after the given instant — feeds the dashboard "New
     // applications this week" stat. The caller decides the window (e.g. the last 7 days) and passes

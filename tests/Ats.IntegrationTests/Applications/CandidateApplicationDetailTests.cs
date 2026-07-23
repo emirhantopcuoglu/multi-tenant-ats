@@ -113,7 +113,7 @@ public sealed class CandidateApplicationDetailTests
 
         var scheduledAt = DateTime.UtcNow.AddDays(3);
         var interview = new CandidateInterviewInfo(
-            Guid.NewGuid(), "Technical", scheduledAt, 60, "Google Meet", "Scheduled");
+            Guid.NewGuid(), application.Id, "Technical", scheduledAt, 60, "Scheduled", "room-token");
 
         // Act
         await using var readDb = NewDb(tenant);
@@ -131,7 +131,6 @@ public sealed class CandidateApplicationDetailTests
         var scheduledInterview = Assert.Single(result.Value.Interviews);
         Assert.Equal("Technical", scheduledInterview.Type);
         Assert.Equal(scheduledAt, scheduledInterview.ScheduledAtUtc);
-        Assert.Equal("Google Meet", scheduledInterview.Location);
         Assert.Equal("Scheduled", scheduledInterview.Status);
     }
 
@@ -497,5 +496,9 @@ internal sealed class FakeInterviewDirectory : IInterviewDirectory
 
     public Task<IReadOnlyList<CandidateInterviewInfo>> GetForApplicationAsync(
         Guid tenantId, Guid applicationId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_interviews);
+
+    public Task<IReadOnlyList<CandidateInterviewInfo>> GetForApplicationsAsync(
+        IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default) =>
         Task.FromResult(_interviews);
 }

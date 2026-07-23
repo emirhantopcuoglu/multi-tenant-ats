@@ -26,6 +26,8 @@ import { CandidateRegisterPage } from '@/features/candidates/pages/CandidateRegi
 import { ConfirmEmailChangePage } from '@/features/candidates/pages/ConfirmEmailChangePage';
 import { CandidateApplicationsPage } from '@/features/candidates/pages/CandidateApplicationsPage';
 import { CandidateApplicationDetailPage } from '@/features/candidates/pages/CandidateApplicationDetailPage';
+import { CandidateInterviewsPage } from '@/features/candidates/pages/CandidateInterviewsPage';
+import { InterviewRoomPage } from '@/features/interview-room/InterviewRoomPage';
 import { CandidateNotificationsPage } from '@/features/notifications/pages/CandidateNotificationsPage';
 import { CandidateSettingsPage } from '@/features/candidates/pages/CandidateSettingsPage';
 import { CandidateProfileSettingsTab } from '@/features/candidates/pages/CandidateProfileSettingsTab';
@@ -52,6 +54,9 @@ export default function App() {
       {/* Public like /accept-invitation: the mailed link may be opened without a session. */}
       <Route path="/candidate/confirm-email" element={<ConfirmEmailChangePage />} />
       <Route path="/playground" element={<PlaygroundPage />} />
+      {/* Reachable by either a candidate or a company interviewer session — the page itself checks
+          which, since neither RequireAuth nor RequireCandidateAuth alone would fit both. */}
+      <Route path="/interview-room/:roomToken" element={<InterviewRoomPage />} />
 
       <Route element={<RequireCandidateAuth />}>
         {/* Outside RequireActiveCandidate on purpose: it is the one screen a frozen account may see. */}
@@ -59,6 +64,7 @@ export default function App() {
         <Route element={<RequireActiveCandidate />}>
           <Route path="/candidate/applications" element={<CandidateApplicationsPage />} />
           <Route path="/candidate/applications/:id" element={<CandidateApplicationDetailPage />} />
+          <Route path="/candidate/interviews" element={<CandidateInterviewsPage />} />
           <Route path="/candidate/notifications" element={<CandidateNotificationsPage />} />
           <Route path="/candidate/settings" element={<CandidateSettingsPage />}>
             <Route index element={<Navigate to="profile" replace />} />

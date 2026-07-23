@@ -65,11 +65,21 @@ function ApplicationDetailView({ id }: { id: string }) {
 
   const busy = move.isPending || correctStage.isPending || reject.isPending || hire.isPending;
 
-  const handleMove = (stageId: string) =>
+  const handleMove = (stageId: string) => {
+    // Moving into the Interview stage doesn't move the application directly — it opens the same
+    // scheduling dialog as the standalone "Schedule interview" button. The move itself happens
+    // server-side once an interview is actually scheduled (AdvanceToInterviewStageConsumer).
+    const targetStage = stagesQuery.data?.find((stage) => stage.id === stageId);
+    if (targetStage?.type === 'Interview') {
+      setScheduleOpen(true);
+      return;
+    }
+
     move.mutate(stageId, {
       onSuccess: () => toast({ title: t('applicationDetail.toast.moved'), tone: 'success' }),
       onError: () => toast({ title: t('applicationDetail.toast.error'), tone: 'danger' }),
     });
+  };
 
   const handleCorrectStage = (targetStageId: string, reason: string) =>
     correctStage.mutate(
@@ -113,18 +123,25 @@ function ApplicationDetailView({ id }: { id: string }) {
     }
   };
 
+  // A follow-up interview can be scheduled only once the application has actually reached the
+  // Interview stage: the first interview comes from moving it there (which opens this same modal),
+  // and additional rounds come from the Interviews tab below. Before that stage there's nothing to
+  // schedule against, so the button stays hidden.
+  const stages = stagesQuery.data ?? [];
+  const interviewStageOrder = stages.find((stage) => stage.type === 'Interview')?.order;
+  const currentStageOrder = stages.find((stage) => stage.id === application.stageId)?.order;
+  const canScheduleInterviewNow =
+    canScheduleInterview &&
+    application.status === 'Active' &&
+    interviewStageOrder !== undefined &&
+    currentStageOrder !== undefined &&
+    currentStageOrder >= interviewStageOrder;
+
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <Link to="/applications" className="text-sm text-text-muted transition-colors hover:text-text">
-          ← {t('applicationDetail.back')}
-        </Link>
-        {canScheduleInterview && application.status === 'Active' && (
-          <Button variant="secondary" onClick={() => setScheduleOpen(true)}>
-            {t('interviews.schedule')}
-          </Button>
-        )}
-      </div>
+      <Link to="/applications" className="text-sm text-text-muted transition-colors hover:text-text">
+        ← {t('applicationDetail.back')}
+      </Link>
 
       <ApplicationHeader
         application={application}
@@ -174,7 +191,11 @@ function ApplicationDetailView({ id }: { id: string }) {
           </TabPanel>
 
           <TabPanel value="interviews">
-            <ApplicationInterviewsTab applicationId={id} />
+            <ApplicationInterviewsTab
+              applicationId={id}
+              canSchedule={canScheduleInterviewNow}
+              onSchedule={() => setScheduleOpen(true)}
+            />
           </TabPanel>
 
           <TabPanel value="activity">
@@ -221,7 +242,9 @@ function ApplicationDetailView({ id }: { id: string }) {
         onOpenChange={setScheduleOpen}
         applicationId={id}
         candidateName={application.candidateName}
-        onScheduled={(interviewId) => navigate(`/interviews/${interviewId}`)}
+        // Stay on the application and surface the new interview in its tab; the schedule mutation
+        // invalidates the interviews cache, so the tab's list refetches on its own.
+        onScheduled={() => setTab('interviews')}
       />
     </div>
   );

@@ -109,7 +109,7 @@ public sealed record CandidateTimelineEntryDto(string Type, string? StageName, D
 // Candidate-safe projection of CandidateInterviewInfo — same shape, kept as its own record so this
 // module's public contract doesn't leak a Shared.Contracts type verbatim into the API response.
 public sealed record CandidateInterviewDto(
-    Guid Id, string Type, DateTime ScheduledAtUtc, int DurationMinutes, string? Location, string Status);
+    Guid Id, string Type, DateTime ScheduledAtUtc, int DurationMinutes, string Status);
 
 public sealed record CandidateApplicationDetailDto(
     Guid Id,
@@ -191,7 +191,7 @@ public sealed class GetCandidateApplicationDetailHandler
         var interviews = await _interviews.GetForApplicationAsync(application.TenantId, application.Id, ct);
         var interviewDtos = interviews
             .Select(i => new CandidateInterviewDto(
-                i.Id, i.Type, i.ScheduledAtUtc, i.DurationMinutes, i.Location, i.Status))
+                i.Id, i.Type, i.ScheduledAtUtc, i.DurationMinutes, i.Status))
             .ToList();
 
         return Result.Success(new CandidateApplicationDetailDto(
@@ -317,5 +317,83 @@ public sealed class ListCandidateAppliedJobIdsHandler
             .ToListAsync(ct);
 
         return Result.Success<IReadOnlyList<Guid>>(jobIds);
+    }
+}
+
+// ---- ListCandidateInterviews ----
+// The candidate's own interviews across every application they hold, regardless of which company
+// or job it's under — the aggregate the "My interviews" tab needs, as opposed to the per-application
+// list GetCandidateApplicationDetailQuery already returns.
+public sealed record CandidateInterviewSummaryDto(
+    Guid Id,
+    Guid ApplicationId,
+    string JobTitle,
+    string CompanyName,
+    string Type,
+    DateTime ScheduledAtUtc,
+    int DurationMinutes,
+    string Status,
+    string? RoomToken);
+
+public sealed record ListCandidateInterviewsQuery(Guid CandidateAccountId) : IQuery<IReadOnlyList<CandidateInterviewSummaryDto>>;
+
+public sealed class ListCandidateInterviewsHandler
+    : IQueryHandler<ListCandidateInterviewsQuery, IReadOnlyList<CandidateInterviewSummaryDto>>
+{
+    private readonly IApplicationsDbContext _db;
+    private readonly IJobDirectory _jobs;
+    private readonly ITenantDirectory _tenants;
+    private readonly IInterviewDirectory _interviews;
+
+    public ListCandidateInterviewsHandler(
+        IApplicationsDbContext db, IJobDirectory jobs, ITenantDirectory tenants, IInterviewDirectory interviews)
+    {
+        _db = db;
+        _jobs = jobs;
+        _tenants = tenants;
+        _interviews = interviews;
+    }
+
+    public async Task<Result<IReadOnlyList<CandidateInterviewSummaryDto>>> Handle(
+        ListCandidateInterviewsQuery query, CancellationToken ct)
+    {
+        // Same cross-tenant scope as ListCandidateApplicationsHandler: the global account is the
+        // scope root, so every application this candidate holds is fair game regardless of tenant.
+        var applications = await _db.Applications
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(a => !a.IsDeleted && a.CandidateAccountId == query.CandidateAccountId)
+            .Select(a => new { a.Id, a.JobId, a.TenantId })
+            .ToListAsync(ct);
+
+        if (applications.Count == 0)
+            return Result.Success<IReadOnlyList<CandidateInterviewSummaryDto>>([]);
+
+        var applicationIds = applications.Select(a => a.Id).ToList();
+        var interviews = await _interviews.GetForApplicationsAsync(applicationIds, ct);
+        if (interviews.Count == 0)
+            return Result.Success<IReadOnlyList<CandidateInterviewSummaryDto>>([]);
+
+        var applicationsById = applications.ToDictionary(a => a.Id);
+        var jobIds = applications.Select(a => a.JobId).Distinct().ToList();
+        var jobs = await _jobs.GetSummariesAsync(jobIds, ct);
+        var tenantIds = applications.Select(a => a.TenantId).Distinct().ToList();
+        var companies = await _tenants.GetSummariesAsync(tenantIds, ct);
+
+        var items = interviews
+            .Where(i => applicationsById.ContainsKey(i.ApplicationId))
+            .Select(i =>
+            {
+                var application = applicationsById[i.ApplicationId];
+                jobs.TryGetValue(application.JobId, out var job);
+                companies.TryGetValue(application.TenantId, out var company);
+                return new CandidateInterviewSummaryDto(
+                    i.Id, i.ApplicationId, job?.Title ?? string.Empty, company?.CompanyName ?? string.Empty,
+                    i.Type, i.ScheduledAtUtc, i.DurationMinutes, i.Status, i.RoomToken);
+            })
+            .OrderByDescending(i => i.ScheduledAtUtc)
+            .ToList();
+
+        return Result.Success<IReadOnlyList<CandidateInterviewSummaryDto>>(items);
     }
 }

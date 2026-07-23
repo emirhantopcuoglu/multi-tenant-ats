@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Badge, Button, Card, Skeleton, useToast } from '@/components/ui';
 import { useAuth } from '@/app/auth/auth-context';
+import { toApiError } from '@/lib/problemDetails';
 import { fullName, useUserLookup } from '@/features/users/useUsers';
 import { getApplication } from '@/features/applications/applicationsApi';
 import { applicationDetailKey } from '@/features/applications/useApplicationDetail';
@@ -70,10 +71,16 @@ function InterviewDetailView({ id }: { id: string }) {
   const isScheduled = interview.status === 'Scheduled';
   const candidateName = applicationQuery.data?.candidateName;
 
-  // Feedback gating mirrors the backend: only an assigned interviewer may submit, and never for a
-  // cancelled interview. The form still maps the backend's 403/409 as the final authority.
+  // Feedback gating mirrors the backend: only an assigned interviewer may submit, and only once the
+  // interview has taken place — marked completed, or its scheduled end time already passed. The form
+  // still maps the backend's 403/409 as the final authority.
   const isAssignedInterviewer = user ? interview.interviewerUserIds.includes(user.id) : false;
-  const canSubmitFeedback = isAssignedInterviewer && interview.status !== 'Cancelled';
+  const interviewEndMs =
+    new Date(interview.scheduledAtUtc).getTime() + interview.durationMinutes * 60_000;
+  const hasTakenPlace =
+    interview.status === 'Completed' ||
+    (interview.status === 'Scheduled' && Date.now() >= interviewEndMs);
+  const canSubmitFeedback = isAssignedInterviewer && hasTakenPlace;
 
   const interviewerNames = interview.interviewerUserIds
     .map((interviewerId) => {
@@ -93,13 +100,21 @@ function InterviewDetailView({ id }: { id: string }) {
       onError: () => toast({ title: t('interviews.toast.error'), tone: 'danger' }),
     });
 
+  // Turn the backend's 409 conflict codes into a specific message; anything else is the generic error.
+  const conflictMessage = (error: unknown): string => {
+    const { code } = toApiError(error);
+    if (code === 'interview.interviewer_conflict') return t('interviews.conflict.interviewer');
+    if (code === 'interview.candidate_conflict') return t('interviews.conflict.candidate');
+    return t('interviews.toast.error');
+  };
+
   const handleReschedule = (body: RescheduleRequest) =>
     reschedule.mutate(body, {
       onSuccess: () => {
         setRescheduleOpen(false);
         toast({ title: t('interviews.toast.rescheduled'), tone: 'success' });
       },
-      onError: () => toast({ title: t('interviews.toast.error'), tone: 'danger' }),
+      onError: (error) => toast({ title: conflictMessage(error), tone: 'danger' }),
     });
 
   return (
@@ -149,9 +164,6 @@ function InterviewDetailView({ id }: { id: string }) {
         <InfoRow label={t('interviews.form.duration')}>
           {t('interviews.minutesShort', { count: interview.durationMinutes })}
         </InfoRow>
-        <InfoRow label={t('interviews.form.location')}>
-          {interview.location || <span className="text-text-muted">—</span>}
-        </InfoRow>
         <InfoRow label={t('interviews.form.interviewers')}>
           {interviewerNames.length > 0 ? interviewerNames.join(', ') : <span className="text-text-muted">—</span>}
         </InfoRow>
@@ -172,7 +184,9 @@ function InterviewDetailView({ id }: { id: string }) {
           <p className="text-sm text-text-muted">
             {interview.status === 'Cancelled'
               ? t('interviews.feedback.lockedCancelled')
-              : t('interviews.feedback.locked')}
+              : !isAssignedInterviewer
+                ? t('interviews.feedback.locked')
+                : t('interviews.feedback.lockedNotYet')}
           </p>
         )}
       </Card>

@@ -101,6 +101,7 @@
     "linkedin": "LinkedIn",
     "moveStage": "Aşama değiştir",
     "correctStage": "Aşamayı düzelt (yanlışlığı gider)",
+    "scheduleAnotherInterview": "Başka mülakat planla",
     "hire": "İşe al",
     "reject": "Reddet",
     "notFound": "Bu başvuru bulunamadı.",
@@ -379,20 +380,23 @@
     },
     "form": {
       "candidate": "Aday",
-      "candidatePlaceholder": "Bir aday seç…",
-      "applicationRequired": "Bir aday seç.",
       "type": "Mülakat türü",
       "when": "Tarih ve saat",
-      "whenRequired": "Tarih ve saat seç.",
-      "duration": "Süre (dakika)",
-      "durationInvalid": "Geçerli bir süre gir.",
-      "location": "Konum",
-      "locationPlaceholder": "Toplantı bağlantısı veya oda",
+      "date": "Tarih",
+      "time": "Saat",
+      "dateRequired": "Bir tarih seç.",
+      "timeRequired": "Bir saat seç.",
+      "whenPast": "Gelecek bir tarih ve saat seç.",
+      "duration": "Süre",
       "interviewers": "Görüşmeciler",
       "loadingUsers": "Ekip yükleniyor…",
       "noUsers": "Ekip üyesi bulunamadı.",
       "notes": "Notlar",
       "notesPlaceholder": "Gündem, odak alanları…"
+    },
+    "conflict": {
+      "interviewer": "Bir görüşmecinin bu saatte başka bir mülakatı var.",
+      "candidate": "Adayın bu saatte başka bir mülakatı var."
     },
     "reschedule": {
       "title": "Mülakatı yeniden planla",
@@ -426,6 +430,7 @@
       "toast": "Değerlendirme gönderildi.",
       "locked": "Bu mülakat için yalnızca atanmış görüşmeciler değerlendirme gönderebilir.",
       "lockedCancelled": "Bu mülakat iptal edildiği için değerlendirme kapalı.",
+      "lockedNotYet": "Mülakat gerçekleştikten sonra değerlendirme gönderebilirsin.",
       "notEligible": "Bu mülakat için değerlendirme gönderilemez."
     },
     "toast": {
@@ -512,7 +517,8 @@
     "signInLink": "Giriş yap",
     "publicSignIn": "Giriş yap",
     "publicRegister": "Hesap oluştur",
-    "myApplications": "Başvurularım"
+    "myApplications": "Başvurularım",
+    "myInterviews": "Mülakatlarım"
   },
   "candidatePortal": {
     "applicationsTitle": "Başvurularım",
@@ -521,6 +527,13 @@
     "exploreJobs": "Açık pozisyonları keşfet",
     "loadError": "Başvurular yüklenemedi.",
     "retry": "Tekrar dene",
+    "interviews": {
+      "title": "Mülakatlarım",
+      "subtitle": "Tüm başvuruların genelinde planlanan mülakatlar.",
+      "empty": "Henüz planlanmış bir mülakatın yok.",
+      "openRoom": "Odayı aç",
+      "phone": "Telefon görüşmesi"
+    },
     "col": {
       "position": "Pozisyon",
       "company": "Şirket",
@@ -544,6 +557,24 @@
       "interviews": {
         "title": "Mülakatlar"
       }
+    }
+  },
+  "interviewRoom": {
+    "signInTitle": "Bu odayı açmak için giriş yap",
+    "signInBody": "Bu link bir mülakat odasına götürüyor. Devam etmek için aday veya şirket kullanıcısı olarak giriş yap.",
+    "notFoundTitle": "Oda bulunamadı",
+    "notFoundBody": "Bu link geçersiz veya bu mülakata erişimin yok.",
+    "errorTitle": "Bir şeyler ters gitti",
+    "errorBody": "Mülakat odası yüklenemedi. Lütfen tekrar dene.",
+    "openBody": "Oda açık. Canlı görüntü henüz aktif değil — yakında kullanıma açılacak.",
+    "tooEarlyBody": "Oda {{time}} tarihinde açılacak.",
+    "endedBody": "Bu mülakat sona erdi.",
+    "unavailableBody": "Bu mülakat artık planlı değil.",
+    "state": {
+      "TooEarly": "Henüz açılmadı",
+      "Open": "Açık",
+      "Ended": "Sona erdi",
+      "Unavailable": "Kullanılamıyor"
     }
   },
   "candidateSettings": {

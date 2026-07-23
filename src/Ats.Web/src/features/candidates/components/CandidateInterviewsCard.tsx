@@ -42,7 +42,6 @@ export function CandidateInterviewsCard({ interviews }: { interviews: CandidateI
                   {dateFormatter.format(new Date(interview.scheduledAtUtc))}
                   {' · '}
                   {t('interviews.minutesShort', { count: interview.durationMinutes })}
-                  {interview.location ? ` · ${interview.location}` : ''}
                 </p>
               </div>
             </div>

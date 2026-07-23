@@ -36,8 +36,30 @@ public sealed class InterviewDirectory : IInterviewDirectory
             .Where(i => i.TenantId == tenantId && i.ApplicationId == applicationId && !i.IsDeleted)
             .OrderBy(i => i.ScheduledAtUtc)
             .Select(i => new CandidateInterviewInfo(
-                i.Id, i.Type.ToString(), i.ScheduledAtUtc, i.DurationMinutes, i.Location,
-                i.Status.ToString()))
+                i.Id, i.ApplicationId, i.Type.ToString(), i.ScheduledAtUtc, i.DurationMinutes,
+                i.Status.ToString(), i.RoomToken))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CandidateInterviewInfo>> GetForApplicationsAsync(
+        IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default)
+    {
+        if (applicationIds.Count == 0)
+            return [];
+
+        // No tenant filter at all, not even bypassed-and-matched: applicationIds is a set the
+        // caller already resolved to one specific candidate account across every tenant that
+        // account has applied to, so an interview id collision across tenants isn't possible —
+        // matching purely on ApplicationId is both sufficient and the same trust boundary
+        // GetCandidateNamesByApplicationAsync already relies on.
+        return await _db.Interviews
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(i => applicationIds.Contains(i.ApplicationId) && !i.IsDeleted)
+            .OrderBy(i => i.ScheduledAtUtc)
+            .Select(i => new CandidateInterviewInfo(
+                i.Id, i.ApplicationId, i.Type.ToString(), i.ScheduledAtUtc, i.DurationMinutes,
+                i.Status.ToString(), i.RoomToken))
             .ToListAsync(cancellationToken);
     }
 }

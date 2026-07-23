@@ -20,16 +20,32 @@ public sealed class ApplicationDirectory : IApplicationDirectory
         _jobs = jobs;
     }
 
-    public async Task<ApplicationForScheduling?> GetForSchedulingAsync(
-        Guid applicationId, CancellationToken cancellationToken = default)
+    public Task<ApplicationForScheduling?> GetForSchedulingAsync(
+        Guid applicationId, CancellationToken cancellationToken = default) =>
+        GetForSchedulingAsync(
+            _db.Applications.AsNoTracking(), _db.Candidates.AsNoTracking(), applicationId, cancellationToken);
+
+    public Task<ApplicationForScheduling?> GetForSchedulingAsync(
+        Guid tenantId, Guid applicationId, CancellationToken cancellationToken = default) =>
+        GetForSchedulingAsync(
+            _db.Applications.AsNoTracking().IgnoreQueryFilters().Where(a => a.TenantId == tenantId),
+            _db.Candidates.AsNoTracking().IgnoreQueryFilters().Where(c => c.TenantId == tenantId),
+            applicationId, cancellationToken);
+
+    // The candidate join can't miss: an application is always created against a candidate in
+    // this module's own schema. The job title comes through the Jobs read port because the
+    // title lives in that module's schema — same one-hop rule the Interviews caller follows.
+    // Both base queryables are either the ambient-tenant-filtered set (in-tenant caller) or an
+    // explicit-tenant, filter-bypassing set (cross-tenant caller) — Candidate is tenant-scoped
+    // too, so the join side needs the same bypass or it silently finds nothing.
+    private async Task<ApplicationForScheduling?> GetForSchedulingAsync(
+        IQueryable<Domain.Application> applications, IQueryable<Candidate> candidates,
+        Guid applicationId, CancellationToken cancellationToken)
     {
-        // The candidate join can't miss: an application is always created against a candidate in
-        // this module's own schema. The job title comes through the Jobs read port because the
-        // title lives in that module's schema — same one-hop rule the Interviews caller follows.
         var row = await (
-            from a in _db.Applications.AsNoTracking()
+            from a in applications
             where a.Id == applicationId
-            join c in _db.Candidates.AsNoTracking() on a.CandidateId equals c.Id
+            join c in candidates on a.CandidateId equals c.Id
             select new
             {
                 a.Id,
@@ -65,6 +81,18 @@ public sealed class ApplicationDirectory : IApplicationDirectory
             .ToListAsync(cancellationToken);
 
         return pairs.ToDictionary(pair => pair.Id, pair => pair.FullName);
+    }
+
+    public async Task<IReadOnlyList<Guid>> GetApplicationIdsForCandidateAsync(
+        Guid candidateId, CancellationToken cancellationToken = default)
+    {
+        // Ambient tenant filter applies: only this tenant's applications for the candidate. Soft
+        // deletes are excluded by the same global filter (Application is ISoftDeletable).
+        return await _db.Applications
+            .AsNoTracking()
+            .Where(a => a.CandidateId == candidateId)
+            .Select(a => a.Id)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<int> CountApplicationsSinceAsync(

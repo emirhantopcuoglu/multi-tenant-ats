@@ -5,6 +5,7 @@ using Ats.Shared.Contracts.Notifications;
 using Ats.Shared.Kernel;
 using MassTransit;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
@@ -21,15 +22,18 @@ public sealed partial class InterviewScheduledEmailConsumer
 
     private readonly IEmailSender _emailSender;
     private readonly IIdempotencyGuard _idempotencyGuard;
+    private readonly InterviewRoomOptions _roomOptions;
     private readonly ILogger<InterviewScheduledEmailConsumer> _logger;
 
     public InterviewScheduledEmailConsumer(
         IEmailSender emailSender,
         IIdempotencyGuard idempotencyGuard,
+        IOptions<InterviewRoomOptions> roomOptions,
         ILogger<InterviewScheduledEmailConsumer> logger)
     {
         _emailSender = emailSender;
         _idempotencyGuard = idempotencyGuard;
+        _roomOptions = roomOptions.Value;
         _logger = logger;
     }
 
@@ -37,17 +41,22 @@ public sealed partial class InterviewScheduledEmailConsumer
     {
         var message = context.Message;
 
-        // Job title and location are recruiter/company-controlled strings, untrusted in an HTML
-        // email, so HTML-encode them — same rule as the other emails. The interview type is a
-        // closed set of PascalCase contract values (e.g. "PhoneScreen"); humanize it for reading.
+        // Job title is a recruiter/company-controlled string, untrusted in an HTML email, so
+        // HTML-encode it — same rule as the other emails. The interview type is a closed set of
+        // PascalCase contract values (e.g. "PhoneScreen"); humanize it for reading.
         var firstName = WebUtility.HtmlEncode(message.CandidateFirstName);
         var jobTitle = WebUtility.HtmlEncode(message.JobTitle);
         var interviewType = HumanizePascalCase(message.InterviewType);
         var scheduledAt = message.ScheduledAtUtc.ToString(
             "dddd, MMMM d, yyyy 'at' h:mm tt 'UTC'", CultureInfo.InvariantCulture);
-        var locationLine = string.IsNullOrWhiteSpace(message.Location)
-            ? string.Empty
-            : $"<p>Location: {WebUtility.HtmlEncode(message.Location)}</p>";
+
+        // A phone screen has no room token, so there is no link to send — the candidate is called
+        // instead. Every other type gets a join link. The token is a URL-safe base64 string by
+        // construction (see Interview.GenerateRoomToken) — no HTML-unsafe characters possible — but
+        // it is still HTML-encoded here on principle, the same rule applied to every other field.
+        var joinLine = message.RoomToken is { } roomToken
+            ? $"""<p>Join the interview room here when it opens: <a href="{_roomOptions.BaseUrl}/{WebUtility.HtmlEncode(roomToken)}">{_roomOptions.BaseUrl}/{WebUtility.HtmlEncode(roomToken)}</a></p>"""
+            : "<p>This is a phone interview — the interviewer will call you at the scheduled time.</p>";
 
         var body = $"""
             <p>Hi {firstName},</p>
@@ -55,7 +64,7 @@ public sealed partial class InterviewScheduledEmailConsumer
             <p>Type: {interviewType}<br/>
             When: {scheduledAt}<br/>
             Duration: {message.DurationMinutes} minutes</p>
-            {locationLine}
+            {joinLine}
             <p>We look forward to speaking with you.</p>
             """;
 

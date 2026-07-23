@@ -51,6 +51,16 @@
   --shadow-card: var(--shadow);
 }
 
+/* Tell the browser which scheme to paint native controls in — date/time pickers, their
+   calendar/clock indicator icons, and scrollbars. Without this the indicator icons stay dark and
+   vanish against the dark surface. `:root.dark` outranks `:root`, so the class toggle wins. */
+:root {
+  color-scheme: light;
+}
+:root.dark {
+  color-scheme: dark;
+}
+
 /* Sensible page defaults so surfaces/text follow the theme even before a screen sets them. */
 body {
   background-color: var(--bg);
