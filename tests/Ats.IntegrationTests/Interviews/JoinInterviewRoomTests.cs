@@ -148,7 +148,7 @@ public sealed class JoinInterviewRoomTests
         var applicationId = Guid.NewGuid();
         var interview = Interview.Schedule(
             applicationId, InterviewType.Technical, scheduledAtUtc, 30,
-            "Google Meet", interviewerUserIds ?? [Guid.NewGuid()]);
+            interviewerUserIds ?? [Guid.NewGuid()]);
 
         await using (var db = NewDb(tenant))
         {

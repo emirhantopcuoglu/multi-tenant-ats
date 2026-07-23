@@ -113,7 +113,7 @@ public sealed class CandidateApplicationDetailTests
 
         var scheduledAt = DateTime.UtcNow.AddDays(3);
         var interview = new CandidateInterviewInfo(
-            Guid.NewGuid(), application.Id, "Technical", scheduledAt, 60, "Google Meet", "Scheduled", "room-token");
+            Guid.NewGuid(), application.Id, "Technical", scheduledAt, 60, "Scheduled", "room-token");
 
         // Act
         await using var readDb = NewDb(tenant);
@@ -131,7 +131,6 @@ public sealed class CandidateApplicationDetailTests
         var scheduledInterview = Assert.Single(result.Value.Interviews);
         Assert.Equal("Technical", scheduledInterview.Type);
         Assert.Equal(scheduledAt, scheduledInterview.ScheduledAtUtc);
-        Assert.Equal("Google Meet", scheduledInterview.Location);
         Assert.Equal("Scheduled", scheduledInterview.Status);
     }
 

@@ -49,9 +49,6 @@ public sealed partial class InterviewScheduledEmailConsumer
         var interviewType = HumanizePascalCase(message.InterviewType);
         var scheduledAt = message.ScheduledAtUtc.ToString(
             "dddd, MMMM d, yyyy 'at' h:mm tt 'UTC'", CultureInfo.InvariantCulture);
-        var locationLine = string.IsNullOrWhiteSpace(message.Location)
-            ? string.Empty
-            : $"<p>Location: {WebUtility.HtmlEncode(message.Location)}</p>";
 
         // The token is a URL-safe base64 string by construction (see Interview.GenerateRoomToken) —
         // no HTML-unsafe characters possible — but it is still HTML-encoded here on principle, the
@@ -64,7 +61,6 @@ public sealed partial class InterviewScheduledEmailConsumer
             <p>Type: {interviewType}<br/>
             When: {scheduledAt}<br/>
             Duration: {message.DurationMinutes} minutes</p>
-            {locationLine}
             <p>Join the interview room here when it opens: <a href="{roomUrl}">{roomUrl}</a></p>
             <p>We look forward to speaking with you.</p>
             """;

@@ -73,7 +73,7 @@ public sealed class InterviewScheduledNotificationConsumer
 
         var payload = new NotificationPayloads.InterviewScheduled(
             message.ApplicationId, message.JobTitle, message.InterviewType,
-            message.ScheduledAtUtc, message.DurationMinutes, message.Location, message.RoomToken);
+            message.ScheduledAtUtc, message.DurationMinutes, message.RoomToken);
 
         return Notification.ForCandidate(
             candidateAccountId,

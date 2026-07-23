@@ -15,6 +15,11 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
     public const int RoomOpenLeadMinutes = 10;
     public const int RoomCloseGraceMinutes = 15;
 
+    // The only durations a recruiter may pick, in minutes. A closed set instead of a free number so
+    // the schedule stays sane (no 6000-minute interviews) and the UI can offer plain choices. The
+    // web form mirrors this exact list.
+    public static readonly IReadOnlyList<int> AllowedDurationMinutes = [10, 15, 20, 30, 45, 60];
+
     private readonly List<Guid> _interviewerUserIds = new();
 
     public Guid Id { get; private set; }
@@ -23,7 +28,6 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
     public InterviewType Type { get; private set; }
     public DateTime ScheduledAtUtc { get; private set; }
     public int DurationMinutes { get; private set; }
-    public string? Location { get; private set; }
 
     // Unique locator for the (future) live room. Not a bearer secret hashed like an email-confirm
     // token: both the candidate and the interviewer revisit the same link repeatedly, and the
@@ -53,14 +57,13 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
 
     private Interview(
         Guid id, Guid applicationId, InterviewType type, DateTime scheduledAtUtc,
-        int durationMinutes, string? location, IEnumerable<Guid> interviewerUserIds, string? notes)
+        int durationMinutes, IEnumerable<Guid> interviewerUserIds, string? notes)
     {
         Id = id;
         ApplicationId = applicationId;
         Type = type;
         ScheduledAtUtc = scheduledAtUtc;
         DurationMinutes = durationMinutes;
-        Location = location;
         Notes = notes;
         Status = InterviewStatus.Scheduled;
         RoomToken = GenerateRoomToken();
@@ -69,14 +72,14 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
 
     public static Interview Schedule(
         Guid applicationId, InterviewType type, DateTime scheduledAtUtc, int durationMinutes,
-        string? location, IReadOnlyCollection<Guid> interviewerUserIds, string? notes = null)
+        IReadOnlyCollection<Guid> interviewerUserIds, string? notes = null)
     {
         if (applicationId == Guid.Empty)
             throw new ArgumentException("ApplicationId is required.", nameof(applicationId));
         if (scheduledAtUtc <= DateTime.UtcNow)
             throw new ArgumentException("An interview must be scheduled in the future.", nameof(scheduledAtUtc));
-        if (durationMinutes <= 0)
-            throw new ArgumentException("Duration must be positive.", nameof(durationMinutes));
+        if (!AllowedDurationMinutes.Contains(durationMinutes))
+            throw new ArgumentException("Duration must be one of the allowed presets.", nameof(durationMinutes));
         if (interviewerUserIds is null || interviewerUserIds.Count == 0)
             throw new ArgumentException("At least one interviewer is required.", nameof(interviewerUserIds));
         if (interviewerUserIds.Any(id => id == Guid.Empty))
@@ -84,7 +87,7 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
 
         return new Interview(
             Guid.NewGuid(), applicationId, type, scheduledAtUtc, durationMinutes,
-            Normalize(location), interviewerUserIds.Distinct(), Normalize(notes));
+            interviewerUserIds.Distinct(), Normalize(notes));
     }
 
     // Moves the interview to a new time (and optionally a new duration). Only a still-scheduled
@@ -93,8 +96,8 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
     {
         if (newScheduledAtUtc <= DateTime.UtcNow)
             throw new ArgumentException("An interview must be scheduled in the future.", nameof(newScheduledAtUtc));
-        if (newDurationMinutes <= 0)
-            throw new ArgumentException("Duration must be positive.", nameof(newDurationMinutes));
+        if (!AllowedDurationMinutes.Contains(newDurationMinutes))
+            throw new ArgumentException("Duration must be one of the allowed presets.", nameof(newDurationMinutes));
 
         EnsureScheduled("rescheduled");
         ScheduledAtUtc = newScheduledAtUtc;

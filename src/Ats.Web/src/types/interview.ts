@@ -21,20 +21,18 @@ export interface InterviewDetail {
   type: InterviewType;
   scheduledAtUtc: string;
   durationMinutes: number;
-  location: string | null;
   status: InterviewStatus;
   notes: string | null;
   interviewerUserIds: string[];
 }
 
 /* POST /api/v1/interviews body (InterviewsController.ScheduleInterviewBody). scheduledAtUtc is an ISO
-   8601 UTC string — the form collects local date+time and converts before sending. */
+   8601 UTC string — the form collects a local date + time and converts before sending. */
 export interface ScheduleInterviewRequest {
   applicationId: string;
   type: InterviewType;
   scheduledAtUtc: string;
   durationMinutes: number;
-  location?: string;
   interviewerUserIds: string[];
   notes?: string;
 }

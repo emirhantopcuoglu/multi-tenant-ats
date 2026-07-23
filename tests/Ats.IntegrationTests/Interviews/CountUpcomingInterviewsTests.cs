@@ -57,7 +57,7 @@ public sealed class CountUpcomingInterviewsTests
     private static Interview NewInterview(DateTime scheduledAtUtc) =>
         Interview.Schedule(
             applicationId: Guid.NewGuid(), type: InterviewType.Technical, scheduledAtUtc: scheduledAtUtc,
-            durationMinutes: 60, location: "Google Meet", interviewerUserIds: new[] { Guid.NewGuid() });
+            durationMinutes: 60, interviewerUserIds: new[] { Guid.NewGuid() });
 
     private InterviewsDbContext NewDb(FixedTenant tenant) =>
         new(PostgresContainerFixture.BuildInterviewsOptions(_fixture.ConnectionString, tenant), tenant);
@@ -125,7 +125,7 @@ public sealed class GetInterviewsForApplicationTests
     private static Interview NewInterview(Guid applicationId, DateTime scheduledAtUtc) =>
         Interview.Schedule(
             applicationId, type: InterviewType.Technical, scheduledAtUtc: scheduledAtUtc,
-            durationMinutes: 45, location: "Google Meet", interviewerUserIds: new[] { Guid.NewGuid() });
+            durationMinutes: 45, interviewerUserIds: new[] { Guid.NewGuid() });
 
     private InterviewsDbContext NewDb(FixedTenant tenant) =>
         new(PostgresContainerFixture.BuildInterviewsOptions(_fixture.ConnectionString, tenant), tenant);

@@ -10,7 +10,7 @@ public class InterviewLifecycleTests
         Interview.Schedule(
             applicationId: Guid.NewGuid(), type: InterviewType.Technical,
             scheduledAtUtc: DateTime.UtcNow.AddDays(1), durationMinutes: 60,
-            location: "Zoom", interviewerUserIds: OneInterviewer, notes: null);
+            interviewerUserIds: OneInterviewer, notes: null);
 
     [Fact]
     public void Schedule_should_start_in_scheduled_status()
@@ -87,7 +87,7 @@ public class InterviewLifecycleTests
 
         var interview = Interview.Schedule(
             Guid.NewGuid(), InterviewType.Final, DateTime.UtcNow.AddDays(1), 30,
-            null, [interviewer, interviewer], null);
+            [interviewer, interviewer], null);
 
         Assert.Single(interview.InterviewerUserIds);
     }
@@ -96,9 +96,46 @@ public class InterviewLifecycleTests
     public void Schedule_should_throw_when_no_interviewers()
     {
         var act = () => Interview.Schedule(
-            Guid.NewGuid(), InterviewType.PhoneScreen, DateTime.UtcNow.AddDays(1), 30, null, [], null);
+            Guid.NewGuid(), InterviewType.PhoneScreen, DateTime.UtcNow.AddDays(1), 30, [], null);
 
         Assert.Throws<ArgumentException>(act);
+    }
+
+    [Theory]
+    [InlineData(25)]
+    [InlineData(90)]
+    [InlineData(6000)]
+    public void Schedule_should_throw_when_duration_is_not_a_preset(int minutes)
+    {
+        var act = () => Interview.Schedule(
+            Guid.NewGuid(), InterviewType.Technical, DateTime.UtcNow.AddDays(1), minutes,
+            OneInterviewer, null);
+
+        Assert.Throws<ArgumentException>(act);
+    }
+
+    [Theory]
+    [InlineData(10)]
+    [InlineData(15)]
+    [InlineData(20)]
+    [InlineData(30)]
+    [InlineData(45)]
+    [InlineData(60)]
+    public void Schedule_should_accept_each_preset_duration(int minutes)
+    {
+        var interview = Interview.Schedule(
+            Guid.NewGuid(), InterviewType.Technical, DateTime.UtcNow.AddDays(1), minutes,
+            OneInterviewer, null);
+
+        Assert.Equal(minutes, interview.DurationMinutes);
+    }
+
+    [Fact]
+    public void Reschedule_should_throw_when_duration_is_not_a_preset()
+    {
+        var interview = ScheduleValid();
+
+        Assert.Throws<ArgumentException>(() => interview.Reschedule(DateTime.UtcNow.AddDays(2), 25));
     }
 
     [Fact]
@@ -106,17 +143,7 @@ public class InterviewLifecycleTests
     {
         var act = () => Interview.Schedule(
             Guid.NewGuid(), InterviewType.PhoneScreen, DateTime.UtcNow.AddMinutes(-1), 30,
-            null, OneInterviewer, null);
-
-        Assert.Throws<ArgumentException>(act);
-    }
-
-    [Fact]
-    public void Schedule_should_throw_when_duration_not_positive()
-    {
-        var act = () => Interview.Schedule(
-            Guid.NewGuid(), InterviewType.PhoneScreen, DateTime.UtcNow.AddDays(1), 0,
-            null, OneInterviewer, null);
+            OneInterviewer, null);
 
         Assert.Throws<ArgumentException>(act);
     }

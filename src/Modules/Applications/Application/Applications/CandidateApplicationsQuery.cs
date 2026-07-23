@@ -109,7 +109,7 @@ public sealed record CandidateTimelineEntryDto(string Type, string? StageName, D
 // Candidate-safe projection of CandidateInterviewInfo — same shape, kept as its own record so this
 // module's public contract doesn't leak a Shared.Contracts type verbatim into the API response.
 public sealed record CandidateInterviewDto(
-    Guid Id, string Type, DateTime ScheduledAtUtc, int DurationMinutes, string? Location, string Status);
+    Guid Id, string Type, DateTime ScheduledAtUtc, int DurationMinutes, string Status);
 
 public sealed record CandidateApplicationDetailDto(
     Guid Id,
@@ -191,7 +191,7 @@ public sealed class GetCandidateApplicationDetailHandler
         var interviews = await _interviews.GetForApplicationAsync(application.TenantId, application.Id, ct);
         var interviewDtos = interviews
             .Select(i => new CandidateInterviewDto(
-                i.Id, i.Type, i.ScheduledAtUtc, i.DurationMinutes, i.Location, i.Status))
+                i.Id, i.Type, i.ScheduledAtUtc, i.DurationMinutes, i.Status))
             .ToList();
 
         return Result.Success(new CandidateApplicationDetailDto(
@@ -332,7 +332,6 @@ public sealed record CandidateInterviewSummaryDto(
     string Type,
     DateTime ScheduledAtUtc,
     int DurationMinutes,
-    string? Location,
     string Status,
     string RoomToken);
 
@@ -390,7 +389,7 @@ public sealed class ListCandidateInterviewsHandler
                 companies.TryGetValue(application.TenantId, out var company);
                 return new CandidateInterviewSummaryDto(
                     i.Id, i.ApplicationId, job?.Title ?? string.Empty, company?.CompanyName ?? string.Empty,
-                    i.Type, i.ScheduledAtUtc, i.DurationMinutes, i.Location, i.Status, i.RoomToken);
+                    i.Type, i.ScheduledAtUtc, i.DurationMinutes, i.Status, i.RoomToken);
             })
             .OrderByDescending(i => i.ScheduledAtUtc)
             .ToList();

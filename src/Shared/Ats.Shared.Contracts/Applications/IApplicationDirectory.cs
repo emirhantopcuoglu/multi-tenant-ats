@@ -25,6 +25,13 @@ public interface IApplicationDirectory
     Task<IReadOnlyDictionary<Guid, string>> GetCandidateNamesByApplicationAsync(
         IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default);
 
+    // Every application the given candidate holds in the current tenant. The Interviews module uses
+    // it to detect a candidate double-booked across two different applications (each interview
+    // stores only its own application id). In-tenant: the ambient global filter scopes the result,
+    // so a candidate's applications at other companies are neither seen nor relevant here.
+    Task<IReadOnlyList<Guid>> GetApplicationIdsForCandidateAsync(
+        Guid candidateId, CancellationToken cancellationToken = default);
+
     // Number of applications submitted at or after the given instant — feeds the dashboard "New
     // applications this week" stat. The caller decides the window (e.g. the last 7 days) and passes
     // the boundary, so this stays a simple, reusable count.

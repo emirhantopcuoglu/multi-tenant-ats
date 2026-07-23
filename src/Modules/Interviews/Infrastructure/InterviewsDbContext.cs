@@ -28,7 +28,6 @@ public sealed class InterviewsDbContext : DbContext, IInterviewsDbContext
             entity.HasKey(i => i.Id);
             entity.Property(i => i.Type).HasConversion<string>().HasMaxLength(20);
             entity.Property(i => i.Status).HasConversion<string>().HasMaxLength(20);
-            entity.Property(i => i.Location).HasMaxLength(300);
             entity.Property(i => i.Notes).HasMaxLength(5000);
             entity.Property(i => i.RoomToken).HasMaxLength(64).IsRequired();
 
