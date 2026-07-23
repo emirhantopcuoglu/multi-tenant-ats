@@ -38,6 +38,11 @@ export type InterviewType = (typeof INTERVIEW_TYPES)[number];
 export const INTERVIEW_STATUSES = ['Scheduled', 'Completed', 'Cancelled', 'NoShow'] as const;
 export type InterviewStatus = (typeof INTERVIEW_STATUSES)[number];
 
+/* The durations a recruiter may pick, in minutes. Mirrors Interview.AllowedDurationMinutes on the
+   backend — the schedule/reschedule forms offer exactly these and the API rejects anything else. */
+export const INTERVIEW_DURATION_OPTIONS = [10, 15, 20, 30, 45, 60] as const;
+export const DEFAULT_INTERVIEW_DURATION = 30;
+
 export const FEEDBACK_RECOMMENDATIONS = ['StrongNoHire', 'NoHire', 'Hire', 'StrongHire'] as const;
 export type FeedbackRecommendation = (typeof FEEDBACK_RECOMMENDATIONS)[number];
 

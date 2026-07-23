@@ -101,6 +101,7 @@
     "linkedin": "LinkedIn",
     "moveStage": "Aşama değiştir",
     "correctStage": "Aşamayı düzelt (yanlışlığı gider)",
+    "scheduleAnotherInterview": "Başka mülakat planla",
     "hire": "İşe al",
     "reject": "Reddet",
     "notFound": "Bu başvuru bulunamadı.",
@@ -379,20 +380,23 @@
     },
     "form": {
       "candidate": "Aday",
-      "candidatePlaceholder": "Bir aday seç…",
-      "applicationRequired": "Bir aday seç.",
       "type": "Mülakat türü",
       "when": "Tarih ve saat",
-      "whenRequired": "Tarih ve saat seç.",
-      "duration": "Süre (dakika)",
-      "durationInvalid": "Geçerli bir süre gir.",
-      "location": "Konum",
-      "locationPlaceholder": "Toplantı bağlantısı veya oda",
+      "date": "Tarih",
+      "time": "Saat",
+      "dateRequired": "Bir tarih seç.",
+      "timeRequired": "Bir saat seç.",
+      "whenPast": "Gelecek bir tarih ve saat seç.",
+      "duration": "Süre",
       "interviewers": "Görüşmeciler",
       "loadingUsers": "Ekip yükleniyor…",
       "noUsers": "Ekip üyesi bulunamadı.",
       "notes": "Notlar",
       "notesPlaceholder": "Gündem, odak alanları…"
+    },
+    "conflict": {
+      "interviewer": "Bir görüşmecinin bu saatte başka bir mülakatı var.",
+      "candidate": "Adayın bu saatte başka bir mülakatı var."
     },
     "reschedule": {
       "title": "Mülakatı yeniden planla",

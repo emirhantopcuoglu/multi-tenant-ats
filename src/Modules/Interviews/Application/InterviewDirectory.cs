@@ -37,7 +37,7 @@ public sealed class InterviewDirectory : IInterviewDirectory
             .OrderBy(i => i.ScheduledAtUtc)
             .Select(i => new CandidateInterviewInfo(
                 i.Id, i.ApplicationId, i.Type.ToString(), i.ScheduledAtUtc, i.DurationMinutes,
-                i.Location, i.Status.ToString(), i.RoomToken))
+                i.Status.ToString(), i.RoomToken))
             .ToListAsync(cancellationToken);
     }
 
@@ -59,7 +59,7 @@ public sealed class InterviewDirectory : IInterviewDirectory
             .OrderBy(i => i.ScheduledAtUtc)
             .Select(i => new CandidateInterviewInfo(
                 i.Id, i.ApplicationId, i.Type.ToString(), i.ScheduledAtUtc, i.DurationMinutes,
-                i.Location, i.Status.ToString(), i.RoomToken))
+                i.Status.ToString(), i.RoomToken))
             .ToListAsync(cancellationToken);
     }
 }

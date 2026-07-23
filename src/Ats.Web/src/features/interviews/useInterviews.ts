@@ -10,7 +10,6 @@ import {
   submitFeedback,
   type ListInterviewsParams,
 } from './interviewsApi';
-import { listApplications } from '@/features/applications/applicationsApi';
 import type { RescheduleRequest, SubmitFeedbackRequest } from '@/types/interview';
 
 /* Root key for every interviews query, so a single invalidate after any mutation refreshes all
@@ -69,20 +68,5 @@ export function useSubmitFeedback(id: string) {
   return useMutation({
     mutationFn: (body: SubmitFeedbackRequest) => submitFeedback(id, body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: interviewDetailKey(id) }),
-  });
-}
-
-// 100 is the backend's max page size — enough active applications to schedule against for an MVP
-// tenant. Only Active applications can receive an interview, so the picker filters to them.
-const APPLICATION_OPTIONS_PAGE_SIZE = 100;
-
-/* Active applications for the standalone schedule modal's candidate picker. When the modal is opened
-   from an application's detail page the id is already known, so this only runs on the list screen. */
-export function useActiveApplicationOptions(enabled: boolean) {
-  return useQuery({
-    queryKey: ['applications', 'active-options'],
-    queryFn: () => listApplications({ page: 1, pageSize: APPLICATION_OPTIONS_PAGE_SIZE, status: 'Active' }),
-    enabled,
-    staleTime: 30_000,
   });
 }

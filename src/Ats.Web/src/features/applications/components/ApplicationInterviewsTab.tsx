@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Badge, Skeleton } from '@/components/ui';
+import { Badge, Button, Skeleton } from '@/components/ui';
 import { interviewStatusTone } from '@/lib/statusColors';
 import { useInterviews } from '@/features/interviews/useInterviews';
 import { InterviewerAvatars } from '@/features/interviews/components/InterviewerAvatars';
@@ -16,17 +16,37 @@ function CalendarIcon() {
   );
 }
 
+interface ApplicationInterviewsTabProps {
+  applicationId: string;
+  /** True once the application has reached the Interview stage — see ApplicationDetailPage. */
+  canSchedule: boolean;
+  /** Opens the schedule dialog (owned by the parent, shared with the stage-move trigger). */
+  onSchedule: () => void;
+}
+
 /* The application detail's Interviews tab: every interview scheduled against this application,
    most recent first. Reuses the existing GET /interviews?applicationId= endpoint (useInterviews)
    rather than adding a new one — the same data the standalone /interviews page and the pipeline's
-   auto-advance-on-schedule consumer both key off. Soft card rows instead of the dense
-   InterviewsTable: a single application has few interviews, and the candidate column that table
-   carries is redundant here. */
-export function ApplicationInterviewsTab({ applicationId }: { applicationId: string }) {
+   auto-advance-on-schedule consumer both key off. The schedule button is the only entry point for
+   follow-up interviews now that the standalone buttons are gone; the first interview still comes
+   from moving the application into the Interview stage. */
+export function ApplicationInterviewsTab({ applicationId, canSchedule, onSchedule }: ApplicationInterviewsTabProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const dateFormatter = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });
   const query = useInterviews({ page: 1, pageSize: INTERVIEWS_PAGE_SIZE, applicationId });
+
+  const interviews = query.data?.items ?? [];
+
+  const scheduleButton = canSchedule ? (
+    <div className="flex justify-end">
+      <Button variant="secondary" onClick={onSchedule}>
+        {interviews.length > 0
+          ? t('applicationDetail.scheduleAnotherInterview')
+          : t('interviews.schedule')}
+      </Button>
+    </div>
+  ) : null;
 
   if (query.isLoading) {
     return (
@@ -41,40 +61,43 @@ export function ApplicationInterviewsTab({ applicationId }: { applicationId: str
     return <p className="text-sm text-text-muted">{t('interviews.loadError')}</p>;
   }
 
-  const interviews = query.data?.items ?? [];
-  if (interviews.length === 0) {
-    return <p className="text-sm text-text-muted">{t('interviews.empty.title')}</p>;
-  }
-
   return (
-    <ul className="space-y-3">
-      {interviews.map((interview) => (
-        <li
-          key={interview.id}
-          onClick={() => navigate(`/interviews/${interview.id}`)}
-          className="flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-2xl bg-divider/60 px-4 py-3 transition-colors hover:bg-divider"
-        >
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-subtle text-accent">
-              <CalendarIcon />
-            </span>
-            <div className="space-y-0.5">
-              <p className="text-sm font-medium text-text">{t(`interviewType.${interview.type}`)}</p>
-              <p className="text-xs text-text-muted">
-                {dateFormatter.format(new Date(interview.scheduledAtUtc))}
-                {' · '}
-                {t('interviews.minutesShort', { count: interview.durationMinutes })}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <InterviewerAvatars interviewerUserIds={interview.interviewerUserIds} />
-            <Badge tone={interviewStatusTone[interview.status]} dot>
-              {t(`status.${interview.status}`)}
-            </Badge>
-          </div>
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-4">
+      {scheduleButton}
+
+      {interviews.length === 0 ? (
+        <p className="text-sm text-text-muted">{t('interviews.empty.title')}</p>
+      ) : (
+        <ul className="space-y-3">
+          {interviews.map((interview) => (
+            <li
+              key={interview.id}
+              onClick={() => navigate(`/interviews/${interview.id}`)}
+              className="flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-2xl bg-divider/60 px-4 py-3 transition-colors hover:bg-divider"
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-subtle text-accent">
+                  <CalendarIcon />
+                </span>
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium text-text">{t(`interviewType.${interview.type}`)}</p>
+                  <p className="text-xs text-text-muted">
+                    {dateFormatter.format(new Date(interview.scheduledAtUtc))}
+                    {' · '}
+                    {t('interviews.minutesShort', { count: interview.durationMinutes })}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <InterviewerAvatars interviewerUserIds={interview.interviewerUserIds} />
+                <Badge tone={interviewStatusTone[interview.status]} dot>
+                  {t(`status.${interview.status}`)}
+                </Badge>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

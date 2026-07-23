@@ -25,6 +25,5 @@ public sealed record InterviewScheduledEvent(
     InterviewType Type,
     DateTime ScheduledAtUtc,
     int DurationMinutes,
-    string? Location,
     string RoomToken,
     Guid TenantId) : INotification;

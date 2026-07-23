@@ -55,7 +55,7 @@ public sealed class InterviewsController : ControllerBase
     {
         var command = new ScheduleInterviewCommand(
             body.ApplicationId, body.Type, body.ScheduledAtUtc, body.DurationMinutes,
-            body.Location, body.InterviewerUserIds ?? [], body.Notes);
+            body.InterviewerUserIds ?? [], body.Notes);
 
         var result = await _sender.Send(command);
         return result.IsSuccess
@@ -131,6 +131,8 @@ public sealed class InterviewsController : ControllerBase
         "interview.not_found" => NotFound(new { error.Code, error.Message }),
         "interview.feedback_not_eligible" => Conflict(new { error.Code, error.Message }),
         "interview.duplicate_feedback" => Conflict(new { error.Code, error.Message }),
+        "interview.interviewer_conflict" => Conflict(new { error.Code, error.Message }),
+        "interview.candidate_conflict" => Conflict(new { error.Code, error.Message }),
         _ => BadRequest(new { error.Code, error.Message })
     };
 
@@ -139,7 +141,6 @@ public sealed class InterviewsController : ControllerBase
         InterviewType Type,
         DateTime ScheduledAtUtc,
         int DurationMinutes,
-        string? Location,
         IReadOnlyList<Guid>? InterviewerUserIds,
         string? Notes);
 

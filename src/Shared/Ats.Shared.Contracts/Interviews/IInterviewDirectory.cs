@@ -39,6 +39,5 @@ public sealed record CandidateInterviewInfo(
     string Type,
     DateTime ScheduledAtUtc,
     int DurationMinutes,
-    string? Location,
     string Status,
     string RoomToken);

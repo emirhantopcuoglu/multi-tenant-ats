@@ -23,4 +23,10 @@ public static class InterviewErrors
 
     public static readonly Error DuplicateFeedback =
         new("interview.duplicate_feedback", "Feedback has already been submitted by this interviewer for this interview.");
+
+    public static readonly Error InterviewerConflict =
+        new("interview.interviewer_conflict", "An interviewer already has another interview at this time.");
+
+    public static readonly Error CandidateConflict =
+        new("interview.candidate_conflict", "The candidate already has another interview at this time.");
 }

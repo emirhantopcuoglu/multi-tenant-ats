@@ -36,7 +36,6 @@ export interface CandidateInterview {
   type: InterviewType;
   scheduledAtUtc: string;
   durationMinutes: number;
-  location: string | null;
   status: InterviewStatus;
 }
 

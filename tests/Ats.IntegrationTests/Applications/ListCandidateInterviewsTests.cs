@@ -64,12 +64,12 @@ public sealed class ListCandidateInterviewsTests
         var scheduledAt = DateTime.UtcNow.AddDays(2);
         var interviews = new List<CandidateInterviewInfo>
         {
-            new(Guid.NewGuid(), applicationA.Id, "Technical", scheduledAt, 60, "Google Meet", "Scheduled", "token-a"),
-            new(Guid.NewGuid(), applicationB.Id, "Final", scheduledAt.AddDays(1), 30, null, "Scheduled", "token-b"),
+            new(Guid.NewGuid(), applicationA.Id, "Technical", scheduledAt, 60, "Scheduled", "token-a"),
+            new(Guid.NewGuid(), applicationB.Id, "Final", scheduledAt.AddDays(1), 30, "Scheduled", "token-b"),
             // Belongs to a different candidate's application — the handler must never fetch or
             // surface this one, but the fake returns it unconditionally to prove that filtering
             // happens before the interview lookup, not after.
-            new(Guid.NewGuid(), applicationOther.Id, "PhoneScreen", scheduledAt, 30, null, "Scheduled", "token-other"),
+            new(Guid.NewGuid(), applicationOther.Id, "PhoneScreen", scheduledAt, 30, "Scheduled", "token-other"),
         };
 
         // Act

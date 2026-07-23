@@ -252,15 +252,17 @@ export function ApplicationsPage() {
         </div>
       )}
 
-      <ScheduleInterviewModal
-        open={interviewPrompt !== null}
-        onOpenChange={(open) => {
-          if (!open) setInterviewPrompt(null);
-        }}
-        applicationId={interviewPrompt?.applicationId}
-        candidateName={interviewPrompt?.candidateName}
-        onScheduled={() => board.applicationsQuery.refetch()}
-      />
+      {interviewPrompt && (
+        <ScheduleInterviewModal
+          open
+          onOpenChange={(open) => {
+            if (!open) setInterviewPrompt(null);
+          }}
+          applicationId={interviewPrompt.applicationId}
+          candidateName={interviewPrompt.candidateName}
+          onScheduled={() => board.applicationsQuery.refetch()}
+        />
+      )}
     </div>
   );
 }

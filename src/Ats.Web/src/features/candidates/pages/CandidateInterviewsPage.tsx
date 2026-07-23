@@ -78,12 +78,19 @@ export function CandidateInterviewsPage() {
                     <Badge tone={interviewStatusTone[interview.status]} dot>
                       {t(`status.${interview.status}`)}
                     </Badge>
-                    <Link
-                      to={`/interview-room/${interview.roomToken}`}
-                      className="text-sm font-medium text-accent hover:underline"
-                    >
-                      {t('candidatePortal.interviews.openRoom')}
-                    </Link>
+                    {interview.status === 'Scheduled' ? (
+                      <Link
+                        to={`/interview-room/${interview.roomToken}`}
+                        className="text-sm font-medium text-accent hover:underline"
+                      >
+                        {t('candidatePortal.interviews.openRoom')}
+                      </Link>
+                    ) : (
+                      // A settled interview (completed/cancelled/no-show) has no live room to open.
+                      <span className="cursor-not-allowed text-sm font-medium text-text-disabled">
+                        {t('candidatePortal.interviews.openRoom')}
+                      </span>
+                    )}
                   </div>
                 </Card>
               </li>

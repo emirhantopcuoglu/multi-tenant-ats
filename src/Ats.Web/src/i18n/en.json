@@ -101,6 +101,7 @@
     "linkedin": "LinkedIn",
     "moveStage": "Move stage",
     "correctStage": "Correct stage (fix a mistake)",
+    "scheduleAnotherInterview": "Schedule another interview",
     "hire": "Hire",
     "reject": "Reject",
     "notFound": "This application could not be found.",
@@ -379,20 +380,23 @@
     },
     "form": {
       "candidate": "Candidate",
-      "candidatePlaceholder": "Select a candidate…",
-      "applicationRequired": "Select a candidate.",
       "type": "Interview type",
       "when": "Date & time",
-      "whenRequired": "Pick a date and time.",
-      "duration": "Duration (minutes)",
-      "durationInvalid": "Enter a valid duration.",
-      "location": "Location",
-      "locationPlaceholder": "Meet link or room",
+      "date": "Date",
+      "time": "Time",
+      "dateRequired": "Pick a date.",
+      "timeRequired": "Pick a time.",
+      "whenPast": "Pick a future date and time.",
+      "duration": "Duration",
       "interviewers": "Interviewers",
       "loadingUsers": "Loading team…",
       "noUsers": "No team members found.",
       "notes": "Notes",
       "notesPlaceholder": "Agenda, focus areas…"
+    },
+    "conflict": {
+      "interviewer": "An interviewer already has another interview at this time.",
+      "candidate": "The candidate already has another interview at this time."
     },
     "reschedule": {
       "title": "Reschedule interview",

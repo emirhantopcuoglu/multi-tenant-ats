@@ -24,7 +24,6 @@ public sealed record InterviewScheduledIntegrationEvent(
     string InterviewType,
     DateTime ScheduledAtUtc,
     int DurationMinutes,
-    string? Location,
     // Locator for the (future) live interview room. Not a bearer secret — see Interview.RoomToken —
     // so it is safe to carry through the notification pipeline and into an email/in-app message.
     string RoomToken,

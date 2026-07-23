@@ -2,33 +2,42 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Checkbox, Field, Input, Modal, Select, Textarea, useToast } from '@/components/ui';
 import { fullName, useUsers } from '@/features/users/useUsers';
-import { INTERVIEW_TYPES, type InterviewType } from '@/types/enums';
-import { useActiveApplicationOptions, useScheduleInterview } from '../useInterviews';
+import { toApiError } from '@/lib/problemDetails';
+import {
+  DEFAULT_INTERVIEW_DURATION,
+  INTERVIEW_DURATION_OPTIONS,
+  INTERVIEW_TYPES,
+  type InterviewType,
+} from '@/types/enums';
+import { useScheduleInterview } from '../useInterviews';
 
 interface ScheduleInterviewModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** When scheduling from an application's detail page the candidate is fixed: the picker is hidden
-      and this id is used directly. Omit it on the standalone list to show the candidate picker. */
-  applicationId?: string;
-  /** Shown read-only when applicationId is fixed, so the user sees who they are scheduling for. */
+  /** The application this interview is for — always fixed now that scheduling is candidate-contextual. */
+  applicationId: string;
+  /** Shown read-only so the user sees who they are scheduling for. */
   candidateName?: string;
-  /** Called with the new interview's id after a successful schedule (the caller may navigate to it). */
+  /** Called with the new interview's id after a successful schedule (the caller may navigate/refetch). */
   onScheduled?: (id: string) => void;
 }
 
-const DEFAULT_DURATION_MINUTES = 60;
-const MIN_DURATION_MINUTES = 1;
-
 interface FormErrors {
-  applicationId?: string;
-  scheduledAt?: string;
-  duration?: string;
+  date?: string;
+  time?: string;
 }
 
-/* Schedule form. It collects a local date+time and converts to a UTC ISO string before sending, since
-   the API stores scheduledAtUtc in UTC. The interviewer panel is optional here to match the backend
-   (an interview can be scheduled before the panel is finalised); feedback later gates on it. */
+/* Today's date as the YYYY-MM-DD a native date input expects, in the viewer's local zone (so it
+   doesn't slip a day near midnight the way a naive UTC slice would). Used as the min so a past day
+   can't be picked; the future-instant check below still guards a past time on today. */
+function localDateInputValue(date: Date): string {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
+
+/* Schedule form. It collects a local date + time and converts to a UTC ISO string before sending,
+   since the API stores scheduledAtUtc in UTC. Interviewers are optional here (an interview can be
+   scheduled before the panel is finalised); feedback later gates on the panel. */
 export function ScheduleInterviewModal({
   open,
   onOpenChange,
@@ -41,15 +50,10 @@ export function ScheduleInterviewModal({
   const schedule = useScheduleInterview();
   const usersQuery = useUsers();
 
-  // Only fetch the candidate list when the picker is actually shown (no fixed application).
-  const needsPicker = !applicationId;
-  const applicationsQuery = useActiveApplicationOptions(open && needsPicker);
-
-  const [pickedApplicationId, setPickedApplicationId] = useState('');
   const [type, setType] = useState<InterviewType>(INTERVIEW_TYPES[0]);
-  const [scheduledAt, setScheduledAt] = useState('');
-  const [durationMinutes, setDurationMinutes] = useState(String(DEFAULT_DURATION_MINUTES));
-  const [location, setLocation] = useState('');
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  const [durationMinutes, setDurationMinutes] = useState<number>(DEFAULT_INTERVIEW_DURATION);
   const [interviewerUserIds, setInterviewerUserIds] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
@@ -57,11 +61,10 @@ export function ScheduleInterviewModal({
   // Reset every field when the modal (re)opens, so a previous draft never lingers.
   useEffect(() => {
     if (open) {
-      setPickedApplicationId('');
       setType(INTERVIEW_TYPES[0]);
-      setScheduledAt('');
-      setDurationMinutes(String(DEFAULT_DURATION_MINUTES));
-      setLocation('');
+      setDate('');
+      setTime('');
+      setDurationMinutes(DEFAULT_INTERVIEW_DURATION);
       setInterviewerUserIds([]);
       setNotes('');
       setErrors({});
@@ -74,28 +77,27 @@ export function ScheduleInterviewModal({
     );
 
   const handleSubmit = () => {
-    const effectiveApplicationId = applicationId ?? pickedApplicationId;
-    const duration = Number(durationMinutes);
-
     const nextErrors: FormErrors = {};
-    if (!effectiveApplicationId) nextErrors.applicationId = t('interviews.form.applicationRequired');
-    if (!scheduledAt) nextErrors.scheduledAt = t('interviews.form.whenRequired');
-    if (!Number.isFinite(duration) || duration < MIN_DURATION_MINUTES)
-      nextErrors.duration = t('interviews.form.durationInvalid');
+    if (!date) nextErrors.date = t('interviews.form.dateRequired');
+    if (!time) nextErrors.time = t('interviews.form.timeRequired');
 
-    if (Object.keys(nextErrors).length > 0) {
+    // datetime-local yields a local wall-clock time; combining date + time the same way and then
+    // checking it is a real, future instant keeps a past slot (or an invalid combination) out.
+    const scheduledAt = date && time ? new Date(`${date}T${time}`) : null;
+    if (scheduledAt && (Number.isNaN(scheduledAt.getTime()) || scheduledAt.getTime() <= Date.now()))
+      nextErrors.time = t('interviews.form.whenPast');
+
+    if (Object.keys(nextErrors).length > 0 || !scheduledAt) {
       setErrors(nextErrors);
       return;
     }
 
     schedule.mutate(
       {
-        applicationId: effectiveApplicationId,
+        applicationId,
         type,
-        // datetime-local yields a local wall-clock time; convert to the UTC instant the API expects.
-        scheduledAtUtc: new Date(scheduledAt).toISOString(),
-        durationMinutes: duration,
-        location: location.trim() || undefined,
+        scheduledAtUtc: scheduledAt.toISOString(),
+        durationMinutes,
         interviewerUserIds,
         notes: notes.trim() || undefined,
       },
@@ -105,12 +107,18 @@ export function ScheduleInterviewModal({
           toast({ title: t('interviews.toast.scheduled'), tone: 'success' });
           onScheduled?.(id);
         },
-        onError: () => toast({ title: t('interviews.toast.error'), tone: 'danger' }),
+        onError: (error) => toast({ title: conflictMessage(error), tone: 'danger' }),
       },
     );
   };
 
-  const applications = applicationsQuery.data?.items ?? [];
+  // Turn the backend's 409 conflict codes into a specific message; anything else is the generic error.
+  const conflictMessage = (error: unknown): string => {
+    const { code } = toApiError(error);
+    if (code === 'interview.interviewer_conflict') return t('interviews.conflict.interviewer');
+    if (code === 'interview.candidate_conflict') return t('interviews.conflict.candidate');
+    return t('interviews.toast.error');
+  };
 
   return (
     <Modal
@@ -131,32 +139,10 @@ export function ScheduleInterviewModal({
       }
     >
       <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
-        {needsPicker ? (
-          <Field label={t('interviews.form.candidate')} error={errors.applicationId}>
-            {({ id, describedById, invalid }) => (
-              <Select
-                id={id}
-                aria-describedby={describedById}
-                invalid={invalid}
-                value={pickedApplicationId}
-                onChange={(event) => setPickedApplicationId(event.target.value)}
-                disabled={applicationsQuery.isLoading}
-              >
-                <option value="">{t('interviews.form.candidatePlaceholder')}</option>
-                {applications.map((application) => (
-                  <option key={application.id} value={application.id}>
-                    {application.candidateName}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
-        ) : (
-          <div className="space-y-1.5">
-            <span className="block text-sm font-medium text-text">{t('interviews.form.candidate')}</span>
-            <p className="text-sm text-text-muted">{candidateName ?? '—'}</p>
-          </div>
-        )}
+        <div className="space-y-1.5">
+          <span className="block text-sm font-medium text-text">{t('interviews.form.candidate')}</span>
+          <p className="text-sm text-text-muted">{candidateName ?? '—'}</p>
+        </div>
 
         <Field label={t('interviews.form.type')}>
           {({ id }) => (
@@ -171,44 +157,55 @@ export function ScheduleInterviewModal({
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label={t('interviews.form.when')} error={errors.scheduledAt}>
+          <Field label={t('interviews.form.date')} error={errors.date}>
             {({ id, describedById, invalid }) => (
               <Input
                 id={id}
-                type="datetime-local"
+                type="date"
+                min={localDateInputValue(new Date())}
                 aria-describedby={describedById}
                 invalid={invalid}
-                value={scheduledAt}
-                onChange={(event) => setScheduledAt(event.target.value)}
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
               />
             )}
           </Field>
 
-          <Field label={t('interviews.form.duration')} error={errors.duration}>
+          <Field label={t('interviews.form.time')} error={errors.time}>
             {({ id, describedById, invalid }) => (
               <Input
                 id={id}
-                type="number"
-                min={MIN_DURATION_MINUTES}
+                type="time"
                 aria-describedby={describedById}
                 invalid={invalid}
-                value={durationMinutes}
-                onChange={(event) => setDurationMinutes(event.target.value)}
+                value={time}
+                onChange={(event) => setTime(event.target.value)}
               />
             )}
           </Field>
         </div>
 
-        <Field label={t('interviews.form.location')}>
-          {({ id }) => (
-            <Input
-              id={id}
-              value={location}
-              onChange={(event) => setLocation(event.target.value)}
-              placeholder={t('interviews.form.locationPlaceholder')}
-            />
-          )}
-        </Field>
+        <div className="space-y-1.5">
+          <span className="block text-sm font-medium text-text">{t('interviews.form.duration')}</span>
+          <div className="flex flex-wrap gap-2">
+            {INTERVIEW_DURATION_OPTIONS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={durationMinutes === value}
+                onClick={() => setDurationMinutes(value)}
+                className={
+                  'rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ' +
+                  (durationMinutes === value
+                    ? 'border-transparent bg-accent text-accent-fg'
+                    : 'border-border bg-card text-text hover:bg-divider')
+                }
+              >
+                {t('interviews.minutesShort', { count: value })}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="space-y-1.5">
           <span className="block text-sm font-medium text-text">{t('interviews.form.interviewers')}</span>

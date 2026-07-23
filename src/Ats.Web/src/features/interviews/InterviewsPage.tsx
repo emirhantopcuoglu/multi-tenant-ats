@@ -1,27 +1,22 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, EmptyState, Pagination } from '@/components/ui';
-import { useAuth } from '@/app/auth/auth-context';
 import { useUsers } from '@/features/users/useUsers';
-import { canManageInterviews } from './interviewPermissions';
 import { isDateRange, resolveDateRange, type DateRange } from './dateRange';
 import { useInterviews } from './useInterviews';
 import { InterviewsToolbar } from './components/InterviewsToolbar';
 import { InterviewsTable, InterviewsTableSkeleton } from './components/InterviewsTable';
-import { ScheduleInterviewModal } from './components/ScheduleInterviewModal';
 
 const PAGE_SIZE = 20;
 
-/* Interviews list (Step 3.6). A date-range preset and an interviewer filter (both mirrored to the URL)
-   drive the query; managers can schedule from here. The calendar view is deferred to a later slice. */
+/* Interviews list (Step 3.6). A date-range preset and an interviewer filter (both mirrored to the
+   URL) drive the query. Read-only: interviews are scheduled from a candidate's application, not from
+   here. The calendar view is deferred to a later slice. */
 export function InterviewsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { role } = useAuth();
-  const canManage = canManageInterviews(role);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   const pageParam = Number(searchParams.get('page'));
   const page = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;
@@ -79,8 +74,6 @@ export function InterviewsPage() {
         interviewerId={interviewerId}
         onInterviewerChange={setInterviewer}
         users={usersQuery.data ?? []}
-        canManage={canManage}
-        onSchedule={() => setScheduleOpen(true)}
       />
 
       {isLoading ? (
@@ -118,12 +111,6 @@ export function InterviewsPage() {
           </div>
         </div>
       )}
-
-      <ScheduleInterviewModal
-        open={scheduleOpen}
-        onOpenChange={setScheduleOpen}
-        onScheduled={openInterview}
-      />
     </div>
   );
 }

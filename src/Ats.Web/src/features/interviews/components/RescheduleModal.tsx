@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Field, Input, Modal } from '@/components/ui';
+import {
+  DEFAULT_INTERVIEW_DURATION,
+  INTERVIEW_DURATION_OPTIONS,
+} from '@/types/enums';
 import type { RescheduleRequest } from '@/types/interview';
 
 interface RescheduleModalProps {
@@ -13,18 +17,24 @@ interface RescheduleModalProps {
   onConfirm: (body: RescheduleRequest) => void;
 }
 
-const MIN_DURATION_MINUTES = 1;
-
-/* Convert a UTC ISO instant to the local "YYYY-MM-DDTHH:mm" string a datetime-local input expects.
-   Subtracting the timezone offset shifts the UTC clock to local wall-clock time before formatting. */
-function toDateTimeLocalValue(iso: string): string {
-  const date = new Date(iso);
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
+/* Split a UTC ISO instant into the local YYYY-MM-DD and HH:mm a native date/time input expects.
+   Shifting by the timezone offset turns the UTC clock into local wall-clock before formatting. */
+function toLocalParts(iso: string): { date: string; time: string } {
+  const local = new Date(new Date(iso).getTime() - new Date(iso).getTimezoneOffset() * 60_000);
+  const [date, clock] = local.toISOString().split('T');
+  return { date, time: clock.slice(0, 5) };
 }
 
-/* Reschedule form: a new date+time and duration. Controlled-confirm like the reject dialog — the page
-   owns the mutation and toast; this component only collects and validates input. */
+function localDateInputValue(date: Date): string {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
+
+const isPreset = (minutes: number): boolean =>
+  (INTERVIEW_DURATION_OPTIONS as readonly number[]).includes(minutes);
+
+/* Reschedule form: a new date + time and a preset duration. Controlled-confirm like the reject
+   dialog — the page owns the mutation and toast; this component only collects and validates input. */
 export function RescheduleModal({
   open,
   onOpenChange,
@@ -34,35 +44,38 @@ export function RescheduleModal({
   onConfirm,
 }: RescheduleModalProps) {
   const { t } = useTranslation();
-  const [scheduledAt, setScheduledAt] = useState('');
-  const [duration, setDuration] = useState('');
-  const [errors, setErrors] = useState<{ scheduledAt?: string; duration?: string }>({});
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  const [duration, setDuration] = useState<number>(DEFAULT_INTERVIEW_DURATION);
+  const [errors, setErrors] = useState<{ date?: string; time?: string }>({});
 
-  // Re-seed from the current interview every time the modal opens.
+  // Re-seed from the current interview every time the modal opens. A legacy off-preset duration
+  // falls back to the default so the form can only ever submit an allowed value.
   useEffect(() => {
     if (open) {
-      setScheduledAt(toDateTimeLocalValue(scheduledAtUtc));
-      setDuration(String(durationMinutes));
+      const parts = toLocalParts(scheduledAtUtc);
+      setDate(parts.date);
+      setTime(parts.time);
+      setDuration(isPreset(durationMinutes) ? durationMinutes : DEFAULT_INTERVIEW_DURATION);
       setErrors({});
     }
   }, [open, scheduledAtUtc, durationMinutes]);
 
   const handleConfirm = () => {
-    const parsedDuration = Number(duration);
     const nextErrors: typeof errors = {};
-    if (!scheduledAt) nextErrors.scheduledAt = t('interviews.form.whenRequired');
-    if (!Number.isFinite(parsedDuration) || parsedDuration < MIN_DURATION_MINUTES)
-      nextErrors.duration = t('interviews.form.durationInvalid');
+    if (!date) nextErrors.date = t('interviews.form.dateRequired');
+    if (!time) nextErrors.time = t('interviews.form.timeRequired');
 
-    if (Object.keys(nextErrors).length > 0) {
+    const scheduledAt = date && time ? new Date(`${date}T${time}`) : null;
+    if (scheduledAt && (Number.isNaN(scheduledAt.getTime()) || scheduledAt.getTime() <= Date.now()))
+      nextErrors.time = t('interviews.form.whenPast');
+
+    if (Object.keys(nextErrors).length > 0 || !scheduledAt) {
       setErrors(nextErrors);
       return;
     }
 
-    onConfirm({
-      scheduledAtUtc: new Date(scheduledAt).toISOString(),
-      durationMinutes: parsedDuration,
-    });
+    onConfirm({ scheduledAtUtc: scheduledAt.toISOString(), durationMinutes: duration });
   };
 
   return (
@@ -82,33 +95,57 @@ export function RescheduleModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label={t('interviews.form.when')} error={errors.scheduledAt}>
-          {({ id, describedById, invalid }) => (
-            <Input
-              id={id}
-              type="datetime-local"
-              aria-describedby={describedById}
-              invalid={invalid}
-              value={scheduledAt}
-              onChange={(event) => setScheduledAt(event.target.value)}
-            />
-          )}
-        </Field>
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label={t('interviews.form.date')} error={errors.date}>
+            {({ id, describedById, invalid }) => (
+              <Input
+                id={id}
+                type="date"
+                min={localDateInputValue(new Date())}
+                aria-describedby={describedById}
+                invalid={invalid}
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+              />
+            )}
+          </Field>
 
-        <Field label={t('interviews.form.duration')} error={errors.duration}>
-          {({ id, describedById, invalid }) => (
-            <Input
-              id={id}
-              type="number"
-              min={MIN_DURATION_MINUTES}
-              aria-describedby={describedById}
-              invalid={invalid}
-              value={duration}
-              onChange={(event) => setDuration(event.target.value)}
-            />
-          )}
-        </Field>
+          <Field label={t('interviews.form.time')} error={errors.time}>
+            {({ id, describedById, invalid }) => (
+              <Input
+                id={id}
+                type="time"
+                aria-describedby={describedById}
+                invalid={invalid}
+                value={time}
+                onChange={(event) => setTime(event.target.value)}
+              />
+            )}
+          </Field>
+        </div>
+
+        <div className="space-y-1.5">
+          <span className="block text-sm font-medium text-text">{t('interviews.form.duration')}</span>
+          <div className="flex flex-wrap gap-2">
+            {INTERVIEW_DURATION_OPTIONS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={duration === value}
+                onClick={() => setDuration(value)}
+                className={
+                  'rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ' +
+                  (duration === value
+                    ? 'border-transparent bg-accent text-accent-fg'
+                    : 'border-border bg-card text-text hover:bg-divider')
+                }
+              >
+                {t('interviews.minutesShort', { count: value })}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </Modal>
   );

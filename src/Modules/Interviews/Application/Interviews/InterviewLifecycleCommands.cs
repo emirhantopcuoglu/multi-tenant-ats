@@ -1,3 +1,5 @@
+using Ats.Modules.Interviews.Domain;
+using Ats.Shared.Contracts.Applications;
 using Ats.Shared.Kernel;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -14,28 +16,50 @@ public sealed record RescheduleInterviewCommand(
 
 public sealed class RescheduleInterviewValidator : AbstractValidator<RescheduleInterviewCommand>
 {
-    private const int MaxDurationMinutes = 8 * 60;
-
     public RescheduleInterviewValidator()
     {
         RuleFor(x => x.InterviewId).NotEmpty();
         RuleFor(x => x.ScheduledAtUtc)
             .GreaterThan(_ => DateTime.UtcNow)
             .WithMessage("The interview must be scheduled in the future.");
-        RuleFor(x => x.DurationMinutes).InclusiveBetween(1, MaxDurationMinutes);
+        RuleFor(x => x.DurationMinutes)
+            .Must(Interview.AllowedDurationMinutes.Contains)
+            .WithMessage("Duration must be one of the allowed presets.");
     }
 }
 
 public sealed class RescheduleInterviewHandler : ICommandHandler<RescheduleInterviewCommand, bool>
 {
     private readonly IInterviewsDbContext _db;
-    public RescheduleInterviewHandler(IInterviewsDbContext db) => _db = db;
+    private readonly IApplicationDirectory _applications;
+
+    public RescheduleInterviewHandler(IInterviewsDbContext db, IApplicationDirectory applications)
+    {
+        _db = db;
+        _applications = applications;
+    }
 
     public async Task<Result<bool>> Handle(RescheduleInterviewCommand command, CancellationToken ct)
     {
         var interview = await _db.Interviews.FirstOrDefaultAsync(i => i.Id == command.InterviewId, ct);
         if (interview is null)
             return Result.Failure<bool>(InterviewErrors.NotFound);
+
+        // Resolve the candidate behind the interview so the overlap check catches the candidate being
+        // double-booked too, not only an interviewer. The application always exists in this tenant
+        // (the interview was scheduled against it); an empty set just skips the candidate check.
+        var application = await _applications.GetForSchedulingAsync(interview.ApplicationId, ct);
+        IReadOnlyList<Guid> candidateApplicationIds = application is null
+            ? []
+            : await _applications.GetApplicationIdsForCandidateAsync(application.CandidateId, ct);
+
+        // The new time must not collide with the interviewers' or the candidate's other interviews;
+        // this interview itself is excluded so it never conflicts with its own old slot.
+        var conflict = await InterviewConflictGuard.CheckAsync(
+            _db, command.ScheduledAtUtc, command.DurationMinutes, interview.InterviewerUserIds,
+            candidateApplicationIds, excludeInterviewId: interview.Id, ct);
+        if (conflict is not null)
+            return Result.Failure<bool>(conflict);
 
         try
         {

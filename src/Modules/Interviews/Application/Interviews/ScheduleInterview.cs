@@ -12,14 +12,11 @@ public sealed record ScheduleInterviewCommand(
     InterviewType Type,
     DateTime ScheduledAtUtc,
     int DurationMinutes,
-    string? Location,
     IReadOnlyList<Guid> InterviewerUserIds,
     string? Notes) : ICommand<Guid>;
 
 public sealed class ScheduleInterviewValidator : AbstractValidator<ScheduleInterviewCommand>
 {
-    private const int MaxDurationMinutes = 8 * 60;
-
     public ScheduleInterviewValidator()
     {
         RuleFor(x => x.ApplicationId).NotEmpty();
@@ -27,8 +24,9 @@ public sealed class ScheduleInterviewValidator : AbstractValidator<ScheduleInter
         RuleFor(x => x.ScheduledAtUtc)
             .GreaterThan(_ => DateTime.UtcNow)
             .WithMessage("The interview must be scheduled in the future.");
-        RuleFor(x => x.DurationMinutes).InclusiveBetween(1, MaxDurationMinutes);
-        RuleFor(x => x.Location).MaximumLength(300);
+        RuleFor(x => x.DurationMinutes)
+            .Must(Interview.AllowedDurationMinutes.Contains)
+            .WithMessage("Duration must be one of the allowed presets.");
         RuleFor(x => x.Notes).MaximumLength(5000);
         RuleFor(x => x.InterviewerUserIds)
             .NotEmpty().WithMessage("At least one interviewer is required.");
@@ -66,14 +64,26 @@ public sealed class ScheduleInterviewHandler : ICommandHandler<ScheduleInterview
         if (!application.IsActive)
             return Result.Failure<Guid>(InterviewErrors.ApplicationNotActive);
 
+        // Every application the same candidate holds in this tenant, so the overlap check below can
+        // catch a candidate double-booked across two different job applications, not just this one.
+        var candidateApplicationIds = await _applications.GetApplicationIdsForCandidateAsync(
+            application.CandidateId, ct);
+
+        // Reject a schedule that would put an interviewer (or the candidate) in two places at once.
+        var conflict = await InterviewConflictGuard.CheckAsync(
+            _db, command.ScheduledAtUtc, command.DurationMinutes, command.InterviewerUserIds,
+            candidateApplicationIds, excludeInterviewId: null, ct);
+        if (conflict is not null)
+            return Result.Failure<Guid>(conflict);
+
         Interview interview;
         try
         {
-            // The entity owns the scheduling invariants (future time, positive duration, at least one
+            // The entity owns the scheduling invariants (future time, preset duration, at least one
             // interviewer). The validator already reported these as 400s; this guards them regardless.
             interview = Interview.Schedule(
                 command.ApplicationId, command.Type, command.ScheduledAtUtc, command.DurationMinutes,
-                command.Location, command.InterviewerUserIds, command.Notes);
+                command.InterviewerUserIds, command.Notes);
         }
         catch (ArgumentException ex)
         {
@@ -97,7 +107,7 @@ public sealed class ScheduleInterviewHandler : ICommandHandler<ScheduleInterview
                 application.CandidateId, application.CandidateAccountId,
                 application.CandidateEmail, application.CandidateFirstName,
                 interview.Type, interview.ScheduledAtUtc, interview.DurationMinutes,
-                interview.Location, interview.RoomToken, _currentTenant.TenantId ?? Guid.Empty),
+                interview.RoomToken, _currentTenant.TenantId ?? Guid.Empty),
             ct);
 
         return Result.Success(interview.Id);

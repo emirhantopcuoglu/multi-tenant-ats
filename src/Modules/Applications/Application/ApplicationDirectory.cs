@@ -83,6 +83,18 @@ public sealed class ApplicationDirectory : IApplicationDirectory
         return pairs.ToDictionary(pair => pair.Id, pair => pair.FullName);
     }
 
+    public async Task<IReadOnlyList<Guid>> GetApplicationIdsForCandidateAsync(
+        Guid candidateId, CancellationToken cancellationToken = default)
+    {
+        // Ambient tenant filter applies: only this tenant's applications for the candidate. Soft
+        // deletes are excluded by the same global filter (Application is ISoftDeletable).
+        return await _db.Applications
+            .AsNoTracking()
+            .Where(a => a.CandidateId == candidateId)
+            .Select(a => a.Id)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<int> CountApplicationsSinceAsync(
         DateTime sinceUtc, CancellationToken cancellationToken = default)
     {
