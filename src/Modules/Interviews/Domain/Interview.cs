@@ -35,7 +35,10 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
     // (256-bit random) text with a unique index rather than a one-time hashed token. The join
     // endpoint is what actually gates access (auth + participant membership + time window) — the
     // token only keeps the URL from being enumerable.
-    public string RoomToken { get; private set; } = string.Empty;
+    //
+    // Null for a phone screen: that interview happens over the phone, so there is no live room to
+    // link to. A unique index tolerates many NULLs in PostgreSQL, so several phone screens coexist.
+    public string? RoomToken { get; private set; }
 
     // The interviewers, stored as a native PostgreSQL uuid[] column rather than a child table: the
     // list is small, owned wholly by the interview, and queried with "is this user an interviewer"
@@ -66,7 +69,7 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
         DurationMinutes = durationMinutes;
         Notes = notes;
         Status = InterviewStatus.Scheduled;
-        RoomToken = GenerateRoomToken();
+        RoomToken = UsesRoom(type) ? GenerateRoomToken() : null;
         _interviewerUserIds.AddRange(interviewerUserIds);
     }
 
@@ -131,7 +134,22 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
         ScheduledAtUtc.AddMinutes(DurationMinutes).AddMinutes(RoomCloseGraceMinutes);
 
     public bool IsRoomOpen(DateTime nowUtc) =>
-        Status == InterviewStatus.Scheduled && nowUtc >= RoomOpensAtUtc && nowUtc <= RoomClosesAtUtc;
+        RoomToken is not null
+        && Status == InterviewStatus.Scheduled
+        && nowUtc >= RoomOpensAtUtc && nowUtc <= RoomClosesAtUtc;
+
+    // Only an online interview type gets a live room; a phone screen happens over the phone. Keeping
+    // this a single predicate means the room token, the candidate's "open room" link and the emailed
+    // link all agree on exactly when a room exists.
+    public static bool UsesRoom(InterviewType type) => type != InterviewType.PhoneScreen;
+
+    // An interview can be evaluated only once it has actually taken place: either explicitly marked
+    // Completed, or its scheduled end time has already passed. A still-future interview has nothing
+    // to evaluate yet; a Cancelled or NoShow one never produced anything to evaluate.
+    public bool CanReceiveFeedback(DateTime nowUtc) =>
+        Status == InterviewStatus.Completed
+        || (Status == InterviewStatus.Scheduled
+            && nowUtc >= ScheduledAtUtc.AddMinutes(DurationMinutes));
 
     private void EnsureScheduled(string action)
     {

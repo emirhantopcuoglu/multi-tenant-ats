@@ -10,7 +10,7 @@ public sealed record InterviewListItemDto(
 
 public sealed record InterviewDetailDto(
     Guid Id, Guid ApplicationId, string Type, DateTime ScheduledAtUtc, int DurationMinutes,
-    string Status, string? Notes, IReadOnlyList<Guid> InterviewerUserIds, string RoomToken);
+    string Status, string? Notes, IReadOnlyList<Guid> InterviewerUserIds, string? RoomToken);
 
 // ---- ListInterviews (filtered by date range / interviewer, paginated) ----
 public sealed record ListInterviewsQuery(

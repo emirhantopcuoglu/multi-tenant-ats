@@ -32,7 +32,7 @@ public interface IInterviewDirectory
 // Candidate-safe by shape: no interviewer ids, no recruiter notes. A mapping bug can't leak either
 // one because there is no field here to carry them. RoomToken is safe to include — see
 // Interview.RoomToken — it is a locator, not a bearer secret, and the candidate portal needs it to
-// link into the (future) room.
+// link into the (future) room. Null for a phone screen, which has no room.
 public sealed record CandidateInterviewInfo(
     Guid Id,
     Guid ApplicationId,
@@ -40,4 +40,4 @@ public sealed record CandidateInterviewInfo(
     DateTime ScheduledAtUtc,
     int DurationMinutes,
     string Status,
-    string RoomToken);
+    string? RoomToken);

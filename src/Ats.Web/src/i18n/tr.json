@@ -430,6 +430,7 @@
       "toast": "Değerlendirme gönderildi.",
       "locked": "Bu mülakat için yalnızca atanmış görüşmeciler değerlendirme gönderebilir.",
       "lockedCancelled": "Bu mülakat iptal edildiği için değerlendirme kapalı.",
+      "lockedNotYet": "Mülakat gerçekleştikten sonra değerlendirme gönderebilirsin.",
       "notEligible": "Bu mülakat için değerlendirme gönderilemez."
     },
     "toast": {
@@ -530,7 +531,8 @@
       "title": "Mülakatlarım",
       "subtitle": "Tüm başvuruların genelinde planlanan mülakatlar.",
       "empty": "Henüz planlanmış bir mülakatın yok.",
-      "openRoom": "Odayı aç"
+      "openRoom": "Odayı aç",
+      "phone": "Telefon görüşmesi"
     },
     "col": {
       "position": "Pozisyon",

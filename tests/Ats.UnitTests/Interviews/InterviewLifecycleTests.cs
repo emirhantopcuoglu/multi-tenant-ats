@@ -44,6 +44,64 @@ public class InterviewLifecycleTests
     }
 
     [Fact]
+    public void Schedule_should_not_create_a_room_for_a_phone_screen()
+    {
+        var interview = Interview.Schedule(
+            Guid.NewGuid(), InterviewType.PhoneScreen, DateTime.UtcNow.AddDays(1), 30,
+            OneInterviewer, null);
+
+        Assert.Null(interview.RoomToken);
+        // A phone screen never has an open room, even inside the time window.
+        Assert.False(interview.IsRoomOpen(interview.ScheduledAtUtc));
+    }
+
+    [Fact]
+    public void CanReceiveFeedback_should_be_false_before_the_interview_has_ended()
+    {
+        var interview = ScheduleValid();
+
+        Assert.False(interview.CanReceiveFeedback(DateTime.UtcNow));
+    }
+
+    [Fact]
+    public void CanReceiveFeedback_should_be_true_once_the_scheduled_end_has_passed()
+    {
+        var interview = ScheduleValid();
+        var afterEnd = interview.ScheduledAtUtc.AddMinutes(interview.DurationMinutes + 1);
+
+        Assert.True(interview.CanReceiveFeedback(afterEnd));
+    }
+
+    [Fact]
+    public void CanReceiveFeedback_should_be_true_for_a_completed_interview_regardless_of_time()
+    {
+        var interview = ScheduleValid();
+        interview.Complete();
+
+        Assert.True(interview.CanReceiveFeedback(DateTime.UtcNow));
+    }
+
+    [Fact]
+    public void CanReceiveFeedback_should_be_false_for_a_cancelled_interview()
+    {
+        var interview = ScheduleValid();
+        interview.Cancel();
+        var afterEnd = interview.ScheduledAtUtc.AddMinutes(interview.DurationMinutes + 1);
+
+        Assert.False(interview.CanReceiveFeedback(afterEnd));
+    }
+
+    [Fact]
+    public void CanReceiveFeedback_should_be_false_for_a_no_show()
+    {
+        var interview = ScheduleValid();
+        interview.MarkNoShow();
+        var afterEnd = interview.ScheduledAtUtc.AddMinutes(interview.DurationMinutes + 1);
+
+        Assert.False(interview.CanReceiveFeedback(afterEnd));
+    }
+
+    [Fact]
     public void IsRoomOpen_should_be_false_before_the_lead_window()
     {
         var interview = ScheduleValid();

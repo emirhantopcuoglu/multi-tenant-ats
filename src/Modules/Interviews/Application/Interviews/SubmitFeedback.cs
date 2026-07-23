@@ -40,8 +40,9 @@ public sealed class SubmitInterviewFeedbackHandler : ICommandHandler<SubmitInter
         if (interview is null)
             return Result.Failure<Guid>(InterviewErrors.NotFound);
 
-        // Cancelled interviews never happened; there is nothing to evaluate.
-        if (interview.Status == InterviewStatus.Cancelled)
+        // You can only evaluate an interview that has actually happened — marked completed or its
+        // scheduled time already passed. A future (or cancelled/no-show) interview has nothing to rate.
+        if (!interview.CanReceiveFeedback(DateTime.UtcNow))
             return Result.Failure<Guid>(InterviewErrors.FeedbackNotEligible);
 
         var alreadySubmitted = await _db.Feedback.AnyAsync(

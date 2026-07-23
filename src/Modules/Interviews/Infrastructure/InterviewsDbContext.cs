@@ -29,7 +29,9 @@ public sealed class InterviewsDbContext : DbContext, IInterviewsDbContext
             entity.Property(i => i.Type).HasConversion<string>().HasMaxLength(20);
             entity.Property(i => i.Status).HasConversion<string>().HasMaxLength(20);
             entity.Property(i => i.Notes).HasMaxLength(5000);
-            entity.Property(i => i.RoomToken).HasMaxLength(64).IsRequired();
+            // Nullable: a phone screen has no live room, so no token. A PostgreSQL unique index
+            // treats NULLs as distinct, so many phone screens coexist while real tokens stay unique.
+            entity.Property(i => i.RoomToken).HasMaxLength(64);
 
             // Looked up directly by token (the join endpoint has no tenant context yet — the token
             // itself is what identifies the interview), so it must be globally unique, not just
