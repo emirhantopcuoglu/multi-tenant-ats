@@ -28,7 +28,7 @@ public sealed class JoinInterviewRoomTests
 
         var handler = new JoinInterviewRoomHandler(NewDb(tenant), applications);
         var result = await handler.Handle(
-            new JoinInterviewRoomQuery(interview.RoomToken, candidateAccountId, null, null),
+            new JoinInterviewRoomQuery(interview.RoomToken!, candidateAccountId, null, null),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -44,7 +44,7 @@ public sealed class JoinInterviewRoomTests
 
         var handler = new JoinInterviewRoomHandler(NewDb(tenant), applications);
         var result = await handler.Handle(
-            new JoinInterviewRoomQuery(interview.RoomToken, Guid.NewGuid(), null, null),
+            new JoinInterviewRoomQuery(interview.RoomToken!, Guid.NewGuid(), null, null),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -61,7 +61,7 @@ public sealed class JoinInterviewRoomTests
 
         var handler = new JoinInterviewRoomHandler(NewDb(tenant), applications);
         var result = await handler.Handle(
-            new JoinInterviewRoomQuery(interview.RoomToken, null, interviewerId, tenant.TenantId),
+            new JoinInterviewRoomQuery(interview.RoomToken!, null, interviewerId, tenant.TenantId),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -77,7 +77,7 @@ public sealed class JoinInterviewRoomTests
 
         var handler = new JoinInterviewRoomHandler(NewDb(tenant), applications);
         var result = await handler.Handle(
-            new JoinInterviewRoomQuery(interview.RoomToken, null, interviewerId, Guid.NewGuid()),
+            new JoinInterviewRoomQuery(interview.RoomToken!, null, interviewerId, Guid.NewGuid()),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -93,7 +93,7 @@ public sealed class JoinInterviewRoomTests
 
         var handler = new JoinInterviewRoomHandler(NewDb(tenant), applications);
         var result = await handler.Handle(
-            new JoinInterviewRoomQuery(interview.RoomToken, candidateAccountId, null, null),
+            new JoinInterviewRoomQuery(interview.RoomToken!, candidateAccountId, null, null),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -117,7 +117,7 @@ public sealed class JoinInterviewRoomTests
 
         var handler = new JoinInterviewRoomHandler(NewDb(tenant), applications);
         var result = await handler.Handle(
-            new JoinInterviewRoomQuery(interview.RoomToken, candidateAccountId, null, null),
+            new JoinInterviewRoomQuery(interview.RoomToken!, candidateAccountId, null, null),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);

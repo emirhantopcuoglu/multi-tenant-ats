@@ -333,7 +333,7 @@ public sealed record CandidateInterviewSummaryDto(
     DateTime ScheduledAtUtc,
     int DurationMinutes,
     string Status,
-    string RoomToken);
+    string? RoomToken);
 
 public sealed record ListCandidateInterviewsQuery(Guid CandidateAccountId) : IQuery<IReadOnlyList<CandidateInterviewSummaryDto>>;
 

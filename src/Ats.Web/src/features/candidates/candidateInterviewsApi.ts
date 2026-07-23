@@ -9,9 +9,9 @@ export interface CandidateInterviewSummary {
   type: InterviewType;
   scheduledAtUtc: string;
   durationMinutes: number;
-  location: string | null;
   status: InterviewStatus;
-  roomToken: string;
+  /** Null for a phone screen, which has no live room. */
+  roomToken: string | null;
 }
 
 /* GET /api/v1/candidate/interviews — every interview scheduled against any of the candidate's

@@ -29,8 +29,9 @@ public static class NotificationPayloads
         int DurationMinutes,
         // Kept as a bare token, not a full URL: the in-app feed is rendered by the same SPA that
         // owns the /interview-room route, so it builds the link itself rather than duplicating the
-        // absolute-URL config the email consumer needs for an external inbox.
-        string RoomToken);
+        // absolute-URL config the email consumer needs for an external inbox. Null for a phone
+        // screen, which has no room.
+        string? RoomToken);
 
     public sealed record ApplicationViewed(Guid ApplicationId, string JobTitle);
 

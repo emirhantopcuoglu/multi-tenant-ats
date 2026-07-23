@@ -78,7 +78,12 @@ export function CandidateInterviewsPage() {
                     <Badge tone={interviewStatusTone[interview.status]} dot>
                       {t(`status.${interview.status}`)}
                     </Badge>
-                    {interview.status === 'Scheduled' ? (
+                    {interview.roomToken === null ? (
+                      // A phone screen has no room — the interviewer calls the candidate.
+                      <span className="text-sm font-medium text-text-muted">
+                        {t('candidatePortal.interviews.phone')}
+                      </span>
+                    ) : interview.status === 'Scheduled' ? (
                       <Link
                         to={`/interview-room/${interview.roomToken}`}
                         className="text-sm font-medium text-accent hover:underline"

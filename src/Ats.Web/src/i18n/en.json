@@ -430,6 +430,7 @@
       "toast": "Feedback submitted.",
       "locked": "Only assigned interviewers can submit feedback for this interview.",
       "lockedCancelled": "This interview was cancelled, so feedback is closed.",
+      "lockedNotYet": "You can submit feedback once the interview has taken place.",
       "notEligible": "Feedback can't be submitted for this interview."
     },
     "toast": {
@@ -530,7 +531,8 @@
       "title": "My interviews",
       "subtitle": "Every interview scheduled across your applications.",
       "empty": "You don't have any interviews scheduled yet.",
-      "openRoom": "Open room"
+      "openRoom": "Open room",
+      "phone": "Phone interview"
     },
     "col": {
       "position": "Position",
