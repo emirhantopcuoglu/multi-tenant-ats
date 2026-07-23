@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.9.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.8.0...v0.9.0) (2026-07-23)
+
+
+### Features
+
+* **interviews:** add a candidate interviews tab and a gated room link ([399e7bf](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/399e7bf1e469e29800686a3873c5aaecdd529bc3))
+* **interviews:** add a candidate interviews tab and a gated room link ([a591859](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/a59185959be4f2048ffa73d0d925d3d35ce95075))
+* **interviews:** fixed durations, no double-booking, cleaner scheduling ([c4d28f9](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/c4d28f97037b0a5bab5204bc45e505ac05bbf8f4))
+* **interviews:** fixed durations, no double-booking, cleaner scheduling ([61ec2f9](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/61ec2f94cb96888b6339af99bf95c4a0a84cc152))
+* **interviews:** schedule from the pipeline board and add a room link ([a831970](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/a831970d508e120825051135c3f8ef7d3cfbfd35))
+* **interviews:** schedule from the pipeline board and add a room link ([a85be67](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/a85be67a1ea789e23f41dd667a9ac496a1307592))
+
+
+### Bug Fixes
+
+* **interviews:** drop room for phone screens, gate feedback to concluded interviews ([05d9e11](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/05d9e118b20d0ac1cc7a89a4db321b113a031d4a))
+* **interviews:** drop room for phone screens, gate feedback to concluded interviews ([10d8525](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/10d8525a93b729884f6d4cc6db4fa2af444c759a))
+
 ## [0.8.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.7.0...v0.8.0) (2026-07-22)
 
 
