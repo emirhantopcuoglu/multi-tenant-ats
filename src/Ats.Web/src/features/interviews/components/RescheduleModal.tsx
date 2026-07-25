@@ -6,6 +6,7 @@ import {
   INTERVIEW_DURATION_OPTIONS,
 } from '@/types/enums';
 import type { RescheduleRequest } from '@/types/interview';
+import { MINIMUM_LEAD_MINUTES, isSlotTooSoon, toScheduledAt } from '../scheduleValidation';
 
 interface RescheduleModalProps {
   open: boolean;
@@ -66,9 +67,9 @@ export function RescheduleModal({
     if (!date) nextErrors.date = t('interviews.form.dateRequired');
     if (!time) nextErrors.time = t('interviews.form.timeRequired');
 
-    const scheduledAt = date && time ? new Date(`${date}T${time}`) : null;
-    if (scheduledAt && (Number.isNaN(scheduledAt.getTime()) || scheduledAt.getTime() <= Date.now()))
-      nextErrors.time = t('interviews.form.whenPast');
+    const scheduledAt = toScheduledAt(date, time);
+    if (scheduledAt && isSlotTooSoon(scheduledAt))
+      nextErrors.time = t('interviews.form.whenTooSoon', { count: MINIMUM_LEAD_MINUTES });
 
     if (Object.keys(nextErrors).length > 0 || !scheduledAt) {
       setErrors(nextErrors);

@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { Badge, Skeleton, Table, THead, TBody, TR, TH, TD } from '@/components/ui';
-import { interviewStatusTone } from '@/lib/statusColors';
 import type { InterviewListItem } from '@/types/interview';
 import { InterviewerAvatars } from './InterviewerAvatars';
+import { InterviewStatusBadge } from './InterviewStatusBadge';
 
 interface InterviewsTableProps {
   interviews: InterviewListItem[];
@@ -54,9 +54,7 @@ export function InterviewsTable({ interviews, onSelect }: InterviewsTableProps) 
               {t('interviews.minutesShort', { count: interview.durationMinutes })}
             </TD>
             <TD>
-              <Badge tone={interviewStatusTone[interview.status]} dot>
-                {t(`status.${interview.status}`)}
-              </Badge>
+              <InterviewStatusBadge interview={interview} />
             </TD>
             <TD>
               <InterviewerAvatars interviewerUserIds={interview.interviewerUserIds} />

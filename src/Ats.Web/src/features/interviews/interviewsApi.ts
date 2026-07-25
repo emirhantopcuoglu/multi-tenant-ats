@@ -2,6 +2,7 @@ import { apiClient, API_V1 } from '@/lib/apiClient';
 import type { PagedResult } from '@/types/pagination';
 import type {
   InterviewDetail,
+  InterviewListFilter,
   InterviewListItem,
   RescheduleRequest,
   ScheduleInterviewRequest,
@@ -18,6 +19,8 @@ export interface ListInterviewsParams {
   toDate?: string;
   interviewerId?: string;
   applicationId?: string;
+  /** Lifecycle bucket; omitted means every interview regardless of state. */
+  filter?: InterviewListFilter;
 }
 
 export async function listInterviews(
@@ -31,6 +34,7 @@ export async function listInterviews(
       toDate: params.toDate,
       interviewerId: params.interviewerId,
       applicationId: params.applicationId,
+      filter: params.filter,
     },
   });
   return data;

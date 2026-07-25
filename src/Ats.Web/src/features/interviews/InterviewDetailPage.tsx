@@ -8,7 +8,7 @@ import { toApiError } from '@/lib/problemDetails';
 import { fullName, useUserLookup } from '@/features/users/useUsers';
 import { getApplication } from '@/features/applications/applicationsApi';
 import { applicationDetailKey } from '@/features/applications/useApplicationDetail';
-import { interviewStatusTone } from '@/lib/statusColors';
+import { InterviewStatusBadge } from './components/InterviewStatusBadge';
 import type { RescheduleRequest } from '@/types/interview';
 import { canManageInterviews } from './interviewPermissions';
 import { useInterview, useInterviewActions } from './useInterviews';
@@ -68,19 +68,19 @@ function InterviewDetailView({ id }: { id: string }) {
   });
 
   const busy = reschedule.isPending || cancel.isPending || complete.isPending || noShow.isPending;
-  const isScheduled = interview.status === 'Scheduled';
   const candidateName = applicationQuery.data?.candidateName;
 
-  // Feedback gating mirrors the backend: only an assigned interviewer may submit, and only once the
-  // interview has taken place — marked completed, or its scheduled end time already passed. The form
-  // still maps the backend's 403/409 as the final authority.
+  // Which actions exist is the domain's answer, not ours — the page renders interview.can* rather
+  // than deriving anything from the status and the browser's clock. Before/after the start time the
+  // legal pair differs: an interview that has not begun can be moved or called off, one that has can
+  // only be recorded as completed or missed.
+  const hasAnyAction =
+    interview.canReschedule || interview.canComplete || interview.canMarkNoShow || interview.canCancel;
+
+  // Feedback needs both halves: the backend says the interview is evaluable, and the caller must be
+  // one of its assigned interviewers. The form still maps the backend's 403/409 as final authority.
   const isAssignedInterviewer = user ? interview.interviewerUserIds.includes(user.id) : false;
-  const interviewEndMs =
-    new Date(interview.scheduledAtUtc).getTime() + interview.durationMinutes * 60_000;
-  const hasTakenPlace =
-    interview.status === 'Completed' ||
-    (interview.status === 'Scheduled' && Date.now() >= interviewEndMs);
-  const canSubmitFeedback = isAssignedInterviewer && hasTakenPlace;
+  const canSubmitFeedback = isAssignedInterviewer && interview.canReceiveFeedback;
 
   const interviewerNames = interview.interviewerUserIds
     .map((interviewerId) => {
@@ -92,12 +92,15 @@ function InterviewDetailView({ id }: { id: string }) {
   // successTitle is already resolved by the caller (the type-safe t() needs a literal key, not a
   // dynamic string), so this helper only wires the shared success/error toasts to a void mutation.
   type VoidMutation = {
-    mutate: (variables: void, options: { onSuccess: () => void; onError: () => void }) => void;
+    mutate: (
+      variables: void,
+      options: { onSuccess: () => void; onError: (error: unknown) => void },
+    ) => void;
   };
   const runAction = (mutation: VoidMutation, successTitle: string) =>
     mutation.mutate(undefined, {
       onSuccess: () => toast({ title: successTitle, tone: 'success' }),
-      onError: () => toast({ title: t('interviews.toast.error'), tone: 'danger' }),
+      onError: (error) => toast({ title: actionErrorMessage(error), tone: 'danger' }),
     });
 
   // Turn the backend's 409 conflict codes into a specific message; anything else is the generic error.
@@ -105,8 +108,16 @@ function InterviewDetailView({ id }: { id: string }) {
     const { code } = toApiError(error);
     if (code === 'interview.interviewer_conflict') return t('interviews.conflict.interviewer');
     if (code === 'interview.candidate_conflict') return t('interviews.conflict.candidate');
-    return t('interviews.toast.error');
+    return actionErrorMessage(error);
   };
+
+  // The buttons are gated on the server's own flags, so a rejected transition means this page is
+  // showing a stale snapshot — most likely the clock crossed the start time, or someone else acted
+  // on the interview first. Saying so is more useful than "something went wrong".
+  const actionErrorMessage = (error: unknown): string =>
+    toApiError(error).code === 'interview.transition_not_allowed'
+      ? t('interviews.toast.stale')
+      : t('interviews.toast.error');
 
   const handleReschedule = (body: RescheduleRequest) =>
     reschedule.mutate(body, {
@@ -133,29 +144,44 @@ function InterviewDetailView({ id }: { id: string }) {
           )}
           <div className="flex items-center gap-2 pt-1">
             <Badge tone="neutral">{t(`interviewType.${interview.type}`)}</Badge>
-            <Badge tone={interviewStatusTone[interview.status]} dot>
-              {t(`status.${interview.status}`)}
-            </Badge>
+            <InterviewStatusBadge interview={interview} />
           </div>
         </div>
 
-        {canManage && isScheduled && (
+        {canManage && hasAnyAction && (
           <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="secondary" onClick={() => setRescheduleOpen(true)} disabled={busy}>
-              {t('interviews.action.reschedule')}
-            </Button>
-            <Button variant="secondary" onClick={() => runAction(complete, t('interviews.toast.completed'))} disabled={busy}>
-              {t('interviews.action.complete')}
-            </Button>
-            <Button variant="secondary" onClick={() => runAction(noShow, t('interviews.toast.noShow'))} disabled={busy}>
-              {t('interviews.action.noShow')}
-            </Button>
-            <Button variant="danger" onClick={() => runAction(cancel, t('interviews.toast.cancelled'))} disabled={busy}>
-              {t('interviews.action.cancel')}
-            </Button>
+            {interview.canReschedule && (
+              <Button variant="secondary" onClick={() => setRescheduleOpen(true)} disabled={busy}>
+                {t('interviews.action.reschedule')}
+              </Button>
+            )}
+            {interview.canComplete && (
+              <Button variant="secondary" onClick={() => runAction(complete, t('interviews.toast.completed'))} disabled={busy}>
+                {t('interviews.action.complete')}
+              </Button>
+            )}
+            {interview.canMarkNoShow && (
+              <Button variant="secondary" onClick={() => runAction(noShow, t('interviews.toast.noShow'))} disabled={busy}>
+                {t('interviews.action.noShow')}
+              </Button>
+            )}
+            {interview.canCancel && (
+              <Button variant="danger" onClick={() => runAction(cancel, t('interviews.toast.cancelled'))} disabled={busy}>
+                {t('interviews.action.cancel')}
+              </Button>
+            )}
           </div>
         )}
       </Card>
+
+      {/* The prompt the screen was missing: an elapsed interview nobody resolved looks identical to
+          an upcoming one, so the recruiter has no cue that it is waiting on them. */}
+      {canManage && interview.isAwaitingOutcome && (
+        <Card className="border-warning/40 bg-warning/5">
+          <p className="text-sm text-text">{t('interviews.awaitingOutcome.title')}</p>
+          <p className="pt-1 text-sm text-text-muted">{t('interviews.awaitingOutcome.body')}</p>
+        </Card>
+      )}
 
       <Card className="space-y-4">
         <InfoRow label={t('interviews.form.when')}>
@@ -182,8 +208,8 @@ function InterviewDetailView({ id }: { id: string }) {
           <FeedbackForm interviewId={id} />
         ) : (
           <p className="text-sm text-text-muted">
-            {interview.status === 'Cancelled'
-              ? t('interviews.feedback.lockedCancelled')
+            {interview.status === 'Cancelled' || interview.status === 'NoShow'
+              ? t('interviews.feedback.lockedNoOutcome')
               : !isAssignedInterviewer
                 ? t('interviews.feedback.locked')
                 : t('interviews.feedback.lockedNotYet')}

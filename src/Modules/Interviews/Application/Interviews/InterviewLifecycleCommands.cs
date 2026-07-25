@@ -20,8 +20,9 @@ public sealed class RescheduleInterviewValidator : AbstractValidator<RescheduleI
     {
         RuleFor(x => x.InterviewId).NotEmpty();
         RuleFor(x => x.ScheduledAtUtc)
-            .GreaterThan(_ => DateTime.UtcNow)
-            .WithMessage("The interview must be scheduled in the future.");
+            .GreaterThanOrEqualTo(_ => DateTime.UtcNow.AddMinutes(Interview.MinimumLeadMinutes))
+            .WithMessage(
+                $"The interview must be scheduled at least {Interview.MinimumLeadMinutes} minutes ahead.");
         RuleFor(x => x.DurationMinutes)
             .Must(Interview.AllowedDurationMinutes.Contains)
             .WithMessage("Duration must be one of the allowed presets.");
@@ -63,9 +64,13 @@ public sealed class RescheduleInterviewHandler : ICommandHandler<RescheduleInter
 
         try
         {
-            interview.Reschedule(command.ScheduledAtUtc, command.DurationMinutes);
+            interview.Reschedule(command.ScheduledAtUtc, command.DurationMinutes, DateTime.UtcNow);
         }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        catch (InvalidOperationException ex)
+        {
+            return Result.Failure<bool>(InterviewErrors.TransitionNotAllowed(ex.Message));
+        }
+        catch (ArgumentException ex)
         {
             return Result.Failure<bool>(InterviewErrors.InvalidOperation(ex.Message));
         }
@@ -80,8 +85,11 @@ public sealed class RescheduleInterviewHandler : ICommandHandler<RescheduleInter
 // also throw ArgumentException for an invalid new time/duration.
 internal static class InterviewTransition
 {
+    // The clock is read once here and handed to the transition, so a single request can never see two
+    // different "now"s — the guard and any timestamp it writes agree by construction.
     public static async Task<Result<bool>> ApplyAsync(
-        IInterviewsDbContext db, Guid interviewId, Action<Domain.Interview> transition, CancellationToken ct)
+        IInterviewsDbContext db, Guid interviewId,
+        Action<Domain.Interview, DateTime> transition, CancellationToken ct)
     {
         var interview = await db.Interviews.FirstOrDefaultAsync(i => i.Id == interviewId, ct);
         if (interview is null)
@@ -89,11 +97,11 @@ internal static class InterviewTransition
 
         try
         {
-            transition(interview);
+            transition(interview, DateTime.UtcNow);
         }
         catch (InvalidOperationException ex)
         {
-            return Result.Failure<bool>(InterviewErrors.InvalidOperation(ex.Message));
+            return Result.Failure<bool>(InterviewErrors.TransitionNotAllowed(ex.Message));
         }
 
         await db.SaveChangesAsync(ct);
@@ -115,7 +123,7 @@ public sealed class CancelInterviewHandler : ICommandHandler<CancelInterviewComm
     public CancelInterviewHandler(IInterviewsDbContext db) => _db = db;
 
     public Task<Result<bool>> Handle(CancelInterviewCommand command, CancellationToken ct) =>
-        InterviewTransition.ApplyAsync(_db, command.InterviewId, i => i.Cancel(), ct);
+        InterviewTransition.ApplyAsync(_db, command.InterviewId, (i, now) => i.Cancel(now), ct);
 }
 
 // ---- Complete ----
@@ -132,7 +140,7 @@ public sealed class CompleteInterviewHandler : ICommandHandler<CompleteInterview
     public CompleteInterviewHandler(IInterviewsDbContext db) => _db = db;
 
     public Task<Result<bool>> Handle(CompleteInterviewCommand command, CancellationToken ct) =>
-        InterviewTransition.ApplyAsync(_db, command.InterviewId, i => i.Complete(), ct);
+        InterviewTransition.ApplyAsync(_db, command.InterviewId, (i, now) => i.Complete(now), ct);
 }
 
 // ---- Mark no-show ----
@@ -149,5 +157,5 @@ public sealed class MarkInterviewNoShowHandler : ICommandHandler<MarkInterviewNo
     public MarkInterviewNoShowHandler(IInterviewsDbContext db) => _db = db;
 
     public Task<Result<bool>> Handle(MarkInterviewNoShowCommand command, CancellationToken ct) =>
-        InterviewTransition.ApplyAsync(_db, command.InterviewId, i => i.MarkNoShow(), ct);
+        InterviewTransition.ApplyAsync(_db, command.InterviewId, (i, now) => i.MarkNoShow(now), ct);
 }

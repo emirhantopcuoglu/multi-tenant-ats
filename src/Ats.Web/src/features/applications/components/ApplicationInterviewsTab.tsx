@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Badge, Button, Skeleton } from '@/components/ui';
-import { interviewStatusTone } from '@/lib/statusColors';
+import { Button, Skeleton } from '@/components/ui';
 import { useInterviews } from '@/features/interviews/useInterviews';
 import { InterviewerAvatars } from '@/features/interviews/components/InterviewerAvatars';
+import { InterviewStatusBadge } from '@/features/interviews/components/InterviewStatusBadge';
 
 const INTERVIEWS_PAGE_SIZE = 20;
 
@@ -90,9 +90,7 @@ export function ApplicationInterviewsTab({ applicationId, canSchedule, onSchedul
               </div>
               <div className="flex items-center gap-3">
                 <InterviewerAvatars interviewerUserIds={interview.interviewerUserIds} />
-                <Badge tone={interviewStatusTone[interview.status]} dot>
-                  {t(`status.${interview.status}`)}
-                </Badge>
+                <InterviewStatusBadge interview={interview} />
               </div>
             </li>
           ))}
