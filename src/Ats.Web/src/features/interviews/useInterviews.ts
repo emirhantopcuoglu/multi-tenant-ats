@@ -5,6 +5,7 @@ import {
   getInterview,
   listInterviews,
   markInterviewNoShow,
+  reassignInterviewers,
   rescheduleInterview,
   scheduleInterview,
   submitFeedback,
@@ -12,6 +13,8 @@ import {
 } from './interviewsApi';
 import type {
   CancelInterviewRequest,
+  MarkNoShowRequest,
+  ReassignInterviewersRequest,
   RescheduleRequest,
   SubmitFeedbackRequest,
 } from '@/types/interview';
@@ -62,9 +65,16 @@ export function useInterviewActions(id: string) {
     onSuccess: invalidate,
   });
   const complete = useMutation({ mutationFn: () => completeInterview(id), onSuccess: invalidate });
-  const noShow = useMutation({ mutationFn: () => markInterviewNoShow(id), onSuccess: invalidate });
+  const noShow = useMutation({
+    mutationFn: (body: MarkNoShowRequest) => markInterviewNoShow(id, body),
+    onSuccess: invalidate,
+  });
+  const reassign = useMutation({
+    mutationFn: (body: ReassignInterviewersRequest) => reassignInterviewers(id, body),
+    onSuccess: invalidate,
+  });
 
-  return { reschedule, cancel, complete, noShow };
+  return { reschedule, cancel, complete, noShow, reassign };
 }
 
 /* Feedback submission. Submitting doesn't change any field the detail renders, but we invalidate it

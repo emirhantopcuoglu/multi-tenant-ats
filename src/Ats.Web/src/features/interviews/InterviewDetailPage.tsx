@@ -9,11 +9,18 @@ import { fullName, useUserLookup } from '@/features/users/useUsers';
 import { getApplication } from '@/features/applications/applicationsApi';
 import { applicationDetailKey } from '@/features/applications/useApplicationDetail';
 import { InterviewStatusBadge } from './components/InterviewStatusBadge';
-import type { CancelInterviewRequest, RescheduleRequest } from '@/types/interview';
+import type {
+  CancelInterviewRequest,
+  MarkNoShowRequest,
+  ReassignInterviewersRequest,
+  RescheduleRequest,
+} from '@/types/interview';
 import { canManageInterviews } from './interviewPermissions';
 import { useInterview, useInterviewActions } from './useInterviews';
 import { RescheduleModal } from './components/RescheduleModal';
 import { CancelInterviewModal } from './components/CancelInterviewModal';
+import { NoShowModal } from './components/NoShowModal';
+import { ReassignInterviewersModal } from './components/ReassignInterviewersModal';
 import { FeedbackForm } from './components/FeedbackForm';
 
 /* Thin wrapper so the inner view can take a guaranteed-present id and keep its hooks unconditional. */
@@ -32,9 +39,11 @@ function InterviewDetailView({ id }: { id: string }) {
   const lookup = useUserLookup();
 
   const { data: interview, isLoading, isError } = useInterview(id);
-  const { reschedule, cancel, complete, noShow } = useInterviewActions(id);
+  const { reschedule, cancel, complete, noShow, reassign } = useInterviewActions(id);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [noShowOpen, setNoShowOpen] = useState(false);
+  const [reassignOpen, setReassignOpen] = useState(false);
 
   // The interview carries only an applicationId; resolve the candidate from the same cache entry the
   // application detail page uses, gated until the interview (and so the id) has loaded.
@@ -69,7 +78,12 @@ function InterviewDetailView({ id }: { id: string }) {
     timeStyle: 'short',
   });
 
-  const busy = reschedule.isPending || cancel.isPending || complete.isPending || noShow.isPending;
+  const busy =
+    reschedule.isPending ||
+    cancel.isPending ||
+    complete.isPending ||
+    noShow.isPending ||
+    reassign.isPending;
   const candidateName = applicationQuery.data?.candidateName;
 
   // Which actions exist is the domain's answer, not ours — the page renders interview.can* rather
@@ -77,7 +91,11 @@ function InterviewDetailView({ id }: { id: string }) {
   // legal pair differs: an interview that has not begun can be moved or called off, one that has can
   // only be recorded as completed or missed.
   const hasAnyAction =
-    interview.canReschedule || interview.canComplete || interview.canMarkNoShow || interview.canCancel;
+    interview.canReschedule ||
+    interview.canComplete ||
+    interview.canMarkNoShow ||
+    interview.canReassignInterviewers ||
+    interview.canCancel;
 
   // Feedback needs both halves: the backend says the interview is evaluable, and the caller must be
   // one of its assigned interviewers. The form still maps the backend's 403/409 as final authority.
@@ -139,6 +157,27 @@ function InterviewDetailView({ id }: { id: string }) {
       onError: (error) => toast({ title: actionErrorMessage(error), tone: 'danger' }),
     });
 
+  const handleNoShow = (body: MarkNoShowRequest) =>
+    noShow.mutate(body, {
+      onSuccess: () => {
+        setNoShowOpen(false);
+        toast({ title: t('interviews.toast.noShow'), tone: 'success' });
+      },
+      onError: (error) => toast({ title: actionErrorMessage(error), tone: 'danger' }),
+    });
+
+  const handleReassign = (body: ReassignInterviewersRequest) =>
+    reassign.mutate(body, {
+      onSuccess: () => {
+        setReassignOpen(false);
+        toast({ title: t('interviews.toast.reassigned'), tone: 'success' });
+      },
+      // Reuses the scheduling conflict wording: a replacement interviewer can already be booked
+      // over this slot, and "an interviewer already has another interview at this time" is the
+      // useful thing to say.
+      onError: (error) => toast({ title: conflictMessage(error), tone: 'danger' }),
+    });
+
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <Link to="/interviews" className="text-sm text-text-muted transition-colors hover:text-text">
@@ -172,8 +211,13 @@ function InterviewDetailView({ id }: { id: string }) {
               </Button>
             )}
             {interview.canMarkNoShow && (
-              <Button variant="secondary" onClick={() => runAction(noShow, t('interviews.toast.noShow'))} disabled={busy}>
+              <Button variant="secondary" onClick={() => setNoShowOpen(true)} disabled={busy}>
                 {t('interviews.action.noShow')}
+              </Button>
+            )}
+            {interview.canReassignInterviewers && (
+              <Button variant="secondary" onClick={() => setReassignOpen(true)} disabled={busy}>
+                {t('interviews.action.reassign')}
               </Button>
             )}
             {interview.canCancel && (
@@ -211,6 +255,26 @@ function InterviewDetailView({ id }: { id: string }) {
             <span className="text-text-muted">—</span>
           )}
         </InfoRow>
+
+        {/* The outcome details, shown rather than only stored: a reason nobody can read back would
+            be the same write-only field this rework exists to remove. */}
+        {interview.noShowParty && (
+          <InfoRow label={t('interviews.noShow.party')}>
+            {t(`noShowParty.${interview.noShowParty}`)}
+          </InfoRow>
+        )}
+
+        {interview.cancellationReason && (
+          <InfoRow label={t('interviews.cancel.reason')}>
+            {t(`cancellationReason.${interview.cancellationReason}`)}
+          </InfoRow>
+        )}
+
+        {interview.cancellationNote && (
+          <InfoRow label={t('interviews.cancel.note')}>
+            <span className="whitespace-pre-wrap">{interview.cancellationNote}</span>
+          </InfoRow>
+        )}
       </Card>
 
       <Card className="space-y-3">
@@ -242,6 +306,21 @@ function InterviewDetailView({ id }: { id: string }) {
         onOpenChange={setCancelOpen}
         submitting={cancel.isPending}
         onConfirm={handleCancel}
+      />
+
+      <NoShowModal
+        open={noShowOpen}
+        onOpenChange={setNoShowOpen}
+        submitting={noShow.isPending}
+        onConfirm={handleNoShow}
+      />
+
+      <ReassignInterviewersModal
+        open={reassignOpen}
+        onOpenChange={setReassignOpen}
+        interviewerUserIds={interview.interviewerUserIds}
+        submitting={reassign.isPending}
+        onConfirm={handleReassign}
       />
     </div>
   );

@@ -33,6 +33,7 @@ public sealed class InterviewsDbContext : DbContext, IInterviewsDbContext
             // and a string keeps a dump readable without the enum's ordinals to hand.
             entity.Property(i => i.CancellationReason).HasConversion<string>().HasMaxLength(30);
             entity.Property(i => i.CancellationNote).HasMaxLength(500);
+            entity.Property(i => i.NoShowParty).HasConversion<string>().HasMaxLength(20);
             // Nullable: a phone screen has no live room, so no token. A PostgreSQL unique index
             // treats NULLs as distinct, so many phone screens coexist while real tokens stay unique.
             entity.Property(i => i.RoomToken).HasMaxLength(64);

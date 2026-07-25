@@ -5,6 +5,8 @@ import type {
   InterviewDetail,
   InterviewListFilter,
   InterviewListItem,
+  MarkNoShowRequest,
+  ReassignInterviewersRequest,
   RescheduleRequest,
   ScheduleInterviewRequest,
   SubmitFeedbackRequest,
@@ -70,8 +72,20 @@ export async function completeInterview(id: string): Promise<void> {
   await apiClient.post(`${INTERVIEWS_BASE}/${id}/complete`);
 }
 
-export async function markInterviewNoShow(id: string): Promise<void> {
-  await apiClient.post(`${INTERVIEWS_BASE}/${id}/no-show`);
+/* Takes which side failed to appear: "nobody came" is not a usable record when it cannot say
+   whether that reflects on the candidate or on us. */
+export async function markInterviewNoShow(id: string, body: MarkNoShowRequest): Promise<void> {
+  await apiClient.post(`${INTERVIEWS_BASE}/${id}/no-show`, body);
+}
+
+/* Swaps the panel without touching the time — a separate endpoint from reschedule because they are
+   different operations. Can fail with 409 interviewer_conflict if a new interviewer is already
+   booked over this slot. */
+export async function reassignInterviewers(
+  id: string,
+  body: ReassignInterviewersRequest,
+): Promise<void> {
+  await apiClient.put(`${INTERVIEWS_BASE}/${id}/interviewers`, body);
 }
 
 /* Submit feedback for an interview. The backend authorizes this twice: the caller's role (handled by

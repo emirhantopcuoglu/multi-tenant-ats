@@ -91,9 +91,18 @@ public sealed class InterviewsController : ControllerBase
 
     [HttpPost("{id:guid}/no-show")]
     [Authorize(Policy = Policies.CanManageInterviews)]
-    public async Task<IActionResult> MarkNoShow(Guid id)
+    public async Task<IActionResult> MarkNoShow(Guid id, MarkNoShowBody body)
     {
-        var result = await _sender.Send(new MarkInterviewNoShowCommand(id));
+        var result = await _sender.Send(new MarkInterviewNoShowCommand(id, body.Party));
+        return result.IsSuccess ? NoContent() : MapFailure(result.Error);
+    }
+
+    [HttpPut("{id:guid}/interviewers")]
+    [Authorize(Policy = Policies.CanManageInterviews)]
+    public async Task<IActionResult> ReassignInterviewers(Guid id, ReassignInterviewersBody body)
+    {
+        var result = await _sender.Send(
+            new ReassignInterviewersCommand(id, body.InterviewerUserIds ?? []));
         return result.IsSuccess ? NoContent() : MapFailure(result.Error);
     }
 
@@ -151,6 +160,12 @@ public sealed class InterviewsController : ControllerBase
     // Note is the recruiter's internal wording and never reaches the candidate — only Reason does,
     // and only as the sentence the cancellation email leads with.
     public sealed record CancelInterviewBody(InterviewCancellationReason Reason, string? Note);
+
+    public sealed record MarkNoShowBody(NoShowParty Party);
+
+    // The full replacement panel, not a delta: a caller sending the list it wants cannot race a
+    // concurrent edit into a half-applied add/remove pair.
+    public sealed record ReassignInterviewersBody(IReadOnlyList<Guid>? InterviewerUserIds);
 
     public sealed record SubmitFeedbackBody(
         int Rating,

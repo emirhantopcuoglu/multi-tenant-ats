@@ -237,11 +237,15 @@ public sealed class CompleteInterviewHandler : ICommandHandler<CompleteInterview
 }
 
 // ---- Mark no-show ----
-public sealed record MarkInterviewNoShowCommand(Guid InterviewId) : ICommand<bool>;
+public sealed record MarkInterviewNoShowCommand(Guid InterviewId, NoShowParty Party) : ICommand<bool>;
 
 public sealed class MarkInterviewNoShowValidator : AbstractValidator<MarkInterviewNoShowCommand>
 {
-    public MarkInterviewNoShowValidator() => RuleFor(x => x.InterviewId).NotEmpty();
+    public MarkInterviewNoShowValidator()
+    {
+        RuleFor(x => x.InterviewId).NotEmpty();
+        RuleFor(x => x.Party).IsInEnum();
+    }
 }
 
 public sealed class MarkInterviewNoShowHandler : ICommandHandler<MarkInterviewNoShowCommand, bool>
@@ -250,5 +254,68 @@ public sealed class MarkInterviewNoShowHandler : ICommandHandler<MarkInterviewNo
     public MarkInterviewNoShowHandler(IInterviewsDbContext db) => _db = db;
 
     public Task<Result<bool>> Handle(MarkInterviewNoShowCommand command, CancellationToken ct) =>
-        InterviewTransition.ApplyAsync(_db, command.InterviewId, (i, now) => i.MarkNoShow(now), ct);
+        InterviewTransition.ApplyAsync(
+            _db, command.InterviewId, (i, now) => i.MarkNoShow(command.Party, now), ct);
+}
+
+// ---- Reassign interviewers ----
+// Its own command rather than an extra field on reschedule: changing who is in the room and
+// changing when it happens are different operations with different failure modes, and one endpoint
+// doing both under the name "reschedule" would be lying about what it does.
+public sealed record ReassignInterviewersCommand(
+    Guid InterviewId, IReadOnlyList<Guid> InterviewerUserIds) : ICommand<bool>;
+
+public sealed class ReassignInterviewersValidator : AbstractValidator<ReassignInterviewersCommand>
+{
+    public ReassignInterviewersValidator()
+    {
+        RuleFor(x => x.InterviewId).NotEmpty();
+        RuleFor(x => x.InterviewerUserIds)
+            .NotEmpty().WithMessage("At least one interviewer is required.");
+        RuleForEach(x => x.InterviewerUserIds).NotEmpty();
+    }
+}
+
+public sealed class ReassignInterviewersHandler : ICommandHandler<ReassignInterviewersCommand, bool>
+{
+    private readonly IInterviewsDbContext _db;
+
+    public ReassignInterviewersHandler(IInterviewsDbContext db) => _db = db;
+
+    public async Task<Result<bool>> Handle(ReassignInterviewersCommand command, CancellationToken ct)
+    {
+        var interview = await _db.Interviews.FirstOrDefaultAsync(i => i.Id == command.InterviewId, ct);
+        if (interview is null)
+            return Result.Failure<bool>(InterviewErrors.NotFound);
+
+        // The slot is unchanged, so only the incoming interviewers can newly conflict. The candidate
+        // set is empty on purpose: this interview already occupies the candidate's slot and it is not
+        // moving, so re-checking them here could only ever flag the interview against itself.
+        var conflict = await InterviewConflictGuard.CheckAsync(
+            _db, interview.ScheduledAtUtc, interview.DurationMinutes, command.InterviewerUserIds,
+            candidateApplicationIds: [], excludeInterviewId: interview.Id, ct);
+        if (conflict is not null)
+            return Result.Failure<bool>(conflict);
+
+        try
+        {
+            interview.ReassignInterviewers(command.InterviewerUserIds, DateTime.UtcNow);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Result.Failure<bool>(InterviewErrors.TransitionNotAllowed(ex.Message));
+        }
+        catch (ArgumentException ex)
+        {
+            return Result.Failure<bool>(InterviewErrors.InvalidOperation(ex.Message));
+        }
+
+        await _db.SaveChangesAsync(ct);
+
+        // No event: the candidate is never told who is interviewing them (no contract carries
+        // interviewer names), and this system has no "you were assigned an interview" notification
+        // for interviewers even at scheduling time. Adding one here only for reassignment would be
+        // inconsistent — it belongs with an interviewer-facing notification slice, not this one.
+        return Result.Success(true);
+    }
 }

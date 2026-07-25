@@ -407,7 +407,8 @@
       "reschedule": "Reschedule",
       "complete": "Mark completed",
       "noShow": "No-show",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "reassign": "Change interviewers"
     },
     "detail": {
       "back": "Back to interviews",
@@ -440,7 +441,8 @@
       "completed": "Marked as completed.",
       "noShow": "Marked as no-show.",
       "error": "Action failed. Please try again.",
-      "stale": "This page is out of date. Refresh and try again."
+      "stale": "This page is out of date. Refresh and try again.",
+      "reassigned": "Interviewers updated."
     },
     "filterState": "Filter by state",
     "allStates": "All states",
@@ -472,6 +474,20 @@
         "PositionClosed": "Candidate is told: the position is closed, this will not be rearranged.",
         "Other": "Candidate is told: we will be in touch if another time opens up."
       }
+    },
+    "noShow": {
+      "title": "Mark as no-show",
+      "description": "Record which side did not attend. A candidate and an interviewer are not the same record.",
+      "party": "Who did not attend",
+      "partyPlaceholder": "Choose a side",
+      "partyRequired": "Choose which side did not attend.",
+      "confirm": "Mark as no-show"
+    },
+    "reassign": {
+      "title": "Change interviewers",
+      "description": "The date and time stay the same; only the panel changes.",
+      "confirm": "Save interviewers",
+      "atLeastOne": "At least one interviewer is required."
     }
   },
   "employmentType": {
@@ -716,6 +732,8 @@
     "newApplication": "{{candidateName}} applied for \"{{jobTitle}}\"",
     "stageChanged": "Your application for \"{{jobTitle}}\" moved to the \"{{stage}}\" stage",
     "interviewScheduled": "An interview for \"{{jobTitle}}\" was scheduled: {{type}}, {{date}}",
+    "interviewRescheduled": "Your \"{{jobTitle}}\" interview moved: {{type}}, {{previousDate}} → {{date}}",
+    "interviewCancelled": "Your \"{{jobTitle}}\" interview was cancelled: {{type}}, {{date}}",
     "generic": "You have a new notification"
   },
   "auth": {
@@ -861,5 +879,9 @@
     "CandidateWithdrew": "Candidate withdrew",
     "PositionClosed": "Position closed",
     "Other": "Other"
+  },
+  "noShowParty": {
+    "Candidate": "Candidate did not attend",
+    "Interviewer": "Interviewer did not attend"
   }
 }
