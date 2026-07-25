@@ -11,10 +11,16 @@ export interface InterviewListItem {
   durationMinutes: number;
   status: InterviewStatus;
   interviewerUserIds: string[];
+  /** Server-derived: still `Scheduled`, but its slot has passed with no outcome recorded. */
+  isAwaitingOutcome: boolean;
 }
 
 /* GET /api/v1/interviews/{id} (Interviews.Application.InterviewDetailDto). Note it carries no
-   candidate name — the detail screen resolves that from the application (applicationId). */
+   candidate name — the detail screen resolves that from the application (applicationId).
+
+   The can* flags come from the domain rather than being re-derived here from status + the browser
+   clock. That duplication is what let the detail page offer "cancel" on an interview that had
+   already happened, so the rule now lives in one place and travels with the row. */
 export interface InterviewDetail {
   id: string;
   applicationId: string;
@@ -24,6 +30,29 @@ export interface InterviewDetail {
   status: InterviewStatus;
   notes: string | null;
   interviewerUserIds: string[];
+  isAwaitingOutcome: boolean;
+  canReschedule: boolean;
+  canCancel: boolean;
+  canComplete: boolean;
+  canMarkNoShow: boolean;
+  canReceiveFeedback: boolean;
+}
+
+/* Server-side list buckets (Interviews.Application.InterviewListFilter). Upcoming and
+   AwaitingOutcome are both slices of the Scheduled status split by the clock, which is why this is
+   not simply InterviewStatus. */
+export const INTERVIEW_LIST_FILTERS = [
+  'Upcoming',
+  'AwaitingOutcome',
+  'Completed',
+  'Cancelled',
+  'NoShow',
+] as const;
+
+export type InterviewListFilter = (typeof INTERVIEW_LIST_FILTERS)[number];
+
+export function isInterviewListFilter(value: unknown): value is InterviewListFilter {
+  return INTERVIEW_LIST_FILTERS.includes(value as InterviewListFilter);
 }
 
 /* POST /api/v1/interviews body (InterviewsController.ScheduleInterviewBody). scheduledAtUtc is an ISO

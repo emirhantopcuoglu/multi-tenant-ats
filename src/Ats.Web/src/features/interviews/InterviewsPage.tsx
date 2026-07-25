@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, EmptyState, Pagination } from '@/components/ui';
 import { useUsers } from '@/features/users/useUsers';
+import { isInterviewListFilter, type InterviewListFilter } from '@/types/interview';
 import { isDateRange, resolveDateRange, type DateRange } from './dateRange';
 import { useInterviews } from './useInterviews';
 import { InterviewsToolbar } from './components/InterviewsToolbar';
@@ -23,6 +24,8 @@ export function InterviewsPage() {
   const rangeParam = searchParams.get('range');
   const range: DateRange = isDateRange(rangeParam) ? rangeParam : 'all';
   const interviewerId = searchParams.get('interviewer') ?? '';
+  const filterParam = searchParams.get('state');
+  const filter: InterviewListFilter | '' = isInterviewListFilter(filterParam) ? filterParam : '';
 
   const updateParams = (mutate: (params: URLSearchParams) => void) => {
     setSearchParams(
@@ -49,6 +52,13 @@ export function InterviewsPage() {
       params.delete('page');
     });
 
+  const setFilter = (value: InterviewListFilter | '') =>
+    updateParams((params) => {
+      if (value) params.set('state', value);
+      else params.delete('state');
+      params.delete('page');
+    });
+
   // Recompute bounds whenever the preset changes (and pin "now" per render via useMemo on range).
   const bounds = useMemo(() => resolveDateRange(range), [range]);
 
@@ -58,11 +68,12 @@ export function InterviewsPage() {
     fromDate: bounds.fromDate,
     toDate: bounds.toDate,
     interviewerId: interviewerId || undefined,
+    filter: filter || undefined,
   });
 
   const usersQuery = useUsers();
   const interviews = data?.items ?? [];
-  const hasFilters = range !== 'all' || Boolean(interviewerId);
+  const hasFilters = range !== 'all' || Boolean(interviewerId) || Boolean(filter);
 
   const openInterview = (id: string) => navigate(`/interviews/${id}`);
 
@@ -73,6 +84,8 @@ export function InterviewsPage() {
         onRangeChange={setRange}
         interviewerId={interviewerId}
         onInterviewerChange={setInterviewer}
+        filter={filter}
+        onFilterChange={setFilter}
         users={usersQuery.data ?? []}
       />
 

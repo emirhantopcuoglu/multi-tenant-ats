@@ -386,13 +386,13 @@
       "time": "Time",
       "dateRequired": "Pick a date.",
       "timeRequired": "Pick a time.",
-      "whenPast": "Pick a future date and time.",
       "duration": "Duration",
       "interviewers": "Interviewers",
       "loadingUsers": "Loading team…",
       "noUsers": "No team members found.",
       "notes": "Notes",
-      "notesPlaceholder": "Agenda, focus areas…"
+      "notesPlaceholder": "Agenda, focus areas…",
+      "whenTooSoon": "An interview must be at least {{count}} minutes from now."
     },
     "conflict": {
       "interviewer": "An interviewer already has another interview at this time.",
@@ -429,9 +429,9 @@
       "submitted": "Your feedback has been submitted.",
       "toast": "Feedback submitted.",
       "locked": "Only assigned interviewers can submit feedback for this interview.",
-      "lockedCancelled": "This interview was cancelled, so feedback is closed.",
       "lockedNotYet": "You can submit feedback once the interview has taken place.",
-      "notEligible": "Feedback can't be submitted for this interview."
+      "notEligible": "Feedback can't be submitted for this interview.",
+      "lockedNoOutcome": "This interview did not take place, so it cannot be evaluated."
     },
     "toast": {
       "scheduled": "Interview scheduled.",
@@ -439,7 +439,21 @@
       "cancelled": "Interview cancelled.",
       "completed": "Marked as completed.",
       "noShow": "Marked as no-show.",
-      "error": "Action failed. Please try again."
+      "error": "Action failed. Please try again.",
+      "stale": "This page is out of date. Refresh and try again."
+    },
+    "filterState": "Filter by state",
+    "allStates": "All states",
+    "state": {
+      "Upcoming": "Upcoming",
+      "AwaitingOutcome": "Awaiting outcome",
+      "Completed": "Completed",
+      "Cancelled": "Cancelled",
+      "NoShow": "No-show"
+    },
+    "awaitingOutcome": {
+      "title": "This interview’s time has passed.",
+      "body": "Record what happened: mark it completed if it went ahead, or a no-show if someone did not attend."
     }
   },
   "employmentType": {
@@ -815,5 +829,12 @@
     "submitted": "submitted an application.",
     "moved": "moved the candidate",
     "rejected": "rejected the application."
+  },
+  "interviewStatus": {
+    "Scheduled": "Scheduled",
+    "AwaitingOutcome": "Awaiting outcome",
+    "Completed": "Completed",
+    "Cancelled": "Cancelled",
+    "NoShow": "No-show"
   }
 }

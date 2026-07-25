@@ -27,12 +27,14 @@ public sealed class CountUpcomingInterviewsTests
         {
             db.Interviews.Add(NewInterview(scheduledAt));
 
+            // Completing requires the start time to have passed, so the transition is applied with a
+            // clock set just after the slot; cancelling requires the opposite, so it uses "now".
             var completed = NewInterview(scheduledAt);
-            completed.Complete();
+            completed.Complete(scheduledAt.AddMinutes(1));
             db.Interviews.Add(completed);
 
             var cancelled = NewInterview(scheduledAt);
-            cancelled.Cancel();
+            cancelled.Cancel(DateTime.UtcNow);
             db.Interviews.Add(cancelled);
 
             await db.SaveChangesAsync();
@@ -57,7 +59,7 @@ public sealed class CountUpcomingInterviewsTests
     private static Interview NewInterview(DateTime scheduledAtUtc) =>
         Interview.Schedule(
             applicationId: Guid.NewGuid(), type: InterviewType.Technical, scheduledAtUtc: scheduledAtUtc,
-            durationMinutes: 60, interviewerUserIds: new[] { Guid.NewGuid() });
+            durationMinutes: 60, interviewerUserIds: new[] { Guid.NewGuid() }, nowUtc: DateTime.UtcNow);
 
     private InterviewsDbContext NewDb(FixedTenant tenant) =>
         new(PostgresContainerFixture.BuildInterviewsOptions(_fixture.ConnectionString, tenant), tenant);
@@ -125,7 +127,7 @@ public sealed class GetInterviewsForApplicationTests
     private static Interview NewInterview(Guid applicationId, DateTime scheduledAtUtc) =>
         Interview.Schedule(
             applicationId, type: InterviewType.Technical, scheduledAtUtc: scheduledAtUtc,
-            durationMinutes: 45, interviewerUserIds: new[] { Guid.NewGuid() });
+            durationMinutes: 45, interviewerUserIds: new[] { Guid.NewGuid() }, nowUtc: DateTime.UtcNow);
 
     private InterviewsDbContext NewDb(FixedTenant tenant) =>
         new(PostgresContainerFixture.BuildInterviewsOptions(_fixture.ConnectionString, tenant), tenant);

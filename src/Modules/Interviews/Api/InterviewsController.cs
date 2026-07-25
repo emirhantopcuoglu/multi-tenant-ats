@@ -32,10 +32,11 @@ public sealed class InterviewsController : ControllerBase
     public async Task<IActionResult> List(
         [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null,
         [FromQuery] Guid? interviewerId = null, [FromQuery] Guid? applicationId = null,
+        [FromQuery] InterviewListFilter? filter = null,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         var result = await _sender.Send(
-            new ListInterviewsQuery(fromDate, toDate, interviewerId, applicationId, page, pageSize));
+            new ListInterviewsQuery(fromDate, toDate, interviewerId, applicationId, filter, page, pageSize));
         return Ok(result.Value);
     }
 
@@ -129,6 +130,7 @@ public sealed class InterviewsController : ControllerBase
     {
         "interview.application_not_found" => NotFound(new { error.Code, error.Message }),
         "interview.not_found" => NotFound(new { error.Code, error.Message }),
+        "interview.transition_not_allowed" => Conflict(new { error.Code, error.Message }),
         "interview.feedback_not_eligible" => Conflict(new { error.Code, error.Message }),
         "interview.duplicate_feedback" => Conflict(new { error.Code, error.Message }),
         "interview.interviewer_conflict" => Conflict(new { error.Code, error.Message }),

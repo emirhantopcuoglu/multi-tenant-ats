@@ -386,13 +386,13 @@
       "time": "Saat",
       "dateRequired": "Bir tarih seç.",
       "timeRequired": "Bir saat seç.",
-      "whenPast": "Gelecek bir tarih ve saat seç.",
       "duration": "Süre",
       "interviewers": "Görüşmeciler",
       "loadingUsers": "Ekip yükleniyor…",
       "noUsers": "Ekip üyesi bulunamadı.",
       "notes": "Notlar",
-      "notesPlaceholder": "Gündem, odak alanları…"
+      "notesPlaceholder": "Gündem, odak alanları…",
+      "whenTooSoon": "Mülakat en az {{count}} dakika sonrasına planlanmalı."
     },
     "conflict": {
       "interviewer": "Bir görüşmecinin bu saatte başka bir mülakatı var.",
@@ -429,9 +429,9 @@
       "submitted": "Değerlendirmen gönderildi.",
       "toast": "Değerlendirme gönderildi.",
       "locked": "Bu mülakat için yalnızca atanmış görüşmeciler değerlendirme gönderebilir.",
-      "lockedCancelled": "Bu mülakat iptal edildiği için değerlendirme kapalı.",
       "lockedNotYet": "Mülakat gerçekleştikten sonra değerlendirme gönderebilirsin.",
-      "notEligible": "Bu mülakat için değerlendirme gönderilemez."
+      "notEligible": "Bu mülakat için değerlendirme gönderilemez.",
+      "lockedNoOutcome": "Bu mülakat gerçekleşmediği için değerlendirilemez."
     },
     "toast": {
       "scheduled": "Mülakat planlandı.",
@@ -439,7 +439,21 @@
       "cancelled": "Mülakat iptal edildi.",
       "completed": "Tamamlandı olarak işaretlendi.",
       "noShow": "Gelmedi olarak işaretlendi.",
-      "error": "İşlem başarısız. Lütfen tekrar dene."
+      "error": "İşlem başarısız. Lütfen tekrar dene.",
+      "stale": "Bu sayfa güncel değil. Yenileyip tekrar dene."
+    },
+    "filterState": "Duruma göre filtrele",
+    "allStates": "Tüm durumlar",
+    "state": {
+      "Upcoming": "Yaklaşan",
+      "AwaitingOutcome": "Sonuç bekleyen",
+      "Completed": "Tamamlanan",
+      "Cancelled": "İptal edilen",
+      "NoShow": "Gelinmeyen"
+    },
+    "awaitingOutcome": {
+      "title": "Bu mülakatın zamanı geçti.",
+      "body": "Ne olduğunu kaydet: tamamlandıysa \"Tamamlandı işaretle\", taraflardan biri katılmadıysa \"Gelmedi\" seç."
     }
   },
   "employmentType": {
@@ -815,5 +829,12 @@
     "submitted": "bir başvuru gönderdi.",
     "moved": "adayı taşıdı",
     "rejected": "başvuruyu reddetti."
+  },
+  "interviewStatus": {
+    "Scheduled": "Planlandı",
+    "AwaitingOutcome": "Sonuç bekliyor",
+    "Completed": "Tamamlandı",
+    "Cancelled": "İptal edildi",
+    "NoShow": "Gelmedi"
   }
 }

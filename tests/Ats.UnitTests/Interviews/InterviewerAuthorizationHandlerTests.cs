@@ -10,9 +10,13 @@ public class InterviewerAuthorizationHandlerTests
     private static readonly Guid InterviewerId = Guid.NewGuid();
     private static readonly Guid OtherId = Guid.NewGuid();
 
+    // The capability flags are irrelevant to participant authorization — this handler only asks
+    // "is the caller one of the interviewers" — so they are filled with a still-pending shape.
     private static InterviewDetailDto MakeDto(params Guid[] interviewerIds) =>
         new(Guid.NewGuid(), Guid.NewGuid(), "Technical", DateTime.UtcNow.AddDays(1),
-            60, "Scheduled", null, interviewerIds.ToList(), "room-token");
+            60, "Scheduled", null, interviewerIds.ToList(), "room-token",
+            IsAwaitingOutcome: false, CanReschedule: true, CanCancel: true,
+            CanComplete: false, CanMarkNoShow: false, CanReceiveFeedback: false);
 
     private static ClaimsPrincipal MakeUser(Guid? userId) =>
         new(new ClaimsIdentity(
