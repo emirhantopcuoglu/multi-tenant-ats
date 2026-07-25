@@ -1,6 +1,7 @@
 import { apiClient, API_V1 } from '@/lib/apiClient';
 import type { PagedResult } from '@/types/pagination';
 import type {
+  ApplicationInterviewOutcome,
   CancelInterviewRequest,
   InterviewDetail,
   InterviewFeedbackSummary,
@@ -104,5 +105,15 @@ export async function getInterviewFeedback(id: string): Promise<InterviewFeedbac
   const { data } = await apiClient.get<InterviewFeedbackSummary>(
     `${INTERVIEWS_BASE}/${id}/feedback`,
   );
+  return data;
+}
+
+/* Roll-up of one application's interviews, for the decision on the application screen. */
+export async function getApplicationInterviewOutcome(
+  applicationId: string,
+): Promise<ApplicationInterviewOutcome> {
+  const { data } = await apiClient.get<ApplicationInterviewOutcome>(`${INTERVIEWS_BASE}/outcome`, {
+    params: { applicationId },
+  });
   return data;
 }

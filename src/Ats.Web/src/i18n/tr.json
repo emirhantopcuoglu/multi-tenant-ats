@@ -178,6 +178,12 @@
       "rejected": "Başvuru reddedildi.",
       "hired": "Aday işe alındı.",
       "error": "İşlem başarısız. Lütfen tekrar dene."
+    },
+    "outcome": {
+      "title": "Mülakat sonuçları",
+      "awaiting_one": "{{count}} mülakatın sonucu kaydedilmedi. Karar vermeden önce tamamla.",
+      "awaiting_other": "{{count}} mülakatın sonucu kaydedilmedi. Karar vermeden önce tamamla.",
+      "readyForDecision": "Tüm mülakatlar sonuçlandı ve değerlendirmeler tamam. Karar verilebilir."
     }
   },
   "overview": {
@@ -884,7 +890,8 @@
     "CandidateRequested": "Aday talep etti",
     "CandidateWithdrew": "Aday başvurusunu çekti",
     "PositionClosed": "Pozisyon kapandı",
-    "Other": "Diğer"
+    "Other": "Diğer",
+    "ApplicationRejected": "Başvuru reddedildi"
   },
   "noShowParty": {
     "Candidate": "Aday gelmedi",

@@ -4,7 +4,7 @@ import { Button, Field, Modal, Select, Textarea } from '@/components/ui';
 import {
   INTERVIEW_CANCELLATION_REASONS,
   type CancelInterviewRequest,
-  type InterviewCancellationReason,
+  type SelectableInterviewCancellationReason,
 } from '@/types/interview';
 
 interface CancelInterviewModalProps {
@@ -30,7 +30,7 @@ export function CancelInterviewModal({
   onConfirm,
 }: CancelInterviewModalProps) {
   const { t } = useTranslation();
-  const [reason, setReason] = useState<InterviewCancellationReason | ''>('');
+  const [reason, setReason] = useState<SelectableInterviewCancellationReason | ''>('');
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -77,7 +77,7 @@ export function CancelInterviewModal({
               invalid={invalid}
               value={reason}
               onChange={(event) => {
-                setReason(event.target.value as InterviewCancellationReason);
+                setReason(event.target.value as SelectableInterviewCancellationReason);
                 if (error) setError(null);
               }}
             >

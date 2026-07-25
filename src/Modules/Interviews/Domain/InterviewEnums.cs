@@ -29,5 +29,10 @@ public enum InterviewCancellationReason
     CandidateRequested,
     CandidateWithdrew,
     PositionClosed,
+
+    // Set by the system when the application behind the interview is rejected, never chosen in the
+    // cancel dialog — rejecting an application is its own action, not a way to call off a meeting.
+    ApplicationRejected,
+
     Other,
 }

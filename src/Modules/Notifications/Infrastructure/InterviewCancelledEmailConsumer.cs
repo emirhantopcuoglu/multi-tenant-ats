@@ -84,6 +84,9 @@ public sealed class InterviewCancelledEmailConsumer
         "PositionClosed" =>
             "The position is no longer open, so this interview will not be rearranged. "
             + "Thank you for the time you invested, and we are sorry for the disappointing news.",
+        "ApplicationRejected" =>
+            "Your application is no longer moving forward, so this interview will not go ahead. "
+            + "Thank you for the time you invested in the process.",
         _ =>
             "If another time becomes available we will be in touch. "
             + "Thank you for your patience.",
