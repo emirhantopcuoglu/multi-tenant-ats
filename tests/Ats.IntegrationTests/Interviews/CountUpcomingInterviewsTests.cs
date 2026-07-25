@@ -34,7 +34,7 @@ public sealed class CountUpcomingInterviewsTests
             db.Interviews.Add(completed);
 
             var cancelled = NewInterview(scheduledAt);
-            cancelled.Cancel(DateTime.UtcNow);
+            cancelled.Cancel(InterviewCancellationReason.Other, null, DateTime.UtcNow);
             db.Interviews.Add(cancelled);
 
             await db.SaveChangesAsync();

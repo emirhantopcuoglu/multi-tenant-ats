@@ -1,6 +1,7 @@
 import { apiClient, API_V1 } from '@/lib/apiClient';
 import type { PagedResult } from '@/types/pagination';
 import type {
+  CancelInterviewRequest,
   InterviewDetail,
   InterviewListFilter,
   InterviewListItem,
@@ -55,10 +56,14 @@ export async function rescheduleInterview(id: string, body: RescheduleRequest): 
   await apiClient.put(`${INTERVIEWS_BASE}/${id}/reschedule`, body);
 }
 
-/* The three terminal lifecycle transitions. Each is a parameterless POST that the backend gates on
-   CanManageInterviews and the interview's current status (e.g. you cannot complete a cancelled one). */
-export async function cancelInterview(id: string): Promise<void> {
-  await apiClient.post(`${INTERVIEWS_BASE}/${id}/cancel`);
+/* The three terminal lifecycle transitions. The backend gates each on CanManageInterviews and on
+   the interview's own state — which now includes the clock, so a transition can be refused with 409
+   even though the caller had a button for it (a stale page).
+
+   Cancelling takes a reason: it is the only transition that emails the candidate, and the reason
+   decides whether that email promises a new invitation. */
+export async function cancelInterview(id: string, body: CancelInterviewRequest): Promise<void> {
+  await apiClient.post(`${INTERVIEWS_BASE}/${id}/cancel`, body);
 }
 
 export async function completeInterview(id: string): Promise<void> {

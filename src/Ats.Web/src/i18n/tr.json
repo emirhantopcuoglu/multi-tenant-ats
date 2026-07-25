@@ -454,6 +454,24 @@
     "awaitingOutcome": {
       "title": "Bu mülakatın zamanı geçti.",
       "body": "Ne olduğunu kaydet: tamamlandıysa \"Tamamlandı işaretle\", taraflardan biri katılmadıysa \"Gelmedi\" seç."
+    },
+    "cancel": {
+      "title": "Mülakatı iptal et",
+      "description": "Adaya bir e-posta gidecek. Gerekçe, e-postanın ne diyeceğini belirler.",
+      "reason": "Gerekçe",
+      "reasonPlaceholder": "Bir gerekçe seç",
+      "reasonRequired": "Bir gerekçe seç.",
+      "note": "İç not",
+      "noteHint": "Yalnızca ekibin görür. Adaya gönderilmez.",
+      "notePlaceholder": "Kayıt için kısa açıklama…",
+      "confirm": "Mülakatı iptal et",
+      "effect": {
+        "Rescheduling": "Adaya: kısa süre içinde yeni bir tarihle döneceğiz.",
+        "CandidateRequested": "Adaya: kendi talebiyle iptal edildi, yeniden ayarlamak için haber vermesi yeterli.",
+        "CandidateWithdrew": "Adaya: başvurusunu çektiği için iptal edildi, ilerideki roller için teşekkür.",
+        "PositionClosed": "Adaya: pozisyon kapandı, mülakat yeniden ayarlanmayacak.",
+        "Other": "Adaya: başka bir zaman uygun olursa haber verilecek."
+      }
     }
   },
   "employmentType": {
@@ -836,5 +854,12 @@
     "Completed": "Tamamlandı",
     "Cancelled": "İptal edildi",
     "NoShow": "Gelmedi"
+  },
+  "cancellationReason": {
+    "Rescheduling": "Yeniden planlanacak",
+    "CandidateRequested": "Aday talep etti",
+    "CandidateWithdrew": "Aday başvurusunu çekti",
+    "PositionClosed": "Pozisyon kapandı",
+    "Other": "Diğer"
   }
 }

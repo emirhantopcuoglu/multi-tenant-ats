@@ -1,6 +1,4 @@
-using System.Globalization;
 using System.Net;
-using System.Text.RegularExpressions;
 using Ats.Shared.Contracts.Notifications;
 using Ats.Shared.Kernel;
 using MassTransit;
@@ -15,7 +13,7 @@ namespace Ats.Modules.Notifications.Infrastructure;
 //
 // The send is wrapped in the idempotency guard keyed on the message id, matching the other email
 // consumers: an at-least-once redelivery must not email the candidate twice.
-public sealed partial class InterviewScheduledEmailConsumer
+public sealed class InterviewScheduledEmailConsumer
     : IConsumer<InterviewScheduledIntegrationEvent>
 {
     private const string Subject = "Your interview has been scheduled";
@@ -42,20 +40,18 @@ public sealed partial class InterviewScheduledEmailConsumer
         var message = context.Message;
 
         // Job title is a recruiter/company-controlled string, untrusted in an HTML email, so
-        // HTML-encode it — same rule as the other emails. The interview type is a closed set of
-        // PascalCase contract values (e.g. "PhoneScreen"); humanize it for reading.
+        // HTML-encode it — same rule as the other emails. Date formatting and the PascalCase
+        // humanization are shared with the reschedule/cancel emails so one interview never reads
+        // differently across the three messages.
         var firstName = WebUtility.HtmlEncode(message.CandidateFirstName);
         var jobTitle = WebUtility.HtmlEncode(message.JobTitle);
-        var interviewType = HumanizePascalCase(message.InterviewType);
-        var scheduledAt = message.ScheduledAtUtc.ToString(
-            "dddd, MMMM d, yyyy 'at' h:mm tt 'UTC'", CultureInfo.InvariantCulture);
+        var interviewType = InterviewEmailFormatting.HumanizeType(message.InterviewType);
+        var scheduledAt = InterviewEmailFormatting.FormatUtc(message.ScheduledAtUtc);
 
         // A phone screen has no room token, so there is no link to send — the candidate is called
-        // instead. Every other type gets a join link. The token is a URL-safe base64 string by
-        // construction (see Interview.GenerateRoomToken) — no HTML-unsafe characters possible — but
-        // it is still HTML-encoded here on principle, the same rule applied to every other field.
+        // instead. Every other type gets a join link.
         var joinLine = message.RoomToken is { } roomToken
-            ? $"""<p>Join the interview room here when it opens: <a href="{_roomOptions.BaseUrl}/{WebUtility.HtmlEncode(roomToken)}">{_roomOptions.BaseUrl}/{WebUtility.HtmlEncode(roomToken)}</a></p>"""
+            ? InterviewEmailFormatting.JoinLine(_roomOptions.BaseUrl, roomToken, unchanged: false)
             : "<p>This is a phone interview — the interviewer will call you at the scheduled time.</p>";
 
         var body = $"""
@@ -86,12 +82,4 @@ public sealed partial class InterviewScheduledEmailConsumer
             message.CandidateEmail,
             message.InterviewId);
     }
-
-    // "PhoneScreen" -> "Phone Screen". The pattern is a zero-width lookaround (matches the boundary,
-    // consumes nothing), so the replacement is a plain space, not a backreference.
-    private static string HumanizePascalCase(string value) =>
-        PascalCaseBoundary().Replace(value, " ");
-
-    [GeneratedRegex("(?<=[a-z])(?=[A-Z])")]
-    private static partial Regex PascalCaseBoundary();
 }
