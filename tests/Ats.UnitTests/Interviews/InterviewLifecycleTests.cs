@@ -344,9 +344,55 @@ public class InterviewLifecycleTests
     {
         var interview = ScheduleValid();
 
-        interview.MarkNoShow(AfterStart(interview));
+        interview.MarkNoShow(NoShowParty.Candidate, AfterStart(interview));
 
         Assert.Equal(InterviewStatus.NoShow, interview.Status);
+    }
+
+    [Fact]
+    public void MarkNoShow_should_record_which_side_failed_to_appear()
+    {
+        var candidateMissed = ScheduleValid();
+        var interviewerMissed = ScheduleValid();
+
+        candidateMissed.MarkNoShow(NoShowParty.Candidate, AfterStart(candidateMissed));
+        interviewerMissed.MarkNoShow(NoShowParty.Interviewer, AfterStart(interviewerMissed));
+
+        // Both land in the same status, but the record must still distinguish a signal about the
+        // candidate from the company's own failure.
+        Assert.Equal(InterviewStatus.NoShow, candidateMissed.Status);
+        Assert.Equal(InterviewStatus.NoShow, interviewerMissed.Status);
+        Assert.Equal(NoShowParty.Candidate, candidateMissed.NoShowParty);
+        Assert.Equal(NoShowParty.Interviewer, interviewerMissed.NoShowParty);
+    }
+
+    [Fact]
+    public void MarkNoShow_should_throw_on_an_undefined_party()
+    {
+        var interview = ScheduleValid();
+
+        Assert.Throws<ArgumentException>(
+            () => interview.MarkNoShow((NoShowParty)42, AfterStart(interview)));
+    }
+
+    [Fact]
+    public void A_refused_no_show_should_not_record_a_party()
+    {
+        var interview = ScheduleValid();
+
+        Assert.Throws<InvalidOperationException>(
+            () => interview.MarkNoShow(NoShowParty.Candidate, Now));
+
+        Assert.Null(interview.NoShowParty);
+    }
+
+    [Fact]
+    public void An_interview_that_was_never_a_no_show_should_carry_no_party()
+    {
+        var interview = ScheduleValid();
+        interview.Complete(AfterStart(interview));
+
+        Assert.Null(interview.NoShowParty);
     }
 
     [Fact]
@@ -354,7 +400,7 @@ public class InterviewLifecycleTests
     {
         var interview = ScheduleValid();
 
-        Assert.Throws<InvalidOperationException>(() => interview.MarkNoShow(Now));
+        Assert.Throws<InvalidOperationException>(() => interview.MarkNoShow(NoShowParty.Candidate, Now));
     }
 
     [Fact]
@@ -365,9 +411,82 @@ public class InterviewLifecycleTests
         interview.Complete(afterStart);
 
         Assert.Throws<InvalidOperationException>(() => interview.Cancel(InterviewCancellationReason.Other, null, afterStart));
-        Assert.Throws<InvalidOperationException>(() => interview.MarkNoShow(afterStart));
+        Assert.Throws<InvalidOperationException>(() => interview.MarkNoShow(NoShowParty.Candidate, afterStart));
         Assert.Throws<InvalidOperationException>(
             () => interview.Reschedule(Now.AddDays(5), 30, afterStart));
+    }
+
+    // ---- Reassigning the panel ----
+
+    [Fact]
+    public void ReassignInterviewers_should_replace_the_panel_before_the_start()
+    {
+        var interview = ScheduleValid();
+        var replacement = Guid.NewGuid();
+
+        interview.ReassignInterviewers([replacement], BeforeStart(interview));
+
+        Assert.Equal([replacement], interview.InterviewerUserIds);
+    }
+
+    [Fact]
+    public void ReassignInterviewers_should_not_touch_the_schedule()
+    {
+        var interview = ScheduleValid();
+        var originalTime = interview.ScheduledAtUtc;
+        var originalToken = interview.RoomToken;
+
+        interview.ReassignInterviewers([Guid.NewGuid()], BeforeStart(interview));
+
+        Assert.Equal(originalTime, interview.ScheduledAtUtc);
+        Assert.Equal(Duration, interview.DurationMinutes);
+        // The room belongs to the interview, not to whoever is staffing it — swapping the panel
+        // must not invalidate a link the candidate already has.
+        Assert.Equal(originalToken, interview.RoomToken);
+    }
+
+    [Fact]
+    public void ReassignInterviewers_should_deduplicate()
+    {
+        var interview = ScheduleValid();
+        var interviewer = Guid.NewGuid();
+
+        interview.ReassignInterviewers([interviewer, interviewer], BeforeStart(interview));
+
+        Assert.Single(interview.InterviewerUserIds);
+    }
+
+    [Fact]
+    public void ReassignInterviewers_should_throw_on_an_empty_panel()
+    {
+        var interview = ScheduleValid();
+
+        Assert.Throws<ArgumentException>(
+            () => interview.ReassignInterviewers([], BeforeStart(interview)));
+    }
+
+    [Fact]
+    public void ReassignInterviewers_should_throw_once_the_start_time_has_passed()
+    {
+        // After the fact the interview either happened with these people or did not happen at all;
+        // rewriting the panel then would falsify the record rather than correct a plan.
+        var interview = ScheduleValid();
+        var original = interview.InterviewerUserIds.ToList();
+
+        Assert.Throws<InvalidOperationException>(
+            () => interview.ReassignInterviewers([Guid.NewGuid()], AfterEnd(interview)));
+
+        Assert.Equal(original, interview.InterviewerUserIds);
+    }
+
+    [Fact]
+    public void ReassignInterviewers_should_throw_once_the_interview_is_terminal()
+    {
+        var interview = ScheduleValid();
+        interview.Cancel(InterviewCancellationReason.Other, null, BeforeStart(interview));
+
+        Assert.Throws<InvalidOperationException>(
+            () => interview.ReassignInterviewers([Guid.NewGuid()], BeforeStart(interview)));
     }
 
     // ---- Capability flags: exactly one pair is offered at any moment ----
@@ -380,6 +499,7 @@ public class InterviewLifecycleTests
 
         Assert.True(interview.CanReschedule(before));
         Assert.True(interview.CanCancel(before));
+        Assert.True(interview.CanReassignInterviewers(before));
         Assert.False(interview.CanComplete(before));
         Assert.False(interview.CanMarkNoShow(before));
     }
@@ -392,6 +512,7 @@ public class InterviewLifecycleTests
 
         Assert.False(interview.CanReschedule(after));
         Assert.False(interview.CanCancel(after));
+        Assert.False(interview.CanReassignInterviewers(after));
         Assert.True(interview.CanComplete(after));
         Assert.True(interview.CanMarkNoShow(after));
     }
@@ -405,6 +526,7 @@ public class InterviewLifecycleTests
 
         Assert.False(interview.CanReschedule(after));
         Assert.False(interview.CanCancel(after));
+        Assert.False(interview.CanReassignInterviewers(after));
         Assert.False(interview.CanComplete(after));
         Assert.False(interview.CanMarkNoShow(after));
     }
@@ -450,7 +572,7 @@ public class InterviewLifecycleTests
     public void CanReceiveFeedback_should_be_false_for_a_no_show()
     {
         var interview = ScheduleValid();
-        interview.MarkNoShow(AfterStart(interview));
+        interview.MarkNoShow(NoShowParty.Candidate, AfterStart(interview));
 
         Assert.False(interview.CanReceiveFeedback(AfterEnd(interview)));
     }

@@ -407,7 +407,8 @@
       "reschedule": "Yeniden planla",
       "complete": "Tamamlandı işaretle",
       "noShow": "Gelmedi",
-      "cancel": "İptal et"
+      "cancel": "İptal et",
+      "reassign": "Görüşmecileri değiştir"
     },
     "detail": {
       "back": "Mülakatlara dön",
@@ -440,7 +441,8 @@
       "completed": "Tamamlandı olarak işaretlendi.",
       "noShow": "Gelmedi olarak işaretlendi.",
       "error": "İşlem başarısız. Lütfen tekrar dene.",
-      "stale": "Bu sayfa güncel değil. Yenileyip tekrar dene."
+      "stale": "Bu sayfa güncel değil. Yenileyip tekrar dene.",
+      "reassigned": "Görüşmeciler güncellendi."
     },
     "filterState": "Duruma göre filtrele",
     "allStates": "Tüm durumlar",
@@ -472,6 +474,20 @@
         "PositionClosed": "Adaya: pozisyon kapandı, mülakat yeniden ayarlanmayacak.",
         "Other": "Adaya: başka bir zaman uygun olursa haber verilecek."
       }
+    },
+    "noShow": {
+      "title": "Gelmedi olarak işaretle",
+      "description": "Hangi tarafın katılmadığını kaydet. Aday ile görüşmeci aynı kayıt değil.",
+      "party": "Katılmayan taraf",
+      "partyPlaceholder": "Bir taraf seç",
+      "partyRequired": "Hangi tarafın katılmadığını seç.",
+      "confirm": "Gelmedi olarak işaretle"
+    },
+    "reassign": {
+      "title": "Görüşmecileri değiştir",
+      "description": "Tarih ve saat aynı kalır, yalnızca panel değişir.",
+      "confirm": "Görüşmecileri kaydet",
+      "atLeastOne": "En az bir görüşmeci seçilmeli."
     }
   },
   "employmentType": {
@@ -716,6 +732,8 @@
     "newApplication": "{{candidateName}}, \"{{jobTitle}}\" pozisyonuna başvurdu",
     "stageChanged": "\"{{jobTitle}}\" başvurun \"{{stage}}\" aşamasına taşındı",
     "interviewScheduled": "\"{{jobTitle}}\" için mülakat planlandı: {{type}}, {{date}}",
+    "interviewRescheduled": "\"{{jobTitle}}\" mülakatın taşındı: {{type}}, {{previousDate}} → {{date}}",
+    "interviewCancelled": "\"{{jobTitle}}\" mülakatın iptal edildi: {{type}}, {{date}}",
     "generic": "Yeni bir bildirimin var"
   },
   "auth": {
@@ -861,5 +879,9 @@
     "CandidateWithdrew": "Aday başvurusunu çekti",
     "PositionClosed": "Pozisyon kapandı",
     "Other": "Diğer"
+  },
+  "noShowParty": {
+    "Candidate": "Aday gelmedi",
+    "Interviewer": "Görüşmeci gelmedi"
   }
 }

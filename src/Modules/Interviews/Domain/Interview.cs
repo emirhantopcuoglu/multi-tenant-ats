@@ -61,6 +61,10 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
     public InterviewCancellationReason? CancellationReason { get; private set; }
     public string? CancellationNote { get; private set; }
 
+    // Set together with Status.NoShow, null otherwise. See NoShowParty: "nobody came" is not a
+    // usable record when it cannot say which side.
+    public NoShowParty? NoShowParty { get; private set; }
+
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }
@@ -142,10 +146,32 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
         Status = InterviewStatus.Completed;
     }
 
-    public void MarkNoShow(DateTime nowUtc)
+    public void MarkNoShow(NoShowParty party, DateTime nowUtc)
     {
+        if (!Enum.IsDefined(party))
+            throw new ArgumentException("Unknown no-show party.", nameof(party));
+
         EnsureUnderway("marked as a no-show", nowUtc);
         Status = InterviewStatus.NoShow;
+        NoShowParty = party;
+    }
+
+    // Swaps the panel without touching the time. Kept apart from Reschedule rather than folded into
+    // it: "reschedule" that also silently changes who is in the room is a misleading name, and the
+    // two have different reasons to be refused. Only allowed before the start — after that the
+    // interview either happened with these people or did not happen at all, and rewriting the panel
+    // would be falsifying the record rather than correcting a plan.
+    public void ReassignInterviewers(IReadOnlyCollection<Guid> interviewerUserIds, DateTime nowUtc)
+    {
+        if (interviewerUserIds is null || interviewerUserIds.Count == 0)
+            throw new ArgumentException("At least one interviewer is required.", nameof(interviewerUserIds));
+        if (interviewerUserIds.Any(id => id == Guid.Empty))
+            throw new ArgumentException("Interviewer ids must not be empty.", nameof(interviewerUserIds));
+
+        EnsurePending("reassigned", nowUtc);
+
+        _interviewerUserIds.Clear();
+        _interviewerUserIds.AddRange(interviewerUserIds.Distinct());
     }
 
     // ---- Derived state ----
@@ -170,6 +196,7 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
     // exactly how the buttons drifted out of sync with the domain in the first place.
     public bool CanReschedule(DateTime nowUtc) => IsPending(nowUtc);
     public bool CanCancel(DateTime nowUtc) => IsPending(nowUtc);
+    public bool CanReassignInterviewers(DateTime nowUtc) => IsPending(nowUtc);
     public bool CanComplete(DateTime nowUtc) => IsUnderway(nowUtc);
     public bool CanMarkNoShow(DateTime nowUtc) => IsUnderway(nowUtc);
 

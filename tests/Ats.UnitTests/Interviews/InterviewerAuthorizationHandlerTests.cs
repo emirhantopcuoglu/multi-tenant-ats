@@ -16,7 +16,9 @@ public class InterviewerAuthorizationHandlerTests
         new(Guid.NewGuid(), Guid.NewGuid(), "Technical", DateTime.UtcNow.AddDays(1),
             60, "Scheduled", null, interviewerIds.ToList(), "room-token",
             IsAwaitingOutcome: false, CanReschedule: true, CanCancel: true,
-            CanComplete: false, CanMarkNoShow: false, CanReceiveFeedback: false);
+            CanComplete: false, CanMarkNoShow: false, CanReassignInterviewers: true,
+            CanReceiveFeedback: false,
+            CancellationReason: null, CancellationNote: null, NoShowParty: null);
 
     private static ClaimsPrincipal MakeUser(Guid? userId) =>
         new(new ClaimsIdentity(

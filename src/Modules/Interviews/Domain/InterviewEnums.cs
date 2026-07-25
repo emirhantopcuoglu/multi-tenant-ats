@@ -11,6 +11,12 @@ public enum InterviewStatus { Scheduled, Completed, Cancelled, NoShow }
 // to most positive so comparisons and displays can sort naturally.
 public enum FeedbackRecommendation { StrongNoHire, NoHire, Hire, StrongHire }
 
+// Who failed to appear. Recorded separately from the NoShow status because the two cases are not
+// the same fact: a candidate who did not turn up is a signal about that candidate, while an
+// interviewer who did not is the company's own failure and should never count against the person
+// who did show up. Collapsing both into one status made the record unusable for either purpose.
+public enum NoShowParty { Candidate, Interviewer }
+
 // Why a scheduled interview was called off. A closed set rather than free text because this value
 // is candidate-facing: it selects the sentence the cancellation email leads with, and the one thing
 // a candidate actually needs to know is whether another invitation is coming. The recruiter's own

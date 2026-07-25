@@ -20,7 +20,11 @@ public sealed record InterviewDetailDto(
     Guid Id, Guid ApplicationId, string Type, DateTime ScheduledAtUtc, int DurationMinutes,
     string Status, string? Notes, IReadOnlyList<Guid> InterviewerUserIds, string? RoomToken,
     bool IsAwaitingOutcome, bool CanReschedule, bool CanCancel, bool CanComplete,
-    bool CanMarkNoShow, bool CanReceiveFeedback);
+    bool CanMarkNoShow, bool CanReassignInterviewers, bool CanReceiveFeedback,
+    // The outcome details, each null unless the interview reached that state. CancellationNote is
+    // included because this DTO serves the company side only — the candidate's view of an interview
+    // is built by InterviewDirectory, which has no field for it.
+    string? CancellationReason, string? CancellationNote, string? NoShowParty);
 
 // A list bucket, not a stored status. Upcoming and AwaitingOutcome are both slices of
 // Status.Scheduled cut by the clock — precisely the distinction the status column cannot express on
@@ -132,6 +136,8 @@ public sealed class GetInterviewByIdHandler : IQueryHandler<GetInterviewByIdQuer
             interview.IsAwaitingOutcome(nowUtc),
             interview.CanReschedule(nowUtc), interview.CanCancel(nowUtc),
             interview.CanComplete(nowUtc), interview.CanMarkNoShow(nowUtc),
-            interview.CanReceiveFeedback(nowUtc)));
+            interview.CanReassignInterviewers(nowUtc), interview.CanReceiveFeedback(nowUtc),
+            interview.CancellationReason?.ToString(), interview.CancellationNote,
+            interview.NoShowParty?.ToString()));
     }
 }

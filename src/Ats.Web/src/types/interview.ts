@@ -35,7 +35,12 @@ export interface InterviewDetail {
   canCancel: boolean;
   canComplete: boolean;
   canMarkNoShow: boolean;
+  canReassignInterviewers: boolean;
   canReceiveFeedback: boolean;
+  /** Outcome details; each null unless the interview actually reached that state. */
+  cancellationReason: InterviewCancellationReason | null;
+  cancellationNote: string | null;
+  noShowParty: NoShowParty | null;
 }
 
 /* Server-side list buckets (Interviews.Application.InterviewListFilter). Upcoming and
@@ -91,6 +96,23 @@ export type InterviewCancellationReason = (typeof INTERVIEW_CANCELLATION_REASONS
 export interface CancelInterviewRequest {
   reason: InterviewCancellationReason;
   note?: string;
+}
+
+/* Who failed to appear (Interviews.Domain.NoShowParty). Recorded separately from the NoShow status
+   because a candidate who did not turn up is a signal about that candidate, while an interviewer
+   who did not is the company's own failure — one record cannot serve both. */
+export const NO_SHOW_PARTIES = ['Candidate', 'Interviewer'] as const;
+
+export type NoShowParty = (typeof NO_SHOW_PARTIES)[number];
+
+/* POST /api/v1/interviews/{id}/no-show body (InterviewsController.MarkNoShowBody). */
+export interface MarkNoShowRequest {
+  party: NoShowParty;
+}
+
+/* PUT /api/v1/interviews/{id}/interviewers body. The full replacement panel, not a delta. */
+export interface ReassignInterviewersRequest {
+  interviewerUserIds: string[];
 }
 
 /* POST /api/v1/interviews/{id}/feedback body (InterviewsController.SubmitFeedbackBody). Submitting is

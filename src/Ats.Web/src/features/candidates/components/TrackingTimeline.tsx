@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { IconTimeline, IconTimelineItem } from '@/components/ui';
 import { stageLabel } from '@/lib/stageLabel';
@@ -44,7 +45,7 @@ export function TrackingTimeline({
 function stepLabel(
   step: TrackingStep,
   detail: CandidateApplicationDetail,
-  t: ReturnType<typeof useTranslation>['t'],
+  t: TFunction,
 ): string {
   switch (step.kind) {
     case 'submitted':
