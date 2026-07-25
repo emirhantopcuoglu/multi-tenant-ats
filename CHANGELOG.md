@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.10.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.9.0...v0.10.0) (2026-07-25)
+
+
+### Features
+
+* **interviews:** close the loop between interviews and the hiring decision ([9d02e9c](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/9d02e9c186c8fbf515d83d0b5692961f7660ad1d))
+* **interviews:** close the loop between interviews and the hiring decision ([cf9c10e](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/cf9c10e474205998d1b8b0b00b1a60ff2f22fc29))
+* **interviews:** let the panel's feedback be read back ([a983aef](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/a983aef0cd375ecf14d9990b3ad855b69b280ac0))
+* **interviews:** let the panel's feedback be read back ([262898a](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/262898a4f36cd0778e18b8758626e3d84242ab65))
+* **interviews:** notify the candidate when an interview moves or is cancelled ([7f5fa72](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/7f5fa728cdd5f4010888b928c5b749913da03dfb))
+* **interviews:** notify the candidate when an interview moves or is cancelled ([aed88cc](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/aed88ccb6e3d6f54e63def49b27cf1835f52738b))
+* **interviews:** record which side missed an interview, and allow swapping the panel ([8c3f56a](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/8c3f56ad666dbb84625ba057abb3178123ede782))
+* **interviews:** record which side missed an interview, and allow swapping the panel ([11f37e7](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/11f37e7cac9d4369acddda08f740ad0af7550f49))
+
+
+### Bug Fixes
+
+* **applications:** show the interview stage move on the candidate timeline ([eb76ce4](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/eb76ce43499558926461f2595cf7759985e97865))
+* **applications:** show the interview stage move on the candidate timeline ([5a89152](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/5a89152bd8de65814b6e34be5ec9706c6f08b6b2))
+* **interviews:** gate lifecycle actions on the clock, not just status ([96afc00](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/96afc007fb9521e3c95e3eae9fbf9b9cebe04894))
+* **interviews:** gate lifecycle actions on the clock, not just status ([5c138b8](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/5c138b8279912f1afc903adc23b0b6d18d8b43a0))
+
 ## [0.9.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.8.0...v0.9.0) (2026-07-23)
 
 
