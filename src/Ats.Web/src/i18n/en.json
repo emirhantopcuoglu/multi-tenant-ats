@@ -429,10 +429,16 @@
       "submit": "Submit feedback",
       "submitted": "Your feedback has been submitted.",
       "toast": "Feedback submitted.",
-      "locked": "Only assigned interviewers can submit feedback for this interview.",
       "lockedNotYet": "You can submit feedback once the interview has taken place.",
       "notEligible": "Feedback can't be submitted for this interview.",
-      "lockedNoOutcome": "This interview did not take place, so it cannot be evaluated."
+      "lockedNoOutcome": "This interview did not take place, so it cannot be evaluated.",
+      "panelTitle": "Evaluations",
+      "progress": "{{submitted}} of {{expected}} interviewers have submitted",
+      "average": "Average: {{rating}}",
+      "none": "No evaluations submitted yet.",
+      "withheld": "You can see the other interviewers’ evaluations once you have submitted your own. This keeps someone else’s score from influencing yours.",
+      "unknownInterviewer": "Unknown interviewer",
+      "ratingOf": "{{rating}} out of {{max}}"
     },
     "toast": {
       "scheduled": "Interview scheduled.",

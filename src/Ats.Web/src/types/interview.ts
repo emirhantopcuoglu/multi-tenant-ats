@@ -115,10 +115,34 @@ export interface ReassignInterviewersRequest {
   interviewerUserIds: string[];
 }
 
-/* POST /api/v1/interviews/{id}/feedback body (InterviewsController.SubmitFeedbackBody). Submitting is
-   built in PR-2; the type lives here so the whole interview contract sits in one file. */
+/* POST /api/v1/interviews/{id}/feedback body (InterviewsController.SubmitFeedbackBody). */
 export interface SubmitFeedbackRequest {
   rating: number;
   recommendation: FeedbackRecommendation;
   comments?: string;
+}
+
+/* One interviewer's evaluation (Interviews.Application.InterviewFeedbackDto). */
+export interface InterviewFeedbackItem {
+  id: string;
+  interviewerUserId: string;
+  rating: number;
+  recommendation: FeedbackRecommendation;
+  comments: string | null;
+  submittedAtUtc: string;
+}
+
+/* GET /api/v1/interviews/{id}/feedback (InterviewFeedbackSummaryDto).
+
+   `items` comes back empty with `isWithheld: true` when the caller is on the panel but has not
+   filed their own evaluation yet — feedback is immutable by design, and reading the others first
+   would just move the anchoring earlier instead of preventing it. The counts are still populated in
+   that case, because "1 of 3 submitted" is progress information, not a leak. */
+export interface InterviewFeedbackSummary {
+  items: InterviewFeedbackItem[];
+  submittedCount: number;
+  expectedCount: number;
+  averageRating: number | null;
+  isWithheld: boolean;
+  hasCallerSubmitted: boolean;
 }

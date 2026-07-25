@@ -106,8 +106,24 @@ public sealed class InterviewsController : ControllerBase
         return result.IsSuccess ? NoContent() : MapFailure(result.Error);
     }
 
+    [HttpGet("{id:guid}/feedback")]
+    [Authorize(Policy = Policies.CanViewInterviews)]
+    public async Task<IActionResult> GetFeedback(Guid id)
+    {
+        // The caller's identity decides whether the panel's evaluations are withheld, so it comes
+        // from the JWT rather than the route — see GetInterviewFeedbackHandler.
+        var result = await _sender.Send(new GetInterviewFeedbackQuery(id, CurrentUserId()));
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : NotFound(new { result.Error.Code, result.Error.Message });
+    }
+
+    // Gated on viewing rather than managing interviews: submitting feedback is what an assigned
+    // interviewer does, and an interviewer is not necessarily a recruiter. CanManageInterviews
+    // excluded the ReadOnly role, so a ReadOnly user put on a panel could not evaluate the candidate
+    // they had just interviewed. IsInterviewParticipant below is the real gate — it always was.
     [HttpPost("{id:guid}/feedback")]
-    [Authorize(Policy = Policies.CanManageInterviews)]
+    [Authorize(Policy = Policies.CanViewInterviews)]
     public async Task<IActionResult> SubmitFeedback(Guid id, SubmitFeedbackBody body)
     {
         // Load the interview first so we can run a resource-based authorization check.
@@ -124,16 +140,17 @@ public sealed class InterviewsController : ControllerBase
 
         // The interviewer's identity comes from the JWT, not from the request body — callers must
         // not be able to self-declare another user's identity.
-        var interviewerUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-
         var command = new SubmitInterviewFeedbackCommand(
-            id, interviewerUserId, body.Rating, body.Recommendation, body.Comments);
+            id, CurrentUserId(), body.Rating, body.Recommendation, body.Comments);
 
         var result = await _sender.Send(command);
         return result.IsSuccess
             ? CreatedAtAction(nameof(GetById), new { id }, new { id = result.Value })
             : MapFailure(result.Error);
     }
+
+    // Always present: every action here sits behind [Authorize], so the subject claim exists.
+    private Guid CurrentUserId() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     private IActionResult MapFailure(Error error) => error.Code switch
     {

@@ -3,6 +3,7 @@ import type { PagedResult } from '@/types/pagination';
 import type {
   CancelInterviewRequest,
   InterviewDetail,
+  InterviewFeedbackSummary,
   InterviewListFilter,
   InterviewListItem,
   MarkNoShowRequest,
@@ -94,4 +95,14 @@ export async function reassignInterviewers(
    UI shows the form. The interviewer identity comes from the JWT, never the body. */
 export async function submitFeedback(id: string, body: SubmitFeedbackRequest): Promise<void> {
   await apiClient.post(`${INTERVIEWS_BASE}/${id}/feedback`, body);
+}
+
+/* Reads the panel's evaluations. The server decides what this caller may see — an interviewer who
+   has not filed their own gets empty items and `isWithheld` — so the client renders the answer
+   rather than reproducing the rule. */
+export async function getInterviewFeedback(id: string): Promise<InterviewFeedbackSummary> {
+  const { data } = await apiClient.get<InterviewFeedbackSummary>(
+    `${INTERVIEWS_BASE}/${id}/feedback`,
+  );
+  return data;
 }
