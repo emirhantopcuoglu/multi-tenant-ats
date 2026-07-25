@@ -3,10 +3,12 @@ import { cn } from '@/lib/cn';
 
 interface StarRatingProps {
   value: number;
-  onChange: (value: number) => void;
+  /** Omitted together with readOnly, when the rating is being displayed rather than picked. */
+  onChange?: (value: number) => void;
   ariaLabel: string;
   describedById?: string;
   max?: number;
+  readOnly?: boolean;
 }
 
 function StarIcon({ filled }: { filled: boolean }) {
@@ -31,9 +33,34 @@ function StarIcon({ filled }: { filled: boolean }) {
    stars"), so screen-reader users can pick a value directly; the filled state cascades up to the
    selected rating for a clear visual. Kept as buttons rather than a custom radiogroup — the set is
    tiny and each button is independently labelled, so the extra arrow-key wiring buys little here. */
-export function StarRating({ value, onChange, ariaLabel, describedById, max = 5 }: StarRatingProps) {
+export function StarRating({
+  value,
+  onChange,
+  ariaLabel,
+  describedById,
+  max = 5,
+  readOnly = false,
+}: StarRatingProps) {
   const { t } = useTranslation();
   const stars = Array.from({ length: max }, (_, index) => index + 1);
+
+  // Displaying a submitted rating is a single readable value, not five controls: one img-role
+  // element with the score in its label beats five disabled buttons a screen reader has to walk.
+  if (readOnly) {
+    return (
+      <div
+        role="img"
+        aria-label={t('interviews.feedback.ratingOf', { rating: value, max })}
+        className="flex gap-1"
+      >
+        {stars.map((star) => (
+          <span key={star} className={star <= value ? 'text-warning' : 'text-text-muted'}>
+            <StarIcon filled={star <= value} />
+          </span>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div role="group" aria-label={ariaLabel} aria-describedby={describedById} className="flex gap-1">
@@ -41,7 +68,7 @@ export function StarRating({ value, onChange, ariaLabel, describedById, max = 5 
         <button
           key={star}
           type="button"
-          onClick={() => onChange(star)}
+          onClick={() => onChange?.(star)}
           aria-label={t('interviews.feedback.stars', { count: star })}
           aria-pressed={star === value}
           className={cn(

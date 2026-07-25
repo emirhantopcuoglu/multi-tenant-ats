@@ -429,10 +429,16 @@
       "submit": "Değerlendirmeyi gönder",
       "submitted": "Değerlendirmen gönderildi.",
       "toast": "Değerlendirme gönderildi.",
-      "locked": "Bu mülakat için yalnızca atanmış görüşmeciler değerlendirme gönderebilir.",
       "lockedNotYet": "Mülakat gerçekleştikten sonra değerlendirme gönderebilirsin.",
       "notEligible": "Bu mülakat için değerlendirme gönderilemez.",
-      "lockedNoOutcome": "Bu mülakat gerçekleşmediği için değerlendirilemez."
+      "lockedNoOutcome": "Bu mülakat gerçekleşmediği için değerlendirilemez.",
+      "panelTitle": "Değerlendirmeler",
+      "progress": "{{expected}} görüşmeciden {{submitted}} tanesi değerlendirmesini gönderdi",
+      "average": "Ortalama: {{rating}}",
+      "none": "Henüz değerlendirme gönderilmedi.",
+      "withheld": "Diğer görüşmecilerin değerlendirmelerini, kendi değerlendirmeni gönderdikten sonra görebilirsin. Bu, başkasının puanının seninkini etkilemesini önler.",
+      "unknownInterviewer": "Bilinmeyen görüşmeci",
+      "ratingOf": "{{max}} üzerinden {{rating}}"
     },
     "toast": {
       "scheduled": "Mülakat planlandı.",

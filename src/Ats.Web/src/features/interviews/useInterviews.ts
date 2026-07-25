@@ -3,6 +3,7 @@ import {
   cancelInterview,
   completeInterview,
   getInterview,
+  getInterviewFeedback,
   listInterviews,
   markInterviewNoShow,
   reassignInterviewers,
@@ -77,13 +78,25 @@ export function useInterviewActions(id: string) {
   return { reschedule, cancel, complete, noShow, reassign };
 }
 
-/* Feedback submission. Submitting doesn't change any field the detail renders, but we invalidate it
-   anyway so the screen re-reflects state consistently (and stays correct if the detail later starts
-   returning feedback). The caller maps the backend's 403/409 codes to messages. */
+export const interviewFeedbackKey = (id: string) => [...INTERVIEWS_KEY, 'feedback', id] as const;
+
+export function useInterviewFeedback(id: string) {
+  return useQuery({
+    queryKey: interviewFeedbackKey(id),
+    queryFn: () => getInterviewFeedback(id),
+  });
+}
+
+/* Feedback submission. Invalidates the feedback query as well as the detail: submitting is exactly
+   what un-withholds the rest of the panel for this caller, so the list has to be refetched or they
+   would keep seeing the "yours first" state they just cleared. */
 export function useSubmitFeedback(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: SubmitFeedbackRequest) => submitFeedback(id, body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: interviewDetailKey(id) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: interviewDetailKey(id) });
+      queryClient.invalidateQueries({ queryKey: interviewFeedbackKey(id) });
+    },
   });
 }

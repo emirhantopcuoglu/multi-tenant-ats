@@ -16,11 +16,12 @@ import type {
   RescheduleRequest,
 } from '@/types/interview';
 import { canManageInterviews } from './interviewPermissions';
-import { useInterview, useInterviewActions } from './useInterviews';
+import { useInterview, useInterviewActions, useInterviewFeedback } from './useInterviews';
 import { RescheduleModal } from './components/RescheduleModal';
 import { CancelInterviewModal } from './components/CancelInterviewModal';
 import { NoShowModal } from './components/NoShowModal';
 import { ReassignInterviewersModal } from './components/ReassignInterviewersModal';
+import { FeedbackList } from './components/FeedbackList';
 import { FeedbackForm } from './components/FeedbackForm';
 
 /* Thin wrapper so the inner view can take a guaranteed-present id and keep its hooks unconditional. */
@@ -39,6 +40,7 @@ function InterviewDetailView({ id }: { id: string }) {
   const lookup = useUserLookup();
 
   const { data: interview, isLoading, isError } = useInterview(id);
+  const feedbackQuery = useInterviewFeedback(id);
   const { reschedule, cancel, complete, noShow, reassign } = useInterviewActions(id);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -277,20 +279,33 @@ function InterviewDetailView({ id }: { id: string }) {
         )}
       </Card>
 
+      {/* Two separate concerns that previously shared one card: filing your own evaluation, and
+          reading what the panel said. The second did not exist at all — feedback was written and
+          never queried back. */}
       <Card className="space-y-3">
-        <h3 className="text-sm font-semibold text-text">{t('interviews.feedback.title')}</h3>
-        {canSubmitFeedback ? (
+        <h3 className="text-sm font-semibold text-text">{t('interviews.feedback.panelTitle')}</h3>
+        <FeedbackList summary={feedbackQuery.data} isLoading={feedbackQuery.isLoading} />
+      </Card>
+
+      {/* Only shown while there is still something for this user to file. Once submitted, the entry
+          form has no purpose: feedback is immutable by design, so an editable-looking form would be
+          promising something the backend will refuse. */}
+      {canSubmitFeedback && feedbackQuery.data && !feedbackQuery.data.hasCallerSubmitted && (
+        <Card className="space-y-3">
+          <h3 className="text-sm font-semibold text-text">{t('interviews.feedback.title')}</h3>
           <FeedbackForm interviewId={id} />
-        ) : (
+        </Card>
+      )}
+
+      {!canSubmitFeedback && isAssignedInterviewer && (
+        <Card>
           <p className="text-sm text-text-muted">
             {interview.status === 'Cancelled' || interview.status === 'NoShow'
               ? t('interviews.feedback.lockedNoOutcome')
-              : !isAssignedInterviewer
-                ? t('interviews.feedback.locked')
-                : t('interviews.feedback.lockedNotYet')}
+              : t('interviews.feedback.lockedNotYet')}
           </p>
-        )}
-      </Card>
+        </Card>
+      )}
 
       <RescheduleModal
         open={rescheduleOpen}
