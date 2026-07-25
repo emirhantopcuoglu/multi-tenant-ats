@@ -604,10 +604,10 @@
       "submitted": "Application submitted",
       "viewed": "The company viewed your application",
       "movedTo": "Moved to the \"{{stage}}\" stage",
+      "currentStage": "You are in \"{{stage}}\"",
       "moved": "Moved to a new stage",
       "rejected": "The process ended unsuccessfully",
       "hiredEvent": "Congratulations — you were hired!",
-      "inReview": "In review",
       "interviews": {
         "title": "Interviews"
       }

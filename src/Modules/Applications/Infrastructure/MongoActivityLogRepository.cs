@@ -31,13 +31,22 @@ public sealed class MongoActivityLogRepository : IActivityLogRepository
         _currentTenant = currentTenant;
     }
 
-    public async Task AddAsync(ApplicationActivity activity, CancellationToken cancellationToken = default)
+    public Task AddAsync(ApplicationActivity activity, CancellationToken cancellationToken = default)
     {
         // A log entry with no tenant could never be read back safely (every read is tenant-scoped),
         // so refuse to write one. The caller only reaches here inside a resolved-tenant request.
         var tenantId = _currentTenant.TenantId
             ?? throw new InvalidOperationException(
                 "Cannot write an activity log entry without a resolved tenant.");
+
+        return AddAsync(activity, tenantId, cancellationToken);
+    }
+
+    public async Task AddAsync(
+        ApplicationActivity activity, Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        if (tenantId == Guid.Empty)
+            throw new ArgumentException("A tenant id is required.", nameof(tenantId));
 
         var document = new ActivityDocument
         {

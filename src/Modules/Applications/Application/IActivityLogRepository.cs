@@ -14,6 +14,11 @@ public interface IActivityLogRepository
 {
     Task AddAsync(ApplicationActivity activity, CancellationToken cancellationToken = default);
 
+    // Same write, tenant passed explicitly. A message consumer has no ambient tenant, so the
+    // request-scoped overload above always throws there — silently, since writes are best-effort.
+    Task AddAsync(
+        ApplicationActivity activity, Guid tenantId, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ActivityLogEntry>> GetByApplicationAsync(
         Guid applicationId, CancellationToken cancellationToken = default);
 

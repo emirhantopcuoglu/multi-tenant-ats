@@ -406,11 +406,25 @@ internal sealed class InMemoryActivityLog : IActivityLogRepository
 
     public List<ApplicationActivity> Added { get; } = [];
 
+    /* The tenant each write supplied, positionally matching Added. Guid.Empty means the caller used
+       the ambient-tenant overload — which the real Mongo repository refuses without a resolved
+       tenant, so a caller with no request context (a consumer) must not use it. */
+    public List<Guid> AddedTenantIds { get; } = [];
+
     public InMemoryActivityLog(IReadOnlyList<ActivityLogEntry> entries) => _entries = entries;
 
     public Task AddAsync(ApplicationActivity activity, CancellationToken cancellationToken = default)
     {
         Added.Add(activity);
+        AddedTenantIds.Add(Guid.Empty);
+        return Task.CompletedTask;
+    }
+
+    public Task AddAsync(
+        ApplicationActivity activity, Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        Added.Add(activity);
+        AddedTenantIds.Add(tenantId);
         return Task.CompletedTask;
     }
 

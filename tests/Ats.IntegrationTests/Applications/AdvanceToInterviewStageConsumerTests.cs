@@ -37,13 +37,15 @@ public sealed class AdvanceToInterviewStageConsumerTests
 
         var interviewStage = pipeline.Stages.Single(s => s.Name == "Interview");
         var activityLog = new InMemoryActivityLog([]);
+        AdvanceToInterviewStageConsumer.StageMove? move;
 
         // Act — simulate an interview being scheduled against the application.
         await using (var db = NewDb(tenant))
         {
             var consumer = new AdvanceToInterviewStageConsumer(
                 db, activityLog, NullLogger<AdvanceToInterviewStageConsumer>.Instance);
-            await consumer.AdvanceAsync(application.Id, tenant.TenantId!.Value, CancellationToken.None);
+            move = await consumer.AdvanceAsync(
+                application.Id, tenant.TenantId!.Value, CancellationToken.None);
         }
 
         // Assert — the application moved, and exactly one honest StageChanged entry was logged.
@@ -56,6 +58,18 @@ public sealed class AdvanceToInterviewStageConsumerTests
         var logged = Assert.Single(activityLog.Added);
         Assert.Equal(ApplicationActivityType.StageChanged, logged.ActivityType);
         Assert.Null(logged.ActorUserId);
+
+        // The write must name its tenant. A consumer has no ambient one, so the request-scoped
+        // overload throws there — silently, since log writes are best-effort, which is how this
+        // entry went missing from the candidate's timeline in the first place.
+        Assert.Equal(tenant.TenantId!.Value, Assert.Single(activityLog.AddedTenantIds));
+
+        // The move is returned so Consume can announce it; a null here means no notification.
+        Assert.NotNull(move);
+        Assert.Equal(interviewStage.Id, move!.ToStageId);
+        Assert.Equal("Interview", move.ToStageName);
+        Assert.Equal(pipeline.InitialStage.Id, move.FromStageId);
+        Assert.Equal(pipeline.InitialStage.Name, move.FromStageName);
     }
 
     [Fact]

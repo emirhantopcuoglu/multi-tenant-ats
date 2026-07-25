@@ -12,15 +12,28 @@ public static class ActivityLogRepositoryExtensions
     // append-only history line must not fail or roll back a stage move that already happened.
     // Durable cross-system delivery (write the log no-matter-what) arrives with the outbox
     // pattern in Sprint 5.
-    public static async Task TryAddAsync(
+    public static Task TryAddAsync(
         this IActivityLogRepository repository,
         ApplicationActivity activity,
         ILogger logger,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) =>
+        TryAsync(() => repository.AddAsync(activity, cancellationToken), activity, logger);
+
+    // For callers with no ambient tenant (message consumers), which the overload above cannot serve.
+    public static Task TryAddAsync(
+        this IActivityLogRepository repository,
+        ApplicationActivity activity,
+        Guid tenantId,
+        ILogger logger,
+        CancellationToken cancellationToken) =>
+        TryAsync(() => repository.AddAsync(activity, tenantId, cancellationToken), activity, logger);
+
+    private static async Task TryAsync(
+        Func<Task> write, ApplicationActivity activity, ILogger logger)
     {
         try
         {
-            await repository.AddAsync(activity, cancellationToken);
+            await write();
         }
         catch (Exception ex)
         {
