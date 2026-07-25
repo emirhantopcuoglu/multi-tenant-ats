@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Badge, Button, Skeleton } from '@/components/ui';
-import { interviewStatusTone } from '@/lib/statusColors';
-import { useInterviews } from '@/features/interviews/useInterviews';
+import { Button, Skeleton } from '@/components/ui';
+import { useApplicationInterviewOutcome, useInterviews } from '@/features/interviews/useInterviews';
 import { InterviewerAvatars } from '@/features/interviews/components/InterviewerAvatars';
+import { InterviewStatusBadge } from '@/features/interviews/components/InterviewStatusBadge';
+import { InterviewOutcomeSummary } from './InterviewOutcomeSummary';
 
 const INTERVIEWS_PAGE_SIZE = 20;
 
@@ -35,6 +36,7 @@ export function ApplicationInterviewsTab({ applicationId, canSchedule, onSchedul
   const navigate = useNavigate();
   const dateFormatter = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });
   const query = useInterviews({ page: 1, pageSize: INTERVIEWS_PAGE_SIZE, applicationId });
+  const outcomeQuery = useApplicationInterviewOutcome(applicationId);
 
   const interviews = query.data?.items ?? [];
 
@@ -65,6 +67,8 @@ export function ApplicationInterviewsTab({ applicationId, canSchedule, onSchedul
     <div className="space-y-4">
       {scheduleButton}
 
+      <InterviewOutcomeSummary outcome={outcomeQuery.data} />
+
       {interviews.length === 0 ? (
         <p className="text-sm text-text-muted">{t('interviews.empty.title')}</p>
       ) : (
@@ -90,9 +94,7 @@ export function ApplicationInterviewsTab({ applicationId, canSchedule, onSchedul
               </div>
               <div className="flex items-center gap-3">
                 <InterviewerAvatars interviewerUserIds={interview.interviewerUserIds} />
-                <Badge tone={interviewStatusTone[interview.status]} dot>
-                  {t(`status.${interview.status}`)}
-                </Badge>
+                <InterviewStatusBadge interview={interview} />
               </div>
             </li>
           ))}

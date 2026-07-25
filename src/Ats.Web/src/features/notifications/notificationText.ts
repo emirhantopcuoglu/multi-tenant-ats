@@ -64,6 +64,27 @@ export function renderNotification(
         }),
         applicationId: readString(item.payload, 'applicationId') || null,
       };
+    case 'InterviewRescheduled':
+      return {
+        // Both times, not just the new one: the recipient is holding the old date and needs to see
+        // the change, which is the same reason the payload carries the previous instant at all.
+        text: t('notifications.interviewRescheduled', {
+          jobTitle: readString(item.payload, 'jobTitle'),
+          type: interviewTypeLabel(readString(item.payload, 'interviewType'), t),
+          previousDate: formatDateTime(readString(item.payload, 'previousScheduledAtUtc'), locale),
+          date: formatDateTime(readString(item.payload, 'scheduledAtUtc'), locale),
+        }),
+        applicationId: readString(item.payload, 'applicationId') || null,
+      };
+    case 'InterviewCancelled':
+      return {
+        text: t('notifications.interviewCancelled', {
+          jobTitle: readString(item.payload, 'jobTitle'),
+          type: interviewTypeLabel(readString(item.payload, 'interviewType'), t),
+          date: formatDateTime(readString(item.payload, 'scheduledAtUtc'), locale),
+        }),
+        applicationId: readString(item.payload, 'applicationId') || null,
+      };
     default:
       // A type this bundle predates: still show something clickable rather than a broken row.
       return { text: t('notifications.generic'), applicationId: null };

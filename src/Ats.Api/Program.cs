@@ -399,11 +399,16 @@ builder.Services.AddMassTransit(bus =>
     bus.AddConsumer<ApplicationHiredConsumer>();
     bus.AddConsumer<ApplicationStageChangedEmailConsumer>();
     bus.AddConsumer<InterviewScheduledEmailConsumer>();
+    // An interview the candidate already has in their calendar must never move or vanish silently.
+    bus.AddConsumer<InterviewRescheduledEmailConsumer>();
+    bus.AddConsumer<InterviewCancelledEmailConsumer>();
 
     // In-app notification writers (FAZ 3): each event lands in its own queue, independent of the
     // email consumers above, and becomes a row behind the candidate's bell icon.
     bus.AddConsumer<ApplicationStageChangedNotificationConsumer>();
     bus.AddConsumer<InterviewScheduledNotificationConsumer>();
+    bus.AddConsumer<InterviewRescheduledNotificationConsumer>();
+    bus.AddConsumer<InterviewCancelledNotificationConsumer>();
     bus.AddConsumer<ApplicationViewedNotificationConsumer>();
     bus.AddConsumer<ApplicationCvDownloadedNotificationConsumer>();
     bus.AddConsumer<NewApplicationNotificationConsumer>();
@@ -412,10 +417,11 @@ builder.Services.AddMassTransit(bus =>
     // data, and stores it in MongoDB. Inherits the retry/dead-letter policy configured below.
     bus.AddConsumer<CvParsingConsumer>();
 
-    // Pipeline/interview consistency (Faz 4.2): silently advances an application into its
-    // pipeline's Interview stage when a recruiter schedules an interview against it. Own queue,
-    // independent of the notification consumers above.
+    // Pipeline/interview consistency: advances an application into its pipeline's Interview stage
+    // when a recruiter schedules an interview against it, and calls off upcoming interviews when
+    // the application behind them is rejected. Own queues, independent of the notifications above.
     bus.AddConsumer<AdvanceToInterviewStageConsumer>();
+    bus.AddConsumer<CancelInterviewsOnRejectionConsumer>();
 
     bus.UsingRabbitMq((context, configurator) =>
     {

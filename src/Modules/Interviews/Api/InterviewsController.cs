@@ -32,10 +32,21 @@ public sealed class InterviewsController : ControllerBase
     public async Task<IActionResult> List(
         [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null,
         [FromQuery] Guid? interviewerId = null, [FromQuery] Guid? applicationId = null,
+        [FromQuery] InterviewListFilter? filter = null,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         var result = await _sender.Send(
-            new ListInterviewsQuery(fromDate, toDate, interviewerId, applicationId, page, pageSize));
+            new ListInterviewsQuery(fromDate, toDate, interviewerId, applicationId, filter, page, pageSize));
+        return Ok(result.Value);
+    }
+
+    // Evaluation roll-up for one application's interviews, so the application screen can show what
+    // the interviews concluded without opening each one.
+    [HttpGet("outcome")]
+    [Authorize(Policy = Policies.CanViewInterviews)]
+    public async Task<IActionResult> GetApplicationOutcome([FromQuery] Guid applicationId)
+    {
+        var result = await _sender.Send(new GetApplicationInterviewOutcomeQuery(applicationId));
         return Ok(result.Value);
     }
 
@@ -74,9 +85,9 @@ public sealed class InterviewsController : ControllerBase
 
     [HttpPost("{id:guid}/cancel")]
     [Authorize(Policy = Policies.CanManageInterviews)]
-    public async Task<IActionResult> Cancel(Guid id)
+    public async Task<IActionResult> Cancel(Guid id, CancelInterviewBody body)
     {
-        var result = await _sender.Send(new CancelInterviewCommand(id));
+        var result = await _sender.Send(new CancelInterviewCommand(id, body.Reason, body.Note));
         return result.IsSuccess ? NoContent() : MapFailure(result.Error);
     }
 
@@ -90,14 +101,39 @@ public sealed class InterviewsController : ControllerBase
 
     [HttpPost("{id:guid}/no-show")]
     [Authorize(Policy = Policies.CanManageInterviews)]
-    public async Task<IActionResult> MarkNoShow(Guid id)
+    public async Task<IActionResult> MarkNoShow(Guid id, MarkNoShowBody body)
     {
-        var result = await _sender.Send(new MarkInterviewNoShowCommand(id));
+        var result = await _sender.Send(new MarkInterviewNoShowCommand(id, body.Party));
         return result.IsSuccess ? NoContent() : MapFailure(result.Error);
     }
 
-    [HttpPost("{id:guid}/feedback")]
+    [HttpPut("{id:guid}/interviewers")]
     [Authorize(Policy = Policies.CanManageInterviews)]
+    public async Task<IActionResult> ReassignInterviewers(Guid id, ReassignInterviewersBody body)
+    {
+        var result = await _sender.Send(
+            new ReassignInterviewersCommand(id, body.InterviewerUserIds ?? []));
+        return result.IsSuccess ? NoContent() : MapFailure(result.Error);
+    }
+
+    [HttpGet("{id:guid}/feedback")]
+    [Authorize(Policy = Policies.CanViewInterviews)]
+    public async Task<IActionResult> GetFeedback(Guid id)
+    {
+        // The caller's identity decides whether the panel's evaluations are withheld, so it comes
+        // from the JWT rather than the route — see GetInterviewFeedbackHandler.
+        var result = await _sender.Send(new GetInterviewFeedbackQuery(id, CurrentUserId()));
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : NotFound(new { result.Error.Code, result.Error.Message });
+    }
+
+    // Gated on viewing rather than managing interviews: submitting feedback is what an assigned
+    // interviewer does, and an interviewer is not necessarily a recruiter. CanManageInterviews
+    // excluded the ReadOnly role, so a ReadOnly user put on a panel could not evaluate the candidate
+    // they had just interviewed. IsInterviewParticipant below is the real gate — it always was.
+    [HttpPost("{id:guid}/feedback")]
+    [Authorize(Policy = Policies.CanViewInterviews)]
     public async Task<IActionResult> SubmitFeedback(Guid id, SubmitFeedbackBody body)
     {
         // Load the interview first so we can run a resource-based authorization check.
@@ -114,10 +150,8 @@ public sealed class InterviewsController : ControllerBase
 
         // The interviewer's identity comes from the JWT, not from the request body — callers must
         // not be able to self-declare another user's identity.
-        var interviewerUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-
         var command = new SubmitInterviewFeedbackCommand(
-            id, interviewerUserId, body.Rating, body.Recommendation, body.Comments);
+            id, CurrentUserId(), body.Rating, body.Recommendation, body.Comments);
 
         var result = await _sender.Send(command);
         return result.IsSuccess
@@ -125,10 +159,14 @@ public sealed class InterviewsController : ControllerBase
             : MapFailure(result.Error);
     }
 
+    // Always present: every action here sits behind [Authorize], so the subject claim exists.
+    private Guid CurrentUserId() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
     private IActionResult MapFailure(Error error) => error.Code switch
     {
         "interview.application_not_found" => NotFound(new { error.Code, error.Message }),
         "interview.not_found" => NotFound(new { error.Code, error.Message }),
+        "interview.transition_not_allowed" => Conflict(new { error.Code, error.Message }),
         "interview.feedback_not_eligible" => Conflict(new { error.Code, error.Message }),
         "interview.duplicate_feedback" => Conflict(new { error.Code, error.Message }),
         "interview.interviewer_conflict" => Conflict(new { error.Code, error.Message }),
@@ -145,6 +183,16 @@ public sealed class InterviewsController : ControllerBase
         string? Notes);
 
     public sealed record RescheduleBody(DateTime ScheduledAtUtc, int DurationMinutes);
+
+    // Note is the recruiter's internal wording and never reaches the candidate — only Reason does,
+    // and only as the sentence the cancellation email leads with.
+    public sealed record CancelInterviewBody(InterviewCancellationReason Reason, string? Note);
+
+    public sealed record MarkNoShowBody(NoShowParty Party);
+
+    // The full replacement panel, not a delta: a caller sending the list it wants cannot race a
+    // concurrent edit into a half-applied add/remove pair.
+    public sealed record ReassignInterviewersBody(IReadOnlyList<Guid>? InterviewerUserIds);
 
     public sealed record SubmitFeedbackBody(
         int Rating,

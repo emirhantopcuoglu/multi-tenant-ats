@@ -10,6 +10,7 @@ import {
   type InterviewType,
 } from '@/types/enums';
 import { useScheduleInterview } from '../useInterviews';
+import { MINIMUM_LEAD_MINUTES, isSlotTooSoon, toScheduledAt } from '../scheduleValidation';
 
 interface ScheduleInterviewModalProps {
   open: boolean;
@@ -82,10 +83,10 @@ export function ScheduleInterviewModal({
     if (!time) nextErrors.time = t('interviews.form.timeRequired');
 
     // datetime-local yields a local wall-clock time; combining date + time the same way and then
-    // checking it is a real, future instant keeps a past slot (or an invalid combination) out.
-    const scheduledAt = date && time ? new Date(`${date}T${time}`) : null;
-    if (scheduledAt && (Number.isNaN(scheduledAt.getTime()) || scheduledAt.getTime() <= Date.now()))
-      nextErrors.time = t('interviews.form.whenPast');
+    // checking the instant keeps a past slot (or an invalid combination) out.
+    const scheduledAt = toScheduledAt(date, time);
+    if (scheduledAt && isSlotTooSoon(scheduledAt))
+      nextErrors.time = t('interviews.form.whenTooSoon', { count: MINIMUM_LEAD_MINUTES });
 
     if (Object.keys(nextErrors).length > 0 || !scheduledAt) {
       setErrors(nextErrors);

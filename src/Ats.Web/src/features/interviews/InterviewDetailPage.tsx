@@ -8,11 +8,20 @@ import { toApiError } from '@/lib/problemDetails';
 import { fullName, useUserLookup } from '@/features/users/useUsers';
 import { getApplication } from '@/features/applications/applicationsApi';
 import { applicationDetailKey } from '@/features/applications/useApplicationDetail';
-import { interviewStatusTone } from '@/lib/statusColors';
-import type { RescheduleRequest } from '@/types/interview';
+import { InterviewStatusBadge } from './components/InterviewStatusBadge';
+import type {
+  CancelInterviewRequest,
+  MarkNoShowRequest,
+  ReassignInterviewersRequest,
+  RescheduleRequest,
+} from '@/types/interview';
 import { canManageInterviews } from './interviewPermissions';
-import { useInterview, useInterviewActions } from './useInterviews';
+import { useInterview, useInterviewActions, useInterviewFeedback } from './useInterviews';
 import { RescheduleModal } from './components/RescheduleModal';
+import { CancelInterviewModal } from './components/CancelInterviewModal';
+import { NoShowModal } from './components/NoShowModal';
+import { ReassignInterviewersModal } from './components/ReassignInterviewersModal';
+import { FeedbackList } from './components/FeedbackList';
 import { FeedbackForm } from './components/FeedbackForm';
 
 /* Thin wrapper so the inner view can take a guaranteed-present id and keep its hooks unconditional. */
@@ -31,8 +40,12 @@ function InterviewDetailView({ id }: { id: string }) {
   const lookup = useUserLookup();
 
   const { data: interview, isLoading, isError } = useInterview(id);
-  const { reschedule, cancel, complete, noShow } = useInterviewActions(id);
+  const feedbackQuery = useInterviewFeedback(id);
+  const { reschedule, cancel, complete, noShow, reassign } = useInterviewActions(id);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [noShowOpen, setNoShowOpen] = useState(false);
+  const [reassignOpen, setReassignOpen] = useState(false);
 
   // The interview carries only an applicationId; resolve the candidate from the same cache entry the
   // application detail page uses, gated until the interview (and so the id) has loaded.
@@ -67,20 +80,29 @@ function InterviewDetailView({ id }: { id: string }) {
     timeStyle: 'short',
   });
 
-  const busy = reschedule.isPending || cancel.isPending || complete.isPending || noShow.isPending;
-  const isScheduled = interview.status === 'Scheduled';
+  const busy =
+    reschedule.isPending ||
+    cancel.isPending ||
+    complete.isPending ||
+    noShow.isPending ||
+    reassign.isPending;
   const candidateName = applicationQuery.data?.candidateName;
 
-  // Feedback gating mirrors the backend: only an assigned interviewer may submit, and only once the
-  // interview has taken place — marked completed, or its scheduled end time already passed. The form
-  // still maps the backend's 403/409 as the final authority.
+  // Which actions exist is the domain's answer, not ours — the page renders interview.can* rather
+  // than deriving anything from the status and the browser's clock. Before/after the start time the
+  // legal pair differs: an interview that has not begun can be moved or called off, one that has can
+  // only be recorded as completed or missed.
+  const hasAnyAction =
+    interview.canReschedule ||
+    interview.canComplete ||
+    interview.canMarkNoShow ||
+    interview.canReassignInterviewers ||
+    interview.canCancel;
+
+  // Feedback needs both halves: the backend says the interview is evaluable, and the caller must be
+  // one of its assigned interviewers. The form still maps the backend's 403/409 as final authority.
   const isAssignedInterviewer = user ? interview.interviewerUserIds.includes(user.id) : false;
-  const interviewEndMs =
-    new Date(interview.scheduledAtUtc).getTime() + interview.durationMinutes * 60_000;
-  const hasTakenPlace =
-    interview.status === 'Completed' ||
-    (interview.status === 'Scheduled' && Date.now() >= interviewEndMs);
-  const canSubmitFeedback = isAssignedInterviewer && hasTakenPlace;
+  const canSubmitFeedback = isAssignedInterviewer && interview.canReceiveFeedback;
 
   const interviewerNames = interview.interviewerUserIds
     .map((interviewerId) => {
@@ -92,12 +114,15 @@ function InterviewDetailView({ id }: { id: string }) {
   // successTitle is already resolved by the caller (the type-safe t() needs a literal key, not a
   // dynamic string), so this helper only wires the shared success/error toasts to a void mutation.
   type VoidMutation = {
-    mutate: (variables: void, options: { onSuccess: () => void; onError: () => void }) => void;
+    mutate: (
+      variables: void,
+      options: { onSuccess: () => void; onError: (error: unknown) => void },
+    ) => void;
   };
   const runAction = (mutation: VoidMutation, successTitle: string) =>
     mutation.mutate(undefined, {
       onSuccess: () => toast({ title: successTitle, tone: 'success' }),
-      onError: () => toast({ title: t('interviews.toast.error'), tone: 'danger' }),
+      onError: (error) => toast({ title: actionErrorMessage(error), tone: 'danger' }),
     });
 
   // Turn the backend's 409 conflict codes into a specific message; anything else is the generic error.
@@ -105,8 +130,16 @@ function InterviewDetailView({ id }: { id: string }) {
     const { code } = toApiError(error);
     if (code === 'interview.interviewer_conflict') return t('interviews.conflict.interviewer');
     if (code === 'interview.candidate_conflict') return t('interviews.conflict.candidate');
-    return t('interviews.toast.error');
+    return actionErrorMessage(error);
   };
+
+  // The buttons are gated on the server's own flags, so a rejected transition means this page is
+  // showing a stale snapshot — most likely the clock crossed the start time, or someone else acted
+  // on the interview first. Saying so is more useful than "something went wrong".
+  const actionErrorMessage = (error: unknown): string =>
+    toApiError(error).code === 'interview.transition_not_allowed'
+      ? t('interviews.toast.stale')
+      : t('interviews.toast.error');
 
   const handleReschedule = (body: RescheduleRequest) =>
     reschedule.mutate(body, {
@@ -114,6 +147,36 @@ function InterviewDetailView({ id }: { id: string }) {
         setRescheduleOpen(false);
         toast({ title: t('interviews.toast.rescheduled'), tone: 'success' });
       },
+      onError: (error) => toast({ title: conflictMessage(error), tone: 'danger' }),
+    });
+
+  const handleCancel = (body: CancelInterviewRequest) =>
+    cancel.mutate(body, {
+      onSuccess: () => {
+        setCancelOpen(false);
+        toast({ title: t('interviews.toast.cancelled'), tone: 'success' });
+      },
+      onError: (error) => toast({ title: actionErrorMessage(error), tone: 'danger' }),
+    });
+
+  const handleNoShow = (body: MarkNoShowRequest) =>
+    noShow.mutate(body, {
+      onSuccess: () => {
+        setNoShowOpen(false);
+        toast({ title: t('interviews.toast.noShow'), tone: 'success' });
+      },
+      onError: (error) => toast({ title: actionErrorMessage(error), tone: 'danger' }),
+    });
+
+  const handleReassign = (body: ReassignInterviewersRequest) =>
+    reassign.mutate(body, {
+      onSuccess: () => {
+        setReassignOpen(false);
+        toast({ title: t('interviews.toast.reassigned'), tone: 'success' });
+      },
+      // Reuses the scheduling conflict wording: a replacement interviewer can already be booked
+      // over this slot, and "an interviewer already has another interview at this time" is the
+      // useful thing to say.
       onError: (error) => toast({ title: conflictMessage(error), tone: 'danger' }),
     });
 
@@ -133,29 +196,49 @@ function InterviewDetailView({ id }: { id: string }) {
           )}
           <div className="flex items-center gap-2 pt-1">
             <Badge tone="neutral">{t(`interviewType.${interview.type}`)}</Badge>
-            <Badge tone={interviewStatusTone[interview.status]} dot>
-              {t(`status.${interview.status}`)}
-            </Badge>
+            <InterviewStatusBadge interview={interview} />
           </div>
         </div>
 
-        {canManage && isScheduled && (
+        {canManage && hasAnyAction && (
           <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="secondary" onClick={() => setRescheduleOpen(true)} disabled={busy}>
-              {t('interviews.action.reschedule')}
-            </Button>
-            <Button variant="secondary" onClick={() => runAction(complete, t('interviews.toast.completed'))} disabled={busy}>
-              {t('interviews.action.complete')}
-            </Button>
-            <Button variant="secondary" onClick={() => runAction(noShow, t('interviews.toast.noShow'))} disabled={busy}>
-              {t('interviews.action.noShow')}
-            </Button>
-            <Button variant="danger" onClick={() => runAction(cancel, t('interviews.toast.cancelled'))} disabled={busy}>
-              {t('interviews.action.cancel')}
-            </Button>
+            {interview.canReschedule && (
+              <Button variant="secondary" onClick={() => setRescheduleOpen(true)} disabled={busy}>
+                {t('interviews.action.reschedule')}
+              </Button>
+            )}
+            {interview.canComplete && (
+              <Button variant="secondary" onClick={() => runAction(complete, t('interviews.toast.completed'))} disabled={busy}>
+                {t('interviews.action.complete')}
+              </Button>
+            )}
+            {interview.canMarkNoShow && (
+              <Button variant="secondary" onClick={() => setNoShowOpen(true)} disabled={busy}>
+                {t('interviews.action.noShow')}
+              </Button>
+            )}
+            {interview.canReassignInterviewers && (
+              <Button variant="secondary" onClick={() => setReassignOpen(true)} disabled={busy}>
+                {t('interviews.action.reassign')}
+              </Button>
+            )}
+            {interview.canCancel && (
+              <Button variant="danger" onClick={() => setCancelOpen(true)} disabled={busy}>
+                {t('interviews.action.cancel')}
+              </Button>
+            )}
           </div>
         )}
       </Card>
+
+      {/* The prompt the screen was missing: an elapsed interview nobody resolved looks identical to
+          an upcoming one, so the recruiter has no cue that it is waiting on them. */}
+      {canManage && interview.isAwaitingOutcome && (
+        <Card className="border-warning/40 bg-warning/5">
+          <p className="text-sm text-text">{t('interviews.awaitingOutcome.title')}</p>
+          <p className="pt-1 text-sm text-text-muted">{t('interviews.awaitingOutcome.body')}</p>
+        </Card>
+      )}
 
       <Card className="space-y-4">
         <InfoRow label={t('interviews.form.when')}>
@@ -174,22 +257,55 @@ function InterviewDetailView({ id }: { id: string }) {
             <span className="text-text-muted">—</span>
           )}
         </InfoRow>
-      </Card>
 
-      <Card className="space-y-3">
-        <h3 className="text-sm font-semibold text-text">{t('interviews.feedback.title')}</h3>
-        {canSubmitFeedback ? (
-          <FeedbackForm interviewId={id} />
-        ) : (
-          <p className="text-sm text-text-muted">
-            {interview.status === 'Cancelled'
-              ? t('interviews.feedback.lockedCancelled')
-              : !isAssignedInterviewer
-                ? t('interviews.feedback.locked')
-                : t('interviews.feedback.lockedNotYet')}
-          </p>
+        {/* The outcome details, shown rather than only stored: a reason nobody can read back would
+            be the same write-only field this rework exists to remove. */}
+        {interview.noShowParty && (
+          <InfoRow label={t('interviews.noShow.party')}>
+            {t(`noShowParty.${interview.noShowParty}`)}
+          </InfoRow>
+        )}
+
+        {interview.cancellationReason && (
+          <InfoRow label={t('interviews.cancel.reason')}>
+            {t(`cancellationReason.${interview.cancellationReason}`)}
+          </InfoRow>
+        )}
+
+        {interview.cancellationNote && (
+          <InfoRow label={t('interviews.cancel.note')}>
+            <span className="whitespace-pre-wrap">{interview.cancellationNote}</span>
+          </InfoRow>
         )}
       </Card>
+
+      {/* Two separate concerns that previously shared one card: filing your own evaluation, and
+          reading what the panel said. The second did not exist at all — feedback was written and
+          never queried back. */}
+      <Card className="space-y-3">
+        <h3 className="text-sm font-semibold text-text">{t('interviews.feedback.panelTitle')}</h3>
+        <FeedbackList summary={feedbackQuery.data} isLoading={feedbackQuery.isLoading} />
+      </Card>
+
+      {/* Only shown while there is still something for this user to file. Once submitted, the entry
+          form has no purpose: feedback is immutable by design, so an editable-looking form would be
+          promising something the backend will refuse. */}
+      {canSubmitFeedback && feedbackQuery.data && !feedbackQuery.data.hasCallerSubmitted && (
+        <Card className="space-y-3">
+          <h3 className="text-sm font-semibold text-text">{t('interviews.feedback.title')}</h3>
+          <FeedbackForm interviewId={id} />
+        </Card>
+      )}
+
+      {!canSubmitFeedback && isAssignedInterviewer && (
+        <Card>
+          <p className="text-sm text-text-muted">
+            {interview.status === 'Cancelled' || interview.status === 'NoShow'
+              ? t('interviews.feedback.lockedNoOutcome')
+              : t('interviews.feedback.lockedNotYet')}
+          </p>
+        </Card>
+      )}
 
       <RescheduleModal
         open={rescheduleOpen}
@@ -198,6 +314,28 @@ function InterviewDetailView({ id }: { id: string }) {
         durationMinutes={interview.durationMinutes}
         submitting={reschedule.isPending}
         onConfirm={handleReschedule}
+      />
+
+      <CancelInterviewModal
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        submitting={cancel.isPending}
+        onConfirm={handleCancel}
+      />
+
+      <NoShowModal
+        open={noShowOpen}
+        onOpenChange={setNoShowOpen}
+        submitting={noShow.isPending}
+        onConfirm={handleNoShow}
+      />
+
+      <ReassignInterviewersModal
+        open={reassignOpen}
+        onOpenChange={setReassignOpen}
+        interviewerUserIds={interview.interviewerUserIds}
+        submitting={reassign.isPending}
+        onConfirm={handleReassign}
       />
     </div>
   );

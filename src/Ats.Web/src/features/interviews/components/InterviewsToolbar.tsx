@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Select } from '@/components/ui';
 import { fullName } from '@/features/users/useUsers';
 import type { TenantUser } from '@/types/user';
+import { INTERVIEW_LIST_FILTERS, type InterviewListFilter } from '@/types/interview';
 import { DATE_RANGES, type DateRange } from '../dateRange';
 
 interface InterviewsToolbarProps {
@@ -9,6 +10,8 @@ interface InterviewsToolbarProps {
   onRangeChange: (value: DateRange) => void;
   interviewerId: string;
   onInterviewerChange: (value: string) => void;
+  filter: InterviewListFilter | '';
+  onFilterChange: (value: InterviewListFilter | '') => void;
   users: TenantUser[];
 }
 
@@ -21,6 +24,8 @@ export function InterviewsToolbar({
   onRangeChange,
   interviewerId,
   onInterviewerChange,
+  filter,
+  onFilterChange,
   users,
 }: InterviewsToolbarProps) {
   const { t } = useTranslation();
@@ -36,6 +41,22 @@ export function InterviewsToolbar({
         {DATE_RANGES.map((value) => (
           <option key={value} value={value}>
             {t(`interviews.range.${value}`)}
+          </option>
+        ))}
+      </Select>
+
+      {/* Lifecycle bucket. "AwaitingOutcome" is the one this screen was missing: without it there
+          was no way to ask which interviews have happened but never got a decision. */}
+      <Select
+        aria-label={t('interviews.filterState')}
+        value={filter}
+        onChange={(event) => onFilterChange(event.target.value as InterviewListFilter | '')}
+        className="sm:w-48"
+      >
+        <option value="">{t('interviews.allStates')}</option>
+        {INTERVIEW_LIST_FILTERS.map((value) => (
+          <option key={value} value={value}>
+            {t(`interviews.state.${value}`)}
           </option>
         ))}
       </Select>

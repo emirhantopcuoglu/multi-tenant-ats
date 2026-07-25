@@ -178,6 +178,12 @@
       "rejected": "Başvuru reddedildi.",
       "hired": "Aday işe alındı.",
       "error": "İşlem başarısız. Lütfen tekrar dene."
+    },
+    "outcome": {
+      "title": "Mülakat sonuçları",
+      "awaiting_one": "{{count}} mülakatın sonucu kaydedilmedi. Karar vermeden önce tamamla.",
+      "awaiting_other": "{{count}} mülakatın sonucu kaydedilmedi. Karar vermeden önce tamamla.",
+      "readyForDecision": "Tüm mülakatlar sonuçlandı ve değerlendirmeler tamam. Karar verilebilir."
     }
   },
   "overview": {
@@ -386,13 +392,13 @@
       "time": "Saat",
       "dateRequired": "Bir tarih seç.",
       "timeRequired": "Bir saat seç.",
-      "whenPast": "Gelecek bir tarih ve saat seç.",
       "duration": "Süre",
       "interviewers": "Görüşmeciler",
       "loadingUsers": "Ekip yükleniyor…",
       "noUsers": "Ekip üyesi bulunamadı.",
       "notes": "Notlar",
-      "notesPlaceholder": "Gündem, odak alanları…"
+      "notesPlaceholder": "Gündem, odak alanları…",
+      "whenTooSoon": "Mülakat en az {{count}} dakika sonrasına planlanmalı."
     },
     "conflict": {
       "interviewer": "Bir görüşmecinin bu saatte başka bir mülakatı var.",
@@ -407,7 +413,8 @@
       "reschedule": "Yeniden planla",
       "complete": "Tamamlandı işaretle",
       "noShow": "Gelmedi",
-      "cancel": "İptal et"
+      "cancel": "İptal et",
+      "reassign": "Görüşmecileri değiştir"
     },
     "detail": {
       "back": "Mülakatlara dön",
@@ -428,10 +435,16 @@
       "submit": "Değerlendirmeyi gönder",
       "submitted": "Değerlendirmen gönderildi.",
       "toast": "Değerlendirme gönderildi.",
-      "locked": "Bu mülakat için yalnızca atanmış görüşmeciler değerlendirme gönderebilir.",
-      "lockedCancelled": "Bu mülakat iptal edildiği için değerlendirme kapalı.",
       "lockedNotYet": "Mülakat gerçekleştikten sonra değerlendirme gönderebilirsin.",
-      "notEligible": "Bu mülakat için değerlendirme gönderilemez."
+      "notEligible": "Bu mülakat için değerlendirme gönderilemez.",
+      "lockedNoOutcome": "Bu mülakat gerçekleşmediği için değerlendirilemez.",
+      "panelTitle": "Değerlendirmeler",
+      "progress": "{{expected}} görüşmeciden {{submitted}} tanesi değerlendirmesini gönderdi",
+      "average": "Ortalama: {{rating}}",
+      "none": "Henüz değerlendirme gönderilmedi.",
+      "withheld": "Diğer görüşmecilerin değerlendirmelerini, kendi değerlendirmeni gönderdikten sonra görebilirsin. Bu, başkasının puanının seninkini etkilemesini önler.",
+      "unknownInterviewer": "Bilinmeyen görüşmeci",
+      "ratingOf": "{{max}} üzerinden {{rating}}"
     },
     "toast": {
       "scheduled": "Mülakat planlandı.",
@@ -439,7 +452,54 @@
       "cancelled": "Mülakat iptal edildi.",
       "completed": "Tamamlandı olarak işaretlendi.",
       "noShow": "Gelmedi olarak işaretlendi.",
-      "error": "İşlem başarısız. Lütfen tekrar dene."
+      "error": "İşlem başarısız. Lütfen tekrar dene.",
+      "stale": "Bu sayfa güncel değil. Yenileyip tekrar dene.",
+      "reassigned": "Görüşmeciler güncellendi."
+    },
+    "filterState": "Duruma göre filtrele",
+    "allStates": "Tüm durumlar",
+    "state": {
+      "Upcoming": "Yaklaşan",
+      "AwaitingOutcome": "Sonuç bekleyen",
+      "Completed": "Tamamlanan",
+      "Cancelled": "İptal edilen",
+      "NoShow": "Gelinmeyen"
+    },
+    "awaitingOutcome": {
+      "title": "Bu mülakatın zamanı geçti.",
+      "body": "Ne olduğunu kaydet: tamamlandıysa \"Tamamlandı işaretle\", taraflardan biri katılmadıysa \"Gelmedi\" seç."
+    },
+    "cancel": {
+      "title": "Mülakatı iptal et",
+      "description": "Adaya bir e-posta gidecek. Gerekçe, e-postanın ne diyeceğini belirler.",
+      "reason": "Gerekçe",
+      "reasonPlaceholder": "Bir gerekçe seç",
+      "reasonRequired": "Bir gerekçe seç.",
+      "note": "İç not",
+      "noteHint": "Yalnızca ekibin görür. Adaya gönderilmez.",
+      "notePlaceholder": "Kayıt için kısa açıklama…",
+      "confirm": "Mülakatı iptal et",
+      "effect": {
+        "Rescheduling": "Adaya: kısa süre içinde yeni bir tarihle döneceğiz.",
+        "CandidateRequested": "Adaya: kendi talebiyle iptal edildi, yeniden ayarlamak için haber vermesi yeterli.",
+        "CandidateWithdrew": "Adaya: başvurusunu çektiği için iptal edildi, ilerideki roller için teşekkür.",
+        "PositionClosed": "Adaya: pozisyon kapandı, mülakat yeniden ayarlanmayacak.",
+        "Other": "Adaya: başka bir zaman uygun olursa haber verilecek."
+      }
+    },
+    "noShow": {
+      "title": "Gelmedi olarak işaretle",
+      "description": "Hangi tarafın katılmadığını kaydet. Aday ile görüşmeci aynı kayıt değil.",
+      "party": "Katılmayan taraf",
+      "partyPlaceholder": "Bir taraf seç",
+      "partyRequired": "Hangi tarafın katılmadığını seç.",
+      "confirm": "Gelmedi olarak işaretle"
+    },
+    "reassign": {
+      "title": "Görüşmecileri değiştir",
+      "description": "Tarih ve saat aynı kalır, yalnızca panel değişir.",
+      "confirm": "Görüşmecileri kaydet",
+      "atLeastOne": "En az bir görüşmeci seçilmeli."
     }
   },
   "employmentType": {
@@ -550,10 +610,10 @@
       "submitted": "Başvurun iletildi",
       "viewed": "Şirket başvurunu görüntüledi",
       "movedTo": "\"{{stage}}\" aşamasına geçtin",
+      "currentStage": "\"{{stage}}\" aşamasındasın",
       "moved": "Yeni bir aşamaya geçtin",
       "rejected": "Süreç olumsuz sonuçlandı",
       "hiredEvent": "Tebrikler — işe alındın!",
-      "inReview": "Değerlendirme sürüyor",
       "interviews": {
         "title": "Mülakatlar"
       }
@@ -684,6 +744,8 @@
     "newApplication": "{{candidateName}}, \"{{jobTitle}}\" pozisyonuna başvurdu",
     "stageChanged": "\"{{jobTitle}}\" başvurun \"{{stage}}\" aşamasına taşındı",
     "interviewScheduled": "\"{{jobTitle}}\" için mülakat planlandı: {{type}}, {{date}}",
+    "interviewRescheduled": "\"{{jobTitle}}\" mülakatın taşındı: {{type}}, {{previousDate}} → {{date}}",
+    "interviewCancelled": "\"{{jobTitle}}\" mülakatın iptal edildi: {{type}}, {{date}}",
     "generic": "Yeni bir bildirimin var"
   },
   "auth": {
@@ -815,5 +877,24 @@
     "submitted": "bir başvuru gönderdi.",
     "moved": "adayı taşıdı",
     "rejected": "başvuruyu reddetti."
+  },
+  "interviewStatus": {
+    "Scheduled": "Planlandı",
+    "AwaitingOutcome": "Sonuç bekliyor",
+    "Completed": "Tamamlandı",
+    "Cancelled": "İptal edildi",
+    "NoShow": "Gelmedi"
+  },
+  "cancellationReason": {
+    "Rescheduling": "Yeniden planlanacak",
+    "CandidateRequested": "Aday talep etti",
+    "CandidateWithdrew": "Aday başvurusunu çekti",
+    "PositionClosed": "Pozisyon kapandı",
+    "Other": "Diğer",
+    "ApplicationRejected": "Başvuru reddedildi"
+  },
+  "noShowParty": {
+    "Candidate": "Aday gelmedi",
+    "Interviewer": "Görüşmeci gelmedi"
   }
 }

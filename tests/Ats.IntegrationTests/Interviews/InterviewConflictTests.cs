@@ -103,7 +103,7 @@ public sealed class InterviewConflictTests
         await using (var db = NewDb(tenant))
         {
             var tracked = await db.Interviews.FindAsync(existing.Id);
-            tracked!.Cancel();
+            tracked!.Cancel(InterviewCancellationReason.Other, null, tracked.ScheduledAtUtc.AddMinutes(-1));
             await db.SaveChangesAsync();
         }
 
@@ -120,7 +120,8 @@ public sealed class InterviewConflictTests
         Guid? applicationId = null)
     {
         var interview = Interview.Schedule(
-            applicationId ?? Guid.NewGuid(), InterviewType.Technical, start, durationMinutes, interviewers);
+            applicationId ?? Guid.NewGuid(), InterviewType.Technical, start, durationMinutes,
+            interviewers, nowUtc: start.AddDays(-1));
         await using var db = NewDb(tenant);
         db.Interviews.Add(interview);
         await db.SaveChangesAsync();

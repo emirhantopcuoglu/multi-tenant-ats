@@ -15,6 +15,13 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
     public const int RoomOpenLeadMinutes = 10;
     public const int RoomCloseGraceMinutes = 15;
 
+    // The shortest notice an interview may be booked with. Deliberately longer than
+    // RoomOpenLeadMinutes: booking inside that window would create an interview whose room is
+    // already open at the moment it is created, and whose invitation email would land after the
+    // candidate was expected to join. "In the future" alone is not a useful guarantee — an
+    // interview five seconds out is nominally valid and practically nonsense.
+    public const int MinimumLeadMinutes = 15;
+
     // The only durations a recruiter may pick, in minutes. A closed set instead of a free number so
     // the schedule stays sane (no 6000-minute interviews) and the UI can offer plain choices. The
     // web form mirrors this exact list.
@@ -48,6 +55,16 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
     public InterviewStatus Status { get; private set; }
     public string? Notes { get; private set; }
 
+    // Set together with Status.Cancelled, null in every other state. The reason is candidate-facing
+    // (it picks the sentence in the cancellation email); the note is the recruiter's own wording and
+    // stays on the company side, the same rule Notes already follows.
+    public InterviewCancellationReason? CancellationReason { get; private set; }
+    public string? CancellationNote { get; private set; }
+
+    // Set together with Status.NoShow, null otherwise. See NoShowParty: "nobody came" is not a
+    // usable record when it cannot say which side.
+    public NoShowParty? NoShowParty { get; private set; }
+
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }
@@ -73,65 +90,128 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
         _interviewerUserIds.AddRange(interviewerUserIds);
     }
 
+    // nowUtc is passed in rather than read from the ambient clock, the same discipline IsRoomOpen and
+    // CanReceiveFeedback already follow. Time is an input to these rules, so making it a parameter is
+    // what lets "cancelling after the start time is rejected" be a unit test instead of a stopwatch.
     public static Interview Schedule(
         Guid applicationId, InterviewType type, DateTime scheduledAtUtc, int durationMinutes,
-        IReadOnlyCollection<Guid> interviewerUserIds, string? notes = null)
+        IReadOnlyCollection<Guid> interviewerUserIds, DateTime nowUtc, string? notes = null)
     {
         if (applicationId == Guid.Empty)
             throw new ArgumentException("ApplicationId is required.", nameof(applicationId));
-        if (scheduledAtUtc <= DateTime.UtcNow)
-            throw new ArgumentException("An interview must be scheduled in the future.", nameof(scheduledAtUtc));
-        if (!AllowedDurationMinutes.Contains(durationMinutes))
-            throw new ArgumentException("Duration must be one of the allowed presets.", nameof(durationMinutes));
         if (interviewerUserIds is null || interviewerUserIds.Count == 0)
             throw new ArgumentException("At least one interviewer is required.", nameof(interviewerUserIds));
         if (interviewerUserIds.Any(id => id == Guid.Empty))
             throw new ArgumentException("Interviewer ids must not be empty.", nameof(interviewerUserIds));
+
+        EnsureSlotIsBookable(scheduledAtUtc, durationMinutes, nowUtc, nameof(scheduledAtUtc));
 
         return new Interview(
             Guid.NewGuid(), applicationId, type, scheduledAtUtc, durationMinutes,
             interviewerUserIds.Distinct(), Normalize(notes));
     }
 
-    // Moves the interview to a new time (and optionally a new duration). Only a still-scheduled
-    // interview can be rescheduled — a completed/cancelled one is settled.
-    public void Reschedule(DateTime newScheduledAtUtc, int newDurationMinutes)
+    // Moves the interview to a new time (and optionally a new duration). Only allowed before the
+    // interview was due to start: once the slot has come and gone, moving it would erase the fact
+    // that the original appointment was missed. Mark it NoShow and book a fresh one instead.
+    public void Reschedule(DateTime newScheduledAtUtc, int newDurationMinutes, DateTime nowUtc)
     {
-        if (newScheduledAtUtc <= DateTime.UtcNow)
-            throw new ArgumentException("An interview must be scheduled in the future.", nameof(newScheduledAtUtc));
-        if (!AllowedDurationMinutes.Contains(newDurationMinutes))
-            throw new ArgumentException("Duration must be one of the allowed presets.", nameof(newDurationMinutes));
+        EnsurePending("rescheduled", nowUtc);
+        EnsureSlotIsBookable(newScheduledAtUtc, newDurationMinutes, nowUtc, nameof(newScheduledAtUtc));
 
-        EnsureScheduled("rescheduled");
         ScheduledAtUtc = newScheduledAtUtc;
         DurationMinutes = newDurationMinutes;
     }
 
-    public void Cancel()
+    // Cancelling means "this will not happen", so it is only truthful before the start time. After
+    // that the interview either happened (Complete) or someone failed to appear (MarkNoShow) —
+    // there is no third possibility, and offering one lets a recruiter file a false record.
+    public void Cancel(InterviewCancellationReason reason, string? note, DateTime nowUtc)
     {
-        EnsureScheduled("cancelled");
+        if (!Enum.IsDefined(reason))
+            throw new ArgumentException("Unknown cancellation reason.", nameof(reason));
+
+        EnsurePending("cancelled", nowUtc);
         Status = InterviewStatus.Cancelled;
+        CancellationReason = reason;
+        CancellationNote = Normalize(note);
     }
 
-    public void Complete()
+    // The mirror of Cancel: an interview cannot have been completed before it began. Requiring the
+    // start time to have passed stops a recruiter from clearing tomorrow's calendar by marking it
+    // all done today.
+    public void Complete(DateTime nowUtc)
     {
-        EnsureScheduled("completed");
+        EnsureUnderway("completed", nowUtc);
         Status = InterviewStatus.Completed;
     }
 
-    public void MarkNoShow()
+    public void MarkNoShow(NoShowParty party, DateTime nowUtc)
     {
-        EnsureScheduled("marked as a no-show");
+        if (!Enum.IsDefined(party))
+            throw new ArgumentException("Unknown no-show party.", nameof(party));
+
+        EnsureUnderway("marked as a no-show", nowUtc);
         Status = InterviewStatus.NoShow;
+        NoShowParty = party;
     }
+
+    // Swaps the panel without touching the time. Kept apart from Reschedule rather than folded into
+    // it: "reschedule" that also silently changes who is in the room is a misleading name, and the
+    // two have different reasons to be refused. Only allowed before the start — after that the
+    // interview either happened with these people or did not happen at all, and rewriting the panel
+    // would be falsifying the record rather than correcting a plan.
+    public void ReassignInterviewers(IReadOnlyCollection<Guid> interviewerUserIds, DateTime nowUtc)
+    {
+        if (interviewerUserIds is null || interviewerUserIds.Count == 0)
+            throw new ArgumentException("At least one interviewer is required.", nameof(interviewerUserIds));
+        if (interviewerUserIds.Any(id => id == Guid.Empty))
+            throw new ArgumentException("Interviewer ids must not be empty.", nameof(interviewerUserIds));
+
+        EnsurePending("reassigned", nowUtc);
+
+        _interviewerUserIds.Clear();
+        _interviewerUserIds.AddRange(interviewerUserIds.Distinct());
+    }
+
+    // ---- Derived state ----
+    // None of this is stored. The lifecycle is a pure function of (Status, ScheduledAtUtc,
+    // DurationMinutes, now), so persisting it would duplicate facts the row already holds and open a
+    // window where the column disagrees with the clock. Same reasoning as RoomOpensAtUtc below.
+
+    public DateTime EndsAtUtc => ScheduledAtUtc.AddMinutes(DurationMinutes);
+
+    public bool HasStarted(DateTime nowUtc) => nowUtc >= ScheduledAtUtc;
+
+    public bool HasElapsed(DateTime nowUtc) => nowUtc >= EndsAtUtc;
+
+    // The state the UI complained about: the slot is over but nobody recorded what happened. It is
+    // still Status.Scheduled in the database — "scheduled" just stops being the whole truth once the
+    // clock passes the end time, and this is what surfaces that difference.
+    public bool IsAwaitingOutcome(DateTime nowUtc) =>
+        Status == InterviewStatus.Scheduled && HasElapsed(nowUtc);
+
+    // The four capability predicates the transitions guard on. Exposed so the API can hand the client
+    // the same answers rather than have it re-derive them from timestamps — the duplicated rule is
+    // exactly how the buttons drifted out of sync with the domain in the first place.
+    public bool CanReschedule(DateTime nowUtc) => IsPending(nowUtc);
+    public bool CanCancel(DateTime nowUtc) => IsPending(nowUtc);
+    public bool CanReassignInterviewers(DateTime nowUtc) => IsPending(nowUtc);
+    public bool CanComplete(DateTime nowUtc) => IsUnderway(nowUtc);
+    public bool CanMarkNoShow(DateTime nowUtc) => IsUnderway(nowUtc);
+
+    private bool IsPending(DateTime nowUtc) =>
+        Status == InterviewStatus.Scheduled && !HasStarted(nowUtc);
+
+    private bool IsUnderway(DateTime nowUtc) =>
+        Status == InterviewStatus.Scheduled && HasStarted(nowUtc);
 
     // The room opens a fixed lead time before the scheduled start and stays reachable until a fixed
     // grace period after the scheduled end — computed on read, not stored, so there is nothing to
     // keep in sync when an interview is rescheduled or the query simply runs at a different time.
     public DateTime RoomOpensAtUtc => ScheduledAtUtc.AddMinutes(-RoomOpenLeadMinutes);
 
-    public DateTime RoomClosesAtUtc =>
-        ScheduledAtUtc.AddMinutes(DurationMinutes).AddMinutes(RoomCloseGraceMinutes);
+    public DateTime RoomClosesAtUtc => EndsAtUtc.AddMinutes(RoomCloseGraceMinutes);
 
     public bool IsRoomOpen(DateTime nowUtc) =>
         RoomToken is not null
@@ -147,9 +227,37 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
     // Completed, or its scheduled end time has already passed. A still-future interview has nothing
     // to evaluate yet; a Cancelled or NoShow one never produced anything to evaluate.
     public bool CanReceiveFeedback(DateTime nowUtc) =>
-        Status == InterviewStatus.Completed
-        || (Status == InterviewStatus.Scheduled
-            && nowUtc >= ScheduledAtUtc.AddMinutes(DurationMinutes));
+        Status == InterviewStatus.Completed || IsAwaitingOutcome(nowUtc);
+
+    // Shared by Schedule and Reschedule so a booking and a re-booking can never diverge on what
+    // counts as a valid slot.
+    private static void EnsureSlotIsBookable(
+        DateTime scheduledAtUtc, int durationMinutes, DateTime nowUtc, string timeParameterName)
+    {
+        if (scheduledAtUtc < nowUtc.AddMinutes(MinimumLeadMinutes))
+            throw new ArgumentException(
+                $"An interview must be scheduled at least {MinimumLeadMinutes} minutes ahead.",
+                timeParameterName);
+        if (!AllowedDurationMinutes.Contains(durationMinutes))
+            throw new ArgumentException(
+                "Duration must be one of the allowed presets.", nameof(durationMinutes));
+    }
+
+    private void EnsurePending(string action, DateTime nowUtc)
+    {
+        EnsureScheduled(action);
+        if (HasStarted(nowUtc))
+            throw new InvalidOperationException(
+                $"An interview that was due to start at {ScheduledAtUtc:u} cannot be {action}.");
+    }
+
+    private void EnsureUnderway(string action, DateTime nowUtc)
+    {
+        EnsureScheduled(action);
+        if (!HasStarted(nowUtc))
+            throw new InvalidOperationException(
+                $"An interview that has not started yet cannot be {action}.");
+    }
 
     private void EnsureScheduled(string action)
     {

@@ -44,6 +44,24 @@ export const interviewStatusTone: Record<InterviewStatus, BadgeTone> = {
   NoShow: 'warning',
 };
 
+/* What an interview is shown as, which is not always what it is stored as: an interview whose slot
+   has passed with no outcome recorded is still `Scheduled` in the database, but calling it
+   "Scheduled" on screen is what made a finished interview look like an upcoming one. `warning`
+   because it is the one state that needs a human to do something. */
+export type InterviewDisplayStatus = InterviewStatus | 'AwaitingOutcome';
+
+export const interviewDisplayStatusTone: Record<InterviewDisplayStatus, BadgeTone> = {
+  ...interviewStatusTone,
+  AwaitingOutcome: 'warning',
+};
+
+export function interviewDisplayStatus(interview: {
+  status: InterviewStatus;
+  isAwaitingOutcome: boolean;
+}): InterviewDisplayStatus {
+  return interview.isAwaitingOutcome ? 'AwaitingOutcome' : interview.status;
+}
+
 export const recommendationTone: Record<FeedbackRecommendation, BadgeTone> = {
   StrongNoHire: 'solidDanger',
   NoHire: 'danger',

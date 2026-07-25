@@ -22,8 +22,9 @@ public sealed class ScheduleInterviewValidator : AbstractValidator<ScheduleInter
         RuleFor(x => x.ApplicationId).NotEmpty();
         RuleFor(x => x.Type).IsInEnum();
         RuleFor(x => x.ScheduledAtUtc)
-            .GreaterThan(_ => DateTime.UtcNow)
-            .WithMessage("The interview must be scheduled in the future.");
+            .GreaterThanOrEqualTo(_ => DateTime.UtcNow.AddMinutes(Interview.MinimumLeadMinutes))
+            .WithMessage(
+                $"The interview must be scheduled at least {Interview.MinimumLeadMinutes} minutes ahead.");
         RuleFor(x => x.DurationMinutes)
             .Must(Interview.AllowedDurationMinutes.Contains)
             .WithMessage("Duration must be one of the allowed presets.");
@@ -83,7 +84,7 @@ public sealed class ScheduleInterviewHandler : ICommandHandler<ScheduleInterview
             // interviewer). The validator already reported these as 400s; this guards them regardless.
             interview = Interview.Schedule(
                 command.ApplicationId, command.Type, command.ScheduledAtUtc, command.DurationMinutes,
-                command.InterviewerUserIds, command.Notes);
+                command.InterviewerUserIds, DateTime.UtcNow, command.Notes);
         }
         catch (ArgumentException ex)
         {

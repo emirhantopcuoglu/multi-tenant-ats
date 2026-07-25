@@ -111,7 +111,7 @@ public sealed class JoinInterviewRoomTests
         await using (var db = NewDb(tenant))
         {
             var tracked = await db.Interviews.FindAsync(interview.Id);
-            tracked!.Cancel();
+            tracked!.Cancel(InterviewCancellationReason.Other, null, tracked.ScheduledAtUtc.AddMinutes(-1));
             await db.SaveChangesAsync();
         }
 
@@ -146,9 +146,12 @@ public sealed class JoinInterviewRoomTests
         IReadOnlyCollection<Guid>? interviewerUserIds = null)
     {
         var applicationId = Guid.NewGuid();
+        // Booked a day before it starts. These tests deliberately place interviews minutes away to
+        // exercise the room window, which the minimum-lead-time rule would otherwise reject — so the
+        // seed states when the booking was made rather than pretending it happened just now.
         var interview = Interview.Schedule(
             applicationId, InterviewType.Technical, scheduledAtUtc, 30,
-            interviewerUserIds ?? [Guid.NewGuid()]);
+            interviewerUserIds ?? [Guid.NewGuid()], nowUtc: scheduledAtUtc.AddDays(-1));
 
         await using (var db = NewDb(tenant))
         {

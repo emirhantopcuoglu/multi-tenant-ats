@@ -18,6 +18,13 @@ public static class InterviewErrors
     public static Error InvalidOperation(string message) =>
         new("interview.invalid_operation", message);
 
+    // Distinct from InvalidOperation (a malformed request, 400): the request is well-formed but the
+    // interview is not in a state that allows it — already terminal, or the clock has moved past the
+    // point where the transition made sense. A 409, and the code the UI keys off to explain that the
+    // page it is showing is stale.
+    public static Error TransitionNotAllowed(string message) =>
+        new("interview.transition_not_allowed", message);
+
     public static readonly Error FeedbackNotEligible =
         new("interview.feedback_not_eligible", "Feedback can only be submitted once the interview has taken place.");
 
