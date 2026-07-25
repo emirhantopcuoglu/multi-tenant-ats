@@ -89,7 +89,15 @@ export const INTERVIEW_CANCELLATION_REASONS = [
   'Other',
 ] as const;
 
-export type InterviewCancellationReason = (typeof INTERVIEW_CANCELLATION_REASONS)[number];
+/* ApplicationRejected is set by the system when the application behind the interview is rejected.
+   It is not in the list above because it must not be offered in the cancel dialog — rejecting an
+   application is its own action, not a way to call off a meeting. */
+export type SelectableInterviewCancellationReason =
+  (typeof INTERVIEW_CANCELLATION_REASONS)[number];
+
+export type InterviewCancellationReason =
+  | SelectableInterviewCancellationReason
+  | 'ApplicationRejected';
 
 /* POST /api/v1/interviews/{id}/cancel body (InterviewsController.CancelInterviewBody). `note` is
    internal: it is stored on the interview and never reaches the candidate. */
@@ -113,6 +121,20 @@ export interface MarkNoShowRequest {
 /* PUT /api/v1/interviews/{id}/interviewers body. The full replacement panel, not a delta. */
 export interface ReassignInterviewersRequest {
   interviewerUserIds: string[];
+}
+
+/* GET /api/v1/interviews/outcome?applicationId= (ApplicationInterviewOutcomeDto). The roll-up a
+   recruiter decides on: are the interviews finished, is all the feedback in, what did it say.
+   `awaitingOutcomeCount` is interviews whose slot has passed with nothing recorded — deciding while
+   those are outstanding means deciding on incomplete information. */
+export interface ApplicationInterviewOutcome {
+  totalCount: number;
+  completedCount: number;
+  awaitingOutcomeCount: number;
+  feedbackCount: number;
+  expectedFeedbackCount: number;
+  averageRating: number | null;
+  recommendationCounts: Partial<Record<FeedbackRecommendation, number>>;
 }
 
 /* POST /api/v1/interviews/{id}/feedback body (InterviewsController.SubmitFeedbackBody). */

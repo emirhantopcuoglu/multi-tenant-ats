@@ -178,6 +178,12 @@
       "rejected": "Application rejected.",
       "hired": "Candidate hired.",
       "error": "Action failed. Please try again."
+    },
+    "outcome": {
+      "title": "Interview outcome",
+      "awaiting_one": "{{count}} interview has no outcome recorded. Resolve it before deciding.",
+      "awaiting_other": "{{count}} interviews have no outcome recorded. Resolve them before deciding.",
+      "readyForDecision": "All interviews are settled and every evaluation is in. Ready for a decision."
     }
   },
   "overview": {
@@ -884,7 +890,8 @@
     "CandidateRequested": "Candidate requested",
     "CandidateWithdrew": "Candidate withdrew",
     "PositionClosed": "Position closed",
-    "Other": "Other"
+    "Other": "Other",
+    "ApplicationRejected": "Application rejected"
   },
   "noShowParty": {
     "Candidate": "Candidate did not attend",

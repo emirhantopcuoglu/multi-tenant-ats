@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import {
   cancelInterview,
   completeInterview,
+  getApplicationInterviewOutcome,
   getInterview,
   getInterviewFeedback,
   listInterviews,
@@ -76,6 +77,16 @@ export function useInterviewActions(id: string) {
   });
 
   return { reschedule, cancel, complete, noShow, reassign };
+}
+
+export const interviewOutcomeKey = (applicationId: string) =>
+  [...INTERVIEWS_KEY, 'outcome', applicationId] as const;
+
+export function useApplicationInterviewOutcome(applicationId: string) {
+  return useQuery({
+    queryKey: interviewOutcomeKey(applicationId),
+    queryFn: () => getApplicationInterviewOutcome(applicationId),
+  });
 }
 
 export const interviewFeedbackKey = (id: string) => [...INTERVIEWS_KEY, 'feedback', id] as const;

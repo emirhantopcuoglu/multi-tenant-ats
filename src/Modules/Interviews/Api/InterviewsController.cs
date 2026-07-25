@@ -40,6 +40,16 @@ public sealed class InterviewsController : ControllerBase
         return Ok(result.Value);
     }
 
+    // Evaluation roll-up for one application's interviews, so the application screen can show what
+    // the interviews concluded without opening each one.
+    [HttpGet("outcome")]
+    [Authorize(Policy = Policies.CanViewInterviews)]
+    public async Task<IActionResult> GetApplicationOutcome([FromQuery] Guid applicationId)
+    {
+        var result = await _sender.Send(new GetApplicationInterviewOutcomeQuery(applicationId));
+        return Ok(result.Value);
+    }
+
     [HttpGet("{id:guid}")]
     [Authorize(Policy = Policies.CanViewInterviews)]
     public async Task<IActionResult> GetById(Guid id)
