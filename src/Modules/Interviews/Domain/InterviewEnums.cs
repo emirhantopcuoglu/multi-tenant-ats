@@ -10,3 +10,18 @@ public enum InterviewStatus { Scheduled, Completed, Cancelled, NoShow }
 // Structured hiring recommendation attached to a piece of feedback. Ordered from most negative
 // to most positive so comparisons and displays can sort naturally.
 public enum FeedbackRecommendation { StrongNoHire, NoHire, Hire, StrongHire }
+
+// Why a scheduled interview was called off. A closed set rather than free text because this value
+// is candidate-facing: it selects the sentence the cancellation email leads with, and the one thing
+// a candidate actually needs to know is whether another invitation is coming. The recruiter's own
+// wording lives in Interview.CancellationNote and never leaves the company side.
+public enum InterviewCancellationReason
+{
+    // A replacement will be booked. The only reason that promises a follow-up.
+    Rescheduling,
+
+    CandidateRequested,
+    CandidateWithdrew,
+    PositionClosed,
+    Other,
+}

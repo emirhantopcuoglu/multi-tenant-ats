@@ -399,11 +399,16 @@ builder.Services.AddMassTransit(bus =>
     bus.AddConsumer<ApplicationHiredConsumer>();
     bus.AddConsumer<ApplicationStageChangedEmailConsumer>();
     bus.AddConsumer<InterviewScheduledEmailConsumer>();
+    // An interview the candidate already has in their calendar must never move or vanish silently.
+    bus.AddConsumer<InterviewRescheduledEmailConsumer>();
+    bus.AddConsumer<InterviewCancelledEmailConsumer>();
 
     // In-app notification writers (FAZ 3): each event lands in its own queue, independent of the
     // email consumers above, and becomes a row behind the candidate's bell icon.
     bus.AddConsumer<ApplicationStageChangedNotificationConsumer>();
     bus.AddConsumer<InterviewScheduledNotificationConsumer>();
+    bus.AddConsumer<InterviewRescheduledNotificationConsumer>();
+    bus.AddConsumer<InterviewCancelledNotificationConsumer>();
     bus.AddConsumer<ApplicationViewedNotificationConsumer>();
     bus.AddConsumer<ApplicationCvDownloadedNotificationConsumer>();
     bus.AddConsumer<NewApplicationNotificationConsumer>();

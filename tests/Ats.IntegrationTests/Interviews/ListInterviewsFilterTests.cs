@@ -99,7 +99,7 @@ public sealed class ListInterviewsFilterTests
             db.Interviews.Add(completed);
 
             var cancelled = NewInterview(slot);
-            cancelled.Cancel(slot.AddDays(-1));
+            cancelled.Cancel(InterviewCancellationReason.Other, null, slot.AddDays(-1));
             db.Interviews.Add(cancelled);
 
             await db.SaveChangesAsync();

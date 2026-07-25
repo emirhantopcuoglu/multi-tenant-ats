@@ -1,7 +1,9 @@
+using Ats.Modules.Interviews.Application.Events;
 using Ats.Modules.Interviews.Domain;
 using Ats.Shared.Contracts.Applications;
 using Ats.Shared.Kernel;
 using FluentValidation;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Interviews.Application.Interviews;
@@ -33,11 +35,19 @@ public sealed class RescheduleInterviewHandler : ICommandHandler<RescheduleInter
 {
     private readonly IInterviewsDbContext _db;
     private readonly IApplicationDirectory _applications;
+    private readonly IPublisher _publisher;
+    private readonly ICurrentTenant _currentTenant;
 
-    public RescheduleInterviewHandler(IInterviewsDbContext db, IApplicationDirectory applications)
+    public RescheduleInterviewHandler(
+        IInterviewsDbContext db,
+        IApplicationDirectory applications,
+        IPublisher publisher,
+        ICurrentTenant currentTenant)
     {
         _db = db;
         _applications = applications;
+        _publisher = publisher;
+        _currentTenant = currentTenant;
     }
 
     public async Task<Result<bool>> Handle(RescheduleInterviewCommand command, CancellationToken ct)
@@ -62,6 +72,10 @@ public sealed class RescheduleInterviewHandler : ICommandHandler<RescheduleInter
         if (conflict is not null)
             return Result.Failure<bool>(conflict);
 
+        // Captured before the move: the candidate is holding this time, so the notification has to
+        // be able to say what it changed from, not only what it changed to.
+        var previousScheduledAtUtc = interview.ScheduledAtUtc;
+
         try
         {
             interview.Reschedule(command.ScheduledAtUtc, command.DurationMinutes, DateTime.UtcNow);
@@ -76,13 +90,31 @@ public sealed class RescheduleInterviewHandler : ICommandHandler<RescheduleInter
         }
 
         await _db.SaveChangesAsync(ct);
+
+        // Published after the commit, like ScheduleInterview and for the same reason: this module
+        // has no transactional outbox, and announcing a move that then failed to save would be a
+        // lie. A missing application (deleted between the read above and here) only costs the
+        // notification — the reschedule itself already stands.
+        if (application is not null)
+        {
+            await _publisher.Publish(
+                new InterviewRescheduledEvent(
+                    interview.Id, application.Id, application.JobId, application.JobTitle,
+                    application.CandidateId, application.CandidateAccountId,
+                    application.CandidateEmail, application.CandidateFirstName,
+                    interview.Type, previousScheduledAtUtc, interview.ScheduledAtUtc,
+                    interview.DurationMinutes, interview.RoomToken,
+                    _currentTenant.TenantId ?? Guid.Empty),
+                ct);
+        }
+
         return Result.Success(true);
     }
 }
 
-// Shared by the three no-argument transitions (cancel/complete/no-show), which differ only by the
-// domain method they call. Reschedule is kept separate: it takes parameters and its entity method can
-// also throw ArgumentException for an invalid new time/duration.
+// Shared by the two no-argument transitions (complete/no-show), which differ only by the domain
+// method they call. Reschedule and cancel are kept separate: both take parameters and both raise a
+// candidate-facing event, so there is nothing left for them to share here.
 internal static class InterviewTransition
 {
     // The clock is read once here and handed to the transition, so a single request can never see two
@@ -110,20 +142,81 @@ internal static class InterviewTransition
 }
 
 // ---- Cancel ----
-public sealed record CancelInterviewCommand(Guid InterviewId) : ICommand<bool>;
+// Unlike complete/no-show this one does not use InterviewTransition: cancelling is the only
+// transition the candidate must hear about, so the handler also resolves their contact details and
+// raises a domain event.
+public sealed record CancelInterviewCommand(
+    Guid InterviewId, InterviewCancellationReason Reason, string? Note) : ICommand<bool>;
 
 public sealed class CancelInterviewValidator : AbstractValidator<CancelInterviewCommand>
 {
-    public CancelInterviewValidator() => RuleFor(x => x.InterviewId).NotEmpty();
+    private const int MaxNoteLength = 500;
+
+    public CancelInterviewValidator()
+    {
+        RuleFor(x => x.InterviewId).NotEmpty();
+        RuleFor(x => x.Reason).IsInEnum();
+        RuleFor(x => x.Note).MaximumLength(MaxNoteLength);
+    }
 }
 
 public sealed class CancelInterviewHandler : ICommandHandler<CancelInterviewCommand, bool>
 {
     private readonly IInterviewsDbContext _db;
-    public CancelInterviewHandler(IInterviewsDbContext db) => _db = db;
+    private readonly IApplicationDirectory _applications;
+    private readonly IPublisher _publisher;
+    private readonly ICurrentTenant _currentTenant;
 
-    public Task<Result<bool>> Handle(CancelInterviewCommand command, CancellationToken ct) =>
-        InterviewTransition.ApplyAsync(_db, command.InterviewId, (i, now) => i.Cancel(now), ct);
+    public CancelInterviewHandler(
+        IInterviewsDbContext db,
+        IApplicationDirectory applications,
+        IPublisher publisher,
+        ICurrentTenant currentTenant)
+    {
+        _db = db;
+        _applications = applications;
+        _publisher = publisher;
+        _currentTenant = currentTenant;
+    }
+
+    public async Task<Result<bool>> Handle(CancelInterviewCommand command, CancellationToken ct)
+    {
+        var interview = await _db.Interviews.FirstOrDefaultAsync(i => i.Id == command.InterviewId, ct);
+        if (interview is null)
+            return Result.Failure<bool>(InterviewErrors.NotFound);
+
+        try
+        {
+            interview.Cancel(command.Reason, command.Note, DateTime.UtcNow);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Result.Failure<bool>(InterviewErrors.TransitionNotAllowed(ex.Message));
+        }
+        catch (ArgumentException ex)
+        {
+            return Result.Failure<bool>(InterviewErrors.InvalidOperation(ex.Message));
+        }
+
+        await _db.SaveChangesAsync(ct);
+
+        // Read after the commit, not before: nothing above needs the application, and a lookup that
+        // only feeds a best-effort notification must not sit between the guard and the save.
+        var application = await _applications.GetForSchedulingAsync(interview.ApplicationId, ct);
+        if (application is not null)
+        {
+            await _publisher.Publish(
+                new InterviewCancelledEvent(
+                    interview.Id, application.Id, application.JobId, application.JobTitle,
+                    application.CandidateId, application.CandidateAccountId,
+                    application.CandidateEmail, application.CandidateFirstName,
+                    interview.Type, interview.ScheduledAtUtc, command.Reason,
+                    _currentTenant.TenantId ?? Guid.Empty),
+                ct);
+        }
+
+        return Result.Success(true);
+    }
 }
 
 // ---- Complete ----

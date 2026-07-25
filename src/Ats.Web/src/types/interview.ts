@@ -72,6 +72,27 @@ export interface RescheduleRequest {
   durationMinutes: number;
 }
 
+/* Why a scheduled interview was called off (Interviews.Domain.InterviewCancellationReason). The
+   value picks the sentence the candidate's cancellation email leads with, so it is candidate-facing
+   even though the recruiter never sees the email — `Rescheduling` is the only one that promises a
+   follow-up invitation. */
+export const INTERVIEW_CANCELLATION_REASONS = [
+  'Rescheduling',
+  'CandidateRequested',
+  'CandidateWithdrew',
+  'PositionClosed',
+  'Other',
+] as const;
+
+export type InterviewCancellationReason = (typeof INTERVIEW_CANCELLATION_REASONS)[number];
+
+/* POST /api/v1/interviews/{id}/cancel body (InterviewsController.CancelInterviewBody). `note` is
+   internal: it is stored on the interview and never reaches the candidate. */
+export interface CancelInterviewRequest {
+  reason: InterviewCancellationReason;
+  note?: string;
+}
+
 /* POST /api/v1/interviews/{id}/feedback body (InterviewsController.SubmitFeedbackBody). Submitting is
    built in PR-2; the type lives here so the whole interview contract sits in one file. */
 export interface SubmitFeedbackRequest {

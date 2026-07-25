@@ -75,9 +75,9 @@ public sealed class InterviewsController : ControllerBase
 
     [HttpPost("{id:guid}/cancel")]
     [Authorize(Policy = Policies.CanManageInterviews)]
-    public async Task<IActionResult> Cancel(Guid id)
+    public async Task<IActionResult> Cancel(Guid id, CancelInterviewBody body)
     {
-        var result = await _sender.Send(new CancelInterviewCommand(id));
+        var result = await _sender.Send(new CancelInterviewCommand(id, body.Reason, body.Note));
         return result.IsSuccess ? NoContent() : MapFailure(result.Error);
     }
 
@@ -147,6 +147,10 @@ public sealed class InterviewsController : ControllerBase
         string? Notes);
 
     public sealed record RescheduleBody(DateTime ScheduledAtUtc, int DurationMinutes);
+
+    // Note is the recruiter's internal wording and never reaches the candidate — only Reason does,
+    // and only as the sentence the cancellation email leads with.
+    public sealed record CancelInterviewBody(InterviewCancellationReason Reason, string? Note);
 
     public sealed record SubmitFeedbackBody(
         int Rating,

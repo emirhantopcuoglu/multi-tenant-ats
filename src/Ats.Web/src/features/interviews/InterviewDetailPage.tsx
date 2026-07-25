@@ -9,10 +9,11 @@ import { fullName, useUserLookup } from '@/features/users/useUsers';
 import { getApplication } from '@/features/applications/applicationsApi';
 import { applicationDetailKey } from '@/features/applications/useApplicationDetail';
 import { InterviewStatusBadge } from './components/InterviewStatusBadge';
-import type { RescheduleRequest } from '@/types/interview';
+import type { CancelInterviewRequest, RescheduleRequest } from '@/types/interview';
 import { canManageInterviews } from './interviewPermissions';
 import { useInterview, useInterviewActions } from './useInterviews';
 import { RescheduleModal } from './components/RescheduleModal';
+import { CancelInterviewModal } from './components/CancelInterviewModal';
 import { FeedbackForm } from './components/FeedbackForm';
 
 /* Thin wrapper so the inner view can take a guaranteed-present id and keep its hooks unconditional. */
@@ -33,6 +34,7 @@ function InterviewDetailView({ id }: { id: string }) {
   const { data: interview, isLoading, isError } = useInterview(id);
   const { reschedule, cancel, complete, noShow } = useInterviewActions(id);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   // The interview carries only an applicationId; resolve the candidate from the same cache entry the
   // application detail page uses, gated until the interview (and so the id) has loaded.
@@ -128,6 +130,15 @@ function InterviewDetailView({ id }: { id: string }) {
       onError: (error) => toast({ title: conflictMessage(error), tone: 'danger' }),
     });
 
+  const handleCancel = (body: CancelInterviewRequest) =>
+    cancel.mutate(body, {
+      onSuccess: () => {
+        setCancelOpen(false);
+        toast({ title: t('interviews.toast.cancelled'), tone: 'success' });
+      },
+      onError: (error) => toast({ title: actionErrorMessage(error), tone: 'danger' }),
+    });
+
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <Link to="/interviews" className="text-sm text-text-muted transition-colors hover:text-text">
@@ -166,7 +177,7 @@ function InterviewDetailView({ id }: { id: string }) {
               </Button>
             )}
             {interview.canCancel && (
-              <Button variant="danger" onClick={() => runAction(cancel, t('interviews.toast.cancelled'))} disabled={busy}>
+              <Button variant="danger" onClick={() => setCancelOpen(true)} disabled={busy}>
                 {t('interviews.action.cancel')}
               </Button>
             )}
@@ -224,6 +235,13 @@ function InterviewDetailView({ id }: { id: string }) {
         durationMinutes={interview.durationMinutes}
         submitting={reschedule.isPending}
         onConfirm={handleReschedule}
+      />
+
+      <CancelInterviewModal
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        submitting={cancel.isPending}
+        onConfirm={handleCancel}
       />
     </div>
   );

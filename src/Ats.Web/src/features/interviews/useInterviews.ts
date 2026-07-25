@@ -10,7 +10,11 @@ import {
   submitFeedback,
   type ListInterviewsParams,
 } from './interviewsApi';
-import type { RescheduleRequest, SubmitFeedbackRequest } from '@/types/interview';
+import type {
+  CancelInterviewRequest,
+  RescheduleRequest,
+  SubmitFeedbackRequest,
+} from '@/types/interview';
 
 /* Root key for every interviews query, so a single invalidate after any mutation refreshes all
    filtered list pages and the open detail. */
@@ -53,7 +57,10 @@ export function useInterviewActions(id: string) {
     mutationFn: (body: RescheduleRequest) => rescheduleInterview(id, body),
     onSuccess: invalidate,
   });
-  const cancel = useMutation({ mutationFn: () => cancelInterview(id), onSuccess: invalidate });
+  const cancel = useMutation({
+    mutationFn: (body: CancelInterviewRequest) => cancelInterview(id, body),
+    onSuccess: invalidate,
+  });
   const complete = useMutation({ mutationFn: () => completeInterview(id), onSuccess: invalidate });
   const noShow = useMutation({ mutationFn: () => markInterviewNoShow(id), onSuccess: invalidate });
 

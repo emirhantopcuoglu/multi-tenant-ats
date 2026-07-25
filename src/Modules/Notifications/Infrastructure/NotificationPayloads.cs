@@ -33,6 +33,27 @@ public static class NotificationPayloads
         // screen, which has no room.
         string? RoomToken);
 
+    // Carries both times so the client can render "moved from X to Y". Stating only the new time
+    // would leave the candidate to diff it against the invitation they already have.
+    public sealed record InterviewRescheduled(
+        Guid ApplicationId,
+        string JobTitle,
+        string InterviewType,
+        DateTime PreviousScheduledAtUtc,
+        DateTime ScheduledAtUtc,
+        int DurationMinutes,
+        string? RoomToken);
+
+    // Reason is one of a closed set (the Interviews module's InterviewCancellationReason) so the
+    // client can pick a localized sentence per case — notably whether to promise a new invitation.
+    // The recruiter's free-text note has no field here and never crosses the module boundary.
+    public sealed record InterviewCancelled(
+        Guid ApplicationId,
+        string JobTitle,
+        string InterviewType,
+        DateTime ScheduledAtUtc,
+        string Reason);
+
     public sealed record ApplicationViewed(Guid ApplicationId, string JobTitle);
 
     public sealed record ApplicationCvDownloaded(Guid ApplicationId, string JobTitle);

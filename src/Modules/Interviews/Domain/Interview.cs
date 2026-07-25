@@ -55,6 +55,12 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
     public InterviewStatus Status { get; private set; }
     public string? Notes { get; private set; }
 
+    // Set together with Status.Cancelled, null in every other state. The reason is candidate-facing
+    // (it picks the sentence in the cancellation email); the note is the recruiter's own wording and
+    // stays on the company side, the same rule Notes already follows.
+    public InterviewCancellationReason? CancellationReason { get; private set; }
+    public string? CancellationNote { get; private set; }
+
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }
@@ -116,10 +122,15 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
     // Cancelling means "this will not happen", so it is only truthful before the start time. After
     // that the interview either happened (Complete) or someone failed to appear (MarkNoShow) —
     // there is no third possibility, and offering one lets a recruiter file a false record.
-    public void Cancel(DateTime nowUtc)
+    public void Cancel(InterviewCancellationReason reason, string? note, DateTime nowUtc)
     {
+        if (!Enum.IsDefined(reason))
+            throw new ArgumentException("Unknown cancellation reason.", nameof(reason));
+
         EnsurePending("cancelled", nowUtc);
         Status = InterviewStatus.Cancelled;
+        CancellationReason = reason;
+        CancellationNote = Normalize(note);
     }
 
     // The mirror of Cancel: an interview cannot have been completed before it began. Requiring the

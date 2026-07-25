@@ -5,27 +5,27 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Interviews.Application.Events;
 
-// Bridges the in-process domain event onto the message bus. The domain enum becomes a string here:
-// the contract must not carry this module's types. Transport and failure policy live in
-// IntegrationEventBridge — see its comment for why this publishes through IBus and why a broker
-// failure is swallowed.
-public sealed class PublishInterviewScheduledIntegrationEvent
-    : INotificationHandler<InterviewScheduledEvent>
+// Bridges "this interview was called off" onto the bus. The cancellation reason crosses as a string
+// for the same reason the interview type does — a contract must not carry this module's enums. The
+// recruiter's free-text note is not on the domain event at all, so it cannot be mapped here by
+// mistake. See IntegrationEventBridge for transport and failure policy.
+public sealed class PublishInterviewCancelledIntegrationEvent
+    : INotificationHandler<InterviewCancelledEvent>
 {
     private readonly IBus _bus;
-    private readonly ILogger<PublishInterviewScheduledIntegrationEvent> _logger;
+    private readonly ILogger<PublishInterviewCancelledIntegrationEvent> _logger;
 
-    public PublishInterviewScheduledIntegrationEvent(
-        IBus bus, ILogger<PublishInterviewScheduledIntegrationEvent> logger)
+    public PublishInterviewCancelledIntegrationEvent(
+        IBus bus, ILogger<PublishInterviewCancelledIntegrationEvent> logger)
     {
         _bus = bus;
         _logger = logger;
     }
 
-    public Task Handle(InterviewScheduledEvent notification, CancellationToken cancellationToken) =>
+    public Task Handle(InterviewCancelledEvent notification, CancellationToken cancellationToken) =>
         IntegrationEventBridge.PublishOrLogAsync(
             _bus,
-            new InterviewScheduledIntegrationEvent(
+            new InterviewCancelledIntegrationEvent(
                 notification.InterviewId,
                 notification.ApplicationId,
                 notification.JobId,
@@ -36,8 +36,7 @@ public sealed class PublishInterviewScheduledIntegrationEvent
                 notification.CandidateFirstName,
                 notification.Type.ToString(),
                 notification.ScheduledAtUtc,
-                notification.DurationMinutes,
-                notification.RoomToken,
+                notification.Reason.ToString(),
                 notification.TenantId),
             _logger,
             notification.InterviewId,

@@ -454,6 +454,24 @@
     "awaitingOutcome": {
       "title": "This interview’s time has passed.",
       "body": "Record what happened: mark it completed if it went ahead, or a no-show if someone did not attend."
+    },
+    "cancel": {
+      "title": "Cancel interview",
+      "description": "The candidate will be emailed. The reason decides what that email says.",
+      "reason": "Reason",
+      "reasonPlaceholder": "Choose a reason",
+      "reasonRequired": "Choose a reason.",
+      "note": "Internal note",
+      "noteHint": "Visible to your team only. Never sent to the candidate.",
+      "notePlaceholder": "Short explanation for the record…",
+      "confirm": "Cancel interview",
+      "effect": {
+        "Rescheduling": "Candidate is told: a new time is coming shortly.",
+        "CandidateRequested": "Candidate is told: cancelled at their request, let us know to rearrange.",
+        "CandidateWithdrew": "Candidate is told: cancelled following their withdrawal, thanks for their time.",
+        "PositionClosed": "Candidate is told: the position is closed, this will not be rearranged.",
+        "Other": "Candidate is told: we will be in touch if another time opens up."
+      }
     }
   },
   "employmentType": {
@@ -836,5 +854,12 @@
     "Completed": "Completed",
     "Cancelled": "Cancelled",
     "NoShow": "No-show"
+  },
+  "cancellationReason": {
+    "Rescheduling": "Will be rescheduled",
+    "CandidateRequested": "Candidate requested",
+    "CandidateWithdrew": "Candidate withdrew",
+    "PositionClosed": "Position closed",
+    "Other": "Other"
   }
 }

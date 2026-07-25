@@ -234,9 +234,75 @@ public class InterviewLifecycleTests
     {
         var interview = ScheduleValid();
 
-        interview.Cancel(BeforeStart(interview));
+        interview.Cancel(InterviewCancellationReason.Other, null, BeforeStart(interview));
 
         Assert.Equal(InterviewStatus.Cancelled, interview.Status);
+    }
+
+    [Fact]
+    public void Cancel_should_record_the_reason_and_the_internal_note()
+    {
+        var interview = ScheduleValid();
+
+        interview.Cancel(
+            InterviewCancellationReason.PositionClosed, "  budget pulled  ", BeforeStart(interview));
+
+        Assert.Equal(InterviewCancellationReason.PositionClosed, interview.CancellationReason);
+        Assert.Equal("budget pulled", interview.CancellationNote);
+    }
+
+    [Fact]
+    public void Cancel_should_accept_a_reason_without_a_note()
+    {
+        var interview = ScheduleValid();
+
+        interview.Cancel(InterviewCancellationReason.Rescheduling, null, BeforeStart(interview));
+
+        Assert.Equal(InterviewCancellationReason.Rescheduling, interview.CancellationReason);
+        Assert.Null(interview.CancellationNote);
+    }
+
+    [Fact]
+    public void Cancel_should_treat_a_blank_note_as_no_note()
+    {
+        var interview = ScheduleValid();
+
+        interview.Cancel(InterviewCancellationReason.Other, "   ", BeforeStart(interview));
+
+        Assert.Null(interview.CancellationNote);
+    }
+
+    [Fact]
+    public void Cancel_should_throw_on_an_undefined_reason()
+    {
+        var interview = ScheduleValid();
+
+        Assert.Throws<ArgumentException>(
+            () => interview.Cancel((InterviewCancellationReason)99, null, BeforeStart(interview)));
+    }
+
+    [Fact]
+    public void A_refused_cancel_should_not_record_a_reason()
+    {
+        // The guard has to run before any state is written, or a rejected cancellation would still
+        // leave its reason behind on a live interview.
+        var interview = ScheduleValid();
+
+        Assert.Throws<InvalidOperationException>(
+            () => interview.Cancel(InterviewCancellationReason.Other, "note", AfterEnd(interview)));
+
+        Assert.Null(interview.CancellationReason);
+        Assert.Null(interview.CancellationNote);
+    }
+
+    [Fact]
+    public void An_interview_that_was_never_cancelled_should_carry_no_reason()
+    {
+        var interview = ScheduleValid();
+        interview.Complete(AfterStart(interview));
+
+        Assert.Null(interview.CancellationReason);
+        Assert.Null(interview.CancellationNote);
     }
 
     [Fact]
@@ -246,7 +312,7 @@ public class InterviewLifecycleTests
         // over. Cancelling means "this will not happen", which is no longer a truthful claim.
         var interview = ScheduleValid();
 
-        Assert.Throws<InvalidOperationException>(() => interview.Cancel(AfterEnd(interview)));
+        Assert.Throws<InvalidOperationException>(() => interview.Cancel(InterviewCancellationReason.Other, null, AfterEnd(interview)));
         Assert.Equal(InterviewStatus.Scheduled, interview.Status);
     }
 
@@ -298,7 +364,7 @@ public class InterviewLifecycleTests
         var afterStart = AfterStart(interview);
         interview.Complete(afterStart);
 
-        Assert.Throws<InvalidOperationException>(() => interview.Cancel(afterStart));
+        Assert.Throws<InvalidOperationException>(() => interview.Cancel(InterviewCancellationReason.Other, null, afterStart));
         Assert.Throws<InvalidOperationException>(() => interview.MarkNoShow(afterStart));
         Assert.Throws<InvalidOperationException>(
             () => interview.Reschedule(Now.AddDays(5), 30, afterStart));
@@ -375,7 +441,7 @@ public class InterviewLifecycleTests
     public void CanReceiveFeedback_should_be_false_for_a_cancelled_interview()
     {
         var interview = ScheduleValid();
-        interview.Cancel(BeforeStart(interview));
+        interview.Cancel(InterviewCancellationReason.Other, null, BeforeStart(interview));
 
         Assert.False(interview.CanReceiveFeedback(AfterEnd(interview)));
     }
@@ -435,7 +501,7 @@ public class InterviewLifecycleTests
     public void IsRoomOpen_should_be_false_once_the_interview_is_no_longer_scheduled()
     {
         var interview = ScheduleValid();
-        interview.Cancel(BeforeStart(interview));
+        interview.Cancel(InterviewCancellationReason.Other, null, BeforeStart(interview));
 
         Assert.False(interview.IsRoomOpen(interview.ScheduledAtUtc));
     }

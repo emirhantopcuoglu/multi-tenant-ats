@@ -103,7 +103,7 @@ public sealed class InterviewConflictTests
         await using (var db = NewDb(tenant))
         {
             var tracked = await db.Interviews.FindAsync(existing.Id);
-            tracked!.Cancel(tracked.ScheduledAtUtc.AddMinutes(-1));
+            tracked!.Cancel(InterviewCancellationReason.Other, null, tracked.ScheduledAtUtc.AddMinutes(-1));
             await db.SaveChangesAsync();
         }
 

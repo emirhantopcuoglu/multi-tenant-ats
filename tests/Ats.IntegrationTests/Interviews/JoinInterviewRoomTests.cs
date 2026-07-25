@@ -111,7 +111,7 @@ public sealed class JoinInterviewRoomTests
         await using (var db = NewDb(tenant))
         {
             var tracked = await db.Interviews.FindAsync(interview.Id);
-            tracked!.Cancel(tracked.ScheduledAtUtc.AddMinutes(-1));
+            tracked!.Cancel(InterviewCancellationReason.Other, null, tracked.ScheduledAtUtc.AddMinutes(-1));
             await db.SaveChangesAsync();
         }
 
