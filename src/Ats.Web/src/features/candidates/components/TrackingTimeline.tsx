@@ -25,12 +25,10 @@ export function TrackingTimeline({
           tone={step.tone}
           last={index === steps.length - 1}
           title={stepLabel(step, detail, t)}
+          /* Dated for everything that has happened, including the current stage; blank for the
+             steps still ahead. */
           meta={
-            step.occurredAtUtc
-              ? dateFormatter.format(new Date(step.occurredAtUtc))
-              : step.isCurrent
-                ? t('candidatePortal.tracking.inReview')
-                : undefined
+            step.occurredAtUtc ? dateFormatter.format(new Date(step.occurredAtUtc)) : undefined
           }
         />
       ))}
@@ -47,7 +45,7 @@ function stepLabel(
   detail: CandidateApplicationDetail,
   t: TFunction,
 ): string {
-  switch (step.kind) {
+  switch (step.label) {
     case 'submitted':
       return t('candidatePortal.tracking.submitted');
     case 'viewed':
@@ -55,9 +53,7 @@ function stepLabel(
     case 'rejected':
       return t('candidatePortal.tracking.rejected');
     case 'hired':
-      return step.occurredAtUtc === null
-        ? (step.stageName ? stageLabel(step.stageName, t) : t('candidatePortal.tracking.hiredEvent'))
-        : t('candidatePortal.tracking.hiredEvent');
+      return t('candidatePortal.tracking.hiredEvent');
     case 'movedTo':
       if (isHiredStage(step.stageName, detail.pipelineStages)) {
         return t('candidatePortal.tracking.hiredEvent');
@@ -65,7 +61,11 @@ function stepLabel(
       return step.stageName
         ? t('candidatePortal.tracking.movedTo', { stage: stageLabel(step.stageName, t) })
         : t('candidatePortal.tracking.moved');
+    // Reads as a state ("you are in X"), not an event, and carries the date it was entered.
     case 'current':
+      return step.stageName
+        ? t('candidatePortal.tracking.currentStage', { stage: stageLabel(step.stageName, t) })
+        : '';
     case 'upcoming':
       return step.stageName ? stageLabel(step.stageName, t) : '';
   }

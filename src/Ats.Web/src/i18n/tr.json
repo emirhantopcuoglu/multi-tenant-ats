@@ -604,10 +604,10 @@
       "submitted": "Başvurun iletildi",
       "viewed": "Şirket başvurunu görüntüledi",
       "movedTo": "\"{{stage}}\" aşamasına geçtin",
+      "currentStage": "\"{{stage}}\" aşamasındasın",
       "moved": "Yeni bir aşamaya geçtin",
       "rejected": "Süreç olumsuz sonuçlandı",
       "hiredEvent": "Tebrikler — işe alındın!",
-      "inReview": "Değerlendirme sürüyor",
       "interviews": {
         "title": "Mülakatlar"
       }
