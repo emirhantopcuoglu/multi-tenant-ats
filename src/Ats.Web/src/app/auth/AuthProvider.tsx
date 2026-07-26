@@ -11,6 +11,7 @@ import {
 import { currentUserQueryKey, useCurrentUser } from '@/features/auth/useCurrentUser';
 import {
   candidateLogin as candidateLoginRequest,
+  candidateLogout as candidateLogoutRequest,
   candidateRegister as candidateRegisterRequest,
 } from '@/features/candidates/candidateAuthApi';
 import {
@@ -32,8 +33,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [hasCompanySession, setHasCompanySession] = useState(
     () => tokenStore.getRefreshToken() !== null,
   );
+  // Both checks read the persisted refresh token, not the in-memory access token: on a cold start
+  // neither access token exists yet, and the interceptor re-mints one on the first /me call.
   const [hasCandidateSession, setHasCandidateSession] = useState(
-    () => tokenStore.getCandidateToken() !== null,
+    () => tokenStore.getCandidateRefreshToken() !== null,
   );
 
   const queryClient = useQueryClient();
@@ -57,6 +60,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     async (credentials: LoginRequest) => {
       if (hasCandidateSession) {
+        // Revoke before forgetting, the same way candidateLogin revokes the company session it
+        // replaces — an abandoned refresh token must not stay redeemable for a week.
+        await candidateLogoutRequest();
         tokenStore.clearCandidateToken();
         clearCandidateSession();
       }
@@ -70,6 +76,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(
     async (request: RegisterRequest) => {
       if (hasCandidateSession) {
+        // Revoke before forgetting, the same way candidateLogin revokes the company session it
+        // replaces — an abandoned refresh token must not stay redeemable for a week.
+        await candidateLogoutRequest();
         tokenStore.clearCandidateToken();
         clearCandidateSession();
       }
@@ -108,6 +117,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     if (user?.kind === 'candidate') {
+      // Revoke server-side first so the refresh token cannot outlive the click, then forget it
+      // locally. Mirrors what logoutRequest already does for a company session.
+      await candidateLogoutRequest();
       tokenStore.clearCandidateToken();
       clearCandidateSession();
       navigate('/candidate/login', { replace: true });

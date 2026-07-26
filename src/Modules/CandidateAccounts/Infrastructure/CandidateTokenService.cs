@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Ats.Modules.CandidateAccounts.Application;
 using Ats.Shared.Kernel;
@@ -45,5 +46,13 @@ public sealed class CandidateTokenService : ICandidateTokenService
             signingCredentials: credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    // 64 bytes of CSPRNG randomness, same size as the company TokenService's. Opaque on purpose: the
+    // server stores only its SHA-256 hash, so this string is a bearer secret with no readable content.
+    public string GenerateRefreshToken()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(64);
+        return Convert.ToBase64String(bytes);
     }
 }

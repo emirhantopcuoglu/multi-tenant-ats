@@ -122,6 +122,118 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
         Assert.DoesNotContain(token.Claims, c => c.Type == ClaimTypes.Role || c.Type == "role");
     }
 
+    [Fact]
+    public async Task Login_should_hand_back_a_refresh_token_alongside_the_access_token()
+    {
+        var service = CreateService();
+        await service.RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe");
+
+        var login = await service.LoginAsync("jane@example.com", "S3cret!pass");
+
+        Assert.True(login.IsSuccess);
+        Assert.False(string.IsNullOrWhiteSpace(login.Value.RefreshToken));
+    }
+
+    [Fact]
+    public async Task Refresh_should_exchange_a_valid_token_for_a_new_pair()
+    {
+        // Arrange — a live session
+        var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe");
+
+        // Act — redeem the refresh token on a fresh scope, the way the SPA's retry does
+        var refresh = await CreateService().RefreshAsync(register.Value.RefreshToken);
+
+        // Assert — a usable pair, and rotated: the refresh half is not the one presented
+        Assert.True(refresh.IsSuccess);
+        Assert.False(string.IsNullOrWhiteSpace(refresh.Value.AccessToken));
+        Assert.NotEqual(register.Value.RefreshToken, refresh.Value.RefreshToken);
+    }
+
+    [Fact]
+    public async Task A_refresh_token_should_be_single_use()
+    {
+        var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe");
+        var first = await CreateService().RefreshAsync(register.Value.RefreshToken);
+
+        // Replaying the same token must fail: redemption revoked it and issued a successor.
+        var replay = await CreateService().RefreshAsync(register.Value.RefreshToken);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(replay.IsFailure);
+        Assert.Equal(CandidateAuthErrors.InvalidRefreshToken.Code, replay.Error.Code);
+    }
+
+    [Fact]
+    public async Task The_rotated_successor_should_itself_be_redeemable()
+    {
+        // Guards against a rotation that revokes the old token but stores its replacement wrong —
+        // which would strand the candidate one refresh later instead of at fifteen minutes.
+        var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe");
+        var first = await CreateService().RefreshAsync(register.Value.RefreshToken);
+
+        var second = await CreateService().RefreshAsync(first.Value.RefreshToken);
+
+        Assert.True(second.IsSuccess);
+        Assert.NotEqual(first.Value.RefreshToken, second.Value.RefreshToken);
+    }
+
+    [Fact]
+    public async Task Refresh_should_fail_for_a_token_issued_before_a_password_change()
+    {
+        // The reason CandidateRefreshToken carries the security stamp at all. A password change
+        // rotates the stamp, which kills live access tokens; if the refresh token survived it, whoever
+        // holds it could mint a fresh access token under the NEW stamp and sail straight through the
+        // change the owner made to lock them out.
+        var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe");
+        var accountId = SubjectOf(register.Value.AccessToken);
+
+        await using (var db = new CandidateAccountsDbContext(
+            PostgresContainerFixture.BuildCandidateAccountsOptions(_fixture.ConnectionString)))
+        {
+            var account = await db.CandidateAccounts.SingleAsync(c => c.Id == accountId);
+            account.ChangePassword("a-different-hash");
+            await db.SaveChangesAsync();
+        }
+
+        var refresh = await CreateService().RefreshAsync(register.Value.RefreshToken);
+
+        Assert.True(refresh.IsFailure);
+        Assert.Equal(CandidateAuthErrors.InvalidRefreshToken.Code, refresh.Error.Code);
+    }
+
+    [Fact]
+    public async Task Logout_should_revoke_the_refresh_token()
+    {
+        var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe");
+
+        await CreateService().LogoutAsync(register.Value.RefreshToken);
+        var refresh = await CreateService().RefreshAsync(register.Value.RefreshToken);
+
+        Assert.True(refresh.IsFailure);
+        Assert.Equal(CandidateAuthErrors.InvalidRefreshToken.Code, refresh.Error.Code);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("not-a-real-token")]
+    public async Task Refresh_should_fail_for_a_token_that_was_never_issued(string presented)
+    {
+        var refresh = await CreateService().RefreshAsync(presented);
+
+        Assert.True(refresh.IsFailure);
+        Assert.Equal(CandidateAuthErrors.InvalidRefreshToken.Code, refresh.Error.Code);
+    }
+
+    [Fact]
+    public async Task Logout_should_succeed_for_a_token_that_was_never_issued()
+    {
+        // Idempotent and silent: logout must not become an oracle for whether a string was a session.
+        var result = await CreateService().LogoutAsync("not-a-real-token");
+
+        Assert.True(result.IsSuccess);
+    }
+
     private ICandidateAuthService CreateService()
     {
         var db = new CandidateAccountsDbContext(
@@ -137,8 +249,23 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
             AccessTokenMinutes = 15
         }));
 
-        return new CandidateAuthService(db, passwordHasher, tokenService);
+        // The issuer shares this exact DbContext, not a second one: the refresh path stages a
+        // revocation and then has the issuer save it alongside the replacement row, so the two must
+        // be in the same change tracker to commit together.
+        var sessions = new CandidateSessionIssuer(db, tokenService, CandidateJwtTestOptions);
+
+        return new CandidateAuthService(db, passwordHasher, sessions);
     }
+
+    private static IOptions<CandidateJwtOptions> CandidateJwtTestOptions =>
+        Options.Create(new CandidateJwtOptions
+        {
+            Secret = Secret,
+            Issuer = Issuer,
+            Audience = Audience,
+            AccessTokenMinutes = 15,
+            RefreshTokenDays = 7
+        });
 
     private static Guid SubjectOf(string accessToken)
     {

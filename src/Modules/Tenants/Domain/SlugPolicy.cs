@@ -25,6 +25,7 @@ public static partial class SlugPolicy
     private static readonly HashSet<string> Reserved = new(StringComparer.Ordinal)
     {
         "login", "register", "accept-invitation", "playground",
+        "forgot-password", "reset-password",
         "jobs", "applications", "interviews", "candidates", "settings",
         "api", "health", "hangfire", "metrics", "swagger", "public",
     };

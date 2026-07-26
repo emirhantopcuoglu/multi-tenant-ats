@@ -44,10 +44,11 @@ export interface ChangeCandidatePasswordRequest {
 }
 
 /* The change rotates the account's security stamp, which kills every issued token — including the
-   one this request was made with. The fresh token in the response is what keeps the candidate's
-   own session alive; the caller must store it immediately. */
+   access token this request was made with AND the refresh token behind it. The fresh pair in the
+   response is what keeps the candidate's own session alive; the caller must store it immediately. */
 export interface ChangeCandidatePasswordResult {
   accessToken: string;
+  refreshToken: string;
 }
 
 export async function changeCandidatePassword(

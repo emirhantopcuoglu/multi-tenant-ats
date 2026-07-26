@@ -6,6 +6,7 @@ using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace Ats.IntegrationTests.Tenants;
@@ -101,7 +102,10 @@ public sealed class ListTenantUsersTests : IAsyncLifetime
             scope.ServiceProvider.GetRequiredService<TenantsDbContext>(),
             new StubTokenService(),
             Options.Create(new JwtOptions()),
-            scope.ServiceProvider.GetRequiredService<ICurrentTenant>());
+            Options.Create(new PasswordResetOptions()),
+            scope.ServiceProvider.GetRequiredService<ICurrentTenant>(),
+            new NoOpEmailSender(),
+            NullLogger<AuthService>.Instance);
 
     private ServiceProvider BuildProvider(Guid? tenantId)
     {

@@ -6,6 +6,7 @@ using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace Ats.IntegrationTests.Tenants;
@@ -119,7 +120,10 @@ public sealed class GetCurrentUserTests : IAsyncLifetime
             scope.ServiceProvider.GetRequiredService<TenantsDbContext>(),
             new StubTokenService(),
             Options.Create(new JwtOptions()),
-            scope.ServiceProvider.GetRequiredService<ICurrentTenant>());
+            Options.Create(new PasswordResetOptions()),
+            scope.ServiceProvider.GetRequiredService<ICurrentTenant>(),
+            new NoOpEmailSender(),
+            NullLogger<AuthService>.Instance);
 
     // A real UserManager/RoleManager backed by the container database — the role lookup in
     // GetCurrentUserAsync depends on the Identity join tables, so a faithful test needs the real thing.

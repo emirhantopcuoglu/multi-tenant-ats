@@ -13,20 +13,6 @@ using Microsoft.Extensions.Options;
 
 namespace Ats.IntegrationTests.CandidateAccounts;
 
-// In-memory IEmailSender: unit/integration tests must never talk to a real SMTP server, and the
-// profile service only needs "was a mail handed to the port" to be observable.
-internal sealed class RecordingEmailSender : IEmailSender
-{
-    public List<(string ToEmail, string Subject, string Body)> Sent { get; } = [];
-
-    public Task SendAsync(
-        string toEmail, string subject, string htmlBody, CancellationToken cancellationToken = default)
-    {
-        Sent.Add((toEmail, subject, htmlBody));
-        return Task.CompletedTask;
-    }
-}
-
 // Same hygiene as CandidateAuthServiceTests: CandidateAccount is a global (tenant-less) table, so the
 // rows are wiped before each test to keep the runs deterministic.
 [Collection("Integration")]
@@ -458,22 +444,32 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
     private static CandidatePasswordHasher CreatePasswordHasher() =>
         new(new PasswordHasher<CandidateAccount>());
 
-    private static CandidateTokenService CreateTokenService() =>
-        new(Options.Create(new CandidateJwtOptions
+    private static IOptions<CandidateJwtOptions> CreateJwtOptions() =>
+        Options.Create(new CandidateJwtOptions
         {
             Secret = "candidate-profile-tests-signing-key-32b",
             Issuer = "ats-tests",
             Audience = "ats-tests",
-            AccessTokenMinutes = 15
-        }));
+            AccessTokenMinutes = 15,
+            RefreshTokenDays = 7
+        });
 
-    private CandidateProfileService CreateService(RecordingEmailSender? emailSender = null) => new(
-        CreateDbContext(),
-        CreatePasswordHasher(),
-        CreateTokenService(),
-        emailSender ?? new RecordingEmailSender(),
-        Options.Create(new CandidateEmailChangeOptions()),
-        NullLogger<CandidateProfileService>.Instance);
+    private static CandidateTokenService CreateTokenService() => new(CreateJwtOptions());
+
+    private CandidateProfileService CreateService(RecordingEmailSender? emailSender = null)
+    {
+        // One DbContext shared with the session issuer, matching how DI scopes them in the app: the
+        // password change rotates the stamp and re-issues a session, and both writes belong together.
+        var db = CreateDbContext();
+
+        return new CandidateProfileService(
+            db,
+            CreatePasswordHasher(),
+            new CandidateSessionIssuer(db, CreateTokenService(), CreateJwtOptions()),
+            emailSender ?? new RecordingEmailSender(),
+            Options.Create(new CandidateEmailChangeOptions()),
+            NullLogger<CandidateProfileService>.Instance);
+    }
 
     private async Task<Guid> SeedAccountAsync(string? password = null, string email = "jane@example.com")
     {

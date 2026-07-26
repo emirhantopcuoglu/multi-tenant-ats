@@ -473,11 +473,29 @@ builder.Services.AddHangfireServer();
 builder.Services
     .AddIdentityCore<ApplicationUser>()
     .AddRoles<IdentityRole<Guid>>()
-    .AddEntityFrameworkStores<TenantsDbContext>();
+    .AddEntityFrameworkStores<TenantsDbContext>()
+    // Required for GeneratePasswordResetTokenAsync: without a registered "Default" token provider that
+    // call throws at runtime. The token is data-protection based (nothing stored) and embeds the user's
+    // security stamp, so resetting the password invalidates it — that is what makes it single-use.
+    .AddDefaultTokenProviders();
+
+// Tighten Identity's token lifespan from its 24-hour default. A reset token is a full account takeover
+// for as long as it lives, and an hour covers "open inbox, click link" — the same window the candidate
+// side's PasswordResetRequest uses. Read from the PasswordReset section so both agree on one number.
+var passwordResetOptions = builder.Configuration
+    .GetSection(PasswordResetOptions.SectionName).Get<PasswordResetOptions>() ?? new PasswordResetOptions();
+
+builder.Services.Configure<PasswordResetOptions>(
+    builder.Configuration.GetSection(PasswordResetOptions.SectionName));
+builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
+    options.TokenLifespan = TimeSpan.FromMinutes(passwordResetOptions.ValidMinutes));
 
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITenantProfileService, TenantProfileService>();
+// Administering people in a tenant, kept off IAuthService: that interface backs the anonymous login
+// endpoints, and "change someone else's role" does not belong on the same surface.
+builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 
 // The Tenants module's cross-module read port, consumed (e.g.) by the Jobs public feed to name the
 // company behind each job without reaching into the Tenants schema.
@@ -491,13 +509,21 @@ builder.Services.Configure<CandidateJwtOptions>(
     builder.Configuration.GetSection(CandidateJwtOptions.SectionName));
 builder.Services.Configure<CandidateEmailChangeOptions>(
     builder.Configuration.GetSection(CandidateEmailChangeOptions.SectionName));
+builder.Services.Configure<CandidatePasswordResetOptions>(
+    builder.Configuration.GetSection(CandidatePasswordResetOptions.SectionName));
 builder.Services.Configure<InterviewRoomOptions>(
     builder.Configuration.GetSection(InterviewRoomOptions.SectionName));
 builder.Services.AddSingleton<IPasswordHasher<CandidateAccount>, PasswordHasher<CandidateAccount>>();
 builder.Services.AddScoped<ICandidatePasswordHasher, CandidatePasswordHasher>();
 builder.Services.AddScoped<ICandidateTokenService, CandidateTokenService>();
+// Single owner of candidate session minting/storage, shared by the auth and profile services so a
+// password change re-issues a session exactly the way login does.
+builder.Services.AddScoped<ICandidateSessionIssuer, CandidateSessionIssuer>();
 builder.Services.AddScoped<ICandidateAuthService, CandidateAuthService>();
 builder.Services.AddScoped<ICandidateProfileService, CandidateProfileService>();
+// Kept apart from the profile service: that one serves a signed-in candidate re-proving ownership with
+// their current password, this one serves someone who cannot sign in and proves it via their mailbox.
+builder.Services.AddScoped<ICandidatePasswordResetService, CandidatePasswordResetService>();
 builder.Services.AddScoped<ICandidateAccountLifecycleService, CandidateAccountLifecycleService>();
 builder.Services.AddScoped<ICandidateAccountReader, CandidateAccountReader>();
 

@@ -15,6 +15,8 @@ import { OverviewPage } from '@/features/dashboard/OverviewPage';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { RegisterPage } from '@/features/auth/pages/RegisterPage';
 import { AcceptInvitationPage } from '@/features/auth/pages/AcceptInvitationPage';
+import { ForgotPasswordPage } from '@/features/auth/pages/ForgotPasswordPage';
+import { ResetPasswordPage } from '@/features/auth/pages/ResetPasswordPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { MarketplacePage } from '@/features/public/MarketplacePage';
 import { PublicCareersPage } from '@/features/public/PublicCareersPage';
@@ -24,6 +26,8 @@ import { PlaygroundPage } from '@/features/playground/PlaygroundPage';
 import { CandidateLoginPage } from '@/features/candidates/pages/CandidateLoginPage';
 import { CandidateRegisterPage } from '@/features/candidates/pages/CandidateRegisterPage';
 import { ConfirmEmailChangePage } from '@/features/candidates/pages/ConfirmEmailChangePage';
+import { CandidateForgotPasswordPage } from '@/features/candidates/pages/CandidateForgotPasswordPage';
+import { CandidateResetPasswordPage } from '@/features/candidates/pages/CandidateResetPasswordPage';
 import { CandidateApplicationsPage } from '@/features/candidates/pages/CandidateApplicationsPage';
 import { CandidateApplicationDetailPage } from '@/features/candidates/pages/CandidateApplicationDetailPage';
 import { CandidateInterviewsPage } from '@/features/candidates/pages/CandidateInterviewsPage';
@@ -49,10 +53,17 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+      {/* Recovery, necessarily anonymous. Both paths are reserved in SlugPolicy so a company slug
+          can never shadow them. */}
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/candidate/login" element={<CandidateLoginPage />} />
       <Route path="/candidate/register" element={<CandidateRegisterPage />} />
       {/* Public like /accept-invitation: the mailed link may be opened without a session. */}
       <Route path="/candidate/confirm-email" element={<ConfirmEmailChangePage />} />
+      {/* Recovery, necessarily anonymous — whoever needs these cannot sign in. */}
+      <Route path="/candidate/forgot-password" element={<CandidateForgotPasswordPage />} />
+      <Route path="/candidate/reset-password" element={<CandidateResetPasswordPage />} />
       <Route path="/playground" element={<PlaygroundPage />} />
       {/* Reachable by either a candidate or a company interviewer session — the page itself checks
           which, since neither RequireAuth nor RequireCandidateAuth alone would fit both. */}

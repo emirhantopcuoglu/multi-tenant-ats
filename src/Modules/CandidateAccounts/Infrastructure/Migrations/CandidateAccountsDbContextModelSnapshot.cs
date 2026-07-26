@@ -96,6 +96,39 @@ namespace Ats.Modules.CandidateAccounts.Infrastructure.Migrations
                     b.ToTable("CandidateAccounts", "candidate_accounts");
                 });
 
+            modelBuilder.Entity("Ats.Modules.CandidateAccounts.Domain.CandidateRefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CandidateAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SecurityStamp")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(44)
+                        .HasColumnType("character varying(44)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CandidateAccountId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.ToTable("CandidateRefreshTokens", "candidate_accounts");
+                });
+
             modelBuilder.Entity("Ats.Modules.CandidateAccounts.Domain.EmailChangeRequest", b =>
                 {
                     b.Property<Guid>("Id")
@@ -134,7 +167,58 @@ namespace Ats.Modules.CandidateAccounts.Infrastructure.Migrations
                     b.ToTable("EmailChangeRequests", "candidate_accounts");
                 });
 
+            modelBuilder.Entity("Ats.Modules.CandidateAccounts.Domain.PasswordResetRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CandidateAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ConsumedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(44)
+                        .HasColumnType("character varying(44)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CandidateAccountId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.ToTable("PasswordResetRequests", "candidate_accounts");
+                });
+
+            modelBuilder.Entity("Ats.Modules.CandidateAccounts.Domain.CandidateRefreshToken", b =>
+                {
+                    b.HasOne("Ats.Modules.CandidateAccounts.Domain.CandidateAccount", null)
+                        .WithMany()
+                        .HasForeignKey("CandidateAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Ats.Modules.CandidateAccounts.Domain.EmailChangeRequest", b =>
+                {
+                    b.HasOne("Ats.Modules.CandidateAccounts.Domain.CandidateAccount", null)
+                        .WithMany()
+                        .HasForeignKey("CandidateAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Ats.Modules.CandidateAccounts.Domain.PasswordResetRequest", b =>
                 {
                     b.HasOne("Ats.Modules.CandidateAccounts.Domain.CandidateAccount", null)
                         .WithMany()

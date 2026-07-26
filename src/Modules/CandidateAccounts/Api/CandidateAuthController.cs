@@ -17,16 +17,25 @@ namespace Ats.Modules.CandidateAccounts.Api;
 public sealed class CandidateAuthController : ControllerBase
 {
     private readonly ICandidateAuthService _authService;
+    private readonly ICandidatePasswordResetService _passwordResetService;
     private readonly ICurrentUser _currentUser;
 
-    public CandidateAuthController(ICandidateAuthService authService, ICurrentUser currentUser)
+    public CandidateAuthController(
+        ICandidateAuthService authService,
+        ICandidatePasswordResetService passwordResetService,
+        ICurrentUser currentUser)
     {
         _authService = authService;
+        _passwordResetService = passwordResetService;
         _currentUser = currentUser;
     }
 
     public sealed record RegisterRequest(string Email, string Password, string FirstName, string LastName);
     public sealed record LoginRequest(string Email, string Password);
+    public sealed record RefreshRequest(string RefreshToken);
+    public sealed record LogoutRequest(string RefreshToken);
+    public sealed record ForgotPasswordRequest(string Email);
+    public sealed record ResetPasswordRequest(string Token, string NewPassword);
 
     [HttpPost("register")]
     [EnableRateLimiting(RateLimitPolicies.PerIp)]
@@ -49,6 +58,61 @@ public sealed class CandidateAuthController : ControllerBase
         return result.IsSuccess
             ? Ok(result.Value)
             : Unauthorized(new { result.Error.Code, result.Error.Message });
+    }
+
+    // Anonymous like the company /auth/refresh: the refresh token IS the credential, and the access
+    // token it replaces has expired by definition, so requiring one would make the endpoint useless.
+    // Rate-limited per IP because an unauthenticated endpoint that mints sessions is worth guessing at.
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.PerIp)]
+    public async Task<IActionResult> Refresh(RefreshRequest request)
+    {
+        var result = await _authService.RefreshAsync(request.RefreshToken);
+
+        // 401 rather than 400: the client's correct reaction is to drop the session and sign in again,
+        // which is what it already does for any other 401.
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : Unauthorized(new { result.Error.Code, result.Error.Message });
+    }
+
+    // Anonymous for the same reason as refresh, and idempotent: revoking a token that was already
+    // dead is still a successful logout, so this never reports failure.
+    [HttpPost("logout")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Logout(LogoutRequest request)
+    {
+        await _authService.LogoutAsync(request.RefreshToken);
+        return NoContent();
+    }
+
+    // Always 204, whether or not the address is registered: a distinguishable response would turn this
+    // into a directory of who has an account. Rate-limited per IP because it sends mail on demand.
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.PerIp)]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
+    {
+        await _passwordResetService.RequestAsync(request.Email, HttpContext.RequestAborted);
+        return NoContent();
+    }
+
+    // Anonymous by necessity: the caller cannot sign in, which is why they are here. The mailed token
+    // is the credential, and it is single-use and hour-limited.
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.PerIp)]
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
+    {
+        var result = await _passwordResetService.ResetAsync(
+            request.Token, request.NewPassword, HttpContext.RequestAborted);
+
+        // No tokens in the response on purpose: whoever just set the password signs in with it. That
+        // also means a reset cannot hand a session to someone who only guessed at a token.
+        return result.IsSuccess
+            ? NoContent()
+            : BadRequest(new { result.Error.Code, result.Error.Message });
     }
 
     [HttpGet("me")]

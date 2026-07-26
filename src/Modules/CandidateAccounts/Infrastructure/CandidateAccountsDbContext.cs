@@ -16,6 +16,8 @@ public sealed class CandidateAccountsDbContext : DbContext
 
     public DbSet<CandidateAccount> CandidateAccounts => Set<CandidateAccount>();
     public DbSet<EmailChangeRequest> EmailChangeRequests => Set<EmailChangeRequest>();
+    public DbSet<CandidateRefreshToken> CandidateRefreshTokens => Set<CandidateRefreshToken>();
+    public DbSet<PasswordResetRequest> PasswordResetRequests => Set<PasswordResetRequest>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -63,6 +65,42 @@ public sealed class CandidateAccountsDbContext : DbContext
             entity.HasIndex(r => r.TokenHash).IsUnique();
             // Deleting an account must take its pending requests with it — an orphaned request could
             // otherwise rename a recycled account id later.
+            entity.HasOne<CandidateAccount>()
+                .WithMany()
+                .HasForeignKey(r => r.CandidateAccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<CandidateRefreshToken>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            // 44 = the exact length of a base64-encoded SHA-256 digest, same as EmailChangeRequest's.
+            entity.Property(t => t.TokenHash).IsRequired().HasMaxLength(44);
+            // Refresh looks the row up by the hash of the presented token, so this is the hot path.
+            // Unique because two rows sharing a hash would make "which session is this?" ambiguous.
+            entity.HasIndex(t => t.TokenHash).IsUnique();
+            // Revoking a candidate's whole session set (and the logout-everywhere case) scans by
+            // account, so the foreign key gets its own index rather than relying on the unique one.
+            entity.HasIndex(t => t.CandidateAccountId);
+            // A deleted account must take its refresh tokens with it: the row is anonymized rather
+            // than removed, but an orphaned token could otherwise outlive the identity it names.
+            entity.HasOne<CandidateAccount>()
+                .WithMany()
+                .HasForeignKey(t => t.CandidateAccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PasswordResetRequest>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            // 44 = the exact length of a base64-encoded SHA-256 digest, same as the two rows above.
+            entity.Property(r => r.TokenHash).IsRequired().HasMaxLength(44);
+            // Reset looks the row up by the hash of the presented token, so this is the hot path.
+            // Unique because two requests sharing a token would make "which one did the click prove?"
+            // ambiguous — the same reasoning as EmailChangeRequest's index.
+            entity.HasIndex(r => r.TokenHash).IsUnique();
+            // Superseding older pending requests scans by account, so the foreign key is indexed.
+            entity.HasIndex(r => r.CandidateAccountId);
             entity.HasOne<CandidateAccount>()
                 .WithMany()
                 .HasForeignKey(r => r.CandidateAccountId)

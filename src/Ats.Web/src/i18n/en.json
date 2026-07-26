@@ -226,7 +226,21 @@
       "email": "Email",
       "role": "Role",
       "empty": "No team members yet.",
-      "loadError": "Couldn't load team members."
+      "loadError": "Couldn't load team members.",
+      "status": "Status",
+      "active": "Active",
+      "inactive": "Deactivated",
+      "you": "(you)",
+      "rowActions": "Member actions",
+      "makeRole": "Change role to {{role}}",
+      "deactivate": "Deactivate access",
+      "reactivate": "Restore access",
+      "roleChanged": "Role updated.",
+      "deactivated": "Access revoked. They can no longer sign in.",
+      "reactivated": "Access restored.",
+      "actionError": "Couldn't apply that change. Try again.",
+      "lastAdminError": "This is the only active administrator. Promote another one first.",
+      "selfError": "You can't change your own role or deactivate yourself."
     },
     "invite": {
       "title": "Invite user",
@@ -578,7 +592,29 @@
     "publicSignIn": "Sign in",
     "publicRegister": "Create account",
     "myApplications": "My applications",
-    "myInterviews": "My interviews"
+    "myInterviews": "My interviews",
+    "forgotPassword": {
+      "link": "Forgot your password?",
+      "title": "Reset your password",
+      "subtitle": "Enter your email and we'll send you a link to choose a new password.",
+      "submit": "Send reset link",
+      "sentTitle": "Check your email",
+      "sentBody": "If an account exists for that address, we've sent a link to choose a new password. It expires in 1 hour.",
+      "backToSignIn": "Back to sign in",
+      "failed": "Couldn't send the reset link. Try again."
+    },
+    "resetPassword": {
+      "title": "Choose a new password",
+      "subtitle": "Pick a new password for your account. This signs out every other device.",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "submit": "Set new password",
+      "missingToken": "This link is missing its token. Request a new one.",
+      "invalidLink": "This reset link is invalid, expired or already used.",
+      "requestNew": "Request a new link",
+      "doneTitle": "Password updated",
+      "doneBody": "Sign in with your new password. All other sessions have been signed out."
+    }
   },
   "candidatePortal": {
     "applicationsTitle": "My applications",
@@ -784,7 +820,29 @@
     "tabRegister": "Register",
     "tabInvite": "Invitation",
     "invitationAccepted": "Your account is ready. Please sign in.",
-    "missingToken": "This invitation link is missing its token."
+    "missingToken": "This invitation link is missing its token.",
+    "forgotPassword": {
+      "link": "Forgot your password?",
+      "title": "Reset your password",
+      "subtitle": "Enter your work email and we'll send you a link to choose a new password.",
+      "submit": "Send reset link",
+      "sentTitle": "Check your email",
+      "sentBody": "If an account exists for that address, we've sent a link to choose a new password. It expires in 1 hour.",
+      "backToSignIn": "Back to sign in",
+      "failed": "Couldn't send the reset link. Try again."
+    },
+    "resetPassword": {
+      "title": "Choose a new password",
+      "subtitle": "Pick a new password for your account. This signs out every other device.",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "submit": "Set new password",
+      "missingToken": "This link is incomplete. Request a new one.",
+      "invalidLink": "This reset link is invalid, expired or already used.",
+      "requestNew": "Request a new link",
+      "doneTitle": "Password updated",
+      "doneBody": "Sign in with your new password. All other sessions have been signed out."
+    }
   },
   "validation": {
     "required": "This field is required.",
