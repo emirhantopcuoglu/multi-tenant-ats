@@ -15,6 +15,8 @@ import { OverviewPage } from '@/features/dashboard/OverviewPage';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { RegisterPage } from '@/features/auth/pages/RegisterPage';
 import { AcceptInvitationPage } from '@/features/auth/pages/AcceptInvitationPage';
+import { ForgotPasswordPage } from '@/features/auth/pages/ForgotPasswordPage';
+import { ResetPasswordPage } from '@/features/auth/pages/ResetPasswordPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { MarketplacePage } from '@/features/public/MarketplacePage';
 import { PublicCareersPage } from '@/features/public/PublicCareersPage';
@@ -51,6 +53,10 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+      {/* Recovery, necessarily anonymous. Both paths are reserved in SlugPolicy so a company slug
+          can never shadow them. */}
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/candidate/login" element={<CandidateLoginPage />} />
       <Route path="/candidate/register" element={<CandidateRegisterPage />} />
       {/* Public like /accept-invitation: the mailed link may be opened without a session. */}

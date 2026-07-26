@@ -69,6 +69,12 @@ export function LoginPage() {
           )}
         </Field>
 
+        <div className="text-right">
+          <Link to="/forgot-password" className="text-sm text-accent hover:underline">
+            {t('auth.forgotPassword.link')}
+          </Link>
+        </div>
+
         <Button type="submit" className="w-full" disabled={formState.isSubmitting}>
           {t('auth.signInBtn')}
         </Button>

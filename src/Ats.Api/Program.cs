@@ -473,7 +473,22 @@ builder.Services.AddHangfireServer();
 builder.Services
     .AddIdentityCore<ApplicationUser>()
     .AddRoles<IdentityRole<Guid>>()
-    .AddEntityFrameworkStores<TenantsDbContext>();
+    .AddEntityFrameworkStores<TenantsDbContext>()
+    // Required for GeneratePasswordResetTokenAsync: without a registered "Default" token provider that
+    // call throws at runtime. The token is data-protection based (nothing stored) and embeds the user's
+    // security stamp, so resetting the password invalidates it — that is what makes it single-use.
+    .AddDefaultTokenProviders();
+
+// Tighten Identity's token lifespan from its 24-hour default. A reset token is a full account takeover
+// for as long as it lives, and an hour covers "open inbox, click link" — the same window the candidate
+// side's PasswordResetRequest uses. Read from the PasswordReset section so both agree on one number.
+var passwordResetOptions = builder.Configuration
+    .GetSection(PasswordResetOptions.SectionName).Get<PasswordResetOptions>() ?? new PasswordResetOptions();
+
+builder.Services.Configure<PasswordResetOptions>(
+    builder.Configuration.GetSection(PasswordResetOptions.SectionName));
+builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
+    options.TokenLifespan = TimeSpan.FromMinutes(passwordResetOptions.ValidMinutes));
 
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
