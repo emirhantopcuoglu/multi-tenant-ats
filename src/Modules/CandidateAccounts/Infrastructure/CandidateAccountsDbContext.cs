@@ -1,4 +1,5 @@
 using Ats.Modules.CandidateAccounts.Domain;
+using Ats.Shared.Kernel;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.CandidateAccounts.Infrastructure;
@@ -39,6 +40,13 @@ public sealed class CandidateAccountsDbContext : DbContext
             entity.Property(c => c.Country).HasMaxLength(100);
             entity.Property(c => c.City).HasMaxLength(100);
             entity.Property(c => c.CvFileKey).HasMaxLength(512);
+            // Two-letter code ("en", "tr"); the boundary normalizes anything longer down to it. The
+            // DB default backfills accounts that predate the column — they registered when the app
+            // only wrote English, so English is the honest value for them.
+            entity.Property(c => c.PreferredLanguage)
+                .IsRequired()
+                .HasMaxLength(2)
+                .HasDefaultValue(SupportedLanguages.Default);
             // Stored as the string name (project convention across modules); the default backfills
             // rows that existed before the column did — new rows are always born Active in code.
             entity.Property(c => c.Status)

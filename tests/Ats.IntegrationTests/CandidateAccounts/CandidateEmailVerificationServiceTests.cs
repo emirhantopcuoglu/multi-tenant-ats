@@ -4,6 +4,7 @@ using Ats.Modules.CandidateAccounts.Application;
 using Ats.Modules.CandidateAccounts.Domain;
 using Ats.Modules.CandidateAccounts.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Ats.Shared.Kernel;
 
 namespace Ats.IntegrationTests.CandidateAccounts;
 
@@ -168,7 +169,7 @@ public sealed class CandidateEmailVerificationServiceTests
             new CandidateSessionIssuer(db, new CandidateTokenService(JwtOptions), JwtOptions),
             CandidateServiceFactory.EmailVerification(db, mail));
 
-        var result = await authService.RegisterAsync(email, "correct horse battery", "Test", "Candidate");
+        var result = await authService.RegisterAsync(email, "correct horse battery", "Test", "Candidate", SupportedLanguages.Default);
         Assert.True(result.IsSuccess);
 
         return await db.CandidateAccounts

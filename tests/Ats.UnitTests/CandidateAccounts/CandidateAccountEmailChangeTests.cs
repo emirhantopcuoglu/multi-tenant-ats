@@ -1,11 +1,12 @@
 using Ats.Modules.CandidateAccounts.Domain;
+using Ats.Shared.Kernel;
 
 namespace Ats.UnitTests.CandidateAccounts;
 
 public sealed class CandidateAccountEmailChangeTests
 {
     private static CandidateAccount CreateAccount() =>
-        CandidateAccount.Register("jane@example.com", "hashed-password", "Jane", "Doe");
+        CandidateAccount.Register("jane@example.com", "hashed-password", "Jane", "Doe", SupportedLanguages.Default);
 
     [Fact]
     public void ChangeEmail_should_normalize_and_rotate_the_security_stamp()

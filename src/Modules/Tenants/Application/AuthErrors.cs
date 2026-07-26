@@ -13,6 +13,9 @@ public static class AuthErrors
     public static readonly Error UserNotFound =
         new("auth.user_not_found", "User not found.");
 
+    public static readonly Error UnsupportedLanguage =
+        new("auth.unsupported_language", "Language must be one of the supported languages.");
+
     // Distinct from InvalidCredentials on purpose, and safe to be distinct: login only reaches this
     // check after the password has already verified, so the caller has proved they own the account.
     // Telling them to check their inbox reveals nothing they do not already know, and the UI needs the

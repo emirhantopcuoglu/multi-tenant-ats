@@ -4,6 +4,7 @@ using Ats.Modules.CandidateAccounts.Infrastructure;
 using Ats.Shared.Contracts.CandidateAccounts;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Ats.Shared.Kernel;
 
 namespace Ats.IntegrationTests.CandidateAccounts;
 
@@ -32,7 +33,7 @@ public sealed class CandidateAccountReaderTests : IAsyncLifetime
         // Arrange
         await using var db = CreateDb();
         var hasher = new PasswordHasher<CandidateAccount>();
-        var account = CandidateAccount.Register("alice@example.com", hasher.HashPassword(null!, "pass"), "Alice", "Smith");
+        var account = CandidateAccount.Register("alice@example.com", hasher.HashPassword(null!, "pass"), "Alice", "Smith", SupportedLanguages.Default);
         db.CandidateAccounts.Add(account);
         await db.SaveChangesAsync();
 

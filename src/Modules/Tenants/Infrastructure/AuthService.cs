@@ -1,3 +1,4 @@
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using Ats.Modules.Tenants.Application;
@@ -20,6 +21,7 @@ public sealed class AuthService : IAuthService
     private readonly EmailConfirmationOptions _emailConfirmationOptions;
     private readonly ICurrentTenant _currentTenant;
     private readonly IEmailSender _emailSender;
+    private readonly IEmailTextProvider _emailText;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(
@@ -31,6 +33,7 @@ public sealed class AuthService : IAuthService
         IOptions<EmailConfirmationOptions> emailConfirmationOptions,
         ICurrentTenant currentTenant,
         IEmailSender emailSender,
+        IEmailTextProvider emailText,
         ILogger<AuthService> logger)
     {
         _userManager = userManager;
@@ -41,6 +44,7 @@ public sealed class AuthService : IAuthService
         _emailConfirmationOptions = emailConfirmationOptions.Value;
         _currentTenant = currentTenant;
         _emailSender = emailSender;
+        _emailText = emailText;
         _logger = logger;
     }
 
@@ -50,7 +54,8 @@ public sealed class AuthService : IAuthService
     // be proven. Which makes the resend endpoint below anonymous by necessity: someone who cannot sign
     // in is exactly who needs it.
     public async Task<Result> RegisterAsync(
-        string companyName, string slug, string email, string password, string firstName, string lastName)
+        string companyName, string slug, string email, string password, string firstName, string lastName,
+        string preferredLanguage)
     {
         // Normalize once, then validate and check uniqueness against that exact value. The slug is
         // stored lower-cased, so comparing the raw input would let "Acme" pass the uniqueness check
@@ -83,7 +88,10 @@ public sealed class AuthService : IAuthService
             FirstName = firstName,
             LastName = lastName,
             TenantId = tenant.Id,
-            CreatedAtUtc = DateTime.UtcNow
+            CreatedAtUtc = DateTime.UtcNow,
+            // Normalized at this boundary, not in the entity: an unrecognised language becomes English
+            // rather than failing a registration over a value the caller may not control.
+            PreferredLanguage = SupportedLanguages.Normalize(preferredLanguage)
         };
 
         // Identity validates before it saves, so a rejected password leaves the staged tenant unsaved.
@@ -241,7 +249,7 @@ public sealed class AuthService : IAuthService
         // Best-effort, unlike the invitation mail which fails loudly. That one answers an
         // authenticated admin who is owed a real result; this one must respond identically whether or
         // not the address exists, and a hard failure would leak that it does.
-        await SendPasswordResetLinkAsync(user.Email!, user.Id, token, ct);
+        await SendPasswordResetLinkAsync(user.Email!, user.PreferredLanguage, user.Id, token, ct);
 
         return Result.Success();
     }
@@ -286,7 +294,25 @@ public sealed class AuthService : IAuthService
             "Password reset completed for user {UserId}; revoked {RevokedCount} refresh token(s)",
             user.Id, activeTokens.Count);
 
-        await NotifyPasswordResetAsync(user.Email!, ct);
+        await NotifyPasswordResetAsync(user.Email!, user.PreferredLanguage, ct);
+
+        return Result.Success();
+    }
+
+    public async Task<Result> SetPreferredLanguageAsync(
+        Guid userId, string language, CancellationToken ct = default)
+    {
+        // Rejected rather than normalized: this endpoint exists only to set the language, so a value
+        // outside the catalogue is a client bug, and quietly storing English would hide it.
+        if (!SupportedLanguages.IsSupported(language))
+            return Result.Failure(AuthErrors.UnsupportedLanguage);
+
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+            return Result.Failure(AuthErrors.UserNotFound);
+
+        user.PreferredLanguage = language;
+        await _userManager.UpdateAsync(user);
 
         return Result.Success();
     }
@@ -387,18 +413,24 @@ public sealed class AuthService : IAuthService
                    $"?userId={Uri.EscapeDataString(user.Id.ToString())}" +
                    $"&token={Uri.EscapeDataString(token)}";
 
-        var body = $"""
-            <p>Hi {user.FirstName},</p>
-            <p>Confirm this address to finish setting up your ATS workspace. You need to do this once
-            before you can sign in.</p>
-            <p><a href="{link}">Confirm my email address</a></p>
-            <p>This link expires in {EmailConfirmationTokenProviderOptions.ValidHours} hours. If you did
-            not create an account, ignore this email.</p>
-            """;
+        var language = user.PreferredLanguage;
+
+        // The name came from a registration form, so it is untrusted inside an HTML body and is
+        // encoded before it reaches the template.
+        var body = _emailText.Get(
+            EmailTextKeys.Company.ConfirmEmailBody,
+            language,
+            WebUtility.HtmlEncode(user.FirstName),
+            link,
+            EmailConfirmationTokenProviderOptions.ValidHours);
 
         try
         {
-            await _emailSender.SendAsync(user.Email!, "Confirm your email address", body, ct);
+            await _emailSender.SendAsync(
+                user.Email!,
+                _emailText.Get(EmailTextKeys.Company.ConfirmEmailSubject, language),
+                body,
+                ct);
         }
         catch (Exception exception)
         {
@@ -407,7 +439,7 @@ public sealed class AuthService : IAuthService
     }
 
     private async Task SendPasswordResetLinkAsync(
-        string email, Guid userId, string token, CancellationToken ct)
+        string email, string language, Guid userId, string token, CancellationToken ct)
     {
         // The user id, not the email, goes in the URL: the address would otherwise end up in browser
         // history, referrer headers and any proxy log the link passes through. Both values are escaped
@@ -416,16 +448,13 @@ public sealed class AuthService : IAuthService
                    $"?userId={Uri.EscapeDataString(userId.ToString())}" +
                    $"&token={Uri.EscapeDataString(token)}";
 
-        var body = $"""
-            <p>A request was made to reset the password of your ATS account.</p>
-            <p><a href="{link}">Choose a new password</a></p>
-            <p>This link expires in {_passwordResetOptions.ValidMinutes} minutes and can be used once.
-            If you did not request this, ignore this email — your current password still works.</p>
-            """;
+        var body = _emailText.Get(
+            EmailTextKeys.Company.ResetPasswordBody, language, link, _passwordResetOptions.ValidMinutes);
 
         try
         {
-            await _emailSender.SendAsync(email, "Reset your password", body, ct);
+            await _emailSender.SendAsync(
+                email, _emailText.Get(EmailTextKeys.Company.ResetPasswordSubject, language), body, ct);
         }
         catch (Exception exception)
         {
@@ -436,16 +465,10 @@ public sealed class AuthService : IAuthService
     // Best-effort: the reset is already committed, so a failing mail server must not turn a succeeded
     // operation into an error. Doubles as a hijack tripwire — if the owner did not do this, the notice
     // is their signal.
-    private async Task NotifyPasswordResetAsync(string email, CancellationToken ct)
+    private async Task NotifyPasswordResetAsync(string email, string language, CancellationToken ct)
     {
-        const string subject = "Your password was reset";
-        const string body = """
-            <p>The password of your ATS account was just reset, and every signed-in session was
-            ended.</p>
-            <p>If you did this, no action is needed — sign in with your new password.</p>
-            <p>If you did not, someone else may have access to your email — please contact your
-            administrator immediately.</p>
-            """;
+        var subject = _emailText.Get(EmailTextKeys.Company.PasswordResetSubject, language);
+        var body = _emailText.Get(EmailTextKeys.Company.PasswordResetBody, language);
 
         try
         {

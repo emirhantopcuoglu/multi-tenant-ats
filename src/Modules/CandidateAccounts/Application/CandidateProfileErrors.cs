@@ -11,6 +11,10 @@ public static class CandidateProfileErrors
         new("candidate_profile.unsupported_location",
             "Country and city must be chosen from the supported list.");
 
+    public static readonly Error UnsupportedLanguage =
+        new("candidate_profile.unsupported_language",
+            "Language must be one of the supported languages.");
+
     // Deliberately does not distinguish "wrong password" from anything subtler: the caller is already
     // authenticated, so unlike login there is nothing to hide — but there is also nothing more to say.
     public static readonly Error InvalidCurrentPassword =

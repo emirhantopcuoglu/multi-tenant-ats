@@ -51,4 +51,9 @@ public interface ICandidateProfileService
     // Token-only on purpose: the confirmer clicks a mailed link, possibly on another device with no
     // session, so this cannot demand authentication — the token itself is the proof.
     Task<Result> ConfirmEmailChangeAsync(string token);
+
+    // Its own operation rather than a field on UpdateAsync: the SPA calls this the moment the header
+    // language toggle is clicked, from any screen, and making that resend the whole profile form
+    // would let a stale copy of it overwrite edits made in another tab.
+    Task<Result> SetPreferredLanguageAsync(Guid candidateAccountId, string language);
 }

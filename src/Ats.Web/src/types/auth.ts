@@ -59,6 +59,11 @@ export interface RegisterRequest {
   password: string;
   firstName: string;
   lastName: string;
+
+  /* The UI language at the moment of signing up. The server stores it and writes every later email
+     in it — including the confirmation mail this request triggers, which is why it has to travel
+     here rather than being set from the settings screen afterwards. */
+  preferredLanguage: string;
 }
 
 /* Request bodies for candidate auth endpoints. */
@@ -72,6 +77,11 @@ export interface CandidateRegisterRequest {
   lastName: string;
   email: string;
   password: string;
+
+  /* The UI language at the moment of signing up. The server stores it and writes every later email
+     in it — including the confirmation mail this request triggers, which is why it has to travel
+     here rather than being set from the settings screen afterwards. */
+  preferredLanguage: string;
 }
 
 /* POST /api/v1/invitations/accept (InvitationsController.AcceptRequest). The token comes from the
@@ -82,4 +92,9 @@ export interface AcceptInvitationRequest {
   password: string;
   firstName: string;
   lastName: string;
+
+  /* The UI language at the moment of signing up. The server stores it and writes every later email
+     in it — including the confirmation mail this request triggers, which is why it has to travel
+     here rather than being set from the settings screen afterwards. */
+  preferredLanguage: string;
 }

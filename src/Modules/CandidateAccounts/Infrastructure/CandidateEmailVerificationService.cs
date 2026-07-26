@@ -1,3 +1,4 @@
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using Ats.Modules.CandidateAccounts.Application;
@@ -13,17 +14,20 @@ public sealed class CandidateEmailVerificationService : ICandidateEmailVerificat
 {
     private readonly CandidateAccountsDbContext _db;
     private readonly IEmailSender _emailSender;
+    private readonly IEmailTextProvider _emailText;
     private readonly CandidateEmailVerificationOptions _options;
     private readonly ILogger<CandidateEmailVerificationService> _logger;
 
     public CandidateEmailVerificationService(
         CandidateAccountsDbContext db,
         IEmailSender emailSender,
+        IEmailTextProvider emailText,
         IOptions<CandidateEmailVerificationOptions> options,
         ILogger<CandidateEmailVerificationService> logger)
     {
         _db = db;
         _emailSender = emailSender;
+        _emailText = emailText;
         _options = options.Value;
         _logger = logger;
     }
@@ -60,7 +64,7 @@ public sealed class CandidateEmailVerificationService : ICandidateEmailVerificat
         // Best-effort: the row is already committed, so a failing mail server must not turn a stored
         // token into an error response — the candidate can simply ask again. Logged as an error, not
         // swallowed, so an SMTP outage is visible to an operator.
-        await SendVerificationLinkAsync(account.Email, account.FirstName, rawToken, ct);
+        await SendVerificationLinkAsync(account, rawToken, ct);
 
         return Result.Success();
     }
@@ -101,21 +105,28 @@ public sealed class CandidateEmailVerificationService : ICandidateEmailVerificat
     }
 
     private async Task SendVerificationLinkAsync(
-        string email, string firstName, string rawToken, CancellationToken ct)
+        CandidateAccount account, string rawToken, CancellationToken ct)
     {
         var link = $"{_options.ConfirmBaseUrl}?token={Uri.EscapeDataString(rawToken)}";
-        var body = $"""
-            <p>Hi {firstName},</p>
-            <p>Confirm this address to finish setting up your candidate account. You need to do this
-            once before you can apply to a job.</p>
-            <p><a href="{link}">Verify my email address</a></p>
-            <p>This link expires in {EmailVerificationRequest.ValidHours} hours and can be used once.
-            If you did not create an account, ignore this email.</p>
-            """;
+        var language = account.PreferredLanguage;
+
+        // The name came from a registration form, so it is untrusted inside an HTML body and is
+        // encoded before it reaches the template. The link is built from configuration and an
+        // URL-escaped token, both ours.
+        var body = _emailText.Get(
+            EmailTextKeys.Candidate.VerifyEmailBody,
+            language,
+            WebUtility.HtmlEncode(account.FirstName),
+            link,
+            EmailVerificationRequest.ValidHours);
 
         try
         {
-            await _emailSender.SendAsync(email, "Verify your email address", body, ct);
+            await _emailSender.SendAsync(
+                account.Email,
+                _emailText.Get(EmailTextKeys.Candidate.VerifyEmailSubject, language),
+                body,
+                ct);
         }
         catch (Exception exception)
         {

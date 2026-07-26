@@ -67,6 +67,27 @@ public sealed class CandidateProfileController : ControllerBase
             : BadRequest(new { result.Error.Code, result.Error.Message });
     }
 
+    public sealed record SetPreferredLanguageRequest(string Language);
+
+    // Its own route rather than a field on PUT /profile: the SPA fires this from the header toggle on
+    // any screen, and a full profile PUT from a page that is not the profile form would happily write
+    // back a stale copy of every other field.
+    [HttpPut("language")]
+    public async Task<IActionResult> SetPreferredLanguage(SetPreferredLanguageRequest request)
+    {
+        if (_currentUser.UserId is not { } candidateAccountId)
+            return Unauthorized();
+
+        var result = await _profileService.SetPreferredLanguageAsync(candidateAccountId, request.Language);
+
+        if (result.IsSuccess)
+            return NoContent();
+
+        return result.Error == CandidateProfileErrors.NotFound
+            ? NotFound(new { result.Error.Code, result.Error.Message })
+            : BadRequest(new { result.Error.Code, result.Error.Message });
+    }
+
     public sealed record ChangeCandidatePasswordRequest(string CurrentPassword, string NewPassword);
 
     // Rate limited like login even though it is authenticated: the current-password check makes this

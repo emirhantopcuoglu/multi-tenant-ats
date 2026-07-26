@@ -1,4 +1,5 @@
 using Ats.Modules.CandidateAccounts.Domain;
+using Ats.Shared.Kernel;
 
 namespace Ats.UnitTests.CandidateAccounts;
 
@@ -65,5 +66,5 @@ public class CandidateAccountEmailVerificationTests
     }
 
     private static CandidateAccount Register() =>
-        CandidateAccount.Register("typo@acme.test", "hash", "Test", "Candidate");
+        CandidateAccount.Register("typo@acme.test", "hash", "Test", "Candidate", SupportedLanguages.Default);
 }

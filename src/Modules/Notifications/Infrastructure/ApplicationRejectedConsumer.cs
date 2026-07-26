@@ -1,4 +1,5 @@
 using System.Net;
+using Ats.Shared.Contracts.CandidateAccounts;
 using Ats.Shared.Contracts.Notifications;
 using Ats.Shared.Kernel;
 using MassTransit;
@@ -15,26 +16,29 @@ namespace Ats.Modules.Notifications.Infrastructure;
 // redelivery of the same message does not email the candidate twice (Sprint 5.5).
 //
 // The email is deliberately generic: it never includes the recruiter's internal rejection reason.
-// The body is interpolated HTML, matching the existing emails — a templating engine is deferred
-// until the set of emails justifies one.
+//
+// Wording comes from IEmailTextProvider in the language the candidate's account carries, which is
+// why this consumer reads ICandidateAccountReader: the event identifies the recipient by address,
+// and the language belongs to the account behind it. The lookup sits inside the idempotency guard,
+// so a duplicate delivery costs no query.
 public sealed class ApplicationRejectedConsumer : IConsumer<ApplicationRejectedIntegrationEvent>
 {
-    private const string Subject = "Update on your application";
-
-    // Fallback when the job title is unavailable (e.g. the role was deleted) so the sentence still
-    // reads naturally without leaking that anything is missing.
-    private const string FallbackRole = "the role you applied for";
-
     private readonly IEmailSender _emailSender;
+    private readonly IEmailTextProvider _emailText;
+    private readonly ICandidateAccountReader _candidateAccounts;
     private readonly IIdempotencyGuard _idempotencyGuard;
     private readonly ILogger<ApplicationRejectedConsumer> _logger;
 
     public ApplicationRejectedConsumer(
         IEmailSender emailSender,
+        IEmailTextProvider emailText,
+        ICandidateAccountReader candidateAccounts,
         IIdempotencyGuard idempotencyGuard,
         ILogger<ApplicationRejectedConsumer> logger)
     {
         _emailSender = emailSender;
+        _emailText = emailText;
+        _candidateAccounts = candidateAccounts;
         _idempotencyGuard = idempotencyGuard;
         _logger = logger;
     }
@@ -43,26 +47,9 @@ public sealed class ApplicationRejectedConsumer : IConsumer<ApplicationRejectedI
     {
         var message = context.Message;
 
-        // The candidate's name comes from the public apply form and the job title from a recruiter;
-        // both are untrusted in an HTML email, so HTML-encode them to prevent content injection.
-        var firstName = WebUtility.HtmlEncode(message.CandidateFirstName);
-        var role = string.IsNullOrWhiteSpace(message.JobTitle)
-            ? FallbackRole
-            : $"<strong>{WebUtility.HtmlEncode(message.JobTitle)}</strong>";
-
-        var body = $"""
-            <p>Hi {firstName},</p>
-            <p>Thank you for your interest in {role} and for the time you put into your application.</p>
-            <p>After careful consideration, we have decided not to move forward with your application
-            at this time.</p>
-            <p>We appreciate your interest and encourage you to apply for future openings that match
-            your experience. We wish you all the best.</p>
-            """;
-
         var key = $"notifications:application-rejected:{context.MessageId}";
         var sent = await _idempotencyGuard.ProcessOnceAsync(
-            key,
-            () => _emailSender.SendAsync(message.CandidateEmail, Subject, body, context.CancellationToken));
+            key, () => SendAsync(message, context.CancellationToken));
 
         if (!sent)
         {
@@ -76,5 +63,24 @@ public sealed class ApplicationRejectedConsumer : IConsumer<ApplicationRejectedI
             "Sent application-rejected email to {CandidateEmail} for application {ApplicationId}",
             message.CandidateEmail,
             message.ApplicationId);
+    }
+
+    private async Task SendAsync(ApplicationRejectedIntegrationEvent message, CancellationToken ct)
+    {
+        var language = await _candidateAccounts.GetPreferredLanguageByEmailAsync(message.CandidateEmail, ct);
+
+        // The candidate's name comes from the public apply form, so it is untrusted in an HTML email
+        // and is encoded here; the job title is encoded inside RolePhrase for the same reason.
+        var body = _emailText.Get(
+            EmailTextKeys.Application.RejectedBody,
+            language,
+            WebUtility.HtmlEncode(message.CandidateFirstName),
+            RolePhrase.For(message.JobTitle, _emailText, language));
+
+        await _emailSender.SendAsync(
+            message.CandidateEmail,
+            _emailText.Get(EmailTextKeys.Application.RejectedSubject, language),
+            body,
+            ct);
     }
 }

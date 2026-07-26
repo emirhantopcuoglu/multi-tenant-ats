@@ -1,4 +1,5 @@
 using System.Net;
+using Ats.Shared.Contracts.CandidateAccounts;
 using Ats.Shared.Contracts.Notifications;
 using Ats.Shared.Kernel;
 using MassTransit;
@@ -10,24 +11,27 @@ namespace Ats.Modules.Notifications.Infrastructure;
 // the positive counterpart of ApplicationRejectedConsumer, with the same retry/dead-letter policy
 // and the same idempotency guard keyed on the message id, so an at-least-once redelivery does not
 // email the candidate twice.
+//
+// Wording comes from IEmailTextProvider in the language the candidate's account carries; see
+// ApplicationRejectedConsumer for why the language is read here rather than carried on the event.
 public sealed class ApplicationHiredConsumer : IConsumer<ApplicationHiredIntegrationEvent>
 {
-    private const string Subject = "Congratulations — you got the job!";
-
-    // Fallback when the job title is unavailable (e.g. the role was deleted) so the sentence still
-    // reads naturally without leaking that anything is missing.
-    private const string FallbackRole = "the role you applied for";
-
     private readonly IEmailSender _emailSender;
+    private readonly IEmailTextProvider _emailText;
+    private readonly ICandidateAccountReader _candidateAccounts;
     private readonly IIdempotencyGuard _idempotencyGuard;
     private readonly ILogger<ApplicationHiredConsumer> _logger;
 
     public ApplicationHiredConsumer(
         IEmailSender emailSender,
+        IEmailTextProvider emailText,
+        ICandidateAccountReader candidateAccounts,
         IIdempotencyGuard idempotencyGuard,
         ILogger<ApplicationHiredConsumer> logger)
     {
         _emailSender = emailSender;
+        _emailText = emailText;
+        _candidateAccounts = candidateAccounts;
         _idempotencyGuard = idempotencyGuard;
         _logger = logger;
     }
@@ -36,23 +40,9 @@ public sealed class ApplicationHiredConsumer : IConsumer<ApplicationHiredIntegra
     {
         var message = context.Message;
 
-        // The candidate's name comes from the public apply form and the job title from a recruiter;
-        // both are untrusted in an HTML email, so HTML-encode them to prevent content injection.
-        var firstName = WebUtility.HtmlEncode(message.CandidateFirstName);
-        var role = string.IsNullOrWhiteSpace(message.JobTitle)
-            ? FallbackRole
-            : $"<strong>{WebUtility.HtmlEncode(message.JobTitle)}</strong>";
-
-        var body = $"""
-            <p>Hi {firstName},</p>
-            <p>Great news — the company has decided to hire you for {role}. Congratulations!</p>
-            <p>They will contact you directly with the next steps.</p>
-            """;
-
         var key = $"notifications:application-hired:{context.MessageId}";
         var sent = await _idempotencyGuard.ProcessOnceAsync(
-            key,
-            () => _emailSender.SendAsync(message.CandidateEmail, Subject, body, context.CancellationToken));
+            key, () => SendAsync(message, context.CancellationToken));
 
         if (!sent)
         {
@@ -66,5 +56,22 @@ public sealed class ApplicationHiredConsumer : IConsumer<ApplicationHiredIntegra
             "Sent application-hired email to {CandidateEmail} for application {ApplicationId}",
             message.CandidateEmail,
             message.ApplicationId);
+    }
+
+    private async Task SendAsync(ApplicationHiredIntegrationEvent message, CancellationToken ct)
+    {
+        var language = await _candidateAccounts.GetPreferredLanguageByEmailAsync(message.CandidateEmail, ct);
+
+        var body = _emailText.Get(
+            EmailTextKeys.Application.HiredBody,
+            language,
+            WebUtility.HtmlEncode(message.CandidateFirstName),
+            RolePhrase.For(message.JobTitle, _emailText, language));
+
+        await _emailSender.SendAsync(
+            message.CandidateEmail,
+            _emailText.Get(EmailTextKeys.Application.HiredSubject, language),
+            body,
+            ct);
     }
 }

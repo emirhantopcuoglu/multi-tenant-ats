@@ -4,6 +4,7 @@ using Ats.IntegrationTests.Shared;
 using Ats.Modules.CandidateAccounts.Application;
 using Ats.Modules.CandidateAccounts.Domain;
 using Ats.Modules.CandidateAccounts.Infrastructure;
+using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -467,6 +468,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
             CreatePasswordHasher(),
             new CandidateSessionIssuer(db, CreateTokenService(), CreateJwtOptions()),
             emailSender ?? new RecordingEmailSender(),
+            new JsonEmailTextProvider(),
             Options.Create(new CandidateEmailChangeOptions()),
             NullLogger<CandidateProfileService>.Instance);
     }
@@ -475,7 +477,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
     {
         await using var db = CreateDbContext();
         var passwordHash = password is null ? "hashed-password" : CreatePasswordHasher().Hash(password);
-        var account = CandidateAccount.Register(email, passwordHash, "Jane", "Doe");
+        var account = CandidateAccount.Register(email, passwordHash, "Jane", "Doe", SupportedLanguages.Default);
         db.CandidateAccounts.Add(account);
         await db.SaveChangesAsync();
         return account.Id;

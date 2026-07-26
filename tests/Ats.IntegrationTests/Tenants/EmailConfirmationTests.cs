@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Ats.Shared.Infrastructure;
 
 namespace Ats.IntegrationTests.Tenants;
 
@@ -213,7 +214,7 @@ public sealed class EmailConfirmationTests
         using (var scope = provider.CreateScope())
         {
             var invitations = CreateInvitationService(scope, tenantId, mail);
-            var accepted = await invitations.AcceptAsync(invitationToken, Password, "New", "Colleague");
+            var accepted = await invitations.AcceptAsync(invitationToken, Password, "New", "Colleague", SupportedLanguages.Default);
             Assert.True(accepted.IsSuccess, accepted.IsFailure ? accepted.Error.Message : "");
         }
 
@@ -266,7 +267,7 @@ public sealed class EmailConfirmationTests
 
         using var scope = provider.CreateScope();
         return await CreateAuthService(scope, mail).RegisterAsync(
-            "Acme", slug, email, password ?? Password, "Ada", "Founder");
+            "Acme", slug, email, password ?? Password, "Ada", "Founder", SupportedLanguages.Default);
     }
 
     // The app seeds roles at startup; a bare test ServiceProvider does not, and RegisterAsync assigns
@@ -335,6 +336,10 @@ public sealed class EmailConfirmationTests
                 new FixedTenant(tenantId)),
             scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>(),
             mail,
+            new JsonEmailTextProvider(),
+            // No signed-in inviter in these tests, so the invitation falls back to the default
+            // language — which is the behaviour being relied on, not a gap in the setup.
+            new NullCurrentUser(),
             Options.Create(new InvitationOptions()));
 
     private async Task<Guid> SeedTenantAsync()
@@ -356,6 +361,7 @@ public sealed class EmailConfirmationTests
             Options.Create(new EmailConfirmationOptions { ConfirmBaseUrl = ConfirmBaseUrl }),
             scope.ServiceProvider.GetRequiredService<ICurrentTenant>(),
             mail ?? new NoOpEmailSender(),
+            new JsonEmailTextProvider(),
             NullLogger<AuthService>.Instance);
 
     // Mirrors Program.cs, including the dedicated confirmation provider: without registering it and

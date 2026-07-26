@@ -14,6 +14,7 @@ public sealed class CandidatePasswordResetService : ICandidatePasswordResetServi
     private readonly CandidateAccountsDbContext _db;
     private readonly ICandidatePasswordHasher _passwordHasher;
     private readonly IEmailSender _emailSender;
+    private readonly IEmailTextProvider _emailText;
     private readonly CandidatePasswordResetOptions _options;
     private readonly ILogger<CandidatePasswordResetService> _logger;
 
@@ -21,12 +22,14 @@ public sealed class CandidatePasswordResetService : ICandidatePasswordResetServi
         CandidateAccountsDbContext db,
         ICandidatePasswordHasher passwordHasher,
         IEmailSender emailSender,
+        IEmailTextProvider emailText,
         IOptions<CandidatePasswordResetOptions> options,
         ILogger<CandidatePasswordResetService> logger)
     {
         _db = db;
         _passwordHasher = passwordHasher;
         _emailSender = emailSender;
+        _emailText = emailText;
         _options = options.Value;
         _logger = logger;
     }
@@ -70,7 +73,7 @@ public sealed class CandidatePasswordResetService : ICandidatePasswordResetServi
         // whether or not the address exists, and a hard failure here would leak that it does. The
         // failure is logged, not swallowed, so an SMTP outage is visible to an operator rather than
         // to an attacker.
-        await SendResetLinkAsync(account.Email, rawToken, ct);
+        await SendResetLinkAsync(account.Email, account.PreferredLanguage, rawToken, ct);
 
         return Result.Success();
     }
@@ -112,24 +115,20 @@ public sealed class CandidatePasswordResetService : ICandidatePasswordResetServi
         _logger.LogInformation(
             "Password reset completed for candidate account {CandidateAccountId}", account.Id);
 
-        await NotifyPasswordResetAsync(account.Email, ct);
+        await NotifyPasswordResetAsync(account.Email, account.PreferredLanguage, ct);
 
         return Result.Success();
     }
 
-    private async Task SendResetLinkAsync(string email, string rawToken, CancellationToken ct)
+    private async Task SendResetLinkAsync(string email, string language, string rawToken, CancellationToken ct)
     {
         var link = $"{_options.ResetBaseUrl}?token={Uri.EscapeDataString(rawToken)}";
-        var body = $"""
-            <p>A request was made to reset the password of your candidate account.</p>
-            <p><a href="{link}">Choose a new password</a></p>
-            <p>This link expires in 1 hour and can be used once. If you did not request this, ignore
-            this email — your current password still works.</p>
-            """;
+        var body = _emailText.Get(EmailTextKeys.Candidate.ResetPasswordBody, language, link);
 
         try
         {
-            await _emailSender.SendAsync(email, "Reset your password", body, ct);
+            await _emailSender.SendAsync(
+                email, _emailText.Get(EmailTextKeys.Candidate.ResetPasswordSubject, language), body, ct);
         }
         catch (Exception exception)
         {
@@ -140,16 +139,10 @@ public sealed class CandidatePasswordResetService : ICandidatePasswordResetServi
     // Best-effort by design: the reset is already committed, so a failing mail server must not turn a
     // succeeded operation into an error response. Doubles as a hijack tripwire — if the owner did not
     // do this, this notice is their signal.
-    private async Task NotifyPasswordResetAsync(string email, CancellationToken ct)
+    private async Task NotifyPasswordResetAsync(string email, string language, CancellationToken ct)
     {
-        const string subject = "Your password was reset";
-        const string body = """
-            <p>The password of your candidate account was just reset, and every signed-in session was
-            ended.</p>
-            <p>If you did this, no action is needed — sign in with your new password.</p>
-            <p>If you did not, someone else may have access to your email — please contact us
-            immediately.</p>
-            """;
+        var subject = _emailText.Get(EmailTextKeys.Candidate.PasswordResetSubject, language);
+        var body = _emailText.Get(EmailTextKeys.Candidate.PasswordResetBody, language);
 
         try
         {

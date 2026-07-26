@@ -1,4 +1,5 @@
 using System.Net;
+using Ats.Shared.Contracts.CandidateAccounts;
 using Ats.Shared.Contracts.Notifications;
 using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
@@ -16,22 +17,28 @@ namespace Ats.Modules.Notifications.Infrastructure;
 // The send is wrapped in the idempotency guard keyed on the message id, so an at-least-once
 // redelivery of the same message does not email the candidate twice (Sprint 5.5).
 //
-// The body is built with interpolated HTML, matching the existing invitation email — a templating
-// engine is deliberately deferred until the set of emails justifies one (see the architecture guide).
+// Wording comes from IEmailTextProvider in the language the candidate account carries, which is why
+// this consumer reads ICandidateAccountReader: the event identifies the recipient by address, and the
+// language belongs to the account behind it. That read happens inside the idempotency guard so a
+// duplicate delivery costs nothing.
 public sealed class ApplicationSubmittedConsumer : IConsumer<ApplicationSubmittedIntegrationEvent>
 {
-    private const string Subject = "We received your application";
-
     private readonly IEmailSender _emailSender;
+    private readonly IEmailTextProvider _emailText;
+    private readonly ICandidateAccountReader _candidateAccounts;
     private readonly IIdempotencyGuard _idempotencyGuard;
     private readonly ILogger<ApplicationSubmittedConsumer> _logger;
 
     public ApplicationSubmittedConsumer(
         IEmailSender emailSender,
+        IEmailTextProvider emailText,
+        ICandidateAccountReader candidateAccounts,
         IIdempotencyGuard idempotencyGuard,
         ILogger<ApplicationSubmittedConsumer> logger)
     {
         _emailSender = emailSender;
+        _emailText = emailText;
+        _candidateAccounts = candidateAccounts;
         _idempotencyGuard = idempotencyGuard;
         _logger = logger;
     }
@@ -40,22 +47,8 @@ public sealed class ApplicationSubmittedConsumer : IConsumer<ApplicationSubmitte
     {
         var message = context.Message;
 
-        // The candidate's name comes from the public apply form and the job title from a recruiter;
-        // both are untrusted in an HTML email, so HTML-encode them to prevent content injection.
-        var firstName = WebUtility.HtmlEncode(message.CandidateFirstName);
-        var jobTitle = WebUtility.HtmlEncode(message.JobTitle);
-
-        var body = $"""
-            <p>Hi {firstName},</p>
-            <p>Thanks for applying to <strong>{jobTitle}</strong>. We have received your application
-            and our team will review it shortly.</p>
-            <p>We'll be in touch.</p>
-            """;
-
         var key = $"notifications:application-submitted:{context.MessageId}";
-        var sent = await _idempotencyGuard.ProcessOnceAsync(
-            key,
-            () => _emailSender.SendAsync(message.CandidateEmail, Subject, body, context.CancellationToken));
+        var sent = await _idempotencyGuard.ProcessOnceAsync(key, () => SendAsync(message, context.CancellationToken));
 
         if (!sent)
         {
@@ -70,5 +63,24 @@ public sealed class ApplicationSubmittedConsumer : IConsumer<ApplicationSubmitte
             "Sent application-received email to {CandidateEmail} for application {ApplicationId}",
             message.CandidateEmail,
             message.ApplicationId);
+    }
+
+    private async Task SendAsync(ApplicationSubmittedIntegrationEvent message, CancellationToken ct)
+    {
+        var language = await _candidateAccounts.GetPreferredLanguageByEmailAsync(message.CandidateEmail, ct);
+
+        // The candidate's name comes from the public apply form and the job title from a recruiter;
+        // both are untrusted in an HTML email, so HTML-encode them to prevent content injection.
+        var body = _emailText.Get(
+            EmailTextKeys.Application.SubmittedBody,
+            language,
+            WebUtility.HtmlEncode(message.CandidateFirstName),
+            WebUtility.HtmlEncode(message.JobTitle));
+
+        await _emailSender.SendAsync(
+            message.CandidateEmail,
+            _emailText.Get(EmailTextKeys.Application.SubmittedSubject, language),
+            body,
+            ct);
     }
 }

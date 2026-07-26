@@ -16,6 +16,7 @@ public sealed class CandidateProfileService : ICandidateProfileService
     private readonly ICandidatePasswordHasher _passwordHasher;
     private readonly ICandidateSessionIssuer _sessions;
     private readonly IEmailSender _emailSender;
+    private readonly IEmailTextProvider _emailText;
     private readonly CandidateEmailChangeOptions _emailChangeOptions;
     private readonly ILogger<CandidateProfileService> _logger;
 
@@ -24,6 +25,7 @@ public sealed class CandidateProfileService : ICandidateProfileService
         ICandidatePasswordHasher passwordHasher,
         ICandidateSessionIssuer sessions,
         IEmailSender emailSender,
+        IEmailTextProvider emailText,
         IOptions<CandidateEmailChangeOptions> emailChangeOptions,
         ILogger<CandidateProfileService> logger)
     {
@@ -31,6 +33,7 @@ public sealed class CandidateProfileService : ICandidateProfileService
         _passwordHasher = passwordHasher;
         _sessions = sessions;
         _emailSender = emailSender;
+        _emailText = emailText;
         _emailChangeOptions = emailChangeOptions.Value;
         _logger = logger;
     }
@@ -81,6 +84,24 @@ public sealed class CandidateProfileService : ICandidateProfileService
         return Result.Success(ToDto(account));
     }
 
+    public async Task<Result> SetPreferredLanguageAsync(Guid candidateAccountId, string language)
+    {
+        // Rejected rather than normalized: unlike registration, where the language rides along with a
+        // request that is really about something else, this endpoint exists only to set it — a value
+        // outside the catalogue here is a client bug and quietly storing English would hide it.
+        if (!SupportedLanguages.IsSupported(language))
+            return Result.Failure(CandidateProfileErrors.UnsupportedLanguage);
+
+        var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
+        if (account is null)
+            return Result.Failure(CandidateProfileErrors.NotFound);
+
+        account.SetPreferredLanguage(language);
+        await _db.SaveChangesAsync();
+
+        return Result.Success();
+    }
+
     public async Task<Result<CandidatePasswordChangeResult>> ChangePasswordAsync(
         Guid candidateAccountId, ChangeCandidatePasswordCommand command)
     {
@@ -104,7 +125,7 @@ public sealed class CandidateProfileService : ICandidateProfileService
         _logger.LogInformation(
             "Password changed for candidate account {CandidateAccountId}", candidateAccountId);
 
-        await NotifyPasswordChangedAsync(account.Email);
+        await NotifyPasswordChangedAsync(account.Email, account.PreferredLanguage);
 
         // The rotation above just invalidated this request's access token AND every refresh token
         // issued under the old stamp; issue a fresh pair so the candidate's own session survives
@@ -158,7 +179,7 @@ public sealed class CandidateProfileService : ICandidateProfileService
         // NOT best-effort like the notifications below: this mail IS the flow — if it cannot be
         // sent, the request must fail loudly so the candidate retries instead of waiting for a link
         // that will never arrive. (A retry supersedes the row just written.)
-        await SendConfirmationLinkAsync(newEmail, rawToken);
+        await SendConfirmationLinkAsync(newEmail, account.PreferredLanguage, rawToken);
 
         return Result.Success();
     }
@@ -209,33 +230,26 @@ public sealed class CandidateProfileService : ICandidateProfileService
 
         // Hijack tripwire: the OLD mailbox is told after the fact. If the owner didn't do this,
         // that notification is their only signal before the attacker owns the login.
-        await NotifyEmailChangedAsync(oldEmail);
+        await NotifyEmailChangedAsync(oldEmail, account.PreferredLanguage);
 
         return Result.Success();
     }
 
-    private async Task SendConfirmationLinkAsync(string newEmail, string rawToken)
+    private async Task SendConfirmationLinkAsync(string newEmail, string language, string rawToken)
     {
         var link = $"{_emailChangeOptions.ConfirmBaseUrl}?token={rawToken}";
-        var body = $"""
-            <p>A request was made to use this address as the login email of a candidate account.</p>
-            <p><a href="{link}">Confirm the email change</a></p>
-            <p>This link expires in 1 hour and can be used once. If you did not request this, ignore this email.</p>
-            """;
+        var body = _emailText.Get(EmailTextKeys.Candidate.EmailChangeConfirmBody, language, link);
 
-        await _emailSender.SendAsync(newEmail, "Confirm your new email address", body);
+        await _emailSender.SendAsync(
+            newEmail, _emailText.Get(EmailTextKeys.Candidate.EmailChangeConfirmSubject, language), body);
     }
 
     // Best-effort: the change is already committed, so a failing mail server must not turn a
     // succeeded operation into an error — but the old owner should still hear about it if possible.
-    private async Task NotifyEmailChangedAsync(string oldEmail)
+    private async Task NotifyEmailChangedAsync(string oldEmail, string language)
     {
-        const string subject = "Your login email was changed";
-        const string body = """
-            <p>The login email of your candidate account was just changed to a new address.</p>
-            <p>If you made this change, no action is needed.</p>
-            <p>If you did not, someone else may have access to your account — please contact us immediately.</p>
-            """;
+        var subject = _emailText.Get(EmailTextKeys.Candidate.EmailChangedSubject, language);
+        var body = _emailText.Get(EmailTextKeys.Candidate.EmailChangedBody, language);
 
         try
         {
@@ -265,14 +279,10 @@ public sealed class CandidateProfileService : ICandidateProfileService
 
     // Best-effort by design: the password change is already committed, so a failing mail server must
     // not turn a succeeded operation into an error response. The failure is logged, not swallowed.
-    private async Task NotifyPasswordChangedAsync(string email)
+    private async Task NotifyPasswordChangedAsync(string email, string language)
     {
-        const string subject = "Your password was changed";
-        const string body = """
-            <p>The password of your candidate account was just changed.</p>
-            <p>If you made this change, no action is needed.</p>
-            <p>If you did not, someone else may have access to your account — please contact us immediately.</p>
-            """;
+        var subject = _emailText.Get(EmailTextKeys.Candidate.PasswordChangedSubject, language);
+        var body = _emailText.Get(EmailTextKeys.Candidate.PasswordChangedBody, language);
 
         try
         {

@@ -550,6 +550,9 @@ builder.Services.Configure<EmailOptions>(
 builder.Services.Configure<InvitationOptions>(
     builder.Configuration.GetSection(InvitationOptions.SectionName));
 builder.Services.AddScoped<IEmailSender, MailKitEmailSender>();
+// Singleton: it parses its two embedded JSON files once in the constructor and is immutable
+// afterwards, so a per-request instance would re-parse them on every email for no benefit.
+builder.Services.AddSingleton<IEmailTextProvider, JsonEmailTextProvider>();
 builder.Services.AddScoped<IInvitationService, InvitationService>();
 
 // Resolved per execution inside the Hangfire job scope; scheduled below after the app is built.

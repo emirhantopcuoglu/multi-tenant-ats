@@ -21,8 +21,12 @@ public sealed class AuthController : ControllerBase
         _currentUser = currentUser;
     }
 
+    // PreferredLanguage is optional: an omitted or unrecognised value settles on English rather than
+    // failing the registration, because a client that never asked for a language has not made a
+    // mistake worth refusing a workspace over.
     public sealed record RegisterRequest(
-        string CompanyName, string Slug, string Email, string Password, string FirstName, string LastName);
+        string CompanyName, string Slug, string Email, string Password, string FirstName, string LastName,
+        string? PreferredLanguage);
     public sealed record LoginRequest(string Email, string Password);
     public sealed record RefreshRequest(string RefreshToken);
     public sealed record ForgotPasswordRequest(string Email);
@@ -35,7 +39,8 @@ public sealed class AuthController : ControllerBase
     public async Task<IActionResult> Register(RegisterRequest request)
     {
         var result = await _authService.RegisterAsync(
-            request.CompanyName, request.Slug, request.Email, request.Password, request.FirstName, request.LastName);
+            request.CompanyName, request.Slug, request.Email, request.Password, request.FirstName,
+            request.LastName, request.PreferredLanguage ?? SupportedLanguages.Default);
 
         // 204, not the token pair it used to return: the workspace exists but the session waits for the
         // mailed confirmation link. The SPA shows a "check your inbox" screen instead of signing in.
@@ -142,5 +147,26 @@ public sealed class AuthController : ControllerBase
         return result.IsSuccess
             ? Ok(result.Value)
             : NotFound(new { result.Error.Code, result.Error.Message });
+    }
+
+    public sealed record SetPreferredLanguageRequest(string Language);
+
+    // Under /auth/me because it writes to the caller's own identity, the same subject Me() reads.
+    // Anyone signed in may set their own language, so no policy beyond [Authorize].
+    [HttpPut("me/language")]
+    [Authorize]
+    public async Task<IActionResult> SetPreferredLanguage(SetPreferredLanguageRequest request)
+    {
+        if (_currentUser.UserId is not { } userId)
+            return Unauthorized();
+
+        var result = await _authService.SetPreferredLanguageAsync(userId, request.Language);
+
+        if (result.IsSuccess)
+            return NoContent();
+
+        return result.Error == AuthErrors.UserNotFound
+            ? NotFound(new { result.Error.Code, result.Error.Message })
+            : BadRequest(new { result.Error.Code, result.Error.Message });
     }
 }
