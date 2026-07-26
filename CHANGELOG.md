@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.11.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.10.0...v0.11.0) (2026-07-26)
+
+
+### Features
+
+* **candidate-accounts:** add candidate password reset ([#160](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/160)) ([c2e3885](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/c2e3885113ddc3b4edadd12bfc41e2d4356c9fc7))
+* **candidate-accounts:** add refresh token rotation for candidate sessions ([#159](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/159)) ([3691f90](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/3691f905aacb2aae73956794f0ded8493065c1f1))
+* **tenants:** add company password reset ([#161](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/161)) ([f3490f0](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/f3490f0464a12a9ef9d7e9bad97b71bcb4ed8946))
+* **tenants:** add role changes and access revocation for tenant members ([#162](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/162)) ([4e021c8](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/4e021c82f0c66768e69d3d669225b293196ccadb))
+
+
+### Bug Fixes
+
+* **tenants:** point the invitation link at the SPA accept route ([#158](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/158)) ([65399c0](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/65399c0edc114dd50472d60770723fd0857b4d39))
+
 ## [0.10.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.9.0...v0.10.0) (2026-07-25)
 
 
