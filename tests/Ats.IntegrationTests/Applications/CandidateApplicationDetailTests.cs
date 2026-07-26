@@ -132,6 +132,51 @@ public sealed class CandidateApplicationDetailTests
         Assert.Equal("Technical", scheduledInterview.Type);
         Assert.Equal(scheduledAt, scheduledInterview.ScheduledAtUtc);
         Assert.Equal("Scheduled", scheduledInterview.Status);
+        // The room token has to survive the projection or the card on this screen cannot offer the
+        // join link that the candidate's "My interviews" page already does — the same interview
+        // described two ways was exactly the inconsistency this field closes.
+        Assert.Equal("room-token", scheduledInterview.RoomToken);
+    }
+
+    [Fact]
+    public async Task should_carry_a_null_room_token_for_a_phone_screen()
+    {
+        // A phone screen has no room, and the client renders that absence as "the interviewer will
+        // call you" rather than as a missing link. Pinned separately because a projection that hard-
+        // coded a token would still satisfy the test above.
+        var accountId = Guid.NewGuid();
+        var jobId = Guid.NewGuid();
+        var tenant = new FixedTenant(Guid.NewGuid());
+
+        Application application;
+        await using (var db = NewDb(tenant))
+        {
+            var pipeline = Pipeline.CreateDefault(jobId);
+            db.Pipelines.Add(pipeline);
+            var candidate = Candidate.Create("phoned@acme.test", "Phone", "Screen");
+            db.Candidates.Add(candidate);
+            application = Application.Create(
+                jobId, candidate.Id, accountId, pipeline.InitialStage.Id, "cv/phoned.pdf");
+            db.Applications.Add(application);
+            await db.SaveChangesAsync();
+        }
+
+        var interview = new CandidateInterviewInfo(
+            Guid.NewGuid(), application.Id, "PhoneScreen", DateTime.UtcNow.AddDays(1), 30,
+            "Scheduled", RoomToken: null);
+
+        await using var readDb = NewDb(tenant);
+        var handler = new GetCandidateApplicationDetailHandler(
+            readDb,
+            new FakeJobDirectory(new JobSummary(jobId, "Staff Engineer", "staff-engineer", tenant.TenantId!.Value)),
+            new FakeTenantDirectory(new TenantSummary(tenant.TenantId!.Value, "Acme", "acme")),
+            new InMemoryActivityLog([]),
+            new FakeInterviewDirectory([interview]));
+        var result = await handler.Handle(
+            new GetCandidateApplicationDetailQuery(accountId, application.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(Assert.Single(result.Value.Interviews).RoomToken);
     }
 
     [Fact]

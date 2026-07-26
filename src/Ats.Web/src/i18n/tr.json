@@ -449,7 +449,8 @@
       "complete": "Tamamlandı işaretle",
       "noShow": "Gelmedi",
       "cancel": "İptal et",
-      "reassign": "Görüşmecileri değiştir"
+      "reassign": "Görüşmecileri değiştir",
+      "joinRoom": "Odaya katıl"
     },
     "detail": {
       "back": "Mülakatlara dön",

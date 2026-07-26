@@ -43,6 +43,8 @@ export interface CandidateInterview {
   scheduledAtUtc: string;
   durationMinutes: number;
   status: InterviewStatus;
+  /** Null for a phone screen, which has no room. */
+  roomToken: string | null;
 }
 
 export interface CandidateApplicationDetail {

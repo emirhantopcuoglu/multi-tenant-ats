@@ -30,6 +30,9 @@ export interface InterviewDetail {
   status: InterviewStatus;
   notes: string | null;
   interviewerUserIds: string[];
+  /** Locator for the live room, null for a phone screen. Only usable by someone on the panel: the
+      join endpoint checks membership, so a page must not offer this link to anyone else. */
+  roomToken: string | null;
   isAwaitingOutcome: boolean;
   canReschedule: boolean;
   canCancel: boolean;
