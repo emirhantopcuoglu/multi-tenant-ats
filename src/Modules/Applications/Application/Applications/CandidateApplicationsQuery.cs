@@ -108,8 +108,15 @@ public sealed record CandidateTimelineEntryDto(string Type, string? StageName, D
 
 // Candidate-safe projection of CandidateInterviewInfo — same shape, kept as its own record so this
 // module's public contract doesn't leak a Shared.Contracts type verbatim into the API response.
+//
+// RoomToken is here for the same reason it is on CandidateInterviewSummaryDto: both records describe
+// the same interview to the same candidate, on two different screens. Carrying it on one and not the
+// other is what left the application-detail card unable to offer a link the "My interviews" page
+// already had. It is a locator, not a bearer secret — see Interview.RoomToken — and null for a phone
+// screen, which has no room.
 public sealed record CandidateInterviewDto(
-    Guid Id, string Type, DateTime ScheduledAtUtc, int DurationMinutes, string Status);
+    Guid Id, string Type, DateTime ScheduledAtUtc, int DurationMinutes, string Status,
+    string? RoomToken);
 
 public sealed record CandidateApplicationDetailDto(
     Guid Id,
@@ -191,7 +198,7 @@ public sealed class GetCandidateApplicationDetailHandler
         var interviews = await _interviews.GetForApplicationAsync(application.TenantId, application.Id, ct);
         var interviewDtos = interviews
             .Select(i => new CandidateInterviewDto(
-                i.Id, i.Type, i.ScheduledAtUtc, i.DurationMinutes, i.Status))
+                i.Id, i.Type, i.ScheduledAtUtc, i.DurationMinutes, i.Status, i.RoomToken))
             .ToList();
 
         return Result.Success(new CandidateApplicationDetailDto(

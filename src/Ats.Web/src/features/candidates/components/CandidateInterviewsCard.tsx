@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Badge, Card } from '@/components/ui';
 import { interviewStatusTone } from '@/lib/statusColors';
 import type { CandidateInterview } from '../candidateApplicationsApi';
+import { InterviewRoomLink } from './InterviewRoomLink';
 
 function CalendarIcon() {
   return (
@@ -45,9 +46,12 @@ export function CandidateInterviewsCard({ interviews }: { interviews: CandidateI
                 </p>
               </div>
             </div>
-            <Badge tone={interviewStatusTone[interview.status]} dot>
-              {t(`status.${interview.status}`)}
-            </Badge>
+            <div className="flex shrink-0 items-center gap-3">
+              <Badge tone={interviewStatusTone[interview.status]} dot>
+                {t(`status.${interview.status}`)}
+              </Badge>
+              <InterviewRoomLink roomToken={interview.roomToken} status={interview.status} />
+            </div>
           </li>
         ))}
       </ul>

@@ -449,7 +449,8 @@
       "complete": "Mark completed",
       "noShow": "No-show",
       "cancel": "Cancel",
-      "reassign": "Change interviewers"
+      "reassign": "Change interviewers",
+      "joinRoom": "Join room"
     },
     "detail": {
       "back": "Back to interviews",

@@ -104,6 +104,17 @@ function InterviewDetailView({ id }: { id: string }) {
   const isAssignedInterviewer = user ? interview.interviewerUserIds.includes(user.id) : false;
   const canSubmitFeedback = isAssignedInterviewer && interview.canReceiveFeedback;
 
+  // Gated on panel membership, NOT on canManage: JoinInterviewRoomHandler authorizes a company
+  // caller by checking they are one of the interviewers, so a recruiter or admin who is merely
+  // watching this interview would follow the link into a 404. A button that cannot work is worse
+  // than no button.
+  //
+  // The room's own time window is deliberately not checked here — the room page renders "too early"
+  // and "ended" itself, and re-deriving the schedule from the browser clock is exactly the drift the
+  // can* flags exist to avoid. Status and the absence of a room (a phone screen) are enough.
+  const canJoinRoom =
+    isAssignedInterviewer && interview.roomToken !== null && interview.status === 'Scheduled';
+
   const interviewerNames = interview.interviewerUserIds
     .map((interviewerId) => {
       const user = lookup.get(interviewerId);
@@ -200,29 +211,36 @@ function InterviewDetailView({ id }: { id: string }) {
           </div>
         </div>
 
-        {canManage && hasAnyAction && (
+        {(canJoinRoom || (canManage && hasAnyAction)) && (
           <div className="flex flex-wrap justify-end gap-2">
-            {interview.canReschedule && (
+            {/* First in the row, and the only primary button: while an interview is about to happen,
+                joining it is the thing the interviewer came here to do. */}
+            {canJoinRoom && (
+              <Button onClick={() => navigate(`/interview-room/${interview.roomToken}`)}>
+                {t('interviews.action.joinRoom')}
+              </Button>
+            )}
+            {canManage && interview.canReschedule && (
               <Button variant="secondary" onClick={() => setRescheduleOpen(true)} disabled={busy}>
                 {t('interviews.action.reschedule')}
               </Button>
             )}
-            {interview.canComplete && (
+            {canManage && interview.canComplete && (
               <Button variant="secondary" onClick={() => runAction(complete, t('interviews.toast.completed'))} disabled={busy}>
                 {t('interviews.action.complete')}
               </Button>
             )}
-            {interview.canMarkNoShow && (
+            {canManage && interview.canMarkNoShow && (
               <Button variant="secondary" onClick={() => setNoShowOpen(true)} disabled={busy}>
                 {t('interviews.action.noShow')}
               </Button>
             )}
-            {interview.canReassignInterviewers && (
+            {canManage && interview.canReassignInterviewers && (
               <Button variant="secondary" onClick={() => setReassignOpen(true)} disabled={busy}>
                 {t('interviews.action.reassign')}
               </Button>
             )}
-            {interview.canCancel && (
+            {canManage && interview.canCancel && (
               <Button variant="danger" onClick={() => setCancelOpen(true)} disabled={busy}>
                 {t('interviews.action.cancel')}
               </Button>
