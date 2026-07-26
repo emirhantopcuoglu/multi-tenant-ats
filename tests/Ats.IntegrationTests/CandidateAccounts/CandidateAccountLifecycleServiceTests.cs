@@ -258,7 +258,10 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
     {
         var db = CreateDbContext();
         return new CandidateAuthService(
-            db, CreatePasswordHasher(), new CandidateSessionIssuer(db, CreateTokenService(), CreateJwtOptions()));
+            db,
+            CreatePasswordHasher(),
+            new CandidateSessionIssuer(db, CreateTokenService(), CreateJwtOptions()),
+            CandidateServiceFactory.EmailVerification(db));
     }
 
     private CandidateProfileService CreateProfileService(RecordingEmailSender? emailSender = null)

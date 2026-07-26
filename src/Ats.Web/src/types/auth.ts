@@ -33,6 +33,10 @@ export interface CandidateUser {
   lastName: string;
   email: string;
   status: CandidateAccountStatus;
+  /* Whether the candidate has clicked the link mailed to this address. Unverified accounts are fully
+     usable except for applying — deliberately not folded into `status`, which answers a different
+     question (Active/Frozen/Deleted). */
+  isEmailVerified: boolean;
 }
 
 export type CurrentUser = CompanyUser | CandidateUser;

@@ -18,15 +18,18 @@ public sealed class CandidateAuthController : ControllerBase
 {
     private readonly ICandidateAuthService _authService;
     private readonly ICandidatePasswordResetService _passwordResetService;
+    private readonly ICandidateEmailVerificationService _emailVerificationService;
     private readonly ICurrentUser _currentUser;
 
     public CandidateAuthController(
         ICandidateAuthService authService,
         ICandidatePasswordResetService passwordResetService,
+        ICandidateEmailVerificationService emailVerificationService,
         ICurrentUser currentUser)
     {
         _authService = authService;
         _passwordResetService = passwordResetService;
+        _emailVerificationService = emailVerificationService;
         _currentUser = currentUser;
     }
 
@@ -36,6 +39,7 @@ public sealed class CandidateAuthController : ControllerBase
     public sealed record LogoutRequest(string RefreshToken);
     public sealed record ForgotPasswordRequest(string Email);
     public sealed record ResetPasswordRequest(string Token, string NewPassword);
+    public sealed record VerifyEmailRequest(string Token);
 
     [HttpPost("register")]
     [EnableRateLimiting(RateLimitPolicies.PerIp)]
@@ -110,6 +114,43 @@ public sealed class CandidateAuthController : ControllerBase
 
         // No tokens in the response on purpose: whoever just set the password signs in with it. That
         // also means a reset cannot hand a session to someone who only guessed at a token.
+        return result.IsSuccess
+            ? NoContent()
+            : BadRequest(new { result.Error.Code, result.Error.Message });
+    }
+
+    // Anonymous by necessity: the link is clicked from an email client, which carries no session, and
+    // the candidate may well be verifying on a different device than the one they registered on. The
+    // token itself is the credential — 256 bits, single-use, 24 hours.
+    [HttpPost("verify-email")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.PerIp)]
+    public async Task<IActionResult> VerifyEmail(VerifyEmailRequest request)
+    {
+        var result = await _emailVerificationService.ConfirmAsync(
+            request.Token, HttpContext.RequestAborted);
+
+        // No tokens in the response, matching reset-password: verifying must not hand a session to
+        // whoever presented a token, only mark the address proven.
+        return result.IsSuccess
+            ? NoContent()
+            : BadRequest(new { result.Error.Code, result.Error.Message });
+    }
+
+    // Authenticated, unlike forgot-password: this one only ever mails the address already on the
+    // signed-in account, so there is no way to aim it at a stranger and nothing to hide from the
+    // caller. Still per-IP limited — it sends mail on demand.
+    [HttpPost("resend-verification")]
+    [Authorize(Policy = Policies.CandidateOnly)]
+    [EnableRateLimiting(RateLimitPolicies.PerIp)]
+    public async Task<IActionResult> ResendVerification()
+    {
+        if (_currentUser.UserId is not { } candidateAccountId)
+            return Unauthorized();
+
+        var result = await _emailVerificationService.SendAsync(
+            candidateAccountId, HttpContext.RequestAborted);
+
         return result.IsSuccess
             ? NoContent()
             : BadRequest(new { result.Error.Code, result.Error.Message });

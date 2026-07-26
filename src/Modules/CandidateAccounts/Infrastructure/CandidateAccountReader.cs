@@ -20,6 +20,7 @@ public sealed class CandidateAccountReader : ICandidateAccountReader
 
         return account is null
             ? null
-            : new CandidateAccountSummary(account.Id, account.Email, account.FirstName, account.LastName);
+            : new CandidateAccountSummary(
+                account.Id, account.Email, account.FirstName, account.LastName, account.IsEmailVerified);
     }
 }

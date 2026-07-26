@@ -39,6 +39,17 @@ public sealed class CandidateAccount
 
     public DateTime CreatedAtUtc { get; private set; }
 
+    // When the candidate proved they can read the address they registered with, by clicking a link
+    // mailed to it. Null means unproven — which is how every account is born.
+    //
+    // A timestamp rather than a bool: "verified on the 3rd" answers a support question that "true"
+    // cannot, and it costs the same column. Verification is deliberately NOT a lifecycle Status: an
+    // unverified account is a normal, fully usable account that simply may not apply to a job yet.
+    // Folding it into Status would have made every status check answer two questions at once.
+    public DateTime? EmailVerifiedAtUtc { get; private set; }
+
+    public bool IsEmailVerified => EmailVerifiedAtUtc is not null;
+
     // Lifecycle state. New accounts are born Active; the timestamps record when the current state
     // was entered and are cleared/kept accordingly by the transition methods below.
     public CandidateAccountStatus Status { get; private set; }
@@ -155,6 +166,23 @@ public sealed class CandidateAccount
 
         Email = NormalizeEmail(newEmail);
         SecurityStamp = Guid.NewGuid();
+
+        // The new address arrives already proven: this method only runs after the candidate clicked a
+        // link that was mailed to it. Re-verifying would be asking twice for the same proof — and it
+        // makes the email-change flow the recovery path for someone who mistyped at registration.
+        EmailVerifiedAtUtc = DateTime.UtcNow;
+    }
+
+    // Idempotent: a double-clicked link must not move the timestamp, so the first proof is the one
+    // that gets recorded. Returns whether this call is what verified the account, so the caller can
+    // tell "just confirmed" from "already confirmed" without re-reading the row.
+    public bool MarkEmailVerified()
+    {
+        if (IsEmailVerified)
+            return false;
+
+        EmailVerifiedAtUtc = DateTime.UtcNow;
+        return true;
     }
 
     // What anonymized name fields hold after deletion. A recognizable constant, not an empty

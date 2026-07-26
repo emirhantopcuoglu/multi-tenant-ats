@@ -1,0 +1,21 @@
+using Ats.Modules.CandidateAccounts.Infrastructure;
+using Ats.Shared.Kernel;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+
+namespace Ats.IntegrationTests.Shared;
+
+// Builds the real CandidateEmailVerificationService rather than a stub. Three suites construct
+// CandidateAuthService, whose registration path now depends on it, and none of them care about
+// verification — a hand-rolled fake in each would be three chances to drift from the real behaviour
+// for no benefit. The default NoOpEmailSender keeps those suites silent; a suite that asserts on the
+// mailed link passes its own RecordingEmailSender.
+internal static class CandidateServiceFactory
+{
+    internal static CandidateEmailVerificationService EmailVerification(
+        CandidateAccountsDbContext db, IEmailSender? emailSender = null) =>
+        new(db,
+            emailSender ?? new NoOpEmailSender(),
+            Options.Create(new CandidateEmailVerificationOptions()),
+            NullLogger<CandidateEmailVerificationService>.Instance);
+}

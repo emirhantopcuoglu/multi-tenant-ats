@@ -85,6 +85,10 @@ public sealed class ApplyController : ControllerBase
         "application.tenant_not_resolved" => NotFound(ToProblem(error)),
         "application.candidate_account_not_found" => NotFound(ToProblem(error)),
         "application.duplicate" => Conflict(ToProblem(error)),
+        // 403, not 400: the request is well-formed and the caller is authenticated — they are simply
+        // not yet permitted to do this. A 400 would read as "you sent something wrong", which would
+        // send the candidate looking for a mistake in the form instead of at their inbox.
+        "application.email_not_verified" => StatusCode(StatusCodes.Status403Forbidden, ToProblem(error)),
         _ => BadRequest(ToProblem(error))
     };
 
