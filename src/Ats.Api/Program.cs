@@ -479,7 +479,16 @@ builder.Services
     // Required for GeneratePasswordResetTokenAsync: without a registered "Default" token provider that
     // call throws at runtime. The token is data-protection based (nothing stored) and embeds the user's
     // security stamp, so resetting the password invalidates it — that is what makes it single-use.
-    .AddDefaultTokenProviders();
+    .AddDefaultTokenProviders()
+    // Email confirmation gets its own provider so it can outlive the password-reset window configured
+    // below. DataProtectionTokenProviderOptions is a single global setting, and 60 minutes — correct for
+    // a token that is a full account takeover while it lives — would make the only route into a
+    // brand-new workspace expire while the founder is in a meeting. See EmailConfirmationTokenProvider.
+    .AddTokenProvider<EmailConfirmationTokenProvider<ApplicationUser>>(
+        EmailConfirmationTokenProviderOptions.ProviderName);
+
+builder.Services.Configure<IdentityOptions>(options =>
+    options.Tokens.EmailConfirmationTokenProvider = EmailConfirmationTokenProviderOptions.ProviderName);
 
 // Tighten Identity's token lifespan from its 24-hour default. A reset token is a full account takeover
 // for as long as it lives, and an hour covers "open inbox, click link" — the same window the candidate
@@ -489,6 +498,8 @@ var passwordResetOptions = builder.Configuration
 
 builder.Services.Configure<PasswordResetOptions>(
     builder.Configuration.GetSection(PasswordResetOptions.SectionName));
+builder.Services.Configure<EmailConfirmationOptions>(
+    builder.Configuration.GetSection(EmailConfirmationOptions.SectionName));
 builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
     options.TokenLifespan = TimeSpan.FromMinutes(passwordResetOptions.ValidMinutes));
 

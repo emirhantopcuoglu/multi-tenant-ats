@@ -13,6 +13,24 @@ public static class AuthErrors
     public static readonly Error UserNotFound =
         new("auth.user_not_found", "User not found.");
 
+    // Distinct from InvalidCredentials on purpose, and safe to be distinct: login only reaches this
+    // check after the password has already verified, so the caller has proved they own the account.
+    // Telling them to check their inbox reveals nothing they do not already know, and the UI needs the
+    // code to offer a resend.
+    //
+    // Contrast the deactivated-user case, which deliberately answers exactly like a wrong password:
+    // there the hidden fact is someone's employment status, which a login form has no business
+    // disclosing to whoever happens to hold the password.
+    public static readonly Error EmailNotConfirmed =
+        new("auth.email_not_confirmed",
+            "Confirm your email address before signing in. Check your inbox for the confirmation link.");
+
+    // Same shape as InvalidPasswordResetToken and for the same reason: the caller holds only a link, so
+    // unknown / malformed / expired / already-used must be one answer.
+    public static readonly Error InvalidEmailConfirmationToken =
+        new("auth.invalid_email_confirmation_token",
+            "This confirmation link is invalid, expired or already used.");
+
     public static Error RegistrationFailed(string detail) =>
         new("auth.registration_failed", detail);
 

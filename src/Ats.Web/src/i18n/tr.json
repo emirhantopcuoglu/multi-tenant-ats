@@ -888,6 +888,19 @@
       "requestNew": "Yeni bağlantı isteyin",
       "doneTitle": "Şifre güncellendi",
       "doneBody": "Yeni şifrenizle giriş yapın. Diğer tüm oturumlar kapatıldı."
+    },
+    "confirmEmail": {
+      "pendingTitle": "Gelen kutunuzu kontrol edin",
+      "pendingBody": "{{email}} adresine bir onay bağlantısı gönderdik. Çalışma alanınızı tamamlamak için açın — giriş yapabilmek için önce onaylamanız gerekiyor.",
+      "successTitle": "E-posta adresi onaylandı",
+      "successBody": "Artık giriş yapabilirsiniz.",
+      "failedTitle": "Bu onay bağlantısı artık geçerli değil",
+      "failedBody": "Onay bağlantıları 24 saat sonra geçersiz olur. E-posta adresinizi girin, yenisini gönderelim.",
+      "resendLabel": "E-posta adresi",
+      "resendAction": "Yeni bağlantı gönder",
+      "resendSent": "Bu adrese ait bir hesap varsa yeni bağlantı yolda.",
+      "resendError": "Bağlantı gönderilemedi. Lütfen tekrar deneyin.",
+      "goToLogin": "Girişe dön"
     }
   },
   "validation": {
@@ -903,7 +916,9 @@
     "invalidCredentials": "E-posta veya parola hatalı.",
     "invitationInvalid": "Bu davet geçersiz veya süresi dolmuş.",
     "emailInUse": "Bu e-posta ile bir kullanıcı zaten var.",
-    "generic": "Bir şeyler ters gitti. Lütfen tekrar deneyin."
+    "generic": "Bir şeyler ters gitti. Lütfen tekrar deneyin.",
+    "emailNotConfirmed": "Giriş yapmadan önce e-posta adresinizi onaylayın.",
+    "confirmationInvalid": "Bu onay bağlantısı geçersiz, süresi dolmuş veya kullanılmış."
   },
   "form": {
     "department": "Departman",

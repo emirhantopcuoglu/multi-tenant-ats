@@ -19,10 +19,20 @@ export async function login(request: LoginRequest): Promise<AuthResult> {
   return data;
 }
 
-export async function register(request: RegisterRequest): Promise<AuthResult> {
-  const { data } = await apiClient.post<AuthResult>(`${AUTH_BASE}/register`, request);
-  tokenStore.setTokens(data);
-  return data;
+/* Returns nothing and stores no tokens: registration creates the workspace but the session waits for
+   the mailed confirmation link. The caller shows a "check your inbox" screen instead of signing in. */
+export async function register(request: RegisterRequest): Promise<void> {
+  await apiClient.post(`${AUTH_BASE}/register`, request);
+}
+
+export async function confirmEmail(userId: string, token: string): Promise<void> {
+  await apiClient.post(`${AUTH_BASE}/confirm-email`, { userId, token });
+}
+
+/* Anonymous — whoever needs this cannot sign in. Always succeeds, whether or not the address is
+   registered, so it cannot be used to discover who works here. */
+export async function resendEmailConfirmation(email: string): Promise<void> {
+  await apiClient.post(`${AUTH_BASE}/resend-confirmation`, { email });
 }
 
 export async function getCurrentUser(): Promise<CompanyUser> {

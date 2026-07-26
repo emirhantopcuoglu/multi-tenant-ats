@@ -27,6 +27,8 @@ public sealed class AuthController : ControllerBase
     public sealed record RefreshRequest(string RefreshToken);
     public sealed record ForgotPasswordRequest(string Email);
     public sealed record ResetPasswordRequest(Guid UserId, string Token, string NewPassword);
+    public sealed record ConfirmEmailRequest(Guid UserId, string Token);
+    public sealed record ResendConfirmationRequest(string Email);
 
     [HttpPost("register")]
     [EnableRateLimiting(RateLimitPolicies.PerIp)]
@@ -35,9 +37,40 @@ public sealed class AuthController : ControllerBase
         var result = await _authService.RegisterAsync(
             request.CompanyName, request.Slug, request.Email, request.Password, request.FirstName, request.LastName);
 
+        // 204, not the token pair it used to return: the workspace exists but the session waits for the
+        // mailed confirmation link. The SPA shows a "check your inbox" screen instead of signing in.
         return result.IsSuccess
-            ? Ok(result.Value)
+            ? NoContent()
             : BadRequest(new { result.Error.Code, result.Error.Message });
+    }
+
+    // Anonymous: the link is opened from an email client, which carries no session, and possibly on a
+    // different device than the one that registered. The token is the credential.
+    [HttpPost("confirm-email")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.PerIp)]
+    public async Task<IActionResult> ConfirmEmail(ConfirmEmailRequest request)
+    {
+        var result = await _authService.ConfirmEmailAsync(
+            request.UserId, request.Token, HttpContext.RequestAborted);
+
+        // No tokens in the response, matching reset-password: confirming must not hand a session to
+        // whoever presented a token, only mark the address proven.
+        return result.IsSuccess
+            ? NoContent()
+            : BadRequest(new { result.Error.Code, result.Error.Message });
+    }
+
+    // Always 204, whether or not the address is registered or already confirmed — a distinguishable
+    // response would turn this into a directory of who works here. Rate-limited per IP: it sends mail
+    // on demand to an address the caller chooses.
+    [HttpPost("resend-confirmation")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.PerIp)]
+    public async Task<IActionResult> ResendConfirmation(ResendConfirmationRequest request)
+    {
+        await _authService.ResendEmailConfirmationAsync(request.Email, HttpContext.RequestAborted);
+        return NoContent();
     }
 
     [HttpPost("login")]

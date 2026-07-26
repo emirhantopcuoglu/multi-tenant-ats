@@ -121,6 +121,7 @@ public sealed class GetCurrentUserTests : IAsyncLifetime
             new StubTokenService(),
             Options.Create(new JwtOptions()),
             Options.Create(new PasswordResetOptions()),
+            Options.Create(new EmailConfirmationOptions()),
             scope.ServiceProvider.GetRequiredService<ICurrentTenant>(),
             new NoOpEmailSender(),
             NullLogger<AuthService>.Instance);

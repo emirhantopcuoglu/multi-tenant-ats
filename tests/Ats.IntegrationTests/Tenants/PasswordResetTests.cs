@@ -246,6 +246,11 @@ public sealed class PasswordResetTests : IAsyncLifetime
             FirstName = "Ada",
             LastName = "Admin",
             TenantId = tenant.Id,
+            // These suites are about deactivation and password recovery, not email confirmation, so
+            // their users are seeded the way a real one looks after confirming. Without it the login
+            // guard added with company email confirmation refuses them and every assertion below is
+            // about the wrong thing.
+            EmailConfirmed = true,
             CreatedAtUtc = DateTime.UtcNow
         };
 
@@ -262,6 +267,7 @@ public sealed class PasswordResetTests : IAsyncLifetime
             new StubTokenService(),
             Options.Create(new JwtOptions { RefreshTokenDays = 7 }),
             Options.Create(new PasswordResetOptions { ResetBaseUrl = ResetBaseUrl }),
+            Options.Create(new EmailConfirmationOptions()),
             scope.ServiceProvider.GetRequiredService<ICurrentTenant>(),
             mail ?? new NoOpEmailSender(),
             NullLogger<AuthService>.Instance);

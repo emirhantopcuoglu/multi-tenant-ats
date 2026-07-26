@@ -17,6 +17,7 @@ public sealed class AuthService : IAuthService
     private readonly ITokenService _tokenService;
     private readonly JwtOptions _jwtOptions;
     private readonly PasswordResetOptions _passwordResetOptions;
+    private readonly EmailConfirmationOptions _emailConfirmationOptions;
     private readonly ICurrentTenant _currentTenant;
     private readonly IEmailSender _emailSender;
     private readonly ILogger<AuthService> _logger;
@@ -27,6 +28,7 @@ public sealed class AuthService : IAuthService
         ITokenService tokenService,
         IOptions<JwtOptions> jwtOptions,
         IOptions<PasswordResetOptions> passwordResetOptions,
+        IOptions<EmailConfirmationOptions> emailConfirmationOptions,
         ICurrentTenant currentTenant,
         IEmailSender emailSender,
         ILogger<AuthService> logger)
@@ -36,12 +38,18 @@ public sealed class AuthService : IAuthService
         _tokenService = tokenService;
         _jwtOptions = jwtOptions.Value;
         _passwordResetOptions = passwordResetOptions.Value;
+        _emailConfirmationOptions = emailConfirmationOptions.Value;
         _currentTenant = currentTenant;
         _emailSender = emailSender;
         _logger = logger;
     }
 
-    public async Task<Result<AuthResult>> RegisterAsync(
+    // Returns no tokens, unlike the candidate side. A company user who can sign in can invite
+    // colleagues, publish jobs and start receiving applications — there is no single consequential
+    // action to gate the way "apply" gates a candidate, so the session itself waits for the address to
+    // be proven. Which makes the resend endpoint below anonymous by necessity: someone who cannot sign
+    // in is exactly who needs it.
+    public async Task<Result> RegisterAsync(
         string companyName, string slug, string email, string password, string firstName, string lastName)
     {
         // Normalize once, then validate and check uniqueness against that exact value. The slug is
@@ -51,19 +59,22 @@ public sealed class AuthService : IAuthService
 
         var slugValidation = SlugPolicy.Validate(normalizedSlug);
         if (slugValidation.IsFailure)
-            return Result.Failure<AuthResult>(slugValidation.Error);
+            return Result.Failure(slugValidation.Error);
 
         var slugTaken = await _db.Tenants.AnyAsync(t => t.Slug == normalizedSlug);
         if (slugTaken)
-            return Result.Failure<AuthResult>(AuthErrors.RegistrationFailed($"Slug '{normalizedSlug}' is already taken."));
+            return Result.Failure(AuthErrors.RegistrationFailed($"Slug '{normalizedSlug}' is already taken."));
 
         var emailTaken = await _userManager.FindByEmailAsync(email) is not null;
         if (emailTaken)
-            return Result.Failure<AuthResult>(AuthErrors.RegistrationFailed($"Email '{email}' is already registered."));
+            return Result.Failure(AuthErrors.RegistrationFailed($"Email '{email}' is already registered."));
 
+        // The tenant is staged, not saved: it used to be committed here, before the user existed, so a
+        // rejected password (or any Identity failure below) left an orphan tenant behind holding the
+        // slug — permanently unregisterable by anyone, including whoever just failed. Now both rows land
+        // in the CreateAsync call's save, or neither does.
         var tenant = Tenant.Create(companyName, normalizedSlug);
         _db.Tenants.Add(tenant);
-        await _db.SaveChangesAsync();
 
         var user = new ApplicationUser
         {
@@ -75,16 +86,20 @@ public sealed class AuthService : IAuthService
             CreatedAtUtc = DateTime.UtcNow
         };
 
+        // Identity validates before it saves, so a rejected password leaves the staged tenant unsaved.
+        // The context is scoped to this request and nothing else writes to it afterwards, so the staged
+        // entity dies with the request — no explicit cleanup, and the slug stays free for a retry.
         var identityResult = await _userManager.CreateAsync(user, password);
         if (!identityResult.Succeeded)
-            return Result.Failure<AuthResult>(
+            return Result.Failure(
                 AuthErrors.RegistrationFailed(string.Join("; ", identityResult.Errors.Select(e => e.Description))));
 
         // The user who registers a tenant is its founder and therefore its administrator.
         await _userManager.AddToRoleAsync(user, Roles.Admin);
 
-        var tokens = await IssueTokensAsync(user);
-        return Result.Success(tokens);
+        await SendEmailConfirmationLinkAsync(user);
+
+        return Result.Success();
     }
 
     public async Task<Result<AuthResult>> LoginAsync(string email, string password)
@@ -98,6 +113,12 @@ public sealed class AuthService : IAuthService
         // a leaked password list learn which accounts still exist.
         if (!user.IsActive)
             return Result.Failure<AuthResult>(AuthErrors.InvalidCredentials);
+
+        // Checked after the password, so this only ever answers someone who has proved the account is
+        // theirs — see AuthErrors.EmailNotConfirmed for why a distinct code is safe here but not for
+        // deactivation. Invited users are confirmed at creation, so this only stops self-registrations.
+        if (!user.EmailConfirmed)
+            return Result.Failure<AuthResult>(AuthErrors.EmailNotConfirmed);
 
         var tokens = await IssueTokensAsync(user);
         return Result.Success(tokens);
@@ -122,6 +143,15 @@ public sealed class AuthService : IAuthService
         if (!user.IsActive)
             return Result.Failure<AuthResult>(AuthErrors.InvalidRefreshToken);
 
+        // Registration no longer issues tokens, so an unconfirmed user should hold no refresh token to
+        // redeem and this branch should be unreachable. It stays for the same reason as the IsActive
+        // guard above: that is an argument about the current code, not an invariant the database
+        // enforces, and a row written by an older build would otherwise sail straight through.
+        // InvalidRefreshToken, not EmailNotConfirmed — this endpoint is anonymous, so unlike login
+        // nobody here has proved anything.
+        if (!user.EmailConfirmed)
+            return Result.Failure<AuthResult>(AuthErrors.InvalidRefreshToken);
+
         stored.Revoke();
         await _db.SaveChangesAsync();
 
@@ -139,6 +169,51 @@ public sealed class AuthService : IAuthService
             stored.Revoke();
             await _db.SaveChangesAsync();
         }
+
+        return Result.Success();
+    }
+
+    public async Task<Result> ConfirmEmailAsync(Guid userId, string token, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return Result.Failure(AuthErrors.InvalidEmailConfirmationToken);
+
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+            return Result.Failure(AuthErrors.InvalidEmailConfirmationToken);
+
+        // Already confirmed is a success, not an error: this is a link in an email, and a second click
+        // — a duplicate tab, a mail client prefetching URLs — must not tell someone their working
+        // account is broken. Contrast the candidate side, where the row is explicitly consumed and a
+        // replay fails; Identity's token is stateless, so "already done" is all we can distinguish.
+        if (user.EmailConfirmed)
+            return Result.Success();
+
+        var result = await _userManager.ConfirmEmailAsync(user, token);
+        if (!result.Succeeded)
+            return Result.Failure(AuthErrors.InvalidEmailConfirmationToken);
+
+        _logger.LogInformation("Email confirmed for user {UserId}", user.Id);
+
+        return Result.Success();
+    }
+
+    // Anonymous by necessity: the person who needs this cannot sign in, which is the whole problem.
+    // That forces the same anti-enumeration silence as RequestPasswordResetAsync — always success, so
+    // the endpoint cannot be used to discover which addresses work here. It also stays quiet for an
+    // already-confirmed account: answering differently would reveal that the address is registered.
+    public async Task<Result> ResendEmailConfirmationAsync(string email, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByEmailAsync(email ?? string.Empty);
+
+        if (user is null || user.EmailConfirmed)
+        {
+            _logger.LogInformation(
+                "Email confirmation resend requested for an unregistered or already-confirmed address");
+            return Result.Success();
+        }
+
+        await SendEmailConfirmationLinkAsync(user, ct);
 
         return Result.Success();
     }
@@ -295,6 +370,40 @@ public sealed class AuthService : IAuthService
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
         return Convert.ToBase64String(bytes);
+    }
+
+    // Best-effort, like the password reset link: registration is already committed by the time this
+    // runs, so a failing mail server must not report a failed registration for an account that exists.
+    // The founder can resend from the login screen. Logged as an error so an SMTP outage is visible to
+    // an operator rather than only to a confused user.
+    private async Task SendEmailConfirmationLinkAsync(
+        ApplicationUser user, CancellationToken ct = default)
+    {
+        var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+
+        // userId rather than the email in the URL, for the same reason as the reset link: the address
+        // would otherwise land in browser history, referrer headers and any proxy log en route.
+        var link = $"{_emailConfirmationOptions.ConfirmBaseUrl}" +
+                   $"?userId={Uri.EscapeDataString(user.Id.ToString())}" +
+                   $"&token={Uri.EscapeDataString(token)}";
+
+        var body = $"""
+            <p>Hi {user.FirstName},</p>
+            <p>Confirm this address to finish setting up your ATS workspace. You need to do this once
+            before you can sign in.</p>
+            <p><a href="{link}">Confirm my email address</a></p>
+            <p>This link expires in {EmailConfirmationTokenProviderOptions.ValidHours} hours. If you did
+            not create an account, ignore this email.</p>
+            """;
+
+        try
+        {
+            await _emailSender.SendAsync(user.Email!, "Confirm your email address", body, ct);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Failed to send the email confirmation link");
+        }
     }
 
     private async Task SendPasswordResetLinkAsync(

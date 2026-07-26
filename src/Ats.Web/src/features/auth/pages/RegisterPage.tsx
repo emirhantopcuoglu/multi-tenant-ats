@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, Field, Input } from '@/components/ui';
 import { useAuth } from '@/app/auth/auth-context';
@@ -11,6 +11,7 @@ import { slugify } from '@/lib/slugify';
 import { AuthLayout } from '../components/AuthLayout';
 import { AudienceSwitch } from '../components/AudienceSwitch';
 import { authErrorMessage } from '../authErrorMessage';
+import { RegistrationPendingPage } from './ConfirmEmailPage';
 
 const PASSWORD_MIN = 8;
 // Display-only host for the workspace URL preview; the real public host is configured at deploy time.
@@ -20,8 +21,10 @@ const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export function RegisterPage() {
   const { t } = useTranslation();
   const { register: registerUser } = useAuth();
-  const navigate = useNavigate();
   const [formError, setFormError] = useState<string | null>(null);
+  /* Set on success instead of navigating: registration no longer signs anyone in, so there is nowhere
+     authenticated to go. Holding the address here lets the pending screen offer a resend. */
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 
   const schema = useMemo(
     () =>
@@ -48,11 +51,19 @@ export function RegisterPage() {
     setFormError(null);
     try {
       await registerUser(values);
-      navigate('/', { replace: true });
+      setRegisteredEmail(values.email);
     } catch (error) {
       setFormError(authErrorMessage(toApiError(error), t));
     }
   });
+
+  if (registeredEmail) {
+    return (
+      <AuthLayout title={t('auth.confirmEmail.pendingTitle')} subtitle="">
+        <RegistrationPendingPage email={registeredEmail} />
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout title={t('auth.regTitle')} subtitle={t('auth.regSub')}>

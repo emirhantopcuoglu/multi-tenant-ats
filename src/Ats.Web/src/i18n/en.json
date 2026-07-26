@@ -888,6 +888,19 @@
       "requestNew": "Request a new link",
       "doneTitle": "Password updated",
       "doneBody": "Sign in with your new password. All other sessions have been signed out."
+    },
+    "confirmEmail": {
+      "pendingTitle": "Check your inbox",
+      "pendingBody": "We sent a confirmation link to {{email}}. Open it to finish setting up your workspace — you need to confirm before you can sign in.",
+      "successTitle": "Email address confirmed",
+      "successBody": "You can sign in now.",
+      "failedTitle": "This confirmation link no longer works",
+      "failedBody": "Confirmation links expire after 24 hours. Enter your email address and we will send a new one.",
+      "resendLabel": "Email address",
+      "resendAction": "Send a new link",
+      "resendSent": "If that address has an account, a new link is on its way.",
+      "resendError": "Couldn't send the link. Please try again.",
+      "goToLogin": "Go to sign in"
     }
   },
   "validation": {
@@ -903,7 +916,9 @@
     "invalidCredentials": "Invalid email or password.",
     "invitationInvalid": "This invitation is invalid or has expired.",
     "emailInUse": "A user with this email already exists.",
-    "generic": "Something went wrong. Please try again."
+    "generic": "Something went wrong. Please try again.",
+    "emailNotConfirmed": "Confirm your email address before signing in.",
+    "confirmationInvalid": "This confirmation link is invalid, expired or already used."
   },
   "form": {
     "department": "Department",

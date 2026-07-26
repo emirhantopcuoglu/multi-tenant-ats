@@ -17,6 +17,7 @@ import { RegisterPage } from '@/features/auth/pages/RegisterPage';
 import { AcceptInvitationPage } from '@/features/auth/pages/AcceptInvitationPage';
 import { ForgotPasswordPage } from '@/features/auth/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '@/features/auth/pages/ResetPasswordPage';
+import { ConfirmEmailPage } from '@/features/auth/pages/ConfirmEmailPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { MarketplacePage } from '@/features/public/MarketplacePage';
 import { PublicCareersPage } from '@/features/public/PublicCareersPage';
@@ -66,6 +67,9 @@ export default function App() {
       {/* Anonymous like the reset-password route below: opened from an email client, which carries no
           session. The token in the query string is the credential. */}
       <Route path="/candidate/verify-email" element={<CandidateVerifyEmailPage />} />
+      {/* Company counterpart, same reasoning: opened from an email client with no session — and here
+          nobody can sign in until it succeeds. */}
+      <Route path="/confirm-email" element={<ConfirmEmailPage />} />
       <Route path="/candidate/forgot-password" element={<CandidateForgotPasswordPage />} />
       <Route path="/candidate/reset-password" element={<CandidateResetPasswordPage />} />
       <Route path="/playground" element={<PlaygroundPage />} />

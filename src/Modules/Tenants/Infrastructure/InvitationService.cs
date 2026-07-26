@@ -72,7 +72,12 @@ public sealed class InvitationService : IInvitationService
             FirstName = firstName,
             LastName = lastName,
             TenantId = invitation.TenantId,
-            CreatedAtUtc = DateTime.UtcNow
+            CreatedAtUtc = DateTime.UtcNow,
+            // Already proven, by construction: reaching this line required clicking a link that was
+            // mailed to this exact address. Asking an invited colleague to confirm a second time would
+            // be demanding the same evidence twice — and would gate them out of the workspace they were
+            // just invited to. Self-registration is the only path that needs the separate proof.
+            EmailConfirmed = true
         };
 
         var result = await _userManager.CreateAsync(user, password);
