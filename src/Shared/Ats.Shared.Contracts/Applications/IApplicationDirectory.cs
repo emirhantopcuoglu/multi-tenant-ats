@@ -19,6 +19,18 @@ public interface IApplicationDirectory
     Task<ApplicationForScheduling?> GetForSchedulingAsync(
         Guid tenantId, Guid applicationId, CancellationToken cancellationToken = default);
 
+    // The batched counterpart, for a caller holding many application ids at once and no ambient
+    // tenant — the interview reminder sweep, which spans every tenant by design. Resolving them one
+    // by one would be an N+1: one round trip per row processed, so the cost of a sweep would grow
+    // with the schedule rather than with the work actually owed.
+    //
+    // Takes no tenant parameter and bypasses the global filter, the same trust boundary
+    // IInterviewDirectory.GetForApplicationsAsync relies on: the caller obtained these ids from rows
+    // it already owns, so it is not a place a user-supplied id can reach. Ids with no match are
+    // simply absent from the map.
+    Task<IReadOnlyDictionary<Guid, ApplicationForScheduling>> GetForSchedulingAsync(
+        IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default);
+
     // Resolves candidate display names for a set of applications. The interview list holds only
     // application ids; this lets it show the candidate without the Interviews module knowing the
     // Applications schema. Ids with no match (e.g. another tenant's) are simply absent from the map.

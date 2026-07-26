@@ -828,6 +828,8 @@
     "interviewScheduled": "\"{{jobTitle}}\" için mülakat planlandı: {{type}}, {{date}}",
     "interviewRescheduled": "\"{{jobTitle}}\" mülakatın taşındı: {{type}}, {{previousDate}} → {{date}}",
     "interviewCancelled": "\"{{jobTitle}}\" mülakatın iptal edildi: {{type}}, {{date}}",
+    "interviewReminderDayBefore": "Hatırlatma: \"{{jobTitle}}\" mülakatın yarın: {{type}}, {{date}}",
+    "interviewReminderStartingSoon": "\"{{jobTitle}}\" mülakatın birazdan başlıyor: {{type}}, {{date}}",
     "generic": "Yeni bir bildirimin var"
   },
   "auth": {

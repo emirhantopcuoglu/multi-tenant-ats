@@ -78,7 +78,8 @@ public sealed class InterviewRescheduledEmailConsumer
         // that the old link is dead.
         var joinLine = message.RoomToken is { } roomToken
             ? InterviewEmailFormatting.JoinLine(
-                _roomOptions.BaseUrl, roomToken, unchanged: true, _emailText, language)
+                _roomOptions.BaseUrl, roomToken, EmailTextKeys.Interview.JoinLineUnchanged,
+                _emailText, language)
             : _emailText.Get(EmailTextKeys.Interview.PhoneLineRescheduled, language);
 
         var body = _emailText.Get(

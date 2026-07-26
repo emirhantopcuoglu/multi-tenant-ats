@@ -13,4 +13,10 @@ public sealed class HangfireOptions
     // Kept in config (not a hardcoded Cron.Daily()) so operators can tune the cadence per environment
     // without a code change.
     public string ExpiredInvitationCleanupCron { get; init; } = "0 0 * * *";
+
+    // Cron expression for the interview reminder sweep. Every five minutes by default, which is not
+    // arbitrary: the sweep's interval is the worst case by which a reminder can arrive late, and the
+    // "starting soon" nudge is due when the room opens ten minutes before the interview. A slower
+    // cadence would let that reminder land after the interview had already begun.
+    public string InterviewReminderCron { get; init; } = "*/5 * * * *";
 }

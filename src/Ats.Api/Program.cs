@@ -402,6 +402,8 @@ builder.Services.AddMassTransit(bus =>
     // An interview the candidate already has in their calendar must never move or vanish silently.
     bus.AddConsumer<InterviewRescheduledEmailConsumer>();
     bus.AddConsumer<InterviewCancelledEmailConsumer>();
+    // Driven by the reminder sweep rather than by a recruiter action; see InterviewReminderJob.
+    bus.AddConsumer<InterviewReminderEmailConsumer>();
 
     // In-app notification writers (FAZ 3): each event lands in its own queue, independent of the
     // email consumers above, and becomes a row behind the candidate's bell icon.
@@ -409,6 +411,7 @@ builder.Services.AddMassTransit(bus =>
     bus.AddConsumer<InterviewScheduledNotificationConsumer>();
     bus.AddConsumer<InterviewRescheduledNotificationConsumer>();
     bus.AddConsumer<InterviewCancelledNotificationConsumer>();
+    bus.AddConsumer<InterviewReminderNotificationConsumer>();
     bus.AddConsumer<ApplicationViewedNotificationConsumer>();
     bus.AddConsumer<ApplicationCvDownloadedNotificationConsumer>();
     bus.AddConsumer<NewApplicationNotificationConsumer>();
@@ -557,6 +560,7 @@ builder.Services.AddScoped<IInvitationService, InvitationService>();
 
 // Resolved per execution inside the Hangfire job scope; scheduled below after the app is built.
 builder.Services.AddScoped<ExpiredInvitationCleanupJob>();
+builder.Services.AddScoped<InterviewReminderJob>();
 
 // File storage (MinIO). The client is thread-safe and meant to be reused, so it is a
 // singleton; MinioFileStorage is stateless and depends only on singletons, so it is too.
@@ -836,6 +840,15 @@ RecurringJob.AddOrUpdate<ExpiredInvitationCleanupJob>(
     "expired-invitation-cleanup",
     job => job.CleanupAsync(CancellationToken.None),
     hangfireOptions.ExpiredInvitationCleanupCron,
+    new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+
+// The interview reminder sweep. Runs far more often than the cleanup above because its lateness is
+// visible to a candidate: the cadence is the worst case by which a "starting soon" nudge can arrive
+// behind schedule, so it has to stay well inside the room's 10-minute lead.
+RecurringJob.AddOrUpdate<InterviewReminderJob>(
+    "interview-reminders",
+    job => job.SendDueRemindersAsync(CancellationToken.None),
+    hangfireOptions.InterviewReminderCron,
     new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 
 app.Run();
