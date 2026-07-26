@@ -21,6 +21,7 @@ export type TrackingLabel =
   | 'viewed'
   | 'rejected'
   | 'hired'
+  | 'withdrawn'
   | 'movedTo'
   | 'current'
   | 'upcoming';
@@ -45,9 +46,9 @@ export function buildTrackingSteps(detail: CandidateApplicationDetail): Tracking
     .map(toEventStep)
     .filter((_, index) => index !== currentEntryIndex);
 
-  // The forward-looking part only exists while the application is in play: a terminal
-  // application's story is fully told by its events (plus the status badge for Withdrawn,
-  // which never produces a timeline event).
+  // The forward-looking part only exists while the application is in play: a terminal application's
+  // story is fully told by its events. Showing the stages still ahead of a candidate who withdrew
+  // would read as a process they are still in.
   if (detail.status === 'Active') {
     const enteredAtUtc =
       currentEntryIndex >= 0 ? detail.timeline[currentEntryIndex].occurredAtUtc : detail.appliedAtUtc;
@@ -88,6 +89,10 @@ function toEventStep(entry: CandidateTimelineEntry, index: number): TrackingStep
       return { ...base, kind: 'rejected', label: 'rejected', tone: 'danger' };
     case 'Hired':
       return { ...base, kind: 'hired', label: 'hired', tone: 'success' };
+    // Neutral rather than danger: the candidate chose to stop, which is not a setback to report
+    // back to them in the same colour as a rejection.
+    case 'Withdrawn':
+      return { ...base, kind: 'withdrawn', label: 'withdrawn', tone: 'neutral' };
     case 'StageChanged':
       return { ...base, kind: 'movedTo', label: 'movedTo', tone: 'accent' };
   }

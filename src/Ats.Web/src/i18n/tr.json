@@ -146,7 +146,8 @@
       "moved": "{{from}} aşamasından {{to}} aşamasına taşındı",
       "corrected": "{{from}} aşamasından {{to}} aşamasına düzeltildi",
       "rejected": "Başvuru reddedildi",
-      "hired": "Aday işe alındı"
+      "hired": "Aday işe alındı",
+      "withdrawn": "Aday başvurusunu geri çekti"
     },
     "reject_modal": {
       "title": "Başvuruyu reddet",
@@ -650,9 +651,20 @@
       "moved": "Yeni bir aşamaya geçtin",
       "rejected": "Süreç olumsuz sonuçlandı",
       "hiredEvent": "Tebrikler — işe alındın!",
+      "withdrawnEvent": "Başvurunuzu geri çektiniz",
       "interviews": {
         "title": "Mülakatlar"
       }
+    },
+    "withdraw": {
+      "action": "Başvuruyu geri çek",
+      "dialogTitle": "Bu başvuruyu geri çekmek istiyor musunuz?",
+      "dialogDescription": "{{company}} şirketindeki \"{{job}}\" pozisyonuna başvurunuz kapatılacak.",
+      "dialogConsequence": "Bu işlem geri alınamaz. Planlanmış mülakatlarınız iptal edilir. Bu pozisyona daha sonra yeniden başvurabilirsiniz.",
+      "dialogConfirm": "Başvuruyu geri çek",
+      "success": "Başvurunuz geri çekildi.",
+      "alreadyClosed": "Bu başvuru zaten kapatılmıştı.",
+      "error": "Başvurunuz geri çekilemedi. Lütfen tekrar deneyin."
     }
   },
   "interviewRoom": {

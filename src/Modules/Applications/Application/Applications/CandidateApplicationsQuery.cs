@@ -257,6 +257,9 @@ public sealed class GetCandidateApplicationDetailHandler
                 case nameof(ApplicationActivityType.Hired):
                     timeline.Add(new(nameof(ApplicationActivityType.Hired), null, entry.OccurredAtUtc));
                     break;
+                case nameof(ApplicationActivityType.Withdrawn):
+                    timeline.Add(new(nameof(ApplicationActivityType.Withdrawn), null, entry.OccurredAtUtc));
+                    break;
             }
         }
 

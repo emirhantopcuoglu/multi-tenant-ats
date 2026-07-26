@@ -146,7 +146,8 @@
       "moved": "Moved from {{from}} to {{to}}",
       "corrected": "Stage corrected from {{from}} to {{to}}",
       "rejected": "Application rejected",
-      "hired": "Candidate hired"
+      "hired": "Candidate hired",
+      "withdrawn": "Candidate withdrew their application"
     },
     "reject_modal": {
       "title": "Reject application",
@@ -650,9 +651,20 @@
       "moved": "Moved to a new stage",
       "rejected": "The process ended unsuccessfully",
       "hiredEvent": "Congratulations — you were hired!",
+      "withdrawnEvent": "You withdrew your application",
       "interviews": {
         "title": "Interviews"
       }
+    },
+    "withdraw": {
+      "action": "Withdraw application",
+      "dialogTitle": "Withdraw this application?",
+      "dialogDescription": "Your application for \"{{job}}\" at {{company}} will be closed.",
+      "dialogConsequence": "This cannot be undone. Any interviews still scheduled will be cancelled. You can apply for this role again later.",
+      "dialogConfirm": "Withdraw application",
+      "success": "Your application has been withdrawn.",
+      "alreadyClosed": "This application was already closed.",
+      "error": "Your application couldn't be withdrawn. Please try again."
     }
   },
   "interviewRoom": {
