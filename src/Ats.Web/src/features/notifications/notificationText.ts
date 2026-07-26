@@ -85,6 +85,23 @@ export function renderNotification(
         }),
         applicationId: readString(item.payload, 'applicationId') || null,
       };
+    case 'InterviewReminder':
+      return {
+        // One notification type, two sentences: the payload's reminderKind decides which. An
+        // unrecognised kind falls back to the day-before wording, which is the safer half — it
+        // states the date instead of implying the interview is starting right now.
+        text: t(
+          readString(item.payload, 'reminderKind') === 'StartingSoon'
+            ? 'notifications.interviewReminderStartingSoon'
+            : 'notifications.interviewReminderDayBefore',
+          {
+            jobTitle: readString(item.payload, 'jobTitle'),
+            type: interviewTypeLabel(readString(item.payload, 'interviewType'), t),
+            date: formatDateTime(readString(item.payload, 'scheduledAtUtc'), locale),
+          },
+        ),
+        applicationId: readString(item.payload, 'applicationId') || null,
+      };
     default:
       // A type this bundle predates: still show something clickable rather than a broken row.
       return { text: t('notifications.generic'), applicationId: null };

@@ -828,6 +828,8 @@
     "interviewScheduled": "An interview for \"{{jobTitle}}\" was scheduled: {{type}}, {{date}}",
     "interviewRescheduled": "Your \"{{jobTitle}}\" interview moved: {{type}}, {{previousDate}} → {{date}}",
     "interviewCancelled": "Your \"{{jobTitle}}\" interview was cancelled: {{type}}, {{date}}",
+    "interviewReminderDayBefore": "Reminder: your \"{{jobTitle}}\" interview is tomorrow: {{type}}, {{date}}",
+    "interviewReminderStartingSoon": "Your \"{{jobTitle}}\" interview starts shortly: {{type}}, {{date}}",
     "generic": "You have a new notification"
   },
   "auth": {
