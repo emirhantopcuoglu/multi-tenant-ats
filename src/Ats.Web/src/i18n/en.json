@@ -11,9 +11,6 @@
     "errorTitle": "Something went wrong",
     "errorRetry": "Please try again later."
   },
-  "placeholder": {
-    "body": "This screen arrives in a later step."
-  },
   "nav": {
     "overview": "Overview",
     "jobs": "Jobs",
@@ -95,6 +92,29 @@
       "body": "Pick a job to see its pipeline board."
     },
     "moveError": "Couldn't move the application. Please try again."
+  },
+  "candidateSearch": {
+    "searchLabel": "Search candidates by name or email",
+    "searchPlaceholder": "Search by name or email…",
+    "rows_one": "{{count}} candidate",
+    "rows_other": "{{count}} candidates",
+    "linkedIn": "LinkedIn",
+    "loadError": "Couldn't search candidates.",
+    "retry": "Try again",
+    "col": {
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "links": "Links"
+    },
+    "prompt": {
+      "title": "Search your candidate pool",
+      "body": "Type a name or email address to search everyone who has applied to your jobs. Phone numbers and CV contents are not searchable."
+    },
+    "noResults": {
+      "title": "No candidates match \"{{term}}\"",
+      "body": "Only names and email addresses are searched. Check the spelling, or try a single word."
+    }
   },
   "applicationDetail": {
     "back": "Back to applications",

@@ -4,7 +4,7 @@ import { RequireCandidateAuth } from '@/app/auth/RequireCandidateAuth';
 import { RequireActiveCandidate } from '@/app/auth/RequireActiveCandidate';
 import { RequireRole } from '@/app/auth/RequireRole';
 import { AppShell } from '@/components/layout/AppShell';
-import { PagePlaceholder } from '@/components/layout/PagePlaceholder';
+import { CandidateSearchPage } from '@/features/candidate-search/CandidateSearchPage';
 import { JobsPage } from '@/features/jobs/JobsPage';
 import { JobFormPage } from '@/features/jobs/JobFormPage';
 import { ApplicationsPage } from '@/features/applications/ApplicationsPage';
@@ -103,7 +103,7 @@ export default function App() {
           <Route path="/applications/:id" element={<ApplicationDetailPage />} />
           <Route path="/interviews" element={<InterviewsPage />} />
           <Route path="/interviews/:id" element={<InterviewDetailPage />} />
-          <Route path="/candidates" element={<PagePlaceholder titleKey="nav.candidates" />} />
+          <Route path="/candidates" element={<CandidateSearchPage />} />
           <Route element={<RequireRole roles={['Admin']} />}>
             <Route path="/settings" element={<SettingsPage />} />
           </Route>

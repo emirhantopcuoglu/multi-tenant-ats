@@ -11,9 +11,6 @@
     "errorTitle": "Bir hata oluştu",
     "errorRetry": "Lütfen daha sonra tekrar deneyin."
   },
-  "placeholder": {
-    "body": "Bu ekran ilerleyen adımlarda gelecek."
-  },
   "nav": {
     "overview": "Genel bakış",
     "jobs": "İlanlar",
@@ -95,6 +92,29 @@
       "body": "Pipeline panosunu görmek için bir ilan seç."
     },
     "moveError": "Başvuru taşınamadı. Lütfen tekrar dene."
+  },
+  "candidateSearch": {
+    "searchLabel": "Adaylarda ada veya e-postaya göre ara",
+    "searchPlaceholder": "Ad veya e-posta ile ara…",
+    "rows_one": "{{count}} aday",
+    "rows_other": "{{count}} aday",
+    "linkedIn": "LinkedIn",
+    "loadError": "Adaylar aranamadı.",
+    "retry": "Tekrar dene",
+    "col": {
+      "name": "Ad",
+      "email": "E-posta",
+      "phone": "Telefon",
+      "links": "Bağlantılar"
+    },
+    "prompt": {
+      "title": "Aday havuzunuzda arama yapın",
+      "body": "İlanlarınıza başvuran herkesi aramak için bir ad veya e-posta adresi yazın. Telefon numaraları ve CV içerikleri aramaya dahil değildir."
+    },
+    "noResults": {
+      "title": "\"{{term}}\" ile eşleşen aday yok",
+      "body": "Yalnızca ad ve e-posta adresleri aranır. Yazımı kontrol edin veya tek kelime deneyin."
+    }
   },
   "applicationDetail": {
     "back": "Başvurulara dön",
