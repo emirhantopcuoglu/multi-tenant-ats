@@ -24,7 +24,16 @@ import type {
   LoginRequest,
   RegisterRequest,
 } from '@/types/auth';
+import i18n, { type Language } from '@/i18n';
 import { AuthContext, type AuthContextValue } from './auth-context';
+import { useLanguageSync } from './useLanguageSync';
+
+/* The language the interface is in right now, which is the language every email to this account
+   should be written in from here on. resolvedLanguage rather than i18n.language: the latter can
+   still hold a region-qualified value ("tr-TR") that the API does not accept. */
+function currentLanguage(): Language {
+  return i18n.resolvedLanguage as Language;
+}
 
 /* Manages authentication state for both company users and candidate accounts. At most one session
    type is active at a time — each login flow clears the other before setting itself. On cold start
@@ -46,6 +55,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const candidateUserQuery = useCandidateCurrentUser({ enabled: hasCandidateSession });
 
   const user = companyUserQuery.data ?? candidateUserQuery.data ?? null;
+
+  // Mounted here because this is the one place that knows which identity is signed in; the toggle
+  // itself lives in the header and has no business knowing there are two kinds of account.
+  useLanguageSync(user);
 
   const clearCompanySession = useCallback(() => {
     setHasCompanySession(false);
@@ -74,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (request: RegisterRequest) => {
+    async (request: Omit<RegisterRequest, 'preferredLanguage'>) => {
       if (hasCandidateSession) {
         // Revoke before forgetting, the same way candidateLogin revokes the company session it
         // replaces — an abandoned refresh token must not stay redeemable for a week.
@@ -85,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // No session is established, unlike login: registration mails a confirmation link and the caller
       // shows a "check your inbox" screen. Setting hasCompanySession here would put the app in a
       // signed-in state with no tokens, and every request would 401.
-      await registerRequest(request);
+      await registerRequest({ ...request, preferredLanguage: currentLanguage() });
     },
     [hasCandidateSession, clearCandidateSession],
   );
@@ -104,12 +117,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const candidateRegister = useCallback(
-    async (request: CandidateRegisterRequest) => {
+    async (request: Omit<CandidateRegisterRequest, 'preferredLanguage'>) => {
       if (hasCompanySession) {
         await logoutRequest().catch(() => undefined);
         clearCompanySession();
       }
-      await candidateRegisterRequest(request);
+      await candidateRegisterRequest({ ...request, preferredLanguage: currentLanguage() });
       setHasCandidateSession(true);
       await candidateUserQuery.refetch();
     },

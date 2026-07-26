@@ -7,13 +7,14 @@ import { useTranslation } from 'react-i18next';
 import { Button, Field, Input, useToast } from '@/components/ui';
 import { acceptInvitation } from '@/features/auth/authApi';
 import { toApiError } from '@/lib/problemDetails';
+import type { Language } from '@/i18n';
 import { AuthLayout } from '../components/AuthLayout';
 import { authErrorMessage } from '../authErrorMessage';
 
 const PASSWORD_MIN = 8;
 
 export function AcceptInvitationPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -40,7 +41,13 @@ export function AcceptInvitationPage() {
     if (!token) return;
     setFormError(null);
     try {
-      await acceptInvitation({ token, ...values });
+      // The invitation mail itself went out in the inviter's language; from here on this person
+      // is written to in the language they are reading this page in.
+      await acceptInvitation({
+        token,
+        ...values,
+        preferredLanguage: i18n.resolvedLanguage as Language,
+      });
       // The endpoint returns no tokens, so the user isn't signed in — confirm and send them to login.
       toast({ title: t('auth.invitationAccepted'), tone: 'success' });
       navigate('/login', { replace: true });
