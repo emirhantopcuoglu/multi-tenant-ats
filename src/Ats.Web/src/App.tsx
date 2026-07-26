@@ -24,6 +24,8 @@ import { PlaygroundPage } from '@/features/playground/PlaygroundPage';
 import { CandidateLoginPage } from '@/features/candidates/pages/CandidateLoginPage';
 import { CandidateRegisterPage } from '@/features/candidates/pages/CandidateRegisterPage';
 import { ConfirmEmailChangePage } from '@/features/candidates/pages/ConfirmEmailChangePage';
+import { CandidateForgotPasswordPage } from '@/features/candidates/pages/CandidateForgotPasswordPage';
+import { CandidateResetPasswordPage } from '@/features/candidates/pages/CandidateResetPasswordPage';
 import { CandidateApplicationsPage } from '@/features/candidates/pages/CandidateApplicationsPage';
 import { CandidateApplicationDetailPage } from '@/features/candidates/pages/CandidateApplicationDetailPage';
 import { CandidateInterviewsPage } from '@/features/candidates/pages/CandidateInterviewsPage';
@@ -53,6 +55,9 @@ export default function App() {
       <Route path="/candidate/register" element={<CandidateRegisterPage />} />
       {/* Public like /accept-invitation: the mailed link may be opened without a session. */}
       <Route path="/candidate/confirm-email" element={<ConfirmEmailChangePage />} />
+      {/* Recovery, necessarily anonymous — whoever needs these cannot sign in. */}
+      <Route path="/candidate/forgot-password" element={<CandidateForgotPasswordPage />} />
+      <Route path="/candidate/reset-password" element={<CandidateResetPasswordPage />} />
       <Route path="/playground" element={<PlaygroundPage />} />
       {/* Reachable by either a candidate or a company interviewer session — the page itself checks
           which, since neither RequireAuth nor RequireCandidateAuth alone would fit both. */}

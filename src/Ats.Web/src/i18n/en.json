@@ -578,7 +578,29 @@
     "publicSignIn": "Sign in",
     "publicRegister": "Create account",
     "myApplications": "My applications",
-    "myInterviews": "My interviews"
+    "myInterviews": "My interviews",
+    "forgotPassword": {
+      "link": "Forgot your password?",
+      "title": "Reset your password",
+      "subtitle": "Enter your email and we'll send you a link to choose a new password.",
+      "submit": "Send reset link",
+      "sentTitle": "Check your email",
+      "sentBody": "If an account exists for that address, we've sent a link to choose a new password. It expires in 1 hour.",
+      "backToSignIn": "Back to sign in",
+      "failed": "Couldn't send the reset link. Try again."
+    },
+    "resetPassword": {
+      "title": "Choose a new password",
+      "subtitle": "Pick a new password for your account. This signs out every other device.",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "submit": "Set new password",
+      "missingToken": "This link is missing its token. Request a new one.",
+      "invalidLink": "This reset link is invalid, expired or already used.",
+      "requestNew": "Request a new link",
+      "doneTitle": "Password updated",
+      "doneBody": "Sign in with your new password. All other sessions have been signed out."
+    }
   },
   "candidatePortal": {
     "applicationsTitle": "My applications",
