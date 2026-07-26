@@ -93,6 +93,12 @@ public sealed class AuthService : IAuthService
         if (user is null || !await _userManager.CheckPasswordAsync(user, password))
             return Result.Failure<AuthResult>(AuthErrors.InvalidCredentials);
 
+        // A deactivated user answers exactly like a wrong password. They are not owed an explanation
+        // of their own employment status by a login form, and a distinct message would let anyone with
+        // a leaked password list learn which accounts still exist.
+        if (!user.IsActive)
+            return Result.Failure<AuthResult>(AuthErrors.InvalidCredentials);
+
         var tokens = await IssueTokensAsync(user);
         return Result.Success(tokens);
     }
@@ -108,6 +114,13 @@ public sealed class AuthService : IAuthService
         var user = await _userManager.FindByIdAsync(stored.UserId.ToString());
         if (user is null)
             return Result.Failure<AuthResult>(AuthErrors.UserNotFound);
+
+        // Deactivation revokes outstanding refresh tokens, so this branch should already be
+        // unreachable for a deactivated user. It stays as the durable guard: that revocation is a
+        // one-time sweep, while this runs on every redemption, so any token that escapes it — a race
+        // with a concurrent login, a row written by an older build — still stops here.
+        if (!user.IsActive)
+            return Result.Failure<AuthResult>(AuthErrors.InvalidRefreshToken);
 
         stored.Revoke();
         await _db.SaveChangesAsync();
@@ -249,10 +262,13 @@ public sealed class AuthService : IAuthService
             from userRole in userRoles.DefaultIfEmpty()
             join role in _db.Roles on userRole.RoleId equals role.Id into roles
             from role in roles.DefaultIfEmpty()
-            orderby user.FirstName, user.LastName
+            // Active first, then by name: a deactivated colleague stays visible (so an Admin can
+            // reactivate them) without cluttering the top of the interviewer picker.
+            orderby user.DeactivatedAtUtc == null descending, user.FirstName, user.LastName
             select new TenantUserDto(
                 user.Id, user.FirstName, user.LastName, user.Email!,
-                role != null ? role.Name! : string.Empty))
+                role != null ? role.Name! : string.Empty,
+                user.DeactivatedAtUtc == null))
             .ToListAsync();
 
         return users;

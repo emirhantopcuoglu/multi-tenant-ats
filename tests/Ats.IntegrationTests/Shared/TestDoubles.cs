@@ -15,6 +15,19 @@ internal sealed class NullCurrentUser : ICurrentUser
     public string? Email => null;
 }
 
+// Pins the acting identity for services that read "who is calling" from the request scope.
+internal sealed class FixedCurrentUser : ICurrentUser
+{
+    public FixedCurrentUser(Guid? userId, string? email = null)
+    {
+        UserId = userId;
+        Email = email;
+    }
+
+    public Guid? UserId { get; }
+    public string? Email { get; }
+}
+
 // For suites that construct a service which happens to depend on IEmailSender but never exercises a
 // path that mails. Tests that assert on mail use RecordingEmailSender instead.
 internal sealed class NoOpEmailSender : IEmailSender

@@ -226,7 +226,21 @@
       "email": "Email",
       "role": "Role",
       "empty": "No team members yet.",
-      "loadError": "Couldn't load team members."
+      "loadError": "Couldn't load team members.",
+      "status": "Status",
+      "active": "Active",
+      "inactive": "Deactivated",
+      "you": "(you)",
+      "rowActions": "Member actions",
+      "makeRole": "Change role to {{role}}",
+      "deactivate": "Deactivate access",
+      "reactivate": "Restore access",
+      "roleChanged": "Role updated.",
+      "deactivated": "Access revoked. They can no longer sign in.",
+      "reactivated": "Access restored.",
+      "actionError": "Couldn't apply that change. Try again.",
+      "lastAdminError": "This is the only active administrator. Promote another one first.",
+      "selfError": "You can't change your own role or deactivate yourself."
     },
     "invite": {
       "title": "Invite user",

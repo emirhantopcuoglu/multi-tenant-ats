@@ -226,7 +226,21 @@
       "email": "E-posta",
       "role": "Rol",
       "empty": "Henüz ekip üyesi yok.",
-      "loadError": "Ekip üyeleri yüklenemedi."
+      "loadError": "Ekip üyeleri yüklenemedi.",
+      "status": "Durum",
+      "active": "Aktif",
+      "inactive": "Devre dışı",
+      "you": "(siz)",
+      "rowActions": "Üye işlemleri",
+      "makeRole": "Rolü {{role}} yap",
+      "deactivate": "Erişimi kapat",
+      "reactivate": "Erişimi geri aç",
+      "roleChanged": "Rol güncellendi.",
+      "deactivated": "Erişim kapatıldı. Artık giriş yapamaz.",
+      "reactivated": "Erişim geri açıldı.",
+      "actionError": "Bu değişiklik uygulanamadı. Tekrar deneyin.",
+      "lastAdminError": "Tek aktif yönetici bu. Önce başka bir yönetici atayın.",
+      "selfError": "Kendi rolünüzü değiştiremez veya kendinizi devre dışı bırakamazsınız."
     },
     "invite": {
       "title": "Kullanıcı davet et",
