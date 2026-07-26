@@ -182,6 +182,57 @@ public sealed class CandidateApplicationDetailTests
     }
 
     [Fact]
+    public async Task withdrawn_activity_should_surface_in_the_candidate_timeline()
+    {
+        // Arrange — the candidate's own exit: submitted, then withdrawn. An unmapped activity type is
+        // dropped silently by BuildCandidateTimeline's switch, so without this the candidate would see
+        // their own withdrawal nowhere but the status badge.
+        var accountId = Guid.NewGuid();
+        var jobId = Guid.NewGuid();
+        var tenant = new FixedTenant(Guid.NewGuid());
+
+        Application application;
+        await using (var db = NewDb(tenant))
+        {
+            var pipeline = Pipeline.CreateDefault(jobId);
+            db.Pipelines.Add(pipeline);
+            var candidate = Candidate.Create("gone@acme.test", "Moved", "On");
+            db.Candidates.Add(candidate);
+            application = Application.Create(
+                jobId, candidate.Id, accountId, pipeline.InitialStage.Id, "cv/gone.pdf");
+            application.Withdraw();
+            db.Applications.Add(application);
+            await db.SaveChangesAsync();
+        }
+
+        var baseTime = DateTime.UtcNow.AddDays(-1);
+        var activityLog = new InMemoryActivityLog(
+        [
+            Entry(application.Id, "Submitted", actor: null, "{}", baseTime),
+            Entry(application.Id, "Withdrawn", actor: null, "{}", baseTime.AddHours(6)),
+        ]);
+
+        // Act
+        await using var readDb = NewDb(tenant);
+        var handler = new GetCandidateApplicationDetailHandler(
+            readDb,
+            new FakeJobDirectory(new JobSummary(jobId, "Staff Engineer", "staff-engineer", tenant.TenantId!.Value)),
+            new FakeTenantDirectory(new TenantSummary(tenant.TenantId!.Value, "Acme", "acme")),
+            activityLog,
+            new FakeInterviewDirectory([]));
+        var result = await handler.Handle(
+            new GetCandidateApplicationDetailQuery(accountId, application.Id), CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            new[] { "Submitted", "Withdrawn" },
+            result.Value.Timeline.Select(e => e.Type).ToArray());
+        Assert.Equal(baseTime.AddHours(6), result.Value.Timeline[1].OccurredAtUtc);
+        Assert.Equal(nameof(ApplicationStatus.Withdrawn), result.Value.Status);
+    }
+
+    [Fact]
     public async Task should_return_not_found_for_another_candidates_application()
     {
         // Arrange — an application owned by someone else; probing its id must look identical

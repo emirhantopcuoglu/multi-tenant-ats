@@ -35,6 +35,13 @@ public static class ApplicationErrors
         new("application.terminal_stage_requires_decision",
             "Hired and Rejected are outcomes, not stages to move into. Use the hire or reject action instead.");
 
+    // Withdrawal gets its own code rather than reusing InvalidOperation: this is the one lifecycle
+    // failure a candidate can trigger themselves, so the message is written for them and the code is
+    // stable enough for the portal to key a translated string on.
+    public static readonly Error NotWithdrawable =
+        new("application.not_withdrawable",
+            "This application is already closed and cannot be withdrawn.");
+
     public static Error InvalidOperation(string message) =>
         new("application.invalid_operation", message);
 }

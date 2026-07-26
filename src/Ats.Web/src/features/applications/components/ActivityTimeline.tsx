@@ -26,6 +26,8 @@ const displayByType: Record<ApplicationActivityType, { icon: IconTimelineIcon; t
   StageCorrected: { icon: 'movedTo', tone: 'warning' },
   Rejected: { icon: 'rejected', tone: 'danger' },
   Hired: { icon: 'hired', tone: 'success' },
+  // Neutral, not danger: nobody at the company did anything wrong, the candidate simply left.
+  Withdrawn: { icon: 'withdrawn', tone: 'neutral' },
 };
 
 /* An activity type the frontend doesn't know yet must never masquerade as a known event (a
@@ -77,6 +79,8 @@ export function ActivityTimeline({ activities, stages }: ActivityTimelineProps) 
         return t('applicationDetail.activity.rejected');
       case 'Hired':
         return t('applicationDetail.activity.hired');
+      case 'Withdrawn':
+        return t('applicationDetail.activity.withdrawn');
       default:
         return activity.activityType;
     }

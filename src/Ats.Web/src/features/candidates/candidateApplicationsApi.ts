@@ -23,7 +23,13 @@ export interface CandidatePipelineStage {
   order: number;
 }
 
-export type CandidateTimelineEntryType = 'Submitted' | 'Viewed' | 'StageChanged' | 'Rejected' | 'Hired';
+export type CandidateTimelineEntryType =
+  | 'Submitted'
+  | 'Viewed'
+  | 'StageChanged'
+  | 'Rejected'
+  | 'Hired'
+  | 'Withdrawn';
 
 export interface CandidateTimelineEntry {
   type: CandidateTimelineEntryType;
@@ -59,6 +65,13 @@ export async function getCandidateApplication(id: string): Promise<CandidateAppl
     `/api/v1/candidate/applications/${encodeURIComponent(id)}`,
   );
   return data;
+}
+
+/* The candidate closes their own application. POST, not DELETE: nothing is removed — the application
+   reaches a terminal status and stays in their history. 409 means it was already closed (a stale tab);
+   the caller surfaces that rather than treating it as a hard failure. */
+export async function withdrawCandidateApplication(id: string): Promise<void> {
+  await apiClient.post(`/api/v1/candidate/applications/${encodeURIComponent(id)}/withdraw`);
 }
 
 /* Job ids the candidate has an Active application for. Rejected/withdrawn applications are

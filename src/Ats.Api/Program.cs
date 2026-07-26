@@ -418,10 +418,12 @@ builder.Services.AddMassTransit(bus =>
     bus.AddConsumer<CvParsingConsumer>();
 
     // Pipeline/interview consistency: advances an application into its pipeline's Interview stage
-    // when a recruiter schedules an interview against it, and calls off upcoming interviews when
-    // the application behind them is rejected. Own queues, independent of the notifications above.
+    // when a recruiter schedules an interview against it, and calls off upcoming interviews when the
+    // application behind them closes — whether the company rejected it or the candidate withdrew.
+    // Own queues, independent of the notifications above; the closed-application consumer handles
+    // two message types and so gets one queue per type.
     bus.AddConsumer<AdvanceToInterviewStageConsumer>();
-    bus.AddConsumer<CancelInterviewsOnRejectionConsumer>();
+    bus.AddConsumer<CancelInterviewsOnApplicationClosedConsumer>();
 
     bus.UsingRabbitMq((context, configurator) =>
     {

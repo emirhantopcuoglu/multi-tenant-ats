@@ -54,6 +54,8 @@ function stepLabel(
       return t('candidatePortal.tracking.rejected');
     case 'hired':
       return t('candidatePortal.tracking.hiredEvent');
+    case 'withdrawn':
+      return t('candidatePortal.tracking.withdrawnEvent');
     case 'movedTo':
       if (isHiredStage(step.stageName, detail.pipelineStages)) {
         return t('candidatePortal.tracking.hiredEvent');
