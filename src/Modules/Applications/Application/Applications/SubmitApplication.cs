@@ -116,6 +116,13 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
         if (account is null)
             return Result.Failure<Guid>(ApplicationErrors.CandidateAccountNotFound);
 
+        //    Applying is the one action that waits for a proven email address. Everything a candidate
+        //    does before this point only affects their own account; from here on a recruiter reads the
+        //    address, writes to it, and schedules time around it. Checked before the CV is uploaded so
+        //    a refused application leaves nothing behind in object storage.
+        if (!account.IsEmailVerified)
+            return Result.Failure<Guid>(ApplicationErrors.EmailNotVerified);
+
         // 2. Confirm the job exists and is Published — a cross-module read through the
         //    IJobDirectory port. Applications never sees the Jobs schema or entity.
         var job = await _jobs.GetPublishedJobBySlugAsync(command.JobSlug, ct);

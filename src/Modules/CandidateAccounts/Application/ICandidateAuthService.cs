@@ -12,8 +12,12 @@ public sealed record CandidateAuthResult(string AccessToken, string RefreshToken
 // Status is how the SPA learns it should show a frozen account the reactivation screen instead of
 // the candidate area; a deleted account can never reach this endpoint (query filter + dead stamp),
 // so the value is only ever Active or Frozen in practice.
+// IsEmailVerified rides along so the portal can show the "verify your address" banner and hide the
+// apply button from the same payload it already fetches on load — without it the SPA would have to
+// discover the rule by being refused a submission it should never have offered.
 public sealed record CurrentCandidateDto(
-    Guid Id, string Email, string FirstName, string LastName, CandidateAccountStatus Status);
+    Guid Id, string Email, string FirstName, string LastName, CandidateAccountStatus Status,
+    bool IsEmailVerified);
 
 // The candidate side of authentication. A separate service from the company IAuthService on purpose:
 // candidates are a different identity (global, no tenant, no roles), so sharing one service would mean

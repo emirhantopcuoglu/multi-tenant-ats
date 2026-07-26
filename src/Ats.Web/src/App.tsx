@@ -28,6 +28,7 @@ import { CandidateRegisterPage } from '@/features/candidates/pages/CandidateRegi
 import { ConfirmEmailChangePage } from '@/features/candidates/pages/ConfirmEmailChangePage';
 import { CandidateForgotPasswordPage } from '@/features/candidates/pages/CandidateForgotPasswordPage';
 import { CandidateResetPasswordPage } from '@/features/candidates/pages/CandidateResetPasswordPage';
+import { CandidateVerifyEmailPage } from '@/features/candidates/pages/CandidateVerifyEmailPage';
 import { CandidateApplicationsPage } from '@/features/candidates/pages/CandidateApplicationsPage';
 import { CandidateApplicationDetailPage } from '@/features/candidates/pages/CandidateApplicationDetailPage';
 import { CandidateInterviewsPage } from '@/features/candidates/pages/CandidateInterviewsPage';
@@ -62,6 +63,9 @@ export default function App() {
       {/* Public like /accept-invitation: the mailed link may be opened without a session. */}
       <Route path="/candidate/confirm-email" element={<ConfirmEmailChangePage />} />
       {/* Recovery, necessarily anonymous — whoever needs these cannot sign in. */}
+      {/* Anonymous like the reset-password route below: opened from an email client, which carries no
+          session. The token in the query string is the credential. */}
+      <Route path="/candidate/verify-email" element={<CandidateVerifyEmailPage />} />
       <Route path="/candidate/forgot-password" element={<CandidateForgotPasswordPage />} />
       <Route path="/candidate/reset-password" element={<CandidateResetPasswordPage />} />
       <Route path="/playground" element={<PlaygroundPage />} />

@@ -21,6 +21,13 @@ public static class ApplicationErrors
     public static readonly Error CandidateAccountNotFound =
         new("application.candidate_account_not_found", "The candidate account could not be found.");
 
+    // The one gate on an unverified account. Applying is where an unreachable address stops being the
+    // candidate's own problem and starts costing a recruiter real time, so this is the action that
+    // waits for proof — not signing in, and not filling in a profile.
+    public static readonly Error EmailNotVerified =
+        new("application.email_not_verified",
+            "Verify your email address before applying. Check your inbox for the confirmation link.");
+
     public static readonly Error CvNotParsed =
         new("application.cv_not_parsed", "The CV has not been parsed yet.");
 

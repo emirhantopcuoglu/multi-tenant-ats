@@ -18,6 +18,7 @@ public sealed class CandidateAccountsDbContext : DbContext
     public DbSet<EmailChangeRequest> EmailChangeRequests => Set<EmailChangeRequest>();
     public DbSet<CandidateRefreshToken> CandidateRefreshTokens => Set<CandidateRefreshToken>();
     public DbSet<PasswordResetRequest> PasswordResetRequests => Set<PasswordResetRequest>();
+    public DbSet<EmailVerificationRequest> EmailVerificationRequests => Set<EmailVerificationRequest>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -87,6 +88,23 @@ public sealed class CandidateAccountsDbContext : DbContext
             entity.HasOne<CandidateAccount>()
                 .WithMany()
                 .HasForeignKey(t => t.CandidateAccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<EmailVerificationRequest>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            // 44 = the exact length of a base64-encoded SHA-256 digest, same as the rows above.
+            entity.Property(r => r.TokenHash).IsRequired().HasMaxLength(44);
+            // Confirmation looks the row up by the hash of the presented token, so this is the hot
+            // path. Unique for the same reason as EmailChangeRequest's: two requests sharing a token
+            // would make "which one did the click prove?" ambiguous.
+            entity.HasIndex(r => r.TokenHash).IsUnique();
+            // Superseding older pending requests scans by account, so the foreign key is indexed.
+            entity.HasIndex(r => r.CandidateAccountId);
+            entity.HasOne<CandidateAccount>()
+                .WithMany()
+                .HasForeignKey(r => r.CandidateAccountId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

@@ -685,6 +685,20 @@
       "success": "Başvurunuz geri çekildi.",
       "alreadyClosed": "Bu başvuru zaten kapatılmıştı.",
       "error": "Başvurunuz geri çekilemedi. Lütfen tekrar deneyin."
+    },
+    "verifyEmail": {
+      "bannerTitle": "E-posta adresinizi doğrulayın",
+      "bannerBody": "{{email}} adresine bir onay bağlantısı gönderdik. Bir ilana başvurabilmek için önce onaylamanız gerekiyor.",
+      "resend": "Bağlantıyı yeniden gönder",
+      "resent": "Onay bağlantısı {{email}} adresine gönderildi.",
+      "resendError": "Bağlantı gönderilemedi. Lütfen tekrar deneyin.",
+      "blockedTitle": "Önce e-posta adresinizi onaylayın",
+      "blockedBody": "Başvurunuz e-posta adresinizle birlikte şirkete gidiyor, bu yüzden adresin size ulaştığını bilmemiz gerekiyor. {{email}} adresine gönderdiğimiz bağlantıyı açın — başvurularım sayfasından yeniden gönderebilirsiniz.",
+      "goToApplications": "Başvurularıma git",
+      "successTitle": "E-posta adresi onaylandı",
+      "successBody": "Teşekkürler — artık ilanlara başvurabilirsiniz.",
+      "failedTitle": "Bu bağlantı artık geçerli değil",
+      "failedBody": "Doğrulama bağlantıları 24 saat sonra geçersiz olur ve yalnızca bir kez kullanılabilir. Giriş yapıp başvurularım sayfasından yenisini gönderin."
     }
   },
   "interviewRoom": {

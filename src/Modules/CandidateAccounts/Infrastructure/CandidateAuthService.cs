@@ -13,15 +13,18 @@ public sealed class CandidateAuthService : ICandidateAuthService
     private readonly CandidateAccountsDbContext _db;
     private readonly ICandidatePasswordHasher _passwordHasher;
     private readonly ICandidateSessionIssuer _sessions;
+    private readonly ICandidateEmailVerificationService _emailVerification;
 
     public CandidateAuthService(
         CandidateAccountsDbContext db,
         ICandidatePasswordHasher passwordHasher,
-        ICandidateSessionIssuer sessions)
+        ICandidateSessionIssuer sessions,
+        ICandidateEmailVerificationService emailVerification)
     {
         _db = db;
         _passwordHasher = passwordHasher;
         _sessions = sessions;
+        _emailVerification = emailVerification;
     }
 
     public async Task<Result<CandidateAuthResult>> RegisterAsync(
@@ -53,6 +56,17 @@ public sealed class CandidateAuthService : ICandidateAuthService
             // index rejects the loser. Translate it to the same friendly error.
             return Result.Failure<CandidateAuthResult>(CandidateAuthErrors.EmailAlreadyRegistered);
         }
+
+        // Mail the verification link, but still hand back a session. Registration deliberately does
+        // not gate on this: the candidate can sign in, complete their profile and upload a CV
+        // unverified — only applying is blocked (SubmitApplicationHandler). Blocking the session
+        // instead would leave anyone who mistyped their address permanently locked out, with the
+        // email already taken so they cannot re-register.
+        //
+        // The result is ignored on purpose. The account exists; a mail failure is already logged
+        // inside the service, and turning it into a failed registration would be a lie about what
+        // happened. The candidate can resend from the banner.
+        await _emailVerification.SendAsync(account.Id);
 
         return Result.Success(await _sessions.IssueAsync(account));
     }
@@ -127,6 +141,7 @@ public sealed class CandidateAuthService : ICandidateAuthService
             return Result.Failure<CurrentCandidateDto>(CandidateAuthErrors.NotFound);
 
         return Result.Success(new CurrentCandidateDto(
-            account.Id, account.Email, account.FirstName, account.LastName, account.Status));
+            account.Id, account.Email, account.FirstName, account.LastName, account.Status,
+            account.IsEmailVerified));
     }
 }

@@ -168,6 +168,31 @@ export function PublicApplyPage() {
     );
   }
 
+  // An unverified address cannot apply — the server refuses it with 403 application.email_not_verified,
+  // and offering a form that is guaranteed to fail would waste a CV upload and read as a bug. Placed
+  // before the already-applied branch only because it is the more fundamental blocker; the two cannot
+  // both be true in practice, since applying at all required a verified address.
+  if (user.kind === 'candidate' && !user.isEmailVerified) {
+    return (
+      <PublicLayout>
+        <Card className="py-12">
+          <EmptyState
+            title={t('candidatePortal.verifyEmail.blockedTitle')}
+            description={t('candidatePortal.verifyEmail.blockedBody', { email: user.email })}
+            action={
+              <Link
+                to="/candidate/applications"
+                className="text-sm font-medium text-accent hover:underline"
+              >
+                {t('candidatePortal.verifyEmail.goToApplications')}
+              </Link>
+            }
+          />
+        </Card>
+      </PublicLayout>
+    );
+  }
+
   // Already applied (and not via this visit — `submitted` above wins right after a submit, since
   // the cache invalidation would flip this branch on too): show the state instead of the form.
   if (appliedJobIds.data?.has(job.id)) {
