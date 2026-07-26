@@ -52,13 +52,21 @@
   "interview.cancelled.subject": "Your interview has been cancelled",
   "interview.cancelled.body": "<p>Hi {0},</p>\n<p>Your <strong>{1}</strong> interview for <strong>{2}</strong>, scheduled for {3}, has been cancelled.</p>\n<p>{4}</p>",
 
+  "interview.reminder.dayBefore.subject": "Reminder: your interview is tomorrow",
+  "interview.reminder.dayBefore.body": "<p>Hi {0},</p>\n<p>A quick reminder about your <strong>{1}</strong> interview for <strong>{2}</strong>.</p>\n<p>When: <strong>{3}</strong><br/>\nDuration: {4} minutes</p>\n{5}\n<p>If you can no longer make this time, please let us know as soon as you can.</p>",
+
+  "interview.reminder.startingSoon.subject": "Your interview starts shortly",
+  "interview.reminder.startingSoon.body": "<p>Hi {0},</p>\n<p>Your <strong>{1}</strong> interview for <strong>{2}</strong> is about to start.</p>\n<p>When: <strong>{3}</strong><br/>\nDuration: {4} minutes</p>\n{5}",
+
   "interview.dateFormat": "dddd, MMMM d, yyyy 'at' h:mm tt 'UTC'",
 
   "interview.joinLine": "<p>Join the interview room here when it opens: <a href=\"{0}\">{0}</a></p>",
   "interview.joinLineUnchanged": "<p>Your interview room link is unchanged: <a href=\"{0}\">{0}</a></p>",
+  "interview.joinLineNow": "<p>The interview room is open — join here: <a href=\"{0}\">{0}</a></p>",
 
   "interview.phoneLine.scheduled": "<p>This is a phone interview — the interviewer will call you at the scheduled time.</p>",
   "interview.phoneLine.rescheduled": "<p>This is a phone interview — the interviewer will call you at the new time.</p>",
+  "interview.phoneLine.startingSoon": "<p>This is a phone interview — please keep your phone to hand, the interviewer will call you shortly.</p>",
 
   "interview.type.PhoneScreen": "Phone Screen",
   "interview.type.Technical": "Technical",

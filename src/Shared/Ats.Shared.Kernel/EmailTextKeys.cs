@@ -103,6 +103,19 @@ public static class EmailTextKeys
         // {0} first name, {1} interview type, {2} job title, {3} when, {4} closing sentence.
         public const string CancelledBody = "interview.cancelled.body";
 
+        // The two reminders a still-upcoming interview produces. Separate wording rather than one
+        // reused template: a day out the useful message is "prepare, or tell us if you cannot make
+        // it", and at the door it is "join now" — the same sentence cannot serve both.
+        public const string ReminderDayBeforeSubject = "interview.reminder.dayBefore.subject";
+
+        // {0} first name, {1} interview type, {2} job title, {3} when, {4} duration, {5} join line.
+        public const string ReminderDayBeforeBody = "interview.reminder.dayBefore.body";
+
+        public const string ReminderStartingSoonSubject = "interview.reminder.startingSoon.subject";
+
+        // Same arguments as the day-before body, so the two stay interchangeable at the call site.
+        public const string ReminderStartingSoonBody = "interview.reminder.startingSoon.body";
+
         // A .NET custom date/time pattern, not a sentence: it belongs with the wording because the
         // field order and the 12/24-hour clock are language decisions, not code decisions.
         public const string DateFormat = "interview.dateFormat";
@@ -111,8 +124,14 @@ public static class EmailTextKeys
         public const string JoinLine = "interview.joinLine";
         public const string JoinLineUnchanged = "interview.joinLineUnchanged";
 
+        // The room is open at the moment this one is sent — the starting-soon reminder is scheduled
+        // for exactly Interview.RoomOpensAtUtc — so it invites the candidate in rather than telling
+        // them to wait.
+        public const string JoinLineNow = "interview.joinLineNow";
+
         public const string PhoneLineScheduled = "interview.phoneLine.scheduled";
         public const string PhoneLineRescheduled = "interview.phoneLine.rescheduled";
+        public const string PhoneLineStartingSoon = "interview.phoneLine.startingSoon";
 
         // Completed with an InterviewType name, e.g. "interview.type.PhoneScreen". Composed rather
         // than constant because the enum is the source of truth for which values exist.

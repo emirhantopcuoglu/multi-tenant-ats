@@ -52,13 +52,21 @@
   "interview.cancelled.subject": "Mülakatınız iptal edildi",
   "interview.cancelled.body": "<p>Merhaba {0},</p>\n<p><strong>{2}</strong> ilanı için {3} tarihine planlanan <strong>{1}</strong> mülakatınız iptal edildi.</p>\n<p>{4}</p>",
 
+  "interview.reminder.dayBefore.subject": "Hatırlatma: mülakatınız yarın",
+  "interview.reminder.dayBefore.body": "<p>Merhaba {0},</p>\n<p><strong>{2}</strong> ilanı için <strong>{1}</strong> mülakatınızı hatırlatmak isteriz.</p>\n<p>Tarih: <strong>{3}</strong><br/>\nSüre: {4} dakika</p>\n{5}\n<p>Bu saate artık uyamıyorsanız lütfen en kısa sürede bize bildirin.</p>",
+
+  "interview.reminder.startingSoon.subject": "Mülakatınız birazdan başlıyor",
+  "interview.reminder.startingSoon.body": "<p>Merhaba {0},</p>\n<p><strong>{2}</strong> ilanı için <strong>{1}</strong> mülakatınız birazdan başlıyor.</p>\n<p>Tarih: <strong>{3}</strong><br/>\nSüre: {4} dakika</p>\n{5}",
+
   "interview.dateFormat": "d MMMM yyyy dddd, HH:mm 'UTC'",
 
   "interview.joinLine": "<p>Mülakat odası açıldığında buradan katılabilirsiniz: <a href=\"{0}\">{0}</a></p>",
   "interview.joinLineUnchanged": "<p>Mülakat odası bağlantınız değişmedi: <a href=\"{0}\">{0}</a></p>",
+  "interview.joinLineNow": "<p>Mülakat odası açıldı — buradan katılabilirsiniz: <a href=\"{0}\">{0}</a></p>",
 
   "interview.phoneLine.scheduled": "<p>Bu bir telefon mülakatı — görüşmeci planlanan saatte sizi arayacak.</p>",
   "interview.phoneLine.rescheduled": "<p>Bu bir telefon mülakatı — görüşmeci yeni saatte sizi arayacak.</p>",
+  "interview.phoneLine.startingSoon": "<p>Bu bir telefon mülakatı — telefonunuzu yanınızda bulundurun, görüşmeci birazdan sizi arayacak.</p>",
 
   "interview.type.PhoneScreen": "Telefon Görüşmesi",
   "interview.type.Technical": "Teknik",

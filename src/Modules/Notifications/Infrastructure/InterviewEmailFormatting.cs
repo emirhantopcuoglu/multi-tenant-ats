@@ -50,15 +50,16 @@ public static partial class InterviewEmailFormatting
     // The token is URL-safe base64 by construction (see Interview.GenerateRoomToken) so it cannot
     // contain HTML-unsafe characters, but it is encoded anyway — the same rule applied to every
     // other field rather than an exception someone has to remember.
+    //
+    // The wording key is a parameter rather than something chosen here: four emails now link to the
+    // same room and each needs a different sentence around it ("when it opens", "the link is
+    // unchanged", "join now"). Building the URL is the shared part; picking the sentence belongs to
+    // the caller that knows why it is writing.
     public static string JoinLine(
-        string baseUrl, string roomToken, bool unchanged, IEmailTextProvider emailText, string language)
+        string baseUrl, string roomToken, string textKey, IEmailTextProvider emailText, string language)
     {
         var url = $"{baseUrl}/{WebUtility.HtmlEncode(roomToken)}";
-        var key = unchanged
-            ? EmailTextKeys.Interview.JoinLineUnchanged
-            : EmailTextKeys.Interview.JoinLine;
-
-        return emailText.Get(key, language, url);
+        return emailText.Get(textKey, language, url);
     }
 
     [GeneratedRegex("(?<=[a-z])(?=[A-Z])")]

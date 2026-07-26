@@ -80,7 +80,8 @@ public sealed class InterviewScheduledEmailConsumer
         // instead. Every other type gets a join link.
         var joinLine = message.RoomToken is { } roomToken
             ? InterviewEmailFormatting.JoinLine(
-                _roomOptions.BaseUrl, roomToken, unchanged: false, _emailText, language)
+                _roomOptions.BaseUrl, roomToken, EmailTextKeys.Interview.JoinLine,
+                _emailText, language)
             : _emailText.Get(EmailTextKeys.Interview.PhoneLineScheduled, language);
 
         var body = _emailText.Get(
