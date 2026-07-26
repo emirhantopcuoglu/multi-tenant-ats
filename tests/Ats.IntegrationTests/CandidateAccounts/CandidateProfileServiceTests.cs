@@ -13,20 +13,6 @@ using Microsoft.Extensions.Options;
 
 namespace Ats.IntegrationTests.CandidateAccounts;
 
-// In-memory IEmailSender: unit/integration tests must never talk to a real SMTP server, and the
-// profile service only needs "was a mail handed to the port" to be observable.
-internal sealed class RecordingEmailSender : IEmailSender
-{
-    public List<(string ToEmail, string Subject, string Body)> Sent { get; } = [];
-
-    public Task SendAsync(
-        string toEmail, string subject, string htmlBody, CancellationToken cancellationToken = default)
-    {
-        Sent.Add((toEmail, subject, htmlBody));
-        return Task.CompletedTask;
-    }
-}
-
 // Same hygiene as CandidateAuthServiceTests: CandidateAccount is a global (tenant-less) table, so the
 // rows are wiped before each test to keep the runs deterministic.
 [Collection("Integration")]

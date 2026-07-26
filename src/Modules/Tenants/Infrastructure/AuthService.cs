@@ -5,6 +5,7 @@ using Ats.Modules.Tenants.Domain;
 using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Ats.Modules.Tenants.Infrastructure;
@@ -15,20 +16,29 @@ public sealed class AuthService : IAuthService
     private readonly TenantsDbContext _db;
     private readonly ITokenService _tokenService;
     private readonly JwtOptions _jwtOptions;
+    private readonly PasswordResetOptions _passwordResetOptions;
     private readonly ICurrentTenant _currentTenant;
+    private readonly IEmailSender _emailSender;
+    private readonly ILogger<AuthService> _logger;
 
     public AuthService(
         UserManager<ApplicationUser> userManager,
         TenantsDbContext db,
         ITokenService tokenService,
         IOptions<JwtOptions> jwtOptions,
-        ICurrentTenant currentTenant)
+        IOptions<PasswordResetOptions> passwordResetOptions,
+        ICurrentTenant currentTenant,
+        IEmailSender emailSender,
+        ILogger<AuthService> logger)
     {
         _userManager = userManager;
         _db = db;
         _tokenService = tokenService;
         _jwtOptions = jwtOptions.Value;
+        _passwordResetOptions = passwordResetOptions.Value;
         _currentTenant = currentTenant;
+        _emailSender = emailSender;
+        _logger = logger;
     }
 
     public async Task<Result<AuthResult>> RegisterAsync(
@@ -120,6 +130,79 @@ public sealed class AuthService : IAuthService
         return Result.Success();
     }
 
+    public async Task<Result> RequestPasswordResetAsync(string email, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByEmailAsync(email ?? string.Empty);
+
+        if (user is null)
+        {
+            // Success, not a 404. This endpoint is callable by anyone, so a distinguishable answer
+            // would turn it into a directory of who works here. Logged so the miss stays visible to an
+            // operator without the caller learning anything.
+            _logger.LogInformation("Password reset requested for an unregistered email");
+            return Result.Success();
+        }
+
+        // Identity's own token: a signed, data-protected payload rather than a row we store. It embeds
+        // the user's security stamp, so it stops verifying the moment the password changes — that is
+        // what makes it single-use without a ConsumedAtUtc column like the candidate side needs.
+        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+
+        _logger.LogInformation("Password reset requested for user {UserId}", user.Id);
+
+        // Best-effort, unlike the invitation mail which fails loudly. That one answers an
+        // authenticated admin who is owed a real result; this one must respond identically whether or
+        // not the address exists, and a hard failure would leak that it does.
+        await SendPasswordResetLinkAsync(user.Email!, user.Id, token, ct);
+
+        return Result.Success();
+    }
+
+    public async Task<Result> ResetPasswordAsync(
+        Guid userId, string token, string newPassword, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return Result.Failure(AuthErrors.InvalidPasswordResetToken);
+
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+            return Result.Failure(AuthErrors.InvalidPasswordResetToken);
+
+        var result = await _userManager.ResetPasswordAsync(user, token, newPassword ?? string.Empty);
+        if (!result.Succeeded)
+        {
+            // Identity lumps "bad token" in with "password too short", but the two must not answer the
+            // same way: one is an invalid link the user cannot fix, the other is a rule they can. Only
+            // the token failure collapses into the deliberately vague error.
+            var isTokenFailure = result.Errors.Any(e => e.Code == nameof(IdentityErrorDescriber.InvalidToken));
+            return isTokenFailure
+                ? Result.Failure(AuthErrors.InvalidPasswordResetToken)
+                : Result.Failure(AuthErrors.PasswordRejected(
+                    string.Join("; ", result.Errors.Select(e => e.Description))));
+        }
+
+        // The candidate side gets this for free: its tokens carry a security stamp that is checked on
+        // every request, so rotating it kills live sessions. Company tokens carry no stamp and nothing
+        // validates one, so the refresh tokens have to be revoked by hand — otherwise resetting a
+        // stolen password would leave the thief a refresh token good for its full RefreshTokenDays.
+        var activeTokens = await _db.RefreshTokens
+            .Where(t => t.UserId == user.Id && t.RevokedAtUtc == null)
+            .ToListAsync(ct);
+
+        foreach (var refreshToken in activeTokens)
+            refreshToken.Revoke();
+
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Password reset completed for user {UserId}; revoked {RevokedCount} refresh token(s)",
+            user.Id, activeTokens.Count);
+
+        await NotifyPasswordResetAsync(user.Email!, ct);
+
+        return Result.Success();
+    }
+
     public async Task<Result<CurrentUserDto>> GetCurrentUserAsync(Guid userId)
     {
         var user = await _userManager.FindByIdAsync(userId.ToString());
@@ -196,5 +279,56 @@ public sealed class AuthService : IAuthService
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
         return Convert.ToBase64String(bytes);
+    }
+
+    private async Task SendPasswordResetLinkAsync(
+        string email, Guid userId, string token, CancellationToken ct)
+    {
+        // The user id, not the email, goes in the URL: the address would otherwise end up in browser
+        // history, referrer headers and any proxy log the link passes through. Both values are escaped
+        // because Identity's token is base64-ish and contains characters that are unsafe unencoded.
+        var link = $"{_passwordResetOptions.ResetBaseUrl}" +
+                   $"?userId={Uri.EscapeDataString(userId.ToString())}" +
+                   $"&token={Uri.EscapeDataString(token)}";
+
+        var body = $"""
+            <p>A request was made to reset the password of your ATS account.</p>
+            <p><a href="{link}">Choose a new password</a></p>
+            <p>This link expires in {_passwordResetOptions.ValidMinutes} minutes and can be used once.
+            If you did not request this, ignore this email — your current password still works.</p>
+            """;
+
+        try
+        {
+            await _emailSender.SendAsync(email, "Reset your password", body, ct);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Failed to send the password reset email");
+        }
+    }
+
+    // Best-effort: the reset is already committed, so a failing mail server must not turn a succeeded
+    // operation into an error. Doubles as a hijack tripwire — if the owner did not do this, the notice
+    // is their signal.
+    private async Task NotifyPasswordResetAsync(string email, CancellationToken ct)
+    {
+        const string subject = "Your password was reset";
+        const string body = """
+            <p>The password of your ATS account was just reset, and every signed-in session was
+            ended.</p>
+            <p>If you did this, no action is needed — sign in with your new password.</p>
+            <p>If you did not, someone else may have access to your email — please contact your
+            administrator immediately.</p>
+            """;
+
+        try
+        {
+            await _emailSender.SendAsync(email, subject, body, ct);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Failed to send the password-reset notification email");
+        }
     }
 }

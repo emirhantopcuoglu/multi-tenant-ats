@@ -25,6 +25,8 @@ public sealed class AuthController : ControllerBase
         string CompanyName, string Slug, string Email, string Password, string FirstName, string LastName);
     public sealed record LoginRequest(string Email, string Password);
     public sealed record RefreshRequest(string RefreshToken);
+    public sealed record ForgotPasswordRequest(string Email);
+    public sealed record ResetPasswordRequest(Guid UserId, string Token, string NewPassword);
 
     [HttpPost("register")]
     [EnableRateLimiting(RateLimitPolicies.PerIp)]
@@ -64,6 +66,31 @@ public sealed class AuthController : ControllerBase
     {
         await _authService.LogoutAsync(request.RefreshToken);
         return NoContent();
+    }
+
+    // Always 204, whether or not the address is registered: a distinguishable response would let
+    // anyone enumerate who works at a company on this platform. Rate-limited because it sends mail.
+    [HttpPost("forgot-password")]
+    [EnableRateLimiting(RateLimitPolicies.PerIp)]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
+    {
+        await _authService.RequestPasswordResetAsync(request.Email, HttpContext.RequestAborted);
+        return NoContent();
+    }
+
+    // Anonymous by necessity: whoever needs this cannot sign in. The mailed token is the credential.
+    [HttpPost("reset-password")]
+    [EnableRateLimiting(RateLimitPolicies.PerIp)]
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
+    {
+        var result = await _authService.ResetPasswordAsync(
+            request.UserId, request.Token, request.NewPassword, HttpContext.RequestAborted);
+
+        // No tokens in the response: whoever set the password signs in with it, so guessing a token
+        // cannot hand out a session.
+        return result.IsSuccess
+            ? NoContent()
+            : BadRequest(new { result.Error.Code, result.Error.Message });
     }
 
     [HttpGet("me")]
