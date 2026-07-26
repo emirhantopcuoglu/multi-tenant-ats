@@ -1,15 +1,13 @@
 import type { Role } from './enums';
 
-/* Returned by company register / login / refresh. */
+/* Returned by register / login / refresh on both sides. The candidate endpoints return the same
+   shape as the company ones, so the refresh interceptor handles either with one type. */
 export interface AuthResult {
   accessToken: string;
   refreshToken: string;
 }
 
-/* Returned by candidate register / login — access-token only (no refresh). */
-export interface CandidateAuthResult {
-  accessToken: string;
-}
+export type CandidateAuthResult = AuthResult;
 
 /* Discriminated union: all company-workspace users vs global candidate accounts.
    The `kind` field is added client-side when deserializing /auth/me and /candidate/auth/me

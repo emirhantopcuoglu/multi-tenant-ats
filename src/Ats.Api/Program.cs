@@ -496,6 +496,9 @@ builder.Services.Configure<InterviewRoomOptions>(
 builder.Services.AddSingleton<IPasswordHasher<CandidateAccount>, PasswordHasher<CandidateAccount>>();
 builder.Services.AddScoped<ICandidatePasswordHasher, CandidatePasswordHasher>();
 builder.Services.AddScoped<ICandidateTokenService, CandidateTokenService>();
+// Single owner of candidate session minting/storage, shared by the auth and profile services so a
+// password change re-issues a session exactly the way login does.
+builder.Services.AddScoped<ICandidateSessionIssuer, CandidateSessionIssuer>();
 builder.Services.AddScoped<ICandidateAuthService, CandidateAuthService>();
 builder.Services.AddScoped<ICandidateProfileService, CandidateProfileService>();
 builder.Services.AddScoped<ICandidateAccountLifecycleService, CandidateAccountLifecycleService>();

@@ -44,14 +44,15 @@ export function useUpdateCandidateProfile() {
   });
 }
 
-/* Swapping the stored token in onSuccess is not optional: the backend rotated the security stamp,
-   so the token used for this very request is already dead. Persisting the fresh one here is what
-   makes the change seamless instead of a forced logout on the next request. */
+/* Swapping the stored tokens in onSuccess is not optional: the backend rotated the security stamp,
+   so both the access token used for this very request AND the refresh token behind it are already
+   dead. Persisting the fresh pair here is what makes the change seamless instead of a forced logout
+   on the next request — every other session stays revoked, which is the point of the rotation. */
 export function useChangeCandidatePassword() {
   return useMutation({
     mutationFn: changeCandidatePassword,
-    onSuccess: ({ accessToken }) => {
-      tokenStore.setCandidateToken(accessToken);
+    onSuccess: (session) => {
+      tokenStore.setCandidateTokens(session);
     },
   });
 }

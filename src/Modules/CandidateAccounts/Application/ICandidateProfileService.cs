@@ -30,10 +30,11 @@ public sealed record ChangeCandidatePasswordCommand(string CurrentPassword, stri
 // token alone must not be able to redirect the login identity to an attacker's mailbox.
 public sealed record RequestCandidateEmailChangeCommand(string NewEmail, string CurrentPassword);
 
-// Hands back a fresh access token: the change rotates the security stamp, which kills every issued
-// token — including the one this very request arrived with. Without a replacement the candidate
-// would be silently logged out by their own successful password change.
-public sealed record CandidatePasswordChangeResult(string AccessToken);
+// Hands back a fresh token pair: the change rotates the security stamp, which kills every issued
+// token — including the one this very request arrived with, AND the refresh token behind it (see
+// CandidateRefreshToken). Without a replacement pair the candidate would be silently logged out by
+// their own successful password change. Every other session stays dead, which is the point.
+public sealed record CandidatePasswordChangeResult(string AccessToken, string RefreshToken);
 
 // Profile management split from ICandidateAuthService on purpose: auth answers "who are you"
 // (register/login/me) while this owns the profile resource. Password and email changes land here in
