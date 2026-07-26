@@ -235,30 +235,43 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
     private static CandidatePasswordHasher CreatePasswordHasher() =>
         new(new PasswordHasher<CandidateAccount>());
 
-    private static CandidateTokenService CreateTokenService() =>
-        new(Options.Create(new CandidateJwtOptions
+    private static IOptions<CandidateJwtOptions> CreateJwtOptions() =>
+        Options.Create(new CandidateJwtOptions
         {
             Secret = "candidate-lifecycle-tests-signing-key",
             Issuer = "ats-tests",
             Audience = "ats-tests",
-            AccessTokenMinutes = 15
-        }));
+            AccessTokenMinutes = 15,
+            RefreshTokenDays = 7
+        });
+
+    private static CandidateTokenService CreateTokenService() => new(CreateJwtOptions());
 
     private CandidateAccountLifecycleService CreateService() => new(
         CreateDbContext(),
         CreatePasswordHasher(),
         NullLogger<CandidateAccountLifecycleService>.Instance);
 
-    private CandidateAuthService CreateAuthService() =>
-        new(CreateDbContext(), CreatePasswordHasher(), CreateTokenService());
+    // Both helpers hand the session issuer the same DbContext as the service under test, matching how
+    // DI scopes them in the app, so a staged revocation and its replacement row commit together.
+    private CandidateAuthService CreateAuthService()
+    {
+        var db = CreateDbContext();
+        return new CandidateAuthService(
+            db, CreatePasswordHasher(), new CandidateSessionIssuer(db, CreateTokenService(), CreateJwtOptions()));
+    }
 
-    private CandidateProfileService CreateProfileService(RecordingEmailSender? emailSender = null) => new(
-        CreateDbContext(),
-        CreatePasswordHasher(),
-        CreateTokenService(),
-        emailSender ?? new RecordingEmailSender(),
-        Options.Create(new CandidateEmailChangeOptions()),
-        NullLogger<CandidateProfileService>.Instance);
+    private CandidateProfileService CreateProfileService(RecordingEmailSender? emailSender = null)
+    {
+        var db = CreateDbContext();
+        return new CandidateProfileService(
+            db,
+            CreatePasswordHasher(),
+            new CandidateSessionIssuer(db, CreateTokenService(), CreateJwtOptions()),
+            emailSender ?? new RecordingEmailSender(),
+            Options.Create(new CandidateEmailChangeOptions()),
+            NullLogger<CandidateProfileService>.Instance);
+    }
 
     private async Task<Guid> SeedAccountAsync()
     {

@@ -14,7 +14,7 @@ public sealed class CandidateProfileService : ICandidateProfileService
 {
     private readonly CandidateAccountsDbContext _db;
     private readonly ICandidatePasswordHasher _passwordHasher;
-    private readonly ICandidateTokenService _tokenService;
+    private readonly ICandidateSessionIssuer _sessions;
     private readonly IEmailSender _emailSender;
     private readonly CandidateEmailChangeOptions _emailChangeOptions;
     private readonly ILogger<CandidateProfileService> _logger;
@@ -22,14 +22,14 @@ public sealed class CandidateProfileService : ICandidateProfileService
     public CandidateProfileService(
         CandidateAccountsDbContext db,
         ICandidatePasswordHasher passwordHasher,
-        ICandidateTokenService tokenService,
+        ICandidateSessionIssuer sessions,
         IEmailSender emailSender,
         IOptions<CandidateEmailChangeOptions> emailChangeOptions,
         ILogger<CandidateProfileService> logger)
     {
         _db = db;
         _passwordHasher = passwordHasher;
-        _tokenService = tokenService;
+        _sessions = sessions;
         _emailSender = emailSender;
         _emailChangeOptions = emailChangeOptions.Value;
         _logger = logger;
@@ -106,10 +106,11 @@ public sealed class CandidateProfileService : ICandidateProfileService
 
         await NotifyPasswordChangedAsync(account.Email);
 
-        // The rotation above just invalidated the token this request arrived with; hand back a fresh
-        // one so the candidate's own session survives their password change.
-        var accessToken = _tokenService.GenerateAccessToken(account.Id, account.Email, account.SecurityStamp);
-        return Result.Success(new CandidatePasswordChangeResult(accessToken));
+        // The rotation above just invalidated this request's access token AND every refresh token
+        // issued under the old stamp; issue a fresh pair so the candidate's own session survives
+        // their password change while all the others stay revoked.
+        var session = await _sessions.IssueAsync(account);
+        return Result.Success(new CandidatePasswordChangeResult(session.AccessToken, session.RefreshToken));
     }
 
     public async Task<Result> RequestEmailChangeAsync(

@@ -3,16 +3,19 @@ import type { AuthResult } from '@/types/auth';
 /* Token storage for two distinct identity types: company workspace users and candidate accounts.
    They never coexist — logging in as one clears the other (enforced in AuthProvider).
 
-   Storage strategy:
-   - Company accessToken: memory only (re-minted from refreshToken on reload via interceptor).
-   - Company refreshToken: localStorage (survives reload; XSS risk, documented as known trade-off).
-   - Candidate accessToken: localStorage (no refresh token issued; persisting it in localStorage
-     lets the session survive a reload at the same XSS risk level as the company refresh token). */
+   Storage strategy — identical for both identities:
+   - accessToken: memory only (re-minted from the refresh token on reload via the interceptor).
+   - refreshToken: localStorage (survives reload; XSS risk, documented as known trade-off).
+
+   The candidate access token used to live in localStorage because no refresh token existed, which
+   capped a candidate session at the access token's fifteen minutes. Now that candidates rotate
+   refresh tokens like company users, the short-lived half stays in memory for both. */
 
 const REFRESH_TOKEN_KEY = 'ats-refresh-token';
-const CANDIDATE_TOKEN_KEY = 'ats-candidate-token';
+const CANDIDATE_REFRESH_TOKEN_KEY = 'ats-candidate-refresh-token';
 
 let accessToken: string | null = null;
+let candidateAccessToken: string | null = null;
 
 function getRefreshToken(): string | null {
   try {
@@ -22,9 +25,9 @@ function getRefreshToken(): string | null {
   }
 }
 
-function getCandidateToken(): string | null {
+function getCandidateRefreshToken(): string | null {
   try {
-    return localStorage.getItem(CANDIDATE_TOKEN_KEY);
+    return localStorage.getItem(CANDIDATE_REFRESH_TOKEN_KEY);
   } catch {
     return null;
   }
@@ -35,13 +38,17 @@ export const tokenStore = {
 
   getRefreshToken,
 
-  getCandidateToken,
+  getCandidateToken: (): string | null => candidateAccessToken,
 
-  /** Derives which session type is active, used by the API interceptor to fire the right logout
-   *  event when an unrecoverable 401 occurs. Company takes precedence if both keys are somehow set. */
+  getCandidateRefreshToken,
+
+  /** Derives which session type is active, used by the API interceptor to decide which refresh
+   *  endpoint to call and which logout event to fire. Company takes precedence if both are set.
+   *  Keyed on the persisted refresh tokens, not the in-memory access tokens, so it still answers
+   *  correctly on a fresh page load before either access token has been re-minted. */
   getSessionKind: (): 'company' | 'candidate' | null => {
     if (getRefreshToken() !== null) return 'company';
-    if (getCandidateToken() !== null) return 'candidate';
+    if (getCandidateRefreshToken() !== null) return 'candidate';
     return null;
   },
 
@@ -55,12 +62,13 @@ export const tokenStore = {
     }
   },
 
-  /** Persist a candidate access token after login/register. */
-  setCandidateToken: (token: string): void => {
+  /** Persist a fresh candidate token pair after login/register/refresh/password change. */
+  setCandidateTokens: ({ accessToken: access, refreshToken: refresh }: AuthResult): void => {
+    candidateAccessToken = access;
     try {
-      localStorage.setItem(CANDIDATE_TOKEN_KEY, token);
+      localStorage.setItem(CANDIDATE_REFRESH_TOKEN_KEY, refresh);
     } catch {
-      // Best-effort; the UI will force re-login if the token can't be read back.
+      // Persistence is best-effort; the in-memory access token still works for this session.
     }
   },
 
@@ -74,10 +82,11 @@ export const tokenStore = {
     }
   },
 
-  /** Drop the candidate access token (candidate logout or unrecoverable 401). */
+  /** Drop all candidate credentials (candidate logout, or an unrecoverable refresh failure). */
   clearCandidateToken: (): void => {
+    candidateAccessToken = null;
     try {
-      localStorage.removeItem(CANDIDATE_TOKEN_KEY);
+      localStorage.removeItem(CANDIDATE_REFRESH_TOKEN_KEY);
     } catch {
       // Nothing to do if storage is unavailable.
     }

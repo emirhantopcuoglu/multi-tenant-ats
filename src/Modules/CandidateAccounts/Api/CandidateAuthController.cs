@@ -27,6 +27,8 @@ public sealed class CandidateAuthController : ControllerBase
 
     public sealed record RegisterRequest(string Email, string Password, string FirstName, string LastName);
     public sealed record LoginRequest(string Email, string Password);
+    public sealed record RefreshRequest(string RefreshToken);
+    public sealed record LogoutRequest(string RefreshToken);
 
     [HttpPost("register")]
     [EnableRateLimiting(RateLimitPolicies.PerIp)]
@@ -49,6 +51,33 @@ public sealed class CandidateAuthController : ControllerBase
         return result.IsSuccess
             ? Ok(result.Value)
             : Unauthorized(new { result.Error.Code, result.Error.Message });
+    }
+
+    // Anonymous like the company /auth/refresh: the refresh token IS the credential, and the access
+    // token it replaces has expired by definition, so requiring one would make the endpoint useless.
+    // Rate-limited per IP because an unauthenticated endpoint that mints sessions is worth guessing at.
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.PerIp)]
+    public async Task<IActionResult> Refresh(RefreshRequest request)
+    {
+        var result = await _authService.RefreshAsync(request.RefreshToken);
+
+        // 401 rather than 400: the client's correct reaction is to drop the session and sign in again,
+        // which is what it already does for any other 401.
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : Unauthorized(new { result.Error.Code, result.Error.Message });
+    }
+
+    // Anonymous for the same reason as refresh, and idempotent: revoking a token that was already
+    // dead is still a successful logout, so this never reports failure.
+    [HttpPost("logout")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Logout(LogoutRequest request)
+    {
+        await _authService.LogoutAsync(request.RefreshToken);
+        return NoContent();
     }
 
     [HttpGet("me")]

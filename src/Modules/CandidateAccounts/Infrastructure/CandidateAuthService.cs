@@ -12,16 +12,16 @@ public sealed class CandidateAuthService : ICandidateAuthService
 {
     private readonly CandidateAccountsDbContext _db;
     private readonly ICandidatePasswordHasher _passwordHasher;
-    private readonly ICandidateTokenService _tokenService;
+    private readonly ICandidateSessionIssuer _sessions;
 
     public CandidateAuthService(
         CandidateAccountsDbContext db,
         ICandidatePasswordHasher passwordHasher,
-        ICandidateTokenService tokenService)
+        ICandidateSessionIssuer sessions)
     {
         _db = db;
         _passwordHasher = passwordHasher;
-        _tokenService = tokenService;
+        _sessions = sessions;
     }
 
     public async Task<Result<CandidateAuthResult>> RegisterAsync(
@@ -54,8 +54,7 @@ public sealed class CandidateAuthService : ICandidateAuthService
             return Result.Failure<CandidateAuthResult>(CandidateAuthErrors.EmailAlreadyRegistered);
         }
 
-        var token = _tokenService.GenerateAccessToken(account.Id, account.Email, account.SecurityStamp);
-        return Result.Success(new CandidateAuthResult(token));
+        return Result.Success(await _sessions.IssueAsync(account));
     }
 
     public async Task<Result<CandidateAuthResult>> LoginAsync(string email, string password)
@@ -67,8 +66,55 @@ public sealed class CandidateAuthService : ICandidateAuthService
         if (account is null || !_passwordHasher.Verify(account.PasswordHash, password))
             return Result.Failure<CandidateAuthResult>(CandidateAuthErrors.InvalidCredentials);
 
-        var token = _tokenService.GenerateAccessToken(account.Id, account.Email, account.SecurityStamp);
-        return Result.Success(new CandidateAuthResult(token));
+        // Status is deliberately not checked: a frozen account may sign in, and the SPA routes it to
+        // the reactivation screen. A deleted one never gets here — the global query filter hides it.
+        return Result.Success(await _sessions.IssueAsync(account));
+    }
+
+    public async Task<Result<CandidateAuthResult>> RefreshAsync(string refreshToken)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+            return Result.Failure<CandidateAuthResult>(CandidateAuthErrors.InvalidRefreshToken);
+
+        var stored = await _sessions.FindAsync(refreshToken);
+        if (stored is null)
+            return Result.Failure<CandidateAuthResult>(CandidateAuthErrors.InvalidRefreshToken);
+
+        // The account is loaded through the filtered DbSet, so a deleted account resolves to null and
+        // its tokens stop working here without this method knowing anything about deletion.
+        var account = await _db.CandidateAccounts
+            .FirstOrDefaultAsync(c => c.Id == stored.CandidateAccountId);
+        if (account is null)
+            return Result.Failure<CandidateAuthResult>(CandidateAuthErrors.InvalidRefreshToken);
+
+        // The stamp comparison is what makes a password or email change end this session too. Without
+        // it, rotation below would happily mint a token carrying the *new* stamp and hand a thief a
+        // working session straight through the change the owner made to lock them out.
+        if (!stored.CanBeRedeemedWith(account.SecurityStamp))
+            return Result.Failure<CandidateAuthResult>(CandidateAuthErrors.InvalidRefreshToken);
+
+        // Rotation: the presented token is spent, and IssueAsync writes its replacement in the same
+        // SaveChanges, so a redeemed token can never be replayed.
+        stored.Revoke();
+        return Result.Success(await _sessions.IssueAsync(account));
+    }
+
+    public async Task<Result> LogoutAsync(string refreshToken)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+            return Result.Success();
+
+        var stored = await _sessions.FindAsync(refreshToken);
+
+        // Idempotent, and silent about whether the token existed: logout has no business telling a
+        // caller whether the string they presented was ever a real session.
+        if (stored is not null && stored.IsActive)
+        {
+            stored.Revoke();
+            await _db.SaveChangesAsync();
+        }
+
+        return Result.Success();
     }
 
     public async Task<Result<CurrentCandidateDto>> GetCurrentCandidateAsync(Guid candidateAccountId)
