@@ -29,7 +29,9 @@ public interface IAuthService
     /// no tokens: the session waits until the address is proven, because a company user who can sign in
     /// can already invite colleagues, publish jobs and receive applications.
     /// </summary>
-    Task<Result> RegisterAsync(string companyName, string slug, string email, string password, string firstName, string lastName);
+    Task<Result> RegisterAsync(
+        string companyName, string slug, string email, string password, string firstName, string lastName,
+        string preferredLanguage);
 
     Task<Result<AuthResult>> LoginAsync(string email, string password);
 
@@ -63,6 +65,12 @@ public interface IAuthService
     Task<Result> ResetPasswordAsync(
         Guid userId, string token, string newPassword, CancellationToken ct = default);
     Task<Result<CurrentUserDto>> GetCurrentUserAsync(Guid userId);
+
+    /// <summary>
+    /// Records which language to write to this user in. Called from the header toggle, so it is a
+    /// single-field write rather than part of a wider profile update.
+    /// </summary>
+    Task<Result> SetPreferredLanguageAsync(Guid userId, string language, CancellationToken ct = default);
     /// <summary>Lists the members of the caller's tenant, ordered by name.</summary>
     Task<IReadOnlyList<TenantUserDto>> ListTenantUsersAsync();
 }

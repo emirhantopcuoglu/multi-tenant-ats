@@ -43,7 +43,7 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
         var service = CreateService();
 
         // Act — register, then log in with the same credentials
-        var register = await service.RegisterAsync("Jane@Example.com", "S3cret!pass", "Jane", "Doe");
+        var register = await service.RegisterAsync("Jane@Example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
         var login = await service.LoginAsync("jane@example.com", "S3cret!pass");
 
         // Assert — both hand back a token
@@ -66,10 +66,10 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
     {
         // Arrange
         var service = CreateService();
-        await service.RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe");
+        await service.RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
 
         // Act — same email in different casing
-        var second = await service.RegisterAsync("JANE@example.com", "Another1!", "Jane", "Roe");
+        var second = await service.RegisterAsync("JANE@example.com", "Another1!", "Jane", "Roe", SupportedLanguages.Default);
 
         // Assert
         Assert.True(second.IsFailure);
@@ -81,7 +81,7 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
     {
         // Arrange
         var service = CreateService();
-        await service.RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe");
+        await service.RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
 
         // Act
         var wrongPassword = await service.LoginAsync("jane@example.com", "not-the-password");
@@ -99,7 +99,7 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
         // boundary that must hold against a raw HTTP client.
         var service = CreateService();
 
-        var result = await service.RegisterAsync("jane@example.com", "short", "Jane", "Doe");
+        var result = await service.RegisterAsync("jane@example.com", "short", "Jane", "Doe", SupportedLanguages.Default);
 
         Assert.True(result.IsFailure);
         Assert.Equal(CandidateAuthErrors.PasswordTooShort.Code, result.Error.Code);
@@ -112,7 +112,7 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
         var service = CreateService();
 
         // Act
-        var register = await service.RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe");
+        var register = await service.RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
         var token = new JwtSecurityTokenHandler().ReadJwtToken(register.Value.AccessToken);
 
         // Assert — the discriminator that keeps the two identities apart is present...
@@ -126,7 +126,7 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
     public async Task Login_should_hand_back_a_refresh_token_alongside_the_access_token()
     {
         var service = CreateService();
-        await service.RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe");
+        await service.RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
 
         var login = await service.LoginAsync("jane@example.com", "S3cret!pass");
 
@@ -138,7 +138,7 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
     public async Task Refresh_should_exchange_a_valid_token_for_a_new_pair()
     {
         // Arrange — a live session
-        var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe");
+        var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
 
         // Act — redeem the refresh token on a fresh scope, the way the SPA's retry does
         var refresh = await CreateService().RefreshAsync(register.Value.RefreshToken);
@@ -152,7 +152,7 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
     [Fact]
     public async Task A_refresh_token_should_be_single_use()
     {
-        var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe");
+        var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
         var first = await CreateService().RefreshAsync(register.Value.RefreshToken);
 
         // Replaying the same token must fail: redemption revoked it and issued a successor.
@@ -168,7 +168,7 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
     {
         // Guards against a rotation that revokes the old token but stores its replacement wrong —
         // which would strand the candidate one refresh later instead of at fifteen minutes.
-        var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe");
+        var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
         var first = await CreateService().RefreshAsync(register.Value.RefreshToken);
 
         var second = await CreateService().RefreshAsync(first.Value.RefreshToken);
@@ -184,7 +184,7 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
         // rotates the stamp, which kills live access tokens; if the refresh token survived it, whoever
         // holds it could mint a fresh access token under the NEW stamp and sail straight through the
         // change the owner made to lock them out.
-        var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe");
+        var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
         var accountId = SubjectOf(register.Value.AccessToken);
 
         await using (var db = new CandidateAccountsDbContext(
@@ -204,7 +204,7 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
     [Fact]
     public async Task Logout_should_revoke_the_refresh_token()
     {
-        var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe");
+        var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
 
         await CreateService().LogoutAsync(register.Value.RefreshToken);
         var refresh = await CreateService().RefreshAsync(register.Value.RefreshToken);

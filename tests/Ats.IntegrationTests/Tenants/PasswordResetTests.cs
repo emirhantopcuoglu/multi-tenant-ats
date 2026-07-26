@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Ats.Shared.Infrastructure;
 
 namespace Ats.IntegrationTests.Tenants;
 
@@ -270,6 +271,7 @@ public sealed class PasswordResetTests : IAsyncLifetime
             Options.Create(new EmailConfirmationOptions()),
             scope.ServiceProvider.GetRequiredService<ICurrentTenant>(),
             mail ?? new NoOpEmailSender(),
+            new JsonEmailTextProvider(),
             NullLogger<AuthService>.Instance);
 
     // AddDefaultTokenProviders mirrors Program.cs: GeneratePasswordResetTokenAsync throws without a

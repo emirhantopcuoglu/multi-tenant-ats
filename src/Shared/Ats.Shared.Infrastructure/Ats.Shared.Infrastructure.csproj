@@ -8,6 +8,17 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
+  <!-- Email wording ships inside the assembly, not beside it: these files are source, and an
+       operator editing an email body on a server is not a scenario worth supporting.
+
+       WithCulture=false is required, not decorative. MSBuild reads the second-to-last dot segment of
+       a resource file name as a culture, so "EmailText.en.json" would be treated as the English
+       satellite of a resource called "EmailText" and compiled into en\*.resources.dll instead of the
+       main assembly — where GetManifestResourceStream would never find it. -->
+  <ItemGroup>
+    <EmbeddedResource Include="EmailText\*.json" WithCulture="false" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="FluentValidation" Version="11.10.0" />
     <PackageReference Include="MailKit" Version="4.17.0" />

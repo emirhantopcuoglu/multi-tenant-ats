@@ -24,7 +24,10 @@ public sealed record CurrentCandidateDto(
 // one type juggling two unrelated auth models.
 public interface ICandidateAuthService
 {
-    Task<Result<CandidateAuthResult>> RegisterAsync(string email, string password, string firstName, string lastName);
+    // preferredLanguage is the UI language at the moment of registration: the verification email
+    // goes out during this call, so there is no later point at which to ask.
+    Task<Result<CandidateAuthResult>> RegisterAsync(
+        string email, string password, string firstName, string lastName, string preferredLanguage);
     Task<Result<CandidateAuthResult>> LoginAsync(string email, string password);
 
     /// <summary>

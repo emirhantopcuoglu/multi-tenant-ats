@@ -139,6 +139,11 @@ internal sealed class StubCandidateAccountReader : ICandidateAccountReader
 
     public Task<CandidateAccountSummary?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         Task.FromResult<CandidateAccountSummary?>(id == _account.Id ? _account : null);
+
+    // These tests are about the email-verification gate, not about wording, so the language answer
+    // is a constant.
+    public Task<string> GetPreferredLanguageByEmailAsync(string email, CancellationToken ct = default) =>
+        Task.FromResult(SupportedLanguages.Default);
 }
 
 // Records keys instead of talking to MinIO. Tests must never reach real object storage, and "was

@@ -1,0 +1,74 @@
+{
+  "candidate.verifyEmail.subject": "E-posta adresinizi doğrulayın",
+  "candidate.verifyEmail.body": "<p>Merhaba {0},</p>\n<p>Aday hesabınızı tamamlamak için bu adresi doğrulayın. Bir ilana başvurabilmeniz için bunu bir kez yapmanız gerekiyor.</p>\n<p><a href=\"{1}\">E-posta adresimi doğrula</a></p>\n<p>Bu bağlantı {2} saat içinde geçerliliğini yitirir ve yalnızca bir kez kullanılabilir. Bir hesap oluşturmadıysanız bu e-postayı yok sayın.</p>",
+
+  "candidate.resetPassword.subject": "Şifrenizi sıfırlayın",
+  "candidate.resetPassword.body": "<p>Aday hesabınızın şifresini sıfırlamak için bir talep alındı.</p>\n<p><a href=\"{0}\">Yeni bir şifre belirleyin</a></p>\n<p>Bu bağlantı 1 saat içinde geçerliliğini yitirir ve yalnızca bir kez kullanılabilir. Bu talebi siz yapmadıysanız e-postayı yok sayın — mevcut şifreniz çalışmaya devam eder.</p>",
+
+  "candidate.passwordReset.subject": "Şifreniz sıfırlandı",
+  "candidate.passwordReset.body": "<p>Aday hesabınızın şifresi az önce sıfırlandı ve açık olan tüm oturumlar sonlandırıldı.</p>\n<p>Bunu siz yaptıysanız yapmanız gereken bir şey yok — yeni şifrenizle giriş yapın.</p>\n<p>Siz yapmadıysanız başkası e-posta hesabınıza erişiyor olabilir — lütfen hemen bizimle iletişime geçin.</p>",
+
+  "candidate.passwordChanged.subject": "Şifreniz değiştirildi",
+  "candidate.passwordChanged.body": "<p>Aday hesabınızın şifresi az önce değiştirildi.</p>\n<p>Bu değişikliği siz yaptıysanız yapmanız gereken bir şey yok.</p>\n<p>Siz yapmadıysanız başkası hesabınıza erişiyor olabilir — lütfen hemen bizimle iletişime geçin.</p>",
+
+  "candidate.emailChangeConfirm.subject": "Yeni e-posta adresinizi onaylayın",
+  "candidate.emailChangeConfirm.body": "<p>Bu adresin bir aday hesabının giriş e-postası olarak kullanılması için bir talep alındı.</p>\n<p><a href=\"{0}\">E-posta değişikliğini onayla</a></p>\n<p>Bu bağlantı 1 saat içinde geçerliliğini yitirir ve yalnızca bir kez kullanılabilir. Bu talebi siz yapmadıysanız e-postayı yok sayın.</p>",
+
+  "candidate.emailChanged.subject": "Giriş e-postanız değiştirildi",
+  "candidate.emailChanged.body": "<p>Aday hesabınızın giriş e-postası az önce yeni bir adresle değiştirildi.</p>\n<p>Bu değişikliği siz yaptıysanız yapmanız gereken bir şey yok.</p>\n<p>Siz yapmadıysanız başkası hesabınıza erişiyor olabilir — lütfen hemen bizimle iletişime geçin.</p>",
+
+  "company.confirmEmail.subject": "E-posta adresinizi onaylayın",
+  "company.confirmEmail.body": "<p>Merhaba {0},</p>\n<p>Ats çalışma alanınızı tamamlamak için bu adresi onaylayın. Giriş yapabilmeniz için bunu bir kez yapmanız gerekiyor.</p>\n<p><a href=\"{1}\">E-posta adresimi onayla</a></p>\n<p>Bu bağlantı {2} saat içinde geçerliliğini yitirir. Bir hesap oluşturmadıysanız bu e-postayı yok sayın.</p>",
+
+  "company.resetPassword.subject": "Şifrenizi sıfırlayın",
+  "company.resetPassword.body": "<p>Ats hesabınızın şifresini sıfırlamak için bir talep alındı.</p>\n<p><a href=\"{0}\">Yeni bir şifre belirleyin</a></p>\n<p>Bu bağlantı {1} dakika içinde geçerliliğini yitirir ve yalnızca bir kez kullanılabilir. Bu talebi siz yapmadıysanız e-postayı yok sayın — mevcut şifreniz çalışmaya devam eder.</p>",
+
+  "company.passwordReset.subject": "Şifreniz sıfırlandı",
+  "company.passwordReset.body": "<p>Ats hesabınızın şifresi az önce sıfırlandı ve açık olan tüm oturumlar sonlandırıldı.</p>\n<p>Bunu siz yaptıysanız yapmanız gereken bir şey yok — yeni şifrenizle giriş yapın.</p>\n<p>Siz yapmadıysanız başkası e-posta hesabınıza erişiyor olabilir — lütfen hemen yöneticinizle iletişime geçin.</p>",
+
+  "company.invitation.subject": "Ats'e davet edildiniz",
+  "company.invitation.body": "<p><strong>{0}</strong> rolüyle katılmanız için davet edildiniz.</p>\n<p><a href=\"{1}\">Daveti kabul et</a></p>\n<p>Bu bağlantı {2} gün içinde geçerliliğini yitirir.</p>",
+
+  "application.submitted.subject": "Başvurunuzu aldık",
+  "application.submitted.body": "<p>Merhaba {0},</p>\n<p><strong>{1}</strong> ilanına başvurduğunuz için teşekkürler. Başvurunuz bize ulaştı, ekibimiz kısa süre içinde inceleyecek.</p>\n<p>Sizinle tekrar iletişime geçeceğiz.</p>",
+
+  "application.rejected.subject": "Başvurunuzla ilgili güncelleme",
+  "application.rejected.body": "<p>Merhaba {0},</p>\n<p>{1} ilanına gösterdiğiniz ilgi ve başvurunuza ayırdığınız zaman için teşekkür ederiz.</p>\n<p>Dikkatli bir değerlendirmenin ardından, başvurunuzla bu aşamada devam etmeme kararı aldık.</p>\n<p>İlginiz için teşekkür eder, deneyiminize uygun yeni ilanlarımıza başvurmanızı dileriz. Size başarılar dileriz.</p>",
+
+  "application.hired.subject": "Tebrikler — işe alındınız",
+  "application.hired.body": "<p>Merhaba {0},</p>\n<p>Güzel bir haberimiz var — şirket sizi {1} pozisyonu için işe alma kararı aldı. Tebrikler!</p>\n<p>Sonraki adımlar için sizinle doğrudan iletişime geçecekler.</p>",
+
+  "application.stageChanged.subject": "Başvurunuz bir sonraki aşamaya geçti",
+  "application.stageChanged.body": "<p>Merhaba {0},</p>\n<p><strong>{1}</strong> ilanına yaptığınız başvuru <strong>{2}</strong> aşamasına geçti.</p>\n<p>Sonraki adımlar için sizinle iletişime geçeceğiz.</p>",
+
+  "application.fallbackRole": "başvurduğunuz pozisyon",
+
+  "interview.scheduled.subject": "Mülakatınız planlandı",
+  "interview.scheduled.body": "<p>Merhaba {0},</p>\n<p><strong>{1}</strong> ilanına yaptığınız başvuru için bir mülakat planlandı.</p>\n<p>Tür: {2}<br/>\nTarih: {3}<br/>\nSüre: {4} dakika</p>\n{5}\n<p>Sizinle görüşmeyi dört gözle bekliyoruz.</p>",
+
+  "interview.rescheduled.subject": "Mülakatınızın tarihi değişti",
+  "interview.rescheduled.body": "<p>Merhaba {0},</p>\n<p><strong>{2}</strong> ilanı için planlanan <strong>{1}</strong> mülakatınızın tarihi değişti.</p>\n<p>Önceki tarih: <s>{3}</s><br/>\nYeni tarih: <strong>{4}</strong><br/>\nSüre: {5} dakika</p>\n{6}\n<p>Lütfen takviminizi güncelleyin. Sizinle görüşmeyi dört gözle bekliyoruz.</p>",
+
+  "interview.cancelled.subject": "Mülakatınız iptal edildi",
+  "interview.cancelled.body": "<p>Merhaba {0},</p>\n<p><strong>{2}</strong> ilanı için {3} tarihine planlanan <strong>{1}</strong> mülakatınız iptal edildi.</p>\n<p>{4}</p>",
+
+  "interview.dateFormat": "d MMMM yyyy dddd, HH:mm 'UTC'",
+
+  "interview.joinLine": "<p>Mülakat odası açıldığında buradan katılabilirsiniz: <a href=\"{0}\">{0}</a></p>",
+  "interview.joinLineUnchanged": "<p>Mülakat odası bağlantınız değişmedi: <a href=\"{0}\">{0}</a></p>",
+
+  "interview.phoneLine.scheduled": "<p>Bu bir telefon mülakatı — görüşmeci planlanan saatte sizi arayacak.</p>",
+  "interview.phoneLine.rescheduled": "<p>Bu bir telefon mülakatı — görüşmeci yeni saatte sizi arayacak.</p>",
+
+  "interview.type.PhoneScreen": "Telefon Görüşmesi",
+  "interview.type.Technical": "Teknik",
+  "interview.type.Cultural": "Kültürel Uyum",
+  "interview.type.Final": "Final",
+
+  "interview.cancelReason.Rescheduling": "Kısa süre içinde yeni bir tarihle sizinle iletişime geçeceğiz — yapmanız gereken bir şey yok.",
+  "interview.cancelReason.CandidateRequested": "Bu mülakat sizin talebiniz üzerine iptal edildi. Yeniden planlamak istediğinizde bize haber verin.",
+  "interview.cancelReason.CandidateWithdrew": "Bu, süreçten çekilme kararınızın bir sonucudur. Ayırdığınız zaman için teşekkür eder, gelecekteki pozisyonlar için sizden haber almayı umarız.",
+  "interview.cancelReason.PositionClosed": "Pozisyon artık açık olmadığı için bu mülakat yeniden planlanmayacak. Ayırdığınız zaman için teşekkür eder, bu olumsuz haber için üzgün olduğumuzu belirtmek isteriz.",
+  "interview.cancelReason.ApplicationRejected": "Başvurunuz artık ilerlemediği için bu mülakat gerçekleşmeyecek. Sürece ayırdığınız zaman için teşekkür ederiz.",
+  "interview.cancelReason.unknown": "Yeni bir tarih uygun olduğunda sizinle iletişime geçeceğiz. Sabrınız için teşekkür ederiz."
+}

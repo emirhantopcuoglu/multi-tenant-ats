@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Ats.Shared.Kernel;
+using Ats.Shared.Infrastructure;
 
 namespace Ats.IntegrationTests.CandidateAccounts;
 
@@ -248,7 +250,7 @@ public sealed class CandidatePasswordResetServiceTests : IAsyncLifetime
     {
         await using var db = CreateDbContext();
         var account = CandidateAccount.Register(
-            Email, CreatePasswordHasher().Hash(OriginalPassword), "Jane", "Doe");
+            Email, CreatePasswordHasher().Hash(OriginalPassword), "Jane", "Doe", SupportedLanguages.Default);
         db.CandidateAccounts.Add(account);
         await db.SaveChangesAsync();
         return account.Id;
@@ -281,6 +283,7 @@ public sealed class CandidatePasswordResetServiceTests : IAsyncLifetime
         CreateDbContext(),
         CreatePasswordHasher(),
         mail ?? new RecordingEmailSender(),
+        new JsonEmailTextProvider(),
         Options.Create(new CandidatePasswordResetOptions { ResetBaseUrl = ResetBaseUrl }),
         NullLogger<CandidatePasswordResetService>.Instance);
 

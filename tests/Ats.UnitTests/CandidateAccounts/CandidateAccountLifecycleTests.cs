@@ -1,11 +1,12 @@
 using Ats.Modules.CandidateAccounts.Domain;
+using Ats.Shared.Kernel;
 
 namespace Ats.UnitTests.CandidateAccounts;
 
 public sealed class CandidateAccountLifecycleTests
 {
     private static CandidateAccount CreateAccount() =>
-        CandidateAccount.Register("jane@example.com", "hashed-password", "Jane", "Doe");
+        CandidateAccount.Register("jane@example.com", "hashed-password", "Jane", "Doe", SupportedLanguages.Default);
 
     private static CandidateAccount CreateAccountWithProfile()
     {

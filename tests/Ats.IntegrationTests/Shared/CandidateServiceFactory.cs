@@ -2,6 +2,7 @@ using Ats.Modules.CandidateAccounts.Infrastructure;
 using Ats.Shared.Kernel;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Ats.Shared.Infrastructure;
 
 namespace Ats.IntegrationTests.Shared;
 
@@ -16,6 +17,7 @@ internal static class CandidateServiceFactory
         CandidateAccountsDbContext db, IEmailSender? emailSender = null) =>
         new(db,
             emailSender ?? new NoOpEmailSender(),
+            new JsonEmailTextProvider(),
             Options.Create(new CandidateEmailVerificationOptions()),
             NullLogger<CandidateEmailVerificationService>.Instance);
 }

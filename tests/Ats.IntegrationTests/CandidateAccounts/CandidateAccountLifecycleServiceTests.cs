@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Ats.Shared.Infrastructure;
+using Ats.Shared.Kernel;
 
 namespace Ats.IntegrationTests.CandidateAccounts;
 
@@ -176,7 +178,7 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
         await CreateService().DeleteAsync(accountId, new DeleteCandidateAccountCommand(Password));
 
         // Act — the locked product decision: deletion is final, the address is reusable
-        var register = await CreateAuthService().RegisterAsync(Email, Password, "John", "Roe");
+        var register = await CreateAuthService().RegisterAsync(Email, Password, "John", "Roe", SupportedLanguages.Default);
 
         // Assert
         Assert.True(register.IsSuccess);
@@ -272,6 +274,7 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
             CreatePasswordHasher(),
             new CandidateSessionIssuer(db, CreateTokenService(), CreateJwtOptions()),
             emailSender ?? new RecordingEmailSender(),
+            new JsonEmailTextProvider(),
             Options.Create(new CandidateEmailChangeOptions()),
             NullLogger<CandidateProfileService>.Instance);
     }
@@ -279,7 +282,7 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
     private async Task<Guid> SeedAccountAsync()
     {
         await using var db = CreateDbContext();
-        var account = CandidateAccount.Register(Email, CreatePasswordHasher().Hash(Password), "Jane", "Doe");
+        var account = CandidateAccount.Register(Email, CreatePasswordHasher().Hash(Password), "Jane", "Doe", SupportedLanguages.Default);
         db.CandidateAccounts.Add(account);
         await db.SaveChangesAsync();
         return account.Id;

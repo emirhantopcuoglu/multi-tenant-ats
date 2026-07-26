@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Ats.Shared.Infrastructure;
 
 namespace Ats.IntegrationTests.Tenants;
 
@@ -454,6 +455,7 @@ public sealed class UserManagementTests : IAsyncLifetime
             Options.Create(new EmailConfirmationOptions()),
             scope.ServiceProvider.GetRequiredService<ICurrentTenant>(),
             new NoOpEmailSender(),
+            new JsonEmailTextProvider(),
             NullLogger<AuthService>.Instance);
 
     private ServiceProvider BuildProvider(Guid? tenantId, Guid? currentUserId)

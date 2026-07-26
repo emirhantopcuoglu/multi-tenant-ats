@@ -33,7 +33,11 @@ public sealed class CandidateAuthController : ControllerBase
         _currentUser = currentUser;
     }
 
-    public sealed record RegisterRequest(string Email, string Password, string FirstName, string LastName);
+    // PreferredLanguage is optional: an omitted or unrecognised value settles on English rather than
+    // failing the registration, because a client that never asked for a language has not made a
+    // mistake worth refusing an account over.
+    public sealed record RegisterRequest(
+        string Email, string Password, string FirstName, string LastName, string? PreferredLanguage);
     public sealed record LoginRequest(string Email, string Password);
     public sealed record RefreshRequest(string RefreshToken);
     public sealed record LogoutRequest(string RefreshToken);
@@ -46,7 +50,8 @@ public sealed class CandidateAuthController : ControllerBase
     public async Task<IActionResult> Register(RegisterRequest request)
     {
         var result = await _authService.RegisterAsync(
-            request.Email, request.Password, request.FirstName, request.LastName);
+            request.Email, request.Password, request.FirstName, request.LastName, request.PreferredLanguage
+            ?? SupportedLanguages.Default);
 
         return result.IsSuccess
             ? Ok(result.Value)

@@ -28,7 +28,7 @@ public sealed class CandidateAuthService : ICandidateAuthService
     }
 
     public async Task<Result<CandidateAuthResult>> RegisterAsync(
-        string email, string password, string firstName, string lastName)
+        string email, string password, string firstName, string lastName, string preferredLanguage)
     {
         // Enforced here and not only in the frontend: the zod rule is UX, the server is the boundary.
         if (!CandidatePasswordPolicy.IsAcceptable(password))
@@ -43,7 +43,11 @@ public sealed class CandidateAuthService : ICandidateAuthService
             return Result.Failure<CandidateAuthResult>(CandidateAuthErrors.EmailAlreadyRegistered);
 
         var passwordHash = _passwordHasher.Hash(password);
-        var account = CandidateAccount.Register(email, passwordHash, firstName, lastName);
+        // Normalized at this boundary rather than in the domain, matching how Country/City are
+        // checked against their catalogue here: an unrecognised language becomes English instead of
+        // failing a registration over a header the caller does not control.
+        var account = CandidateAccount.Register(
+            email, passwordHash, firstName, lastName, SupportedLanguages.Normalize(preferredLanguage));
         _db.CandidateAccounts.Add(account);
 
         try

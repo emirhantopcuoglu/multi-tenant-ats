@@ -1,4 +1,5 @@
 using Ats.Modules.CandidateAccounts.Domain;
+using Ats.Shared.Kernel;
 
 namespace Ats.UnitTests.CandidateAccounts;
 
@@ -8,7 +9,7 @@ public class CandidateAccountPasswordTests
     private const string NewPasswordHash = "new-hashed-password";
 
     private static CandidateAccount CreateAccount() =>
-        CandidateAccount.Register("jane@example.com", PasswordHash, "Jane", "Doe");
+        CandidateAccount.Register("jane@example.com", PasswordHash, "Jane", "Doe", SupportedLanguages.Default);
 
     [Fact]
     public void Register_should_issue_a_security_stamp()

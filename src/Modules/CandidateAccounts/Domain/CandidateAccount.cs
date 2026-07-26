@@ -37,6 +37,15 @@ public sealed class CandidateAccount
     // profile area — hence nullable from birth even though nothing sets it yet.
     public string? CvFileKey { get; private set; }
 
+    // Which language this person is written to in. Set from the UI language at registration and
+    // changed whenever they switch it while signed in, so the mail follows the app rather than
+    // freezing at whatever the browser happened to say on the day they signed up.
+    //
+    // Not nullable and not validated here: membership of the supported-language catalogue is checked
+    // at the application boundary, the same split already used for Country/City. The domain's own
+    // invariant is only that a candidate always has a language to be written to.
+    public string PreferredLanguage { get; private set; } = null!;
+
     public DateTime CreatedAtUtc { get; private set; }
 
     // When the candidate proved they can read the address they registered with, by clicking a link
@@ -59,20 +68,23 @@ public sealed class CandidateAccount
     private CandidateAccount() { }
 
     private CandidateAccount(
-        Guid id, string email, string passwordHash, string firstName, string lastName, DateTime createdAtUtc)
+        Guid id, string email, string passwordHash, string firstName, string lastName,
+        string preferredLanguage, DateTime createdAtUtc)
     {
         Id = id;
         Email = email;
         PasswordHash = passwordHash;
         FirstName = firstName;
         LastName = lastName;
+        PreferredLanguage = preferredLanguage;
         CreatedAtUtc = createdAtUtc;
         SecurityStamp = Guid.NewGuid();
     }
 
     // Hashing (algorithm, work factor, salt) is an infrastructure concern, so the caller passes an
     // already-computed hash — the domain never sees or stores the plaintext password.
-    public static CandidateAccount Register(string email, string passwordHash, string firstName, string lastName)
+    public static CandidateAccount Register(
+        string email, string passwordHash, string firstName, string lastName, string preferredLanguage)
     {
         if (string.IsNullOrWhiteSpace(email))
             throw new ArgumentException("Email is required.", nameof(email));
@@ -82,9 +94,23 @@ public sealed class CandidateAccount
             throw new ArgumentException("First name is required.", nameof(firstName));
         if (string.IsNullOrWhiteSpace(lastName))
             throw new ArgumentException("Last name is required.", nameof(lastName));
+        if (string.IsNullOrWhiteSpace(preferredLanguage))
+            throw new ArgumentException("Preferred language is required.", nameof(preferredLanguage));
 
         return new CandidateAccount(
-            Guid.NewGuid(), NormalizeEmail(email), passwordHash, firstName.Trim(), lastName.Trim(), DateTime.UtcNow);
+            Guid.NewGuid(), NormalizeEmail(email), passwordHash, firstName.Trim(), lastName.Trim(),
+            preferredLanguage, DateTime.UtcNow);
+    }
+
+    // Separate from UpdateProfile: the language switch is a one-field write the SPA makes the moment
+    // the toggle is clicked, on a screen that is not the profile form. Folding it into UpdateProfile
+    // would force that call to resend the whole profile just to change two characters.
+    public void SetPreferredLanguage(string language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+            throw new ArgumentException("Preferred language is required.", nameof(language));
+
+        PreferredLanguage = language;
     }
 
     // Stored normalised so the global unique-email constraint is case-insensitive without relying on
