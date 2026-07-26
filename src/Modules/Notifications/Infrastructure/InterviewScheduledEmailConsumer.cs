@@ -1,4 +1,5 @@
 using System.Net;
+using Ats.Shared.Contracts.CandidateAccounts;
 using Ats.Shared.Contracts.Notifications;
 using Ats.Shared.Kernel;
 using MassTransit;
@@ -13,23 +14,30 @@ namespace Ats.Modules.Notifications.Infrastructure;
 //
 // The send is wrapped in the idempotency guard keyed on the message id, matching the other email
 // consumers: an at-least-once redelivery must not email the candidate twice.
+//
+// Wording comes from IEmailTextProvider in the language the candidate's account carries; see
+// ApplicationRejectedConsumer for why the language is read here rather than carried on the event.
 public sealed class InterviewScheduledEmailConsumer
     : IConsumer<InterviewScheduledIntegrationEvent>
 {
-    private const string Subject = "Your interview has been scheduled";
-
     private readonly IEmailSender _emailSender;
+    private readonly IEmailTextProvider _emailText;
+    private readonly ICandidateAccountReader _candidateAccounts;
     private readonly IIdempotencyGuard _idempotencyGuard;
     private readonly InterviewRoomOptions _roomOptions;
     private readonly ILogger<InterviewScheduledEmailConsumer> _logger;
 
     public InterviewScheduledEmailConsumer(
         IEmailSender emailSender,
+        IEmailTextProvider emailText,
+        ICandidateAccountReader candidateAccounts,
         IIdempotencyGuard idempotencyGuard,
         IOptions<InterviewRoomOptions> roomOptions,
         ILogger<InterviewScheduledEmailConsumer> logger)
     {
         _emailSender = emailSender;
+        _emailText = emailText;
+        _candidateAccounts = candidateAccounts;
         _idempotencyGuard = idempotencyGuard;
         _roomOptions = roomOptions.Value;
         _logger = logger;
@@ -39,35 +47,9 @@ public sealed class InterviewScheduledEmailConsumer
     {
         var message = context.Message;
 
-        // Job title is a recruiter/company-controlled string, untrusted in an HTML email, so
-        // HTML-encode it — same rule as the other emails. Date formatting and the PascalCase
-        // humanization are shared with the reschedule/cancel emails so one interview never reads
-        // differently across the three messages.
-        var firstName = WebUtility.HtmlEncode(message.CandidateFirstName);
-        var jobTitle = WebUtility.HtmlEncode(message.JobTitle);
-        var interviewType = InterviewEmailFormatting.HumanizeType(message.InterviewType);
-        var scheduledAt = InterviewEmailFormatting.FormatUtc(message.ScheduledAtUtc);
-
-        // A phone screen has no room token, so there is no link to send — the candidate is called
-        // instead. Every other type gets a join link.
-        var joinLine = message.RoomToken is { } roomToken
-            ? InterviewEmailFormatting.JoinLine(_roomOptions.BaseUrl, roomToken, unchanged: false)
-            : "<p>This is a phone interview — the interviewer will call you at the scheduled time.</p>";
-
-        var body = $"""
-            <p>Hi {firstName},</p>
-            <p>An interview has been scheduled for your application to <strong>{jobTitle}</strong>.</p>
-            <p>Type: {interviewType}<br/>
-            When: {scheduledAt}<br/>
-            Duration: {message.DurationMinutes} minutes</p>
-            {joinLine}
-            <p>We look forward to speaking with you.</p>
-            """;
-
         var key = $"notifications:interview-scheduled-email:{context.MessageId}";
         var sent = await _idempotencyGuard.ProcessOnceAsync(
-            key,
-            () => _emailSender.SendAsync(message.CandidateEmail, Subject, body, context.CancellationToken));
+            key, () => SendAsync(message, context.CancellationToken));
 
         if (!sent)
         {
@@ -81,5 +63,40 @@ public sealed class InterviewScheduledEmailConsumer
             "Sent interview-scheduled email to {CandidateEmail} for interview {InterviewId}",
             message.CandidateEmail,
             message.InterviewId);
+    }
+
+    private async Task SendAsync(InterviewScheduledIntegrationEvent message, CancellationToken ct)
+    {
+        var language = await _candidateAccounts.GetPreferredLanguageByEmailAsync(message.CandidateEmail, ct);
+
+        // Job title is a recruiter/company-controlled string, untrusted in an HTML email, so
+        // HTML-encode it — same rule as the other emails. The date format and the type name are
+        // shared with the reschedule/cancel emails so one interview never reads differently across
+        // the three messages.
+        var interviewType = InterviewEmailFormatting.TypeName(message.InterviewType, _emailText, language);
+        var scheduledAt = InterviewEmailFormatting.FormatUtc(message.ScheduledAtUtc, _emailText, language);
+
+        // A phone screen has no room token, so there is no link to send — the candidate is called
+        // instead. Every other type gets a join link.
+        var joinLine = message.RoomToken is { } roomToken
+            ? InterviewEmailFormatting.JoinLine(
+                _roomOptions.BaseUrl, roomToken, unchanged: false, _emailText, language)
+            : _emailText.Get(EmailTextKeys.Interview.PhoneLineScheduled, language);
+
+        var body = _emailText.Get(
+            EmailTextKeys.Interview.ScheduledBody,
+            language,
+            WebUtility.HtmlEncode(message.CandidateFirstName),
+            WebUtility.HtmlEncode(message.JobTitle),
+            interviewType,
+            scheduledAt,
+            message.DurationMinutes,
+            joinLine);
+
+        await _emailSender.SendAsync(
+            message.CandidateEmail,
+            _emailText.Get(EmailTextKeys.Interview.ScheduledSubject, language),
+            body,
+            ct);
     }
 }

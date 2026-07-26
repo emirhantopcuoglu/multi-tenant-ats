@@ -1,4 +1,5 @@
 using System.Net;
+using Ats.Shared.Contracts.CandidateAccounts;
 using Ats.Shared.Contracts.Notifications;
 using Ats.Shared.Kernel;
 using MassTransit;
@@ -13,21 +14,28 @@ namespace Ats.Modules.Notifications.Infrastructure;
 //
 // The send is wrapped in the idempotency guard keyed on the message id, matching the other email
 // consumers: an at-least-once redelivery must not email the candidate twice.
+//
+// Wording comes from IEmailTextProvider in the language the candidate's account carries; see
+// ApplicationRejectedConsumer for why the language is read here rather than carried on the event.
 public sealed class ApplicationStageChangedEmailConsumer
     : IConsumer<ApplicationStageChangedIntegrationEvent>
 {
-    private const string Subject = "Your application has moved forward";
-
     private readonly IEmailSender _emailSender;
+    private readonly IEmailTextProvider _emailText;
+    private readonly ICandidateAccountReader _candidateAccounts;
     private readonly IIdempotencyGuard _idempotencyGuard;
     private readonly ILogger<ApplicationStageChangedEmailConsumer> _logger;
 
     public ApplicationStageChangedEmailConsumer(
         IEmailSender emailSender,
+        IEmailTextProvider emailText,
+        ICandidateAccountReader candidateAccounts,
         IIdempotencyGuard idempotencyGuard,
         ILogger<ApplicationStageChangedEmailConsumer> logger)
     {
         _emailSender = emailSender;
+        _emailText = emailText;
+        _candidateAccounts = candidateAccounts;
         _idempotencyGuard = idempotencyGuard;
         _logger = logger;
     }
@@ -36,23 +44,9 @@ public sealed class ApplicationStageChangedEmailConsumer
     {
         var message = context.Message;
 
-        // Job title and stage name are recruiter/company-controlled strings, untrusted in an HTML
-        // email, so HTML-encode them to prevent content injection — same rule as the other emails.
-        var firstName = WebUtility.HtmlEncode(message.CandidateFirstName);
-        var jobTitle = WebUtility.HtmlEncode(message.JobTitle);
-        var stageName = WebUtility.HtmlEncode(message.ToStageName);
-
-        var body = $"""
-            <p>Hi {firstName},</p>
-            <p>Your application for <strong>{jobTitle}</strong> has moved to the
-            <strong>{stageName}</strong> stage.</p>
-            <p>We'll be in touch with next steps.</p>
-            """;
-
         var key = $"notifications:application-stage-changed-email:{context.MessageId}";
         var sent = await _idempotencyGuard.ProcessOnceAsync(
-            key,
-            () => _emailSender.SendAsync(message.CandidateEmail, Subject, body, context.CancellationToken));
+            key, () => SendAsync(message, context.CancellationToken));
 
         if (!sent)
         {
@@ -66,5 +60,25 @@ public sealed class ApplicationStageChangedEmailConsumer
             "Sent stage-changed email to {CandidateEmail} for application {ApplicationId}",
             message.CandidateEmail,
             message.ApplicationId);
+    }
+
+    private async Task SendAsync(ApplicationStageChangedIntegrationEvent message, CancellationToken ct)
+    {
+        var language = await _candidateAccounts.GetPreferredLanguageByEmailAsync(message.CandidateEmail, ct);
+
+        // Job title and stage name are recruiter/company-controlled strings, untrusted in an HTML
+        // email, so HTML-encode them to prevent content injection — same rule as the other emails.
+        var body = _emailText.Get(
+            EmailTextKeys.Application.StageChangedBody,
+            language,
+            WebUtility.HtmlEncode(message.CandidateFirstName),
+            WebUtility.HtmlEncode(message.JobTitle),
+            WebUtility.HtmlEncode(message.ToStageName));
+
+        await _emailSender.SendAsync(
+            message.CandidateEmail,
+            _emailText.Get(EmailTextKeys.Application.StageChangedSubject, language),
+            body,
+            ct);
     }
 }

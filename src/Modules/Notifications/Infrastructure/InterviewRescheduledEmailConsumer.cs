@@ -1,4 +1,5 @@
 using System.Net;
+using Ats.Shared.Contracts.CandidateAccounts;
 using Ats.Shared.Contracts.Notifications;
 using Ats.Shared.Kernel;
 using MassTransit;
@@ -13,23 +14,30 @@ namespace Ats.Modules.Notifications.Infrastructure;
 // The email leads with the old time as well as the new one. A candidate who has the original
 // invitation in their inbox and the original slot in their calendar needs to see what changed, not
 // just be handed a second set of details to reconcile.
+//
+// Wording comes from IEmailTextProvider in the language the candidate's account carries; see
+// ApplicationRejectedConsumer for why the language is read here rather than carried on the event.
 public sealed class InterviewRescheduledEmailConsumer
     : IConsumer<InterviewRescheduledIntegrationEvent>
 {
-    private const string Subject = "Your interview has been moved";
-
     private readonly IEmailSender _emailSender;
+    private readonly IEmailTextProvider _emailText;
+    private readonly ICandidateAccountReader _candidateAccounts;
     private readonly IIdempotencyGuard _idempotencyGuard;
     private readonly InterviewRoomOptions _roomOptions;
     private readonly ILogger<InterviewRescheduledEmailConsumer> _logger;
 
     public InterviewRescheduledEmailConsumer(
         IEmailSender emailSender,
+        IEmailTextProvider emailText,
+        ICandidateAccountReader candidateAccounts,
         IIdempotencyGuard idempotencyGuard,
         IOptions<InterviewRoomOptions> roomOptions,
         ILogger<InterviewRescheduledEmailConsumer> logger)
     {
         _emailSender = emailSender;
+        _emailText = emailText;
+        _candidateAccounts = candidateAccounts;
         _idempotencyGuard = idempotencyGuard;
         _roomOptions = roomOptions.Value;
         _logger = logger;
@@ -39,33 +47,9 @@ public sealed class InterviewRescheduledEmailConsumer
     {
         var message = context.Message;
 
-        var firstName = WebUtility.HtmlEncode(message.CandidateFirstName);
-        var jobTitle = WebUtility.HtmlEncode(message.JobTitle);
-        var interviewType = InterviewEmailFormatting.HumanizeType(message.InterviewType);
-        var previous = InterviewEmailFormatting.FormatUtc(message.PreviousScheduledAtUtc);
-        var updated = InterviewEmailFormatting.FormatUtc(message.ScheduledAtUtc);
-
-        // The room link survives a reschedule (the token is stable across moves), so the candidate
-        // can keep using the same URL — worth saying, because a moved meeting invites the assumption
-        // that the old link is dead.
-        var joinLine = message.RoomToken is { } roomToken
-            ? InterviewEmailFormatting.JoinLine(_roomOptions.BaseUrl, roomToken, unchanged: true)
-            : "<p>This is a phone interview — the interviewer will call you at the new time.</p>";
-
-        var body = $"""
-            <p>Hi {firstName},</p>
-            <p>Your <strong>{interviewType}</strong> interview for <strong>{jobTitle}</strong> has been moved.</p>
-            <p>Previously: <s>{previous}</s><br/>
-            Now: <strong>{updated}</strong><br/>
-            Duration: {message.DurationMinutes} minutes</p>
-            {joinLine}
-            <p>Please update your calendar. We look forward to speaking with you.</p>
-            """;
-
         var key = $"notifications:interview-rescheduled-email:{context.MessageId}";
         var sent = await _idempotencyGuard.ProcessOnceAsync(
-            key,
-            () => _emailSender.SendAsync(message.CandidateEmail, Subject, body, context.CancellationToken));
+            key, () => SendAsync(message, context.CancellationToken));
 
         if (!sent)
         {
@@ -79,5 +63,39 @@ public sealed class InterviewRescheduledEmailConsumer
             "Sent interview-rescheduled email to {CandidateEmail} for interview {InterviewId}",
             message.CandidateEmail,
             message.InterviewId);
+    }
+
+    private async Task SendAsync(InterviewRescheduledIntegrationEvent message, CancellationToken ct)
+    {
+        var language = await _candidateAccounts.GetPreferredLanguageByEmailAsync(message.CandidateEmail, ct);
+
+        var interviewType = InterviewEmailFormatting.TypeName(message.InterviewType, _emailText, language);
+        var previous = InterviewEmailFormatting.FormatUtc(message.PreviousScheduledAtUtc, _emailText, language);
+        var updated = InterviewEmailFormatting.FormatUtc(message.ScheduledAtUtc, _emailText, language);
+
+        // The room link survives a reschedule (the token is stable across moves), so the candidate
+        // can keep using the same URL — worth saying, because a moved meeting invites the assumption
+        // that the old link is dead.
+        var joinLine = message.RoomToken is { } roomToken
+            ? InterviewEmailFormatting.JoinLine(
+                _roomOptions.BaseUrl, roomToken, unchanged: true, _emailText, language)
+            : _emailText.Get(EmailTextKeys.Interview.PhoneLineRescheduled, language);
+
+        var body = _emailText.Get(
+            EmailTextKeys.Interview.RescheduledBody,
+            language,
+            WebUtility.HtmlEncode(message.CandidateFirstName),
+            interviewType,
+            WebUtility.HtmlEncode(message.JobTitle),
+            previous,
+            updated,
+            message.DurationMinutes,
+            joinLine);
+
+        await _emailSender.SendAsync(
+            message.CandidateEmail,
+            _emailText.Get(EmailTextKeys.Interview.RescheduledSubject, language),
+            body,
+            ct);
     }
 }
