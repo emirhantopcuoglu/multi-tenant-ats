@@ -10,4 +10,7 @@ export interface TenantUser {
   lastName: string;
   email: string;
   role: Role;
+  /** False once an admin deactivates them: they keep appearing here (so they can be reactivated) but
+   *  can no longer sign in. The backend orders active members first. */
+  isActive: boolean;
 }

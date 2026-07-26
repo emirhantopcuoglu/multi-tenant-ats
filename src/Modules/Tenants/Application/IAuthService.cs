@@ -16,8 +16,11 @@ public sealed record CurrentUserDto(
 
 public sealed record CurrentUserTenantDto(string CompanyName, string Slug);
 
-// A member of the caller's tenant, for the interviewer picker (and the future users/settings screen).
-public sealed record TenantUserDto(Guid Id, string FirstName, string LastName, string Email, string Role);
+// A member of the caller's tenant, for the interviewer picker and the users/settings screen.
+// IsActive is included so Settings can show a deactivated colleague (and offer to reactivate them)
+// rather than having them vanish from the list with no way back.
+public sealed record TenantUserDto(
+    Guid Id, string FirstName, string LastName, string Email, string Role, bool IsActive);
 
 public interface IAuthService
 {

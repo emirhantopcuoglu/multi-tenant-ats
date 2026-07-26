@@ -493,6 +493,9 @@ builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITenantProfileService, TenantProfileService>();
+// Administering people in a tenant, kept off IAuthService: that interface backs the anonymous login
+// endpoints, and "change someone else's role" does not belong on the same surface.
+builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 
 // The Tenants module's cross-module read port, consumed (e.g.) by the Jobs public feed to name the
 // company behind each job without reaching into the Tenants schema.
