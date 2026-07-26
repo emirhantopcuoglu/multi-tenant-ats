@@ -491,6 +491,8 @@ builder.Services.Configure<CandidateJwtOptions>(
     builder.Configuration.GetSection(CandidateJwtOptions.SectionName));
 builder.Services.Configure<CandidateEmailChangeOptions>(
     builder.Configuration.GetSection(CandidateEmailChangeOptions.SectionName));
+builder.Services.Configure<CandidatePasswordResetOptions>(
+    builder.Configuration.GetSection(CandidatePasswordResetOptions.SectionName));
 builder.Services.Configure<InterviewRoomOptions>(
     builder.Configuration.GetSection(InterviewRoomOptions.SectionName));
 builder.Services.AddSingleton<IPasswordHasher<CandidateAccount>, PasswordHasher<CandidateAccount>>();
@@ -501,6 +503,9 @@ builder.Services.AddScoped<ICandidateTokenService, CandidateTokenService>();
 builder.Services.AddScoped<ICandidateSessionIssuer, CandidateSessionIssuer>();
 builder.Services.AddScoped<ICandidateAuthService, CandidateAuthService>();
 builder.Services.AddScoped<ICandidateProfileService, CandidateProfileService>();
+// Kept apart from the profile service: that one serves a signed-in candidate re-proving ownership with
+// their current password, this one serves someone who cannot sign in and proves it via their mailbox.
+builder.Services.AddScoped<ICandidatePasswordResetService, CandidatePasswordResetService>();
 builder.Services.AddScoped<ICandidateAccountLifecycleService, CandidateAccountLifecycleService>();
 builder.Services.AddScoped<ICandidateAccountReader, CandidateAccountReader>();
 

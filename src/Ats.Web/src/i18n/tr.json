@@ -578,7 +578,29 @@
     "publicSignIn": "Giriş yap",
     "publicRegister": "Hesap oluştur",
     "myApplications": "Başvurularım",
-    "myInterviews": "Mülakatlarım"
+    "myInterviews": "Mülakatlarım",
+    "forgotPassword": {
+      "link": "Şifrenizi mi unuttunuz?",
+      "title": "Şifrenizi sıfırlayın",
+      "subtitle": "E-postanızı girin, yeni şifre belirlemeniz için bir bağlantı gönderelim.",
+      "submit": "Sıfırlama bağlantısı gönder",
+      "sentTitle": "E-postanızı kontrol edin",
+      "sentBody": "Bu adrese ait bir hesap varsa, yeni şifre belirlemeniz için bir bağlantı gönderdik. Bağlantı 1 saat içinde geçerliliğini yitirir.",
+      "backToSignIn": "Girişe dön",
+      "failed": "Sıfırlama bağlantısı gönderilemedi. Tekrar deneyin."
+    },
+    "resetPassword": {
+      "title": "Yeni şifre belirleyin",
+      "subtitle": "Hesabınız için yeni bir şifre seçin. Bu işlem diğer tüm cihazlardaki oturumları kapatır.",
+      "newPassword": "Yeni şifre",
+      "confirmPassword": "Yeni şifreyi doğrulayın",
+      "submit": "Yeni şifreyi kaydet",
+      "missingToken": "Bu bağlantıda token eksik. Yeni bir bağlantı isteyin.",
+      "invalidLink": "Bu sıfırlama bağlantısı geçersiz, süresi dolmuş veya daha önce kullanılmış.",
+      "requestNew": "Yeni bağlantı isteyin",
+      "doneTitle": "Şifre güncellendi",
+      "doneBody": "Yeni şifrenizle giriş yapın. Diğer tüm oturumlar kapatıldı."
+    }
   },
   "candidatePortal": {
     "applicationsTitle": "Başvurularım",

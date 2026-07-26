@@ -71,6 +71,12 @@ export function CandidateLoginPage() {
           )}
         </Field>
 
+        <div className="text-right">
+          <Link to="/candidate/forgot-password" className="text-sm text-accent hover:underline">
+            {t('candidateAuth.forgotPassword.link')}
+          </Link>
+        </div>
+
         <Button type="submit" className="w-full" disabled={formState.isSubmitting}>
           {t('auth.signInBtn')}
         </Button>
