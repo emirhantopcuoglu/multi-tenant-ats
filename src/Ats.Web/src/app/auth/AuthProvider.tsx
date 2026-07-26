@@ -82,11 +82,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         tokenStore.clearCandidateToken();
         clearCandidateSession();
       }
+      // No session is established, unlike login: registration mails a confirmation link and the caller
+      // shows a "check your inbox" screen. Setting hasCompanySession here would put the app in a
+      // signed-in state with no tokens, and every request would 401.
       await registerRequest(request);
-      setHasCompanySession(true);
-      await companyUserQuery.refetch();
     },
-    [hasCandidateSession, clearCandidateSession, companyUserQuery],
+    [hasCandidateSession, clearCandidateSession],
   );
 
   const candidateLogin = useCallback(

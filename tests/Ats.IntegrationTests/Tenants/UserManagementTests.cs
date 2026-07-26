@@ -376,6 +376,11 @@ public sealed class UserManagementTests : IAsyncLifetime
             FirstName = email.Split('@')[0],
             LastName = "User",
             TenantId = _tenantId,
+            // These suites are about deactivation and password recovery, not email confirmation, so
+            // their users are seeded the way a real one looks after confirming. Without it the login
+            // guard added with company email confirmation refuses them and every assertion below is
+            // about the wrong thing.
+            EmailConfirmed = true,
             CreatedAtUtc = DateTime.UtcNow
         };
 
@@ -402,6 +407,11 @@ public sealed class UserManagementTests : IAsyncLifetime
             FirstName = "Out",
             LastName = "Sider",
             TenantId = otherTenant.Id,
+            // These suites are about deactivation and password recovery, not email confirmation, so
+            // their users are seeded the way a real one looks after confirming. Without it the login
+            // guard added with company email confirmation refuses them and every assertion below is
+            // about the wrong thing.
+            EmailConfirmed = true,
             CreatedAtUtc = DateTime.UtcNow
         };
 
@@ -441,6 +451,7 @@ public sealed class UserManagementTests : IAsyncLifetime
             new RandomTokenService(),
             Options.Create(new JwtOptions { RefreshTokenDays = 7 }),
             Options.Create(new PasswordResetOptions()),
+            Options.Create(new EmailConfirmationOptions()),
             scope.ServiceProvider.GetRequiredService<ICurrentTenant>(),
             new NoOpEmailSender(),
             NullLogger<AuthService>.Instance);

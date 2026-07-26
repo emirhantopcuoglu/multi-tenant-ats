@@ -4,12 +4,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useMutation } from '@tanstack/react-query';
 import { Button, Field, Input } from '@/components/ui';
 import { useAuth } from '@/app/auth/auth-context';
 import { toApiError } from '@/lib/problemDetails';
 import { AuthLayout } from '../components/AuthLayout';
 import { AudienceSwitch } from '../components/AudienceSwitch';
-import { authErrorMessage } from '../authErrorMessage';
+import { authErrorMessage, EMAIL_NOT_CONFIRMED_CODE } from '../authErrorMessage';
+import { resendEmailConfirmation } from '../authApi';
 
 export function LoginPage() {
   const { t } = useTranslation();
@@ -17,6 +19,8 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [formError, setFormError] = useState<string | null>(null);
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
+  const resend = useMutation({ mutationFn: (email: string) => resendEmailConfirmation(email) });
 
   // Where to return after login: the page the guard bounced us from, or the dashboard.
   const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/';
@@ -38,11 +42,17 @@ export function LoginPage() {
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null);
+    setUnconfirmedEmail(null);
     try {
       await login(values);
       navigate(from, { replace: true });
     } catch (error) {
-      setFormError(authErrorMessage(toApiError(error), t));
+      const apiError = toApiError(error);
+      setFormError(authErrorMessage(apiError, t));
+      /* The one login failure the user can act on from this screen. Their password was correct — the
+         server only reaches this error after verifying it — so remembering the address to offer a
+         resend reveals nothing they have not already proved they know. */
+      if (apiError.code === EMAIL_NOT_CONFIRMED_CODE) setUnconfirmedEmail(values.email);
     }
   });
 
@@ -54,6 +64,20 @@ export function LoginPage() {
         {formError && (
           <div role="alert" className="rounded-lg bg-danger-bg px-3 py-2 text-sm text-danger">
             {formError}
+            {unconfirmedEmail && (
+              <div className="mt-2">
+                <button
+                  type="button"
+                  onClick={() => resend.mutate(unconfirmedEmail)}
+                  disabled={resend.isPending || resend.isSuccess}
+                  className="font-medium underline disabled:no-underline disabled:opacity-70"
+                >
+                  {resend.isSuccess
+                    ? t('auth.confirmEmail.resendSent')
+                    : t('auth.confirmEmail.resendAction')}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
