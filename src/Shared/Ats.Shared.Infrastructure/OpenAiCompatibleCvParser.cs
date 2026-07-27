@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -52,7 +53,15 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
         "description names. Never mention or infer employment gaps, job-hopping, age, how long ago " +
         "someone graduated, or any other characteristic unrelated to the job's stated technical " +
         "requirements -- these must never appear in fit_summary, matched_requirements, or " +
-        "missing_requirements.";
+        "missing_requirements. " +
+        // The reader of fit_summary is the recruiter who wrote the job description, so that text is
+        // the language signal — no extra field to plumb through, and it is already in the prompt.
+        // Falling back to the CV covers a job that was deleted before parsing ran.
+        "Write fit_summary in the same language as the job description; if no job description is " +
+        "given, use the language of the CV. Everything else is extracted data, not prose: leave " +
+        "skills, education, recent_positions, matched_requirements and missing_requirements in the " +
+        "language they appear in, and never translate the name of a technology, tool or " +
+        "qualification. job_fit_rating stays one of the three English values named above.";
 
     // No naming policy: anonymous-object member names (model, max_tokens, response_format, ...) are
     // sent verbatim as the OpenAI wire keys.
@@ -122,7 +131,7 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
                 BackoffType = DelayBackoffType.Exponential,
                 Delay = TimeSpan.FromSeconds(1),
                 ShouldHandle = new PredicateBuilder()
-                    .Handle<Exception>(ex => ex is not OperationCanceledException)
+                    .Handle<Exception>(IsWorthRetrying)
             })
             .AddCircuitBreaker(new Polly.CircuitBreaker.CircuitBreakerStrategyOptions
             {
@@ -131,11 +140,17 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
                 SamplingDuration = TimeSpan.FromSeconds(30),
                 BreakDuration = TimeSpan.FromSeconds(15),
                 ShouldHandle = new PredicateBuilder()
-                    .Handle<Exception>(ex => ex is not OperationCanceledException)
+                    .Handle<Exception>(IsWorthRetrying)
             })
             .AddTimeout(TimeSpan.FromSeconds(_options.TimeoutSeconds))
             .Build();
     }
+
+    // Retry and the circuit breaker exist for failures a later attempt could survive: a timeout, a
+    // 5xx, a dropped connection. A rejected key and a cancelled request are neither — one will be
+    // rejected identically every time, and the other was asked to stop.
+    private static bool IsWorthRetrying(Exception exception) =>
+        exception is not OperationCanceledException and not LlmAuthenticationException;
 
     public async Task<CvParseResult> ParseAsync(
         string cvText, string jobDescription, CancellationToken cancellationToken = default)
@@ -170,6 +185,19 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
 
             using var response = await client.SendAsync(request, token);
+
+            // A rejected key is not a blip: retrying it three times, tripping the circuit breaker and
+            // then having MassTransit redeliver the message only buries the one fact that matters.
+            // LlmAuthenticationException is excluded from the retry predicate below, so it surfaces
+            // on the first attempt saying exactly what is wrong.
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            {
+                throw new LlmAuthenticationException(
+                    $"The LLM provider rejected the API key with {(int)response.StatusCode} " +
+                    $"{response.StatusCode}. Check the Llm:ApiKey secret — a GitHub token for the " +
+                    "default provider expires and has to be reissued with Models access.");
+            }
+
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<ChatResponse>(cancellationToken: token);
         }, cancellationToken);

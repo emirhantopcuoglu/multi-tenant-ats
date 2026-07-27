@@ -442,11 +442,20 @@ builder.Services.AddMassTransit(bus =>
         // failing once or looping forever. intervalDelta is set to the initial interval so the back-off
         // grows from there. When all attempts are exhausted, MassTransit moves the message to the
         // endpoint's "<queue>_error" dead-letter queue automatically — no extra wiring needed.
-        configurator.UseMessageRetry(retry => retry.Exponential(
-            retryLimit: rabbitMqOptions.RetryLimit,
-            minInterval: TimeSpan.FromSeconds(rabbitMqOptions.RetryInitialIntervalSeconds),
-            maxInterval: TimeSpan.FromSeconds(rabbitMqOptions.RetryMaxIntervalSeconds),
-            intervalDelta: TimeSpan.FromSeconds(rabbitMqOptions.RetryInitialIntervalSeconds)));
+        configurator.UseMessageRetry(retry =>
+        {
+            retry.Exponential(
+                retryLimit: rabbitMqOptions.RetryLimit,
+                minInterval: TimeSpan.FromSeconds(rabbitMqOptions.RetryInitialIntervalSeconds),
+                maxInterval: TimeSpan.FromSeconds(rabbitMqOptions.RetryMaxIntervalSeconds),
+                intervalDelta: TimeSpan.FromSeconds(rabbitMqOptions.RetryInitialIntervalSeconds));
+
+            // A rejected LLM key is a configuration fault, not a transient one: no number of
+            // redeliveries fixes it, and the back-off only delays the dead-letter that makes it
+            // visible. Straight to the error queue, where the message waits to be replayed once the
+            // key is reissued.
+            retry.Ignore<LlmAuthenticationException>();
+        });
 
         // Auto-wires every registered consumer to its endpoint and binds the retry policy above.
         configurator.ConfigureEndpoints(context);
