@@ -1,6 +1,7 @@
 using System.Text;
 using Ats.Shared.Kernel;
 using UglyToad.PdfPig;
+using UglyToad.PdfPig.Core;
 
 namespace Ats.Shared.Infrastructure;
 
@@ -11,14 +12,25 @@ public sealed class PdfPigTextExtractor : IPdfTextExtractor
 {
     public string Extract(byte[] pdfBytes)
     {
-        using var document = PdfDocument.Open(pdfBytes);
-
-        var builder = new StringBuilder();
-        foreach (var page in document.GetPages())
+        try
         {
-            builder.AppendLine(page.Text);
-        }
+            using var document = PdfDocument.Open(pdfBytes);
 
-        return builder.ToString();
+            var builder = new StringBuilder();
+            foreach (var page in document.GetPages())
+            {
+                builder.AppendLine(page.Text);
+            }
+
+            return builder.ToString();
+        }
+        // The upload boundary only checks the leading "%PDF" bytes, so a truncated or malformed file
+        // reaches this far and fails here — this is the exception that actually filled the CV
+        // parsing error queue. Translating it tells the caller the failure is permanent, and keeps
+        // PdfPig's own exception types from leaking past this class.
+        catch (PdfDocumentFormatException exception)
+        {
+            throw new TextExtractionException("The PDF is malformed and cannot be read.", exception);
+        }
     }
 }

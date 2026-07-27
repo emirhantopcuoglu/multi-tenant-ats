@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text;
+using System.Xml;
 using System.Xml.Linq;
 using Ats.Shared.Kernel;
 
@@ -19,20 +20,33 @@ public sealed class DocxTextExtractor : IDocxTextExtractor
 
     public string Extract(byte[] docxBytes)
     {
-        using var stream = new MemoryStream(docxBytes);
-        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+        try
+        {
+            using var stream = new MemoryStream(docxBytes);
+            using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
 
-        // A ZIP that is not a Word package (no document part) yields no text rather than an
-        // exception: the upload boundary only checks the ZIP signature, so this input is
-        // reachable and simply has nothing for us to extract.
-        var documentPart = archive.GetEntry(DocumentPartPath);
-        if (documentPart is null)
-            return string.Empty;
+            // A ZIP that is not a Word package (no document part) yields no text rather than an
+            // exception: the upload boundary only checks the ZIP signature, so this input is
+            // reachable and simply has nothing for us to extract.
+            var documentPart = archive.GetEntry(DocumentPartPath);
+            if (documentPart is null)
+                return string.Empty;
 
-        using var partStream = documentPart.Open();
-        var document = XDocument.Load(partStream);
+            using var partStream = documentPart.Open();
+            var document = XDocument.Load(partStream);
 
-        return ExtractParagraphText(document);
+            return ExtractParagraphText(document);
+        }
+        // A truncated archive or a corrupted document part. Permanent, like the PDF cases: reported
+        // as TextExtractionException so the caller can skip the file instead of retrying it.
+        catch (InvalidDataException exception)
+        {
+            throw new TextExtractionException("The DOCX archive is corrupted.", exception);
+        }
+        catch (XmlException exception)
+        {
+            throw new TextExtractionException("The DOCX document part is not valid XML.", exception);
+        }
     }
 
     private static string ExtractParagraphText(XDocument document)
