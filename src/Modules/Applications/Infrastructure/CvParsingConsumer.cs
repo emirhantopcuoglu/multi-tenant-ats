@@ -64,7 +64,24 @@ public sealed class CvParsingConsumer : IConsumer<CvParseRequestedIntegrationEve
         // A format outside the upload whitelist (which should not happen while the boundary and
         // this dispatch agree) is acknowledged and skipped rather than retried/dead-lettered:
         // redelivery cannot turn an unknown format into a known one.
-        var text = ExtractText(bytes);
+        string? text;
+        try
+        {
+            text = ExtractText(bytes);
+        }
+        catch (TextExtractionException exception)
+        {
+            // Same reasoning, one step further in: the file is the format it claimed to be, but its
+            // bytes are unreadable. Retrying a corrupted upload produces the identical failure every
+            // time and leaves the error queue full of messages nothing can ever process, which is
+            // exactly what buries the failures worth looking at.
+            _logger.LogWarning(
+                exception,
+                "Skipping CV parse for application {ApplicationId}: the file could not be read.",
+                message.ApplicationId);
+            return;
+        }
+
         if (text is null)
         {
             _logger.LogWarning(
