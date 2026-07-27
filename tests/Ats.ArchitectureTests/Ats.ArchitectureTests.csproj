@@ -19,6 +19,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- The API host is referenced for its dependency graph, not its code: it pulls every module and
+       shared project into this project's output folder, which is where the rules read them from. -->
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Ats.Api\Ats.Api.csproj" />
   </ItemGroup>
 
