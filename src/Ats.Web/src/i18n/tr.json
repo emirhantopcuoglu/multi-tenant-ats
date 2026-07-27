@@ -9,7 +9,8 @@
     "signOut": "Çıkış yap",
     "viewCareers": "Kariyer sayfasını görüntüle",
     "errorTitle": "Bir hata oluştu",
-    "errorRetry": "Lütfen daha sonra tekrar deneyin."
+    "errorRetry": "Lütfen daha sonra tekrar deneyin.",
+    "remove": "Kaldır"
   },
   "nav": {
     "overview": "Genel bakış",
@@ -330,7 +331,9 @@
       "applyingAs": "Başvuru sahibi",
       "alreadyAppliedTitle": "Bu pozisyona zaten başvurdunuz",
       "alreadyAppliedBody": "{{title}} pozisyonu için aktif bir başvurunuz var. Durumunu başvurularınızdan takip edebilirsiniz.",
-      "viewApplications": "Başvurularımı görüntüle"
+      "viewApplications": "Başvurularımı görüntüle",
+      "useSavedCv": "Kayıtlı CV'mi kullan",
+      "uploadNewCv": "Farklı bir dosya yükle"
     },
     "notFound": {
       "title": "Sayfa bulunamadı",
@@ -792,6 +795,18 @@
       "deleteConfirmLabel": "Onaylamak için {{word}} yaz",
       "deleteConfirmMismatch": "Onaylamak için tam olarak DELETE yaz.",
       "deleteDialogConfirm": "Kalıcı olarak sil"
+    },
+    "cv": {
+      "heading": "CV",
+      "description": "CV'nizi bir kez yükleyin, her başvuruda yeniden kullanın.",
+      "uploadedOn": "{{date}} tarihinde yüklendi",
+      "download": "İndir",
+      "replaceHint": "Yeni dosya yüklerseniz yukarıdakinin yerini alır.",
+      "uploaded": "CV yüklendi",
+      "uploadError": "CV yüklenemedi.",
+      "removed": "CV kaldırıldı",
+      "removeError": "CV kaldırılamadı.",
+      "downloadError": "İndirme bağlantısı oluşturulamadı."
     }
   },
   "reactivateAccount": {

@@ -15,10 +15,7 @@ public class SubmitApplicationValidatorTests
             Phone: null,
             LinkedInUrl: null,
             CoverLetter: null,
-            CvContent: Stream.Null,
-            CvSizeBytes: 1024,
-            CvContentType: "application/pdf",
-            CvFileName: "cv.pdf");
+            Cv: new CvUpload(Stream.Null, SizeBytes: 1024, ContentType: "application/pdf", FileName: "cv.pdf"));
 
     private readonly SubmitApplicationValidator _validator = new();
 

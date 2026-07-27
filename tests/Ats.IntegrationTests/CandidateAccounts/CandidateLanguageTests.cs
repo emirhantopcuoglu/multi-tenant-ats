@@ -156,6 +156,7 @@ public sealed class CandidateLanguageTests
             new CandidateSessionIssuer(NewDb(), new CandidateTokenService(JwtOptions), JwtOptions),
             mail,
             new JsonEmailTextProvider(),
+            new RecordingFileStorage(),
             Options.Create(new CandidateEmailChangeOptions()),
             NullLogger<CandidateProfileService>.Instance);
 

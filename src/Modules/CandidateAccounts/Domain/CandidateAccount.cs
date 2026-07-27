@@ -33,9 +33,22 @@ public sealed class CandidateAccount
     public DateOnly? BirthDate { get; private set; }
 
     // A CV uploaded once to the account and reused across applications, stored by its object-storage
-    // key (same convention as Application.CvFileKey). Null until the candidate uploads one from their
-    // profile area — hence nullable from birth even though nothing sets it yet.
+    // key. Null until the candidate uploads one from their profile area, and null again after they
+    // remove it — most accounts will sit at null for a while, so every read has to cope with it.
+    //
+    // The three fields move together and only through AttachCv/RemoveCv: a key with no name would
+    // leave the profile page with nothing to render, and a name with no key would promise a file
+    // that cannot be fetched.
     public string? CvFileKey { get; private set; }
+
+    // The candidate's own file name, kept for display only. Recruiters never see it — an
+    // application stores its own copy of the document — but "cv-2026-final.pdf" is how the owner
+    // recognises which version is currently attached.
+    public string? CvFileName { get; private set; }
+
+    public DateTime? CvUploadedAtUtc { get; private set; }
+
+    public bool HasCv => CvFileKey is not null;
 
     // Which language this person is written to in. Set from the UI language at registration and
     // changed whenever they switch it while signed in, so the mail follows the app rather than
@@ -168,6 +181,42 @@ public sealed class CandidateAccount
         BirthDate = birthDate;
     }
 
+    // Both CV methods return the key they displaced, if any, so the caller can delete that object
+    // from storage. The domain cannot do it itself — it has no storage dependency, and the deletion
+    // must not happen until the new state is committed. Returning the key instead of firing an event
+    // keeps that ordering in the caller's hands, where the transaction already is.
+    public string? AttachCv(string fileKey, string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileKey))
+            throw new ArgumentException("CV file key is required.", nameof(fileKey));
+        if (string.IsNullOrWhiteSpace(fileName))
+            throw new ArgumentException("CV file name is required.", nameof(fileName));
+
+        var replacedKey = CvFileKey;
+
+        CvFileKey = fileKey;
+        CvFileName = fileName;
+        CvUploadedAtUtc = DateTime.UtcNow;
+
+        // Replacing a CV with itself would orphan the object that is still in use. Nothing in the
+        // upload path generates a repeated key (each carries a fresh guid), so this only guards
+        // against a future caller that reuses one.
+        return replacedKey == fileKey ? null : replacedKey;
+    }
+
+    // Idempotent: removing a CV that is not there is not an error, it is the state the caller asked
+    // for. Returns null in that case, so the caller deletes nothing.
+    public string? RemoveCv()
+    {
+        var removedKey = CvFileKey;
+
+        CvFileKey = null;
+        CvFileName = null;
+        CvUploadedAtUtc = null;
+
+        return removedKey;
+    }
+
     // Verifying the CURRENT password is the application layer's job (it owns the hasher); by the time
     // this runs the caller has proven ownership and hashed the new secret. The guard runs before any
     // mutation so a rejected change can never rotate the stamp and log the candidate out for nothing.
@@ -268,8 +317,13 @@ public sealed class CandidateAccount
         Country = null;
         City = null;
         BirthDate = null;
-        CvFileKey = null;
         SecurityStamp = Guid.NewGuid();
+
+        // Through RemoveCv rather than clearing the key inline, so a CV field added later cannot be
+        // forgotten here — erasure has to reach all of them. The returned key is discarded because
+        // the caller already read it: the object itself is deleted from storage by the lifecycle
+        // service, which is the only place that can do it after this commit succeeds.
+        _ = RemoveCv();
     }
 
     private static void ValidateBirthDate(DateOnly? birthDate)

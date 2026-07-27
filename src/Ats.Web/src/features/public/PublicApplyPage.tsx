@@ -7,11 +7,12 @@ import { useTranslation } from 'react-i18next';
 import { Button, Card, EmptyState, Field, Input, Skeleton, Textarea } from '@/components/ui';
 import { useAuth } from '@/app/auth/auth-context';
 import { useAppliedJobIds } from '@/features/candidates/useAppliedJobIds';
+import { useCandidateProfile } from '@/features/candidates/useCandidateProfile';
 import { toApiError } from '@/lib/problemDetails';
 import { isAbsoluteHttpUrl } from '@/lib/validation';
 import { PublicLayout } from './components/PublicLayout';
 import { PublicNotFound } from './components/PublicNotFound';
-import { CvUpload } from './components/CvUpload';
+import { ApplyCvField } from './components/CvField';
 import { usePublicJob } from './usePublicJobs';
 import { useApplyToJob } from './useApplyToJob';
 import { validateCvFile, type CvFileError } from './cvFile';
@@ -42,6 +43,15 @@ export function PublicApplyPage() {
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
+  /* The profile is fetched to find out whether there is a saved CV to offer. Only for signed-in
+     candidates — an anonymous visitor is redirected to login below and would just be a 401. */
+  const profileQuery = useCandidateProfile(user?.kind === 'candidate');
+  const savedCv = profileQuery.data?.cv ?? null;
+
+  /* Which CV this application will carry. Starts on the saved one whenever there is one, because
+     that is the whole point of having saved it; picking a file switches the choice automatically. */
+  const [useSavedCv, setUseSavedCv] = useState(true);
+
   // All three fields are optional; the refinements only fire on non-empty input. The rules
   // mirror SubmitApplicationValidator — see applyValidation.ts.
   const schema = useMemo(
@@ -70,9 +80,11 @@ export function PublicApplyPage() {
     defaultValues: { phone: '', linkedInUrl: '', coverLetter: '' },
   });
 
-  // appliedJobIds.isLoading is false while the query is disabled (anonymous visitor), so this
-  // only ever waits for a signed-in candidate's membership check — no cost to everyone else.
-  if (authLoading || jobQuery.isLoading || appliedJobIds.isLoading) {
+  // Both candidate-scoped queries report isLoading false while disabled (anonymous visitor), so
+  // this only ever waits for a signed-in candidate — no cost to everyone else. The profile is
+  // waited on rather than rendered around: for the moment it is missing the form cannot tell
+  // whether there is a saved CV, and would ask for a file the candidate does not need to attach.
+  if (authLoading || jobQuery.isLoading || appliedJobIds.isLoading || profileQuery.isLoading) {
     return (
       <PublicLayout>
         <Skeleton className="h-64 w-full" />
@@ -102,13 +114,16 @@ export function PublicApplyPage() {
     setCvError(undefined);
   };
 
+  // Falls back to uploading whenever there is nothing saved, so the two states cannot disagree.
+  const willUseSavedCv = savedCv !== null && useSavedCv;
+
   // The CV lives outside react-hook-form (it's a File in component state, not an input value),
   // so its required-check runs in both submit branches — otherwise a schema error would hide
   // the missing-CV error until the second attempt.
   const onSubmit = handleSubmit(
     (values) => {
       setBannerError(null);
-      if (!cv) {
+      if (!willUseSavedCv && !cv) {
         setCvError(t('public.apply.cvRequired'));
         return;
       }
@@ -119,7 +134,8 @@ export function PublicApplyPage() {
           phone: values.phone || undefined,
           linkedInUrl: values.linkedInUrl || undefined,
           coverLetter: values.coverLetter || undefined,
-          cv,
+          // Omitted rather than sent: the server copies the account's CV into this application.
+          cv: willUseSavedCv ? undefined : (cv ?? undefined),
         },
         {
           onSuccess: () => setSubmitted(true),
@@ -128,7 +144,7 @@ export function PublicApplyPage() {
       );
     },
     () => {
-      if (!cv) setCvError(t('public.apply.cvRequired'));
+      if (!willUseSavedCv && !cv) setCvError(t('public.apply.cvRequired'));
     },
   );
 
@@ -297,7 +313,13 @@ export function PublicApplyPage() {
               )}
             </Field>
 
-            <CvUpload
+            <ApplyCvField
+              savedCv={savedCv}
+              useSavedCv={willUseSavedCv}
+              onUseSavedCvChange={(useSaved) => {
+                setUseSavedCv(useSaved);
+                setCvError(undefined);
+              }}
               file={cv}
               onSelect={selectCv}
               onClear={() => { setCv(null); setCvError(undefined); }}

@@ -457,7 +457,8 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
 
     private static CandidateTokenService CreateTokenService() => new(CreateJwtOptions());
 
-    private CandidateProfileService CreateService(RecordingEmailSender? emailSender = null)
+    private CandidateProfileService CreateService(
+        RecordingEmailSender? emailSender = null, RecordingFileStorage? fileStorage = null)
     {
         // One DbContext shared with the session issuer, matching how DI scopes them in the app: the
         // password change rotates the stamp and re-issues a session, and both writes belong together.
@@ -469,6 +470,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
             new CandidateSessionIssuer(db, CreateTokenService(), CreateJwtOptions()),
             emailSender ?? new RecordingEmailSender(),
             new JsonEmailTextProvider(),
+            fileStorage ?? new RecordingFileStorage(),
             Options.Create(new CandidateEmailChangeOptions()),
             NullLogger<CandidateProfileService>.Instance);
     }

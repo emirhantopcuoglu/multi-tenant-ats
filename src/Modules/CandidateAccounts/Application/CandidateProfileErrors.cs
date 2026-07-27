@@ -39,6 +39,9 @@ public static class CandidateProfileErrors
         new("candidate_profile.invalid_email_change_token",
             "This email change link is invalid, expired or already used.");
 
+    public static readonly Error CvNotFound =
+        new("candidate_profile.cv_not_found", "No CV is attached to this account.");
+
     // Wraps a domain invariant violation (phone format, birth date range, half-filled location) so
     // the API can answer 400 with the exact rule that failed instead of a generic 500.
     public static Error InvalidData(string message) =>

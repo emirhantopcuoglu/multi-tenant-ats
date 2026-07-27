@@ -40,6 +40,9 @@ public sealed class CandidateAccountsDbContext : DbContext
             entity.Property(c => c.Country).HasMaxLength(100);
             entity.Property(c => c.City).HasMaxLength(100);
             entity.Property(c => c.CvFileKey).HasMaxLength(512);
+            // The candidate's own file name, already stripped to safe characters before it reaches
+            // storage; 255 is the ceiling every mainstream filesystem imposes on one anyway.
+            entity.Property(c => c.CvFileName).HasMaxLength(255);
             // Two-letter code ("en", "tr"); the boundary normalizes anything longer down to it. The
             // DB default backfills accounts that predate the column — they registered when the app
             // only wrote English, so English is the honest value for them.

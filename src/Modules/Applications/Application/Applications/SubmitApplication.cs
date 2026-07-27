@@ -23,10 +23,12 @@ public sealed record SubmitApplicationCommand(
     string? Phone,
     string? LinkedInUrl,
     string? CoverLetter,
-    Stream CvContent,
-    long CvSizeBytes,
-    string CvContentType,
-    string CvFileName) : ICommand<Guid>;
+    CvUpload? Cv) : ICommand<Guid>;
+
+// A CV attached to this application. Null means "use the one on my account" — the candidate
+// uploaded it once from their profile and does not have to find the file again on every job.
+// The stream belongs to the request and is only valid for the duration of the call.
+public sealed record CvUpload(Stream Content, long SizeBytes, string ContentType, string FileName);
 
 public sealed class SubmitApplicationValidator : AbstractValidator<SubmitApplicationCommand>
 {
@@ -166,13 +168,15 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
         }
         var initialStageId = pipeline.InitialStage.Id;
 
-        // 6. Upload the CV before persisting. The bucket is private; the file is only ever
+        // 6. Put the CV in storage before persisting. The bucket is private; the file is only ever
         //    reachable through a short-lived presigned URL. The key is grouped under the
         //    candidate (known here) — the application id is generated inside Application.Create,
         //    so using it would force the entity to surrender id generation to this layer.
-        var cvKey = $"{tenantId}/{candidate.Id}/{Guid.NewGuid()}-{SanitizeFileName(command.CvFileName)}";
-        await _fileStorage.UploadAsync(
-            cvKey, command.CvContent, command.CvSizeBytes, command.CvContentType, ct);
+        var cvKeyResult = await ResolveCvKeyAsync(command, account, tenantId, candidate.Id, ct);
+        if (cvKeyResult.IsFailure)
+            return Result.Failure<Guid>(cvKeyResult.Error);
+
+        var cvKey = cvKeyResult.Value;
 
         var application = ApplicationEntity.Create(
             job.Id, candidate.Id, command.CandidateAccountId, initialStageId, cvKey, command.CoverLetter);
@@ -217,16 +221,40 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
         return Result.Success(application.Id);
     }
 
-    // The original file name is attacker-controlled: strip any path and keep only safe
-    // characters so it cannot escape the key prefix or smuggle separators into the object key.
-    private static string SanitizeFileName(string fileName)
+    // Produces the key of the CV this application will own. Either way the result is an object of
+    // this application's own, under this tenant's prefix — never a pointer into the candidate's
+    // account. An application is a record of what was sent on the day it was sent: the candidate
+    // may replace or erase their account CV afterwards, and the recruiter must still see the
+    // document they were given.
+    private async Task<Result<string>> ResolveCvKeyAsync(
+        SubmitApplicationCommand command,
+        CandidateAccountSummary account,
+        Guid tenantId,
+        Guid candidateId,
+        CancellationToken ct)
     {
-        var nameOnly = Path.GetFileName(fileName);
-        var safe = new string(nameOnly
-            .Where(c => char.IsLetterOrDigit(c) || c is '.' or '-' or '_')
-            .ToArray());
-        return string.IsNullOrWhiteSpace(safe) ? "cv" : safe;
+        if (command.Cv is { } upload)
+        {
+            var uploadedKey = BuildCvKey(tenantId, candidateId, upload.FileName);
+            await _fileStorage.UploadAsync(
+                uploadedKey, upload.Content, upload.SizeBytes, upload.ContentType, ct);
+
+            return Result.Success(uploadedKey);
+        }
+
+        // Nothing attached and nothing on file: the form let them through because the CV field is
+        // optional, so this is where it is caught.
+        if (account.CvFileKey is null || account.CvFileName is null)
+            return Result.Failure<string>(ApplicationErrors.CvRequired);
+
+        var copiedKey = BuildCvKey(tenantId, candidateId, account.CvFileName);
+        await _fileStorage.CopyAsync(account.CvFileKey, copiedKey, ct);
+
+        return Result.Success(copiedKey);
     }
+
+    private static string BuildCvKey(Guid tenantId, Guid candidateId, string fileName) =>
+        $"{tenantId}/{candidateId}/{Guid.NewGuid()}-{StorageKey.SanitizeFileName(fileName)}";
 
     private async Task TryDeleteAsync(string key, CancellationToken ct)
     {

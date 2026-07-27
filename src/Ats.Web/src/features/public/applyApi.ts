@@ -6,7 +6,9 @@ export interface ApplyRequest {
   phone?: string;
   linkedInUrl?: string;
   coverLetter?: string;
-  cv: File;
+  /* Omitted to apply with the CV saved on the account. The server then copies that file into this
+     application, so the two stay independent from the moment it is submitted. */
+  cv?: File;
 }
 
 /* Submits a candidate application as multipart/form-data. The endpoint is gated behind the
@@ -21,7 +23,7 @@ export async function submitApplication(
   if (request.phone) form.append('Phone', request.phone);
   if (request.linkedInUrl) form.append('LinkedInUrl', request.linkedInUrl);
   if (request.coverLetter) form.append('CoverLetter', request.coverLetter);
-  form.append('Cv', request.cv);
+  if (request.cv) form.append('Cv', request.cv);
 
   const { data } = await apiClient.post<{ id: string }>(
     `/${encodeURIComponent(slug)}/jobs/${encodeURIComponent(jobSlug)}/apply`,

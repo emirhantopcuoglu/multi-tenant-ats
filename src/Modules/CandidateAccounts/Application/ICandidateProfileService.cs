@@ -13,7 +13,23 @@ public sealed record CandidateProfileDto(
     string? PhoneNumber,
     string? Country,
     string? City,
-    DateOnly? BirthDate);
+    DateOnly? BirthDate,
+    CandidateCvDto? Cv);
+
+// Null on the profile when no CV is attached, rather than a pair of nullable fields: "there is a
+// CV, and it has a name and a date" is one fact, and splitting it lets a caller render half of it.
+// The storage key is deliberately absent — it is an internal address, and the only legitimate way
+// to reach the file is the presigned URL endpoint.
+public sealed record CandidateCvDto(string FileName, DateTime UploadedAtUtc);
+
+// The stream is owned by the caller (the request's multipart section) and is only valid for the
+// duration of the call; the service must not hold on to it.
+public sealed record UploadCandidateCvCommand(
+    Stream Content, long SizeBytes, string ContentType, string FileName);
+
+// Mirrors the recruiter-side CV download: a short-lived signed URL plus how long it lasts, so the
+// SPA can decide whether to reuse it or ask again.
+public sealed record CandidateCvDownloadDto(string Url, int ExpiresInSeconds);
 
 public sealed record UpdateCandidateProfileCommand(
     string FirstName,
@@ -56,4 +72,14 @@ public interface ICandidateProfileService
     // language toggle is clicked, from any screen, and making that resend the whole profile form
     // would let a stale copy of it overwrite edits made in another tab.
     Task<Result> SetPreferredLanguageAsync(Guid candidateAccountId, string language);
+
+    // Replaces whatever CV was there. One CV per account, not a library: the candidate picks a file
+    // when applying anyway, so a collection would add a management screen to solve a problem nobody
+    // has yet. The object that gets displaced is deleted from storage by the implementation.
+    Task<Result<CandidateCvDto>> UploadCvAsync(Guid candidateAccountId, UploadCandidateCvCommand command);
+
+    // Idempotent, like the HTTP verb behind it: removing an absent CV succeeds.
+    Task<Result> RemoveCvAsync(Guid candidateAccountId);
+
+    Task<Result<CandidateCvDownloadDto>> GetCvDownloadUrlAsync(Guid candidateAccountId);
 }

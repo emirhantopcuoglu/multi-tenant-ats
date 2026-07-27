@@ -28,6 +28,12 @@ public static class ApplicationErrors
         new("application.email_not_verified",
             "Verify your email address before applying. Check your inbox for the confirmation link.");
 
+    // The apply form's CV field is optional because the account may already hold one. When neither
+    // is there, this is the answer — and it names the way out.
+    public static readonly Error CvRequired =
+        new("application.cv_required",
+            "Attach a CV, or upload one to your profile so it can be reused.");
+
     public static readonly Error CvNotParsed =
         new("application.cv_not_parsed", "The CV has not been parsed yet.");
 

@@ -12,11 +12,17 @@ namespace Ats.Modules.CandidateAccounts.Infrastructure;
 
 public sealed class CandidateProfileService : ICandidateProfileService
 {
+    // The bucket is private, so a CV can only be reached through a signed, expiring link. Five
+    // minutes matches the recruiter-side download: long enough to click, short enough that a leaked
+    // URL is worth little.
+    private static readonly TimeSpan CvDownloadUrlExpiry = TimeSpan.FromMinutes(5);
+
     private readonly CandidateAccountsDbContext _db;
     private readonly ICandidatePasswordHasher _passwordHasher;
     private readonly ICandidateSessionIssuer _sessions;
     private readonly IEmailSender _emailSender;
     private readonly IEmailTextProvider _emailText;
+    private readonly IFileStorage _fileStorage;
     private readonly CandidateEmailChangeOptions _emailChangeOptions;
     private readonly ILogger<CandidateProfileService> _logger;
 
@@ -26,6 +32,7 @@ public sealed class CandidateProfileService : ICandidateProfileService
         ICandidateSessionIssuer sessions,
         IEmailSender emailSender,
         IEmailTextProvider emailText,
+        IFileStorage fileStorage,
         IOptions<CandidateEmailChangeOptions> emailChangeOptions,
         ILogger<CandidateProfileService> logger)
     {
@@ -34,6 +41,7 @@ public sealed class CandidateProfileService : ICandidateProfileService
         _sessions = sessions;
         _emailSender = emailSender;
         _emailText = emailText;
+        _fileStorage = fileStorage;
         _emailChangeOptions = emailChangeOptions.Value;
         _logger = logger;
     }
@@ -235,6 +243,108 @@ public sealed class CandidateProfileService : ICandidateProfileService
         return Result.Success();
     }
 
+    public async Task<Result<CandidateCvDto>> UploadCvAsync(
+        Guid candidateAccountId, UploadCandidateCvCommand command)
+    {
+        var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
+        if (account is null)
+            return Result.Failure<CandidateCvDto>(CandidateProfileErrors.NotFound);
+
+        var fileName = StorageKey.SanitizeFileName(command.FileName);
+
+        // Keyed under the account, with no tenant in the path: this CV belongs to the person, not to
+        // any company. A fresh guid per upload means a replacement never overwrites the object the
+        // old row still points at, so a failed commit below leaves the previous CV intact.
+        var fileKey = $"{CvKeyPrefix}/{account.Id}/{Guid.NewGuid()}-{fileName}";
+
+        await _fileStorage.UploadAsync(
+            fileKey, command.Content, command.SizeBytes, command.ContentType);
+
+        var replacedKey = account.AttachCv(fileKey, fileName);
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch
+        {
+            // The upload is not part of the database transaction. If the row cannot be written, the
+            // object just stored is unreferenced — and an unreferenced CV is a PII leak, not just
+            // wasted space.
+            await TryDeleteAsync(fileKey);
+            throw;
+        }
+
+        // Only after the commit: deleting first would destroy the live CV if the write then failed.
+        if (replacedKey is not null)
+            await TryDeleteAsync(replacedKey);
+
+        _logger.LogInformation("CV attached to candidate account {CandidateAccountId}", candidateAccountId);
+
+        return Result.Success(new CandidateCvDto(fileName, account.CvUploadedAtUtc!.Value));
+    }
+
+    public async Task<Result> RemoveCvAsync(Guid candidateAccountId)
+    {
+        var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
+        if (account is null)
+            return Result.Failure(CandidateProfileErrors.NotFound);
+
+        var removedKey = account.RemoveCv();
+        if (removedKey is null)
+            return Result.Success();
+
+        await _db.SaveChangesAsync();
+
+        // Best-effort and after the commit, in that order: the candidate asked for the CV to be
+        // gone, and it is gone from every read path the moment the row is written. A failed object
+        // delete leaves a file nobody can reach through the app, which is worth a log line and a
+        // later sweep — not a failed request that tells them the removal did not work.
+        await TryDeleteAsync(removedKey);
+
+        _logger.LogInformation("CV removed from candidate account {CandidateAccountId}", candidateAccountId);
+
+        return Result.Success();
+    }
+
+    public async Task<Result<CandidateCvDownloadDto>> GetCvDownloadUrlAsync(Guid candidateAccountId)
+    {
+        var cvFileKey = await _db.CandidateAccounts
+            .AsNoTracking()
+            .Where(c => c.Id == candidateAccountId)
+            .Select(c => c.CvFileKey)
+            .FirstOrDefaultAsync();
+
+        // One answer for "no such account" and "no CV on it": the caller is asking for their own
+        // account, so the distinction carries no information they do not already have.
+        if (cvFileKey is null)
+            return Result.Failure<CandidateCvDownloadDto>(CandidateProfileErrors.CvNotFound);
+
+        var url = await _fileStorage.GetPresignedDownloadUrlAsync(cvFileKey, CvDownloadUrlExpiry);
+
+        return Result.Success(
+            new CandidateCvDownloadDto(url, (int)CvDownloadUrlExpiry.TotalSeconds));
+    }
+
+    // Groups every account-owned CV under one prefix, so storage lifecycle rules (and a human
+    // reading the bucket) can tell them apart from the per-tenant application copies.
+    private const string CvKeyPrefix = "candidates";
+
+    private async Task TryDeleteAsync(string fileKey)
+    {
+        try
+        {
+            await _fileStorage.DeleteAsync(fileKey);
+        }
+        catch (Exception exception)
+        {
+            // Swallowed on purpose, but never silently: the caller's operation has already
+            // succeeded (or is already failing for a better reason), and this leaves an orphan that
+            // only the log can point at.
+            _logger.LogError(exception, "Failed to delete the CV object {CvFileKey}", fileKey);
+        }
+    }
+
     private async Task SendConfirmationLinkAsync(string newEmail, string language, string rawToken)
     {
         var link = $"{_emailChangeOptions.ConfirmBaseUrl}?token={rawToken}";
@@ -296,7 +406,13 @@ public sealed class CandidateProfileService : ICandidateProfileService
 
     private static CandidateProfileDto ToDto(CandidateAccount account) =>
         new(account.Id, account.Email, account.FirstName, account.LastName,
-            account.PhoneNumber, account.Country, account.City, account.BirthDate);
+            account.PhoneNumber, account.Country, account.City, account.BirthDate,
+            ToCvDto(account));
+
+    private static CandidateCvDto? ToCvDto(CandidateAccount account) =>
+        account is { CvFileName: { } fileName, CvUploadedAtUtc: { } uploadedAt }
+            ? new CandidateCvDto(fileName, uploadedAt)
+            : null;
 
     private static string? NullIfWhiteSpace(string? value)
     {

@@ -8,6 +8,7 @@ import { CITIES_BY_COUNTRY, COUNTRIES, type Country } from '@/types/location';
 import { useCandidateProfile, useUpdateCandidateProfile } from '../useCandidateProfile';
 import type { CandidateProfile } from '../candidateProfileApi';
 import { PhoneInput } from '../components/PhoneInput';
+import { CandidateCvCard } from '../components/CandidateCvCard';
 
 /* Mirrors CandidateAccount.FirstName/LastName HasMaxLength(100) on the backend. */
 const NAME_MAX_LENGTH = 100;
@@ -53,7 +54,10 @@ export function CandidateProfileSettingsTab() {
           <p className="text-sm text-text-muted">{t('candidateSettings.profile.loadError')}</p>
         </Card>
       ) : (
-        <CandidateProfileForm profile={profileQuery.data} />
+        <>
+          <CandidateProfileForm profile={profileQuery.data} />
+          <CandidateCvCard cv={profileQuery.data.cv} />
+        </>
       )}
     </div>
   );
