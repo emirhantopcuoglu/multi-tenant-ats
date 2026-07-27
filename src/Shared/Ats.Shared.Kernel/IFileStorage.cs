@@ -5,9 +5,10 @@ namespace Ats.Shared.Kernel;
 // referencing the concrete storage SDK — same pattern as ICurrentUser / ICurrentTenant.
 //
 // The bucket is a deployment concern owned by the implementation (configuration), not the
-// caller: callers only ever deal in object keys. The key layout (for CVs:
-// "{tenantId}/{applicationId}/{guid}-{originalName}") is chosen by the caller, since only it
-// knows the tenant and application the file belongs to.
+// caller: callers only ever deal in object keys. The key layout is chosen by the caller, since
+// only it knows what the file belongs to — an application's CV is keyed per tenant
+// ("{tenantId}/{candidateId}/{guid}-{originalName}"), an account's own CV is not
+// ("candidates/{accountId}/{guid}-{originalName}"), because the account belongs to no tenant.
 public interface IFileStorage
 {
     // 'size' is passed explicitly rather than read from the stream: not every stream is
@@ -28,6 +29,15 @@ public interface IFileStorage
     // e.g. the CV-parsing consumer extracting text. Returning a byte[] is fine because CVs are
     // capped at a few MB at upload; a streaming overload can be added if larger objects appear.
     Task<byte[]> DownloadAsync(string key, CancellationToken cancellationToken = default);
+
+    // Duplicates an object inside the bucket. Server-side on an S3-compatible backend: the bytes
+    // never travel through the API, which is the point — the alternative (download then upload)
+    // would pull every copied CV into this process's memory for no reason.
+    //
+    // A copy, not a shared key, is what callers want here: the source and the destination have
+    // different lifetimes. A candidate's account CV can be replaced or erased at will, while the
+    // CV attached to a submitted application is the document as it was sent and must survive both.
+    Task CopyAsync(string sourceKey, string destinationKey, CancellationToken cancellationToken = default);
 
     Task DeleteAsync(string key, CancellationToken cancellationToken = default);
 }

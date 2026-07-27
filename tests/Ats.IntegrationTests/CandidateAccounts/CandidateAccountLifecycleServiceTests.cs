@@ -249,9 +249,11 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
 
     private static CandidateTokenService CreateTokenService() => new(CreateJwtOptions());
 
-    private CandidateAccountLifecycleService CreateService() => new(
+    private CandidateAccountLifecycleService CreateService(
+        RecordingFileStorage? fileStorage = null) => new(
         CreateDbContext(),
         CreatePasswordHasher(),
+        fileStorage ?? new RecordingFileStorage(),
         NullLogger<CandidateAccountLifecycleService>.Instance);
 
     // Both helpers hand the session issuer the same DbContext as the service under test, matching how
@@ -275,6 +277,7 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
             new CandidateSessionIssuer(db, CreateTokenService(), CreateJwtOptions()),
             emailSender ?? new RecordingEmailSender(),
             new JsonEmailTextProvider(),
+            new RecordingFileStorage(),
             Options.Create(new CandidateEmailChangeOptions()),
             NullLogger<CandidateProfileService>.Instance);
     }

@@ -73,3 +73,41 @@ internal sealed class CapturingPublisher : IPublisher
         return Task.CompletedTask;
     }
 }
+
+// Records keys instead of talking to MinIO. Tests must never reach real object storage, and which
+// keys were written, copied and deleted is exactly what the CV flows need to be observable — an
+// orphaned or prematurely deleted object is invisible in the database alone.
+internal sealed class RecordingFileStorage : IFileStorage
+{
+    public List<string> Uploaded { get; } = [];
+    public List<(string Source, string Destination)> Copied { get; } = [];
+    public List<string> Deleted { get; } = [];
+
+    public Task UploadAsync(
+        string key, Stream content, long size, string contentType,
+        CancellationToken cancellationToken = default)
+    {
+        Uploaded.Add(key);
+        return Task.CompletedTask;
+    }
+
+    public Task<string> GetPresignedDownloadUrlAsync(
+        string key, TimeSpan expiry, CancellationToken cancellationToken = default) =>
+        Task.FromResult($"https://storage.test/{key}");
+
+    public Task<byte[]> DownloadAsync(string key, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Array.Empty<byte>());
+
+    public Task CopyAsync(
+        string sourceKey, string destinationKey, CancellationToken cancellationToken = default)
+    {
+        Copied.Add((sourceKey, destinationKey));
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(string key, CancellationToken cancellationToken = default)
+    {
+        Deleted.Add(key);
+        return Task.CompletedTask;
+    }
+}

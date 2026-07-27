@@ -3,8 +3,12 @@ import {
   changeCandidatePassword,
   confirmCandidateEmailChange,
   getCandidateProfile,
+  removeCandidateCv,
   requestCandidateEmailChange,
   updateCandidateProfile,
+  uploadCandidateCv,
+  type CandidateCv,
+  type CandidateProfile,
 } from './candidateProfileApi';
 import { candidateUserQueryKey } from './useCandidateCurrentUser';
 import { tokenStore } from '@/lib/tokenStore';
@@ -12,10 +16,13 @@ import type { CandidateUser } from '@/types/auth';
 
 export const candidateProfileQueryKey = ['candidate', 'profile'] as const;
 
-export function useCandidateProfile() {
+/* `enabled` exists for the apply page, which needs the saved CV but runs on a public route where
+   the visitor may not be a candidate — firing the request there would only earn a 401. */
+export function useCandidateProfile(enabled = true) {
   return useQuery({
     queryKey: candidateProfileQueryKey,
     queryFn: getCandidateProfile,
+    enabled,
   });
 }
 
@@ -71,4 +78,30 @@ export function useConfirmCandidateEmailChange() {
       tokenStore.clearCandidateToken();
     },
   });
+}
+
+/* Both CV mutations patch the cached profile rather than invalidating it. The response carries the
+   whole new state of that one field, so a refetch would ask the server to repeat what it just
+   said — and the apply form reads the same cache entry to decide whether it can offer "use my
+   saved CV". */
+export function useUploadCandidateCv() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: uploadCandidateCv,
+    onSuccess: (cv) => setCachedCv(queryClient, cv),
+  });
+}
+
+export function useRemoveCandidateCv() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: removeCandidateCv,
+    onSuccess: () => setCachedCv(queryClient, null),
+  });
+}
+
+function setCachedCv(queryClient: ReturnType<typeof useQueryClient>, cv: CandidateCv | null) {
+  queryClient.setQueryData<CandidateProfile>(candidateProfileQueryKey, (profile) =>
+    profile ? { ...profile, cv } : profile,
+  );
 }

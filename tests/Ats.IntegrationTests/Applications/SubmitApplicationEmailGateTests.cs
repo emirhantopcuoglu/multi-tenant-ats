@@ -72,7 +72,8 @@ public sealed class SubmitApplicationEmailGateTests
             db,
             new StubPublishedJobDirectory(job),
             new StubCandidateAccountReader(new CandidateAccountSummary(
-                accountId, $"{Guid.NewGuid():N}@acme.test", "Test", "Candidate", isEmailVerified)),
+                accountId, $"{Guid.NewGuid():N}@acme.test", "Test", "Candidate", isEmailVerified,
+                CvFileKey: null, CvFileName: null)),
             storage,
             tenant,
             new CapturingPublisher(),
@@ -87,10 +88,7 @@ public sealed class SubmitApplicationEmailGateTests
                 Phone: null,
                 LinkedInUrl: null,
                 CoverLetter: null,
-                CvContent: cv,
-                CvSizeBytes: cv.Length,
-                CvContentType: "application/pdf",
-                CvFileName: "cv.pdf"),
+                Cv: new CvUpload(cv, cv.Length, "application/pdf", "cv.pdf")),
             CancellationToken.None);
     }
 
@@ -146,31 +144,3 @@ internal sealed class StubCandidateAccountReader : ICandidateAccountReader
         Task.FromResult(SupportedLanguages.Default);
 }
 
-// Records keys instead of talking to MinIO. Tests must never reach real object storage, and "was
-// anything uploaded" is exactly what the gate ordering needs to be observable.
-internal sealed class RecordingFileStorage : IFileStorage
-{
-    public List<string> Uploaded { get; } = [];
-    public List<string> Deleted { get; } = [];
-
-    public Task UploadAsync(
-        string key, Stream content, long size, string contentType,
-        CancellationToken cancellationToken = default)
-    {
-        Uploaded.Add(key);
-        return Task.CompletedTask;
-    }
-
-    public Task<string> GetPresignedDownloadUrlAsync(
-        string key, TimeSpan expiry, CancellationToken cancellationToken = default) =>
-        Task.FromResult($"https://storage.test/{key}");
-
-    public Task<byte[]> DownloadAsync(string key, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Array.Empty<byte>());
-
-    public Task DeleteAsync(string key, CancellationToken cancellationToken = default)
-    {
-        Deleted.Add(key);
-        return Task.CompletedTask;
-    }
-}

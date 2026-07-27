@@ -6,8 +6,23 @@ namespace Ats.Shared.Contracts.CandidateAccounts;
 //
 // A bool, not the timestamp: the only question outside this module is "may they apply?". When the
 // address was proven stays the CandidateAccounts module's business.
+// CvFileKey and CvFileName ride along for the same reason as IsEmailVerified: the one caller that
+// needs them (SubmitApplicationHandler) already loads this record, so a dedicated port method would
+// be a second round trip for two more columns of the same row.
+//
+// Handing out the storage key is a deliberate, narrow exception to "modules do not share
+// addresses". Applying has to produce an independent copy of the document, and copying is a storage
+// operation the Applications module already performs through IFileStorage. The alternative — a port
+// method that streams the bytes out of CandidateAccounts — would pull every reused CV through
+// application memory to avoid naming a string.
 public sealed record CandidateAccountSummary(
-    Guid Id, string Email, string FirstName, string LastName, bool IsEmailVerified);
+    Guid Id,
+    string Email,
+    string FirstName,
+    string LastName,
+    bool IsEmailVerified,
+    string? CvFileKey,
+    string? CvFileName);
 
 public interface ICandidateAccountReader
 {
