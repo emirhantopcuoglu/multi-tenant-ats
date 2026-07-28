@@ -425,7 +425,10 @@ builder.Services.AddMassTransit(bus =>
     // application behind them closes — whether the company rejected it or the candidate withdrew.
     // Own queues, independent of the notifications above; the closed-application consumer handles
     // two message types and so gets one queue per type.
-    bus.AddConsumer<AdvanceToInterviewStageConsumer>();
+    // The stage-advance consumer carries a definition: it publishes a follow-up event, so it runs
+    // behind the transactional outbox to keep the move and the announcement atomic. See
+    // AdvanceToInterviewStageConsumerDefinition.
+    bus.AddConsumer<AdvanceToInterviewStageConsumer, AdvanceToInterviewStageConsumerDefinition>();
     bus.AddConsumer<CancelInterviewsOnApplicationClosedConsumer>();
 
     bus.UsingRabbitMq((context, configurator) =>
