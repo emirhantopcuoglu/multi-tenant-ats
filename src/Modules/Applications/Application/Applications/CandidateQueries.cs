@@ -18,13 +18,18 @@ public interface ICandidateSearchRepository
 public sealed record SearchCandidatesQuery(string Q, int Page = 1, int PageSize = 20)
     : IQuery<PagedResult<CandidateSearchResultDto>>;
 
+// Sole guard on the paging bounds: ValidationBehavior runs this before the handler, so an
+// out-of-range page never reaches the database. The upper bound on PageSize is what stops a
+// caller from asking for the whole candidate pool in one query.
 public sealed class SearchCandidatesValidator : AbstractValidator<SearchCandidatesQuery>
 {
+    private const int MaxPageSize = 100;
+
     public SearchCandidatesValidator()
     {
         RuleFor(x => x.Q).NotEmpty();
         RuleFor(x => x.Page).GreaterThanOrEqualTo(1);
-        RuleFor(x => x.PageSize).InclusiveBetween(1, 100);
+        RuleFor(x => x.PageSize).InclusiveBetween(1, MaxPageSize);
     }
 }
 
@@ -39,9 +44,7 @@ public sealed class SearchCandidatesHandler
     public async Task<Result<PagedResult<CandidateSearchResultDto>>> Handle(
         SearchCandidatesQuery query, CancellationToken ct)
     {
-        var page = query.Page < 1 ? 1 : query.Page;
-        var pageSize = query.PageSize is < 1 or > 100 ? 20 : query.PageSize;
-        var result = await _repository.SearchAsync(query.Q, page, pageSize, ct);
+        var result = await _repository.SearchAsync(query.Q, query.Page, query.PageSize, ct);
         return Result.Success(result);
     }
 }
