@@ -416,8 +416,10 @@ builder.Services.AddMassTransit(bus =>
     bus.AddConsumer<ApplicationCvDownloadedNotificationConsumer>();
     bus.AddConsumer<NewApplicationNotificationConsumer>();
 
-    // CV-parsing consumer (Sprint 6.3): downloads the CV, extracts text, asks Claude for structured
-    // data, and stores it in MongoDB. Inherits the retry/dead-letter policy configured below.
+    // CV-parsing consumer (Sprint 6.3): downloads the CV, extracts text, asks an LLM for structured
+    // data, and stores it in MongoDB. The provider is OpenAI-compatible and selected entirely
+    // through the Llm configuration section — naming a vendor here is what made this comment wrong
+    // for months after the provider changed. Inherits the retry/dead-letter policy configured below.
     bus.AddConsumer<CvParsingConsumer>();
 
     // Pipeline/interview consistency: advances an application into its pipeline's Interview stage
