@@ -147,12 +147,11 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
         {
             // 4. One active application per (candidate, job). A brand-new candidate cannot have
             //    a prior application, so this check only matters for a returning candidate.
-            var alreadyApplied = await _db.Applications.AnyAsync(
-                a => a.JobId == job.Id
-                     && a.CandidateId == candidate.Id
-                     && a.Status == ApplicationStatus.Active,
-                ct);
-            if (alreadyApplied)
+            //    It exists to produce a friendly error, not to enforce the rule: two concurrent
+            //    submits both pass it. The partial unique index behind Applications is the guard
+            //    that actually holds, and the catch around SaveChanges below turns its rejection
+            //    into this same error.
+            if (await HasActiveApplicationAsync(job.Id, candidate.Id, ct))
                 return Result.Failure<Guid>(ApplicationErrors.DuplicateApplication);
         }
 
@@ -204,11 +203,24 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
             // in one transaction — SaveChanges is atomic per DbContext.
             await _db.SaveChangesAsync(ct);
         }
-        catch
+        catch (Exception exception)
         {
             // The upload is not part of the DB transaction. If persistence fails, delete the
             // orphaned object so storage does not accumulate unreferenced CVs (a PII concern).
             await TryDeleteAsync(cvKey, ct);
+
+            // A constraint rejected the insert. Rather than decode a driver-specific error code
+            // here in the Application layer, ask the database the same question step 4 asked: if an
+            // active application now exists, this request lost the race and deserves the ordinary
+            // duplicate error instead of a 500. Anything else is a real fault and must propagate —
+            // a concurrent first-time submit to a different job, for instance, fails on the
+            // candidate's own (tenant, email) index and is retryable, not a duplicate.
+            if (exception is DbUpdateException
+                && await HasActiveApplicationAsync(job.Id, candidate.Id, ct))
+            {
+                return Result.Failure<Guid>(ApplicationErrors.DuplicateApplication);
+            }
+
             throw;
         }
 
@@ -220,6 +232,15 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
 
         return Result.Success(application.Id);
     }
+
+    // Asked twice on purpose: once up front for a friendly refusal, once after a failed insert to
+    // classify it. Sharing one method keeps the two answers to the same question identical.
+    private Task<bool> HasActiveApplicationAsync(Guid jobId, Guid candidateId, CancellationToken ct) =>
+        _db.Applications.AnyAsync(
+            a => a.JobId == jobId
+                 && a.CandidateId == candidateId
+                 && a.Status == ApplicationStatus.Active,
+            ct);
 
     // Produces the key of the CV this application will own. Either way the result is an object of
     // this application's own, under this tenant's prefix — never a pointer into the candidate's

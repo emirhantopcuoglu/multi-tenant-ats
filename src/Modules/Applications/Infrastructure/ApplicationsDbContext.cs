@@ -72,6 +72,18 @@ public sealed class ApplicationsDbContext : DbContext, IApplicationsDbContext
             // ids with no FK navigation — the aggregates stay independent. Indexed for the
             // recruiter list/filter queries that arrive in step 3.4.
             entity.HasIndex(a => new { a.TenantId, a.JobId, a.CandidateId });
+            // "One active application per (tenant, job, candidate)", the same rule Candidate above
+            // enforces for (tenant, email). SubmitApplicationHandler's pre-check cannot hold on its
+            // own: two concurrent submits both read "no application yet" and both insert. Partial,
+            // because the rule is only about live applications — a candidate whose earlier
+            // application was withdrawn or rejected is free to apply again, and the previous rows
+            // must not block that. Named explicitly so it coexists with the plain lookup index
+            // above, which still serves reads that span every status.
+            entity.HasIndex(
+                    a => new { a.TenantId, a.JobId, a.CandidateId },
+                    "IX_Applications_TenantId_JobId_CandidateId_Active")
+                .IsUnique()
+                .HasFilter("\"Status\" = 'Active' AND NOT \"IsDeleted\"");
             entity.HasIndex(a => new { a.TenantId, a.JobId, a.CurrentStageId });
             // The recruiter list (ListApplications) always orders by AppliedAtUtc DESC. The default
             // and status-filtered views carry no JobId, so the (TenantId, JobId, ...) indexes above
