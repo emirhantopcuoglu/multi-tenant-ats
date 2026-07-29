@@ -153,6 +153,12 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
             //    into this same error.
             if (await HasActiveApplicationAsync(job.Id, candidate.Id, ct))
                 return Result.Failure<Guid>(ApplicationErrors.DuplicateApplication);
+
+            //    The form's phone and LinkedIn were previously read only when the candidate record
+            //    was created, so a returning candidate could type a new number and watch it be
+            //    discarded — the recruiter kept calling the old one. Applied after the duplicate
+            //    check so a refused application changes nothing.
+            candidate.UpdateContactDetails(command.Phone, command.LinkedInUrl);
         }
 
         // 5. Materialise the job's pipeline lazily on first application (custom editors are V2).
