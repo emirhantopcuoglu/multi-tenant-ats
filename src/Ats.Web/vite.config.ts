@@ -32,5 +32,8 @@ export default defineConfig({
     // the global type space and a reader can see where the helpers come from.
     globals: false,
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    // Component tests opt into jsdom per file with a `// @vitest-environment jsdom` docblock, so
+    // only the files that need a DOM pay for one.
+    setupFiles: ['./src/test/setup.ts'],
   },
 });

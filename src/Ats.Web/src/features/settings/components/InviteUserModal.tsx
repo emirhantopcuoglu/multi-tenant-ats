@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Field, Input, Modal, Select, useToast } from '@/components/ui';
 import { toApiError } from '@/lib/problemDetails';
@@ -31,14 +31,19 @@ export function InviteUserModal({ open, onOpenChange }: InviteUserModalProps) {
   const [role, setRole] = useState<Role>(DEFAULT_ROLE);
   const [errors, setErrors] = useState<FormErrors>({});
 
-  // Clear the draft and any previous error every time the modal (re)opens.
-  useEffect(() => {
+  // Reset when the dialog opens, so a previous draft never lingers. Adjusted during render rather
+  // than in an effect: React discards the in-progress output and re-renders before committing, so
+  // the cleared form is what reaches the DOM. An effect would paint the stale draft first and clear
+  // it afterwards, which is the cascading render the linter flags.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (open) {
       setEmail('');
       setRole(DEFAULT_ROLE);
       setErrors({});
     }
-  }, [open]);
+  }
 
   const handleSubmit = () => {
     const trimmedEmail = email.trim();

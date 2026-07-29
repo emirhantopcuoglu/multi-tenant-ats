@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Field, Input, Modal } from '@/components/ui';
 
@@ -31,14 +31,19 @@ export function DeleteAccountDialog({
   const [password, setPassword] = useState('');
   const [wordTouched, setWordTouched] = useState(false);
 
-  // Reset every time the dialog opens, so a previous attempt never lingers.
-  useEffect(() => {
+  // Reset when the dialog opens, so a previous draft never lingers. Adjusted during render rather
+  // than in an effect: React discards the in-progress output and re-renders before committing, so
+  // the cleared form is what reaches the DOM. An effect would paint the stale draft first and clear
+  // it afterwards, which is the cascading render the linter flags.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (open) {
       setConfirmWord('');
       setPassword('');
       setWordTouched(false);
     }
-  }, [open]);
+  }
 
   const isWordCorrect = confirmWord === DELETE_CONFIRMATION_WORD;
 
