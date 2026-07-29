@@ -51,6 +51,23 @@ public sealed class Candidate : ITenantScoped, IAuditable, ISoftDeletable
             string.IsNullOrWhiteSpace(linkedInUrl) ? null : linkedInUrl.Trim());
     }
 
+    // Applying again is the only moment a candidate can correct the contact details this tenant
+    // holds for them — the record is deduplicated by email, so the second application would
+    // otherwise leave the recruiter looking at a number from months ago.
+    //
+    // A blank field means "nothing new", not "erase what you have". The application form's phone
+    // and LinkedIn inputs are optional, so an empty one cannot be told apart from a deliberate
+    // clear — and wiping a working number the recruiter is about to call is the worse of the two
+    // mistakes. Clearing a detail stays a profile action, not a side effect of applying.
+    public void UpdateContactDetails(string? phone, string? linkedInUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(phone))
+            Phone = phone.Trim();
+
+        if (!string.IsNullOrWhiteSpace(linkedInUrl))
+            LinkedInUrl = linkedInUrl.Trim();
+    }
+
     // Stored normalised so the (TenantId, Email) uniqueness check is case-insensitive
     // without relying on collation: "Jane@x.com" and "jane@x.com" are the same person.
     public static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();

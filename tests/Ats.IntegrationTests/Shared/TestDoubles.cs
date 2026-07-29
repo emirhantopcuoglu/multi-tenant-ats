@@ -1,5 +1,6 @@
 using Ats.Shared.Kernel;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Ats.IntegrationTests.Shared;
 
@@ -110,4 +111,29 @@ internal sealed class RecordingFileStorage : IFileStorage
         Deleted.Add(key);
         return Task.CompletedTask;
     }
+}
+
+// Keeps every log entry so a test can assert on a path that deliberately does not fail. A skipped
+// candidate notification is the case this exists for: the command still succeeds, and the only
+// evidence it took the degraded route is the warning.
+internal sealed class CapturingLogger<T> : ILogger<T>
+{
+    public List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+    public bool IsEnabled(LogLevel logLevel) => true;
+
+    public void Log<TState>(
+        LogLevel logLevel,
+        EventId eventId,
+        TState state,
+        Exception? exception,
+        Func<TState, Exception?, string> formatter) =>
+        Entries.Add((logLevel, formatter(state, exception)));
+
+    public bool Warned(string containing) =>
+        Entries.Any(e =>
+            e.Level == LogLevel.Warning
+            && e.Message.Contains(containing, StringComparison.OrdinalIgnoreCase));
 }

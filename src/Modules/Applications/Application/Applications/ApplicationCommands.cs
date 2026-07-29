@@ -116,6 +116,11 @@ public sealed class MoveApplicationStageHandler : ICommandHandler<MoveApplicatio
                     application.TenantId),
                 ct);
         }
+        else
+        {
+            MissingCandidateLog.Warn(
+                _logger, "moved to a new stage", application.Id, application.CandidateId);
+        }
 
         await _db.SaveChangesAsync(ct);
 
@@ -406,6 +411,10 @@ public sealed class RejectApplicationHandler : ICommandHandler<RejectApplication
                     candidate.Id, candidate.Email, candidate.FirstName, application.TenantId),
                 ct);
         }
+        else
+        {
+            MissingCandidateLog.Warn(_logger, "rejected", application.Id, application.CandidateId);
+        }
 
         await _db.SaveChangesAsync(ct);
 
@@ -416,6 +425,23 @@ public sealed class RejectApplicationHandler : ICommandHandler<RejectApplication
 
         return Result.Success(true);
     }
+}
+
+// Every candidate-facing command loads the candidate row to address its notification, and every one
+// of them skips the notification when that row is gone. The skip is right — the recruiter's decision
+// stands whether or not anyone can be told about it, and failing the command would strand the
+// application instead. What was wrong is that it happened in silence: a candidate reporting "I never
+// heard back" left nothing in the logs to confirm or deny it.
+//
+// The row can genuinely be missing. Candidate is soft-deletable, so an erasure removes it from every
+// query while the application survives as the company's own record of the hire.
+internal static class MissingCandidateLog
+{
+    internal static void Warn(ILogger logger, string action, Guid applicationId, Guid candidateId) =>
+        logger.LogWarning(
+            "Application {ApplicationId} was {Action} but candidate {CandidateId} no longer exists; " +
+            "the candidate was not notified",
+            applicationId, action, candidateId);
 }
 
 // Resolves the id of a job pipeline's terminal stage of the given type. Shared by the reject and
@@ -510,6 +536,10 @@ public sealed class HireApplicationHandler : ICommandHandler<HireApplicationComm
                     application.Id, application.JobId, jobTitle ?? string.Empty,
                     candidate.Id, candidate.Email, candidate.FirstName, application.TenantId),
                 ct);
+        }
+        else
+        {
+            MissingCandidateLog.Warn(_logger, "hired", application.Id, application.CandidateId);
         }
 
         await _db.SaveChangesAsync(ct);
