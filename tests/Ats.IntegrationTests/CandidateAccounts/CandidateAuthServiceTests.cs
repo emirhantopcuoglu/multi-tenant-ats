@@ -255,7 +255,8 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
         var sessions = new CandidateSessionIssuer(db, tokenService, CandidateJwtTestOptions);
 
         return new CandidateAuthService(
-            db, passwordHasher, sessions, CandidateServiceFactory.EmailVerification(db));
+            db, passwordHasher, sessions, CandidateServiceFactory.EmailVerification(db),
+            CandidateServiceFactory.Lockout());
     }
 
     private static IOptions<CandidateJwtOptions> CandidateJwtTestOptions =>

@@ -2,6 +2,7 @@ using Ats.Modules.CandidateAccounts.Application;
 using Ats.Modules.CandidateAccounts.Domain;
 using Ats.Shared.Kernel;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Ats.Modules.CandidateAccounts.Infrastructure;
 
@@ -14,17 +15,20 @@ public sealed class CandidateAuthService : ICandidateAuthService
     private readonly ICandidatePasswordHasher _passwordHasher;
     private readonly ICandidateSessionIssuer _sessions;
     private readonly ICandidateEmailVerificationService _emailVerification;
+    private readonly LoginLockoutOptions _lockout;
 
     public CandidateAuthService(
         CandidateAccountsDbContext db,
         ICandidatePasswordHasher passwordHasher,
         ICandidateSessionIssuer sessions,
-        ICandidateEmailVerificationService emailVerification)
+        ICandidateEmailVerificationService emailVerification,
+        IOptions<LoginLockoutOptions> lockout)
     {
         _db = db;
         _passwordHasher = passwordHasher;
         _sessions = sessions;
         _emailVerification = emailVerification;
+        _lockout = lockout.Value;
     }
 
     public async Task<Result<CandidateAuthResult>> RegisterAsync(
@@ -81,8 +85,40 @@ public sealed class CandidateAuthService : ICandidateAuthService
         var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Email == normalizedEmail);
 
         // One branch for "no such email" and "wrong password" so the response never reveals which.
-        if (account is null || !_passwordHasher.Verify(account.PasswordHash, password))
+        if (account is null)
             return Result.Failure<CandidateAuthResult>(CandidateAuthErrors.InvalidCredentials);
+
+        // Two separate decisions here, easy to conflate.
+        //
+        // The ORDER — lockout before the password — stops a locked account from re-locking itself.
+        // Verify first and every wrong guess still runs RegisterFailedLogin; each run that reaches
+        // the limit pushes the expiry further out, so an attacker who keeps hammering keeps the real
+        // owner locked out indefinitely, turning a temporary lockout into the permanent denial of
+        // service its expiry exists to prevent. Returning early also skips the password hash, which
+        // is deliberately expensive and pointless to compute for an account that cannot sign in.
+        //
+        // The ANSWER — the same InvalidCredentials as a wrong password — is what keeps the response
+        // from confirming an address is registered, matching the branch above. The cost is that a
+        // locked-out candidate cannot tell why they are refused; the reset link is the way out and
+        // clears the lockout.
+        var nowUtc = DateTime.UtcNow;
+        if (account.IsLockedOut(nowUtc))
+            return Result.Failure<CandidateAuthResult>(CandidateAuthErrors.InvalidCredentials);
+
+        if (!_passwordHasher.Verify(account.PasswordHash, password))
+        {
+            // The guard the per-IP rate limiter cannot be: it counts failures against the account, so
+            // it sees an attack spread over many addresses as what it is.
+            account.RegisterFailedLogin(_lockout.MaxFailedAttempts, _lockout.LockoutDuration, nowUtc);
+            await _db.SaveChangesAsync();
+            return Result.Failure<CandidateAuthResult>(CandidateAuthErrors.InvalidCredentials);
+        }
+
+        if (account.FailedLoginCount > 0)
+        {
+            account.ClearLockout();
+            await _db.SaveChangesAsync();
+        }
 
         // Status is deliberately not checked: a frozen account may sign in, and the SPA routes it to
         // the reactivation screen. A deleted one never gets here — the global query filter hides it.

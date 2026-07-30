@@ -129,7 +129,8 @@ public sealed class CandidateLanguageTests
             db,
             new CandidatePasswordHasher(new PasswordHasher<CandidateAccount>()),
             new CandidateSessionIssuer(db, new CandidateTokenService(JwtOptions), JwtOptions),
-            CandidateServiceFactory.EmailVerification(db, mail));
+            CandidateServiceFactory.EmailVerification(db, mail),
+            CandidateServiceFactory.Lockout());
 
         var result = await authService.RegisterAsync(email, Password, "Test", "Candidate", language);
         Assert.True(result.IsSuccess);

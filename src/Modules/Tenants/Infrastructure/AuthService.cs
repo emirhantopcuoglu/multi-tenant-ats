@@ -113,8 +113,40 @@ public sealed class AuthService : IAuthService
     public async Task<Result<AuthResult>> LoginAsync(string email, string password)
     {
         var user = await _userManager.FindByEmailAsync(email);
-        if (user is null || !await _userManager.CheckPasswordAsync(user, password))
+        if (user is null)
             return Result.Failure<AuthResult>(AuthErrors.InvalidCredentials);
+
+        // Two separate decisions here, easy to conflate.
+        //
+        // The ORDER — lockout before the password — stops a locked account from re-locking itself.
+        // Verify first and every wrong guess still calls AccessFailedAsync, so an attacker who keeps
+        // hammering keeps the real owner locked out indefinitely, turning a temporary lockout into
+        // the permanent denial of service its expiry exists to prevent. Returning early also skips
+        // the password hash, which is deliberately expensive and pointless for an account that
+        // cannot sign in either way.
+        //
+        // The ANSWER — the same InvalidCredentials as a wrong password — is what keeps the response
+        // from confirming an address is registered, matching how deactivation and
+        // RequestPasswordResetAsync already behave. It costs a locked-out user an explanation: they
+        // see "invalid credentials" and cannot tell why. The way out is the password reset link,
+        // which proves they own the mailbox and clears the lockout.
+        if (await _userManager.IsLockedOutAsync(user))
+            return Result.Failure<AuthResult>(AuthErrors.InvalidCredentials);
+
+        if (!await _userManager.CheckPasswordAsync(user, password))
+        {
+            // Counts the failure and locks the account once the configured limit is reached. This is
+            // the guard the per-IP rate limiter cannot be: it counts failures against an account, so
+            // it sees a distributed attempt that the limiter reads as many well-behaved clients.
+            await _userManager.AccessFailedAsync(user);
+            return Result.Failure<AuthResult>(AuthErrors.InvalidCredentials);
+        }
+
+        // A correct password clears the count. Without this the counter is cumulative over the
+        // account's lifetime and a user who mistypes twice a month is eventually locked out for
+        // nothing.
+        if (user.AccessFailedCount > 0)
+            await _userManager.ResetAccessFailedCountAsync(user);
 
         // A deactivated user answers exactly like a wrong password. They are not owed an explanation
         // of their own employment status by a login form, and a distinct message would let anyone with
@@ -276,6 +308,14 @@ public sealed class AuthService : IAuthService
                 : Result.Failure(AuthErrors.PasswordRejected(
                     string.Join("; ", result.Errors.Select(e => e.Description))));
         }
+
+        // Clearing the lockout is what makes the reset link the way out of one. Login answers a locked
+        // account with the same "invalid credentials" as a wrong password — on purpose, so it cannot
+        // be used to confirm an address exists — which leaves a locked-out user no way to tell the
+        // two apart. Proving they own the mailbox is a stronger signal than waiting out the window,
+        // so it ends the lockout rather than running alongside it.
+        await _userManager.ResetAccessFailedCountAsync(user);
+        await _userManager.SetLockoutEndDateAsync(user, null);
 
         // The candidate side gets this for free: its tokens carry a security stamp that is checked on
         // every request, so rotating it kills live sessions. Company tokens carry no stamp and nothing

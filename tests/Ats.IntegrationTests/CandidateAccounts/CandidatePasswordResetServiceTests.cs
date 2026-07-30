@@ -294,6 +294,7 @@ public sealed class CandidatePasswordResetServiceTests : IAsyncLifetime
             db,
             CreatePasswordHasher(),
             new CandidateSessionIssuer(db, new CandidateTokenService(CreateJwtOptions()), CreateJwtOptions()),
-            CandidateServiceFactory.EmailVerification(db));
+            CandidateServiceFactory.EmailVerification(db),
+            CandidateServiceFactory.Lockout());
     }
 }

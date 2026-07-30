@@ -167,7 +167,8 @@ public sealed class CandidateEmailVerificationServiceTests
             new CandidatePasswordHasher(
                 new Microsoft.AspNetCore.Identity.PasswordHasher<CandidateAccount>()),
             new CandidateSessionIssuer(db, new CandidateTokenService(JwtOptions), JwtOptions),
-            CandidateServiceFactory.EmailVerification(db, mail));
+            CandidateServiceFactory.EmailVerification(db, mail),
+            CandidateServiceFactory.Lockout());
 
         var result = await authService.RegisterAsync(email, "correct horse battery", "Test", "Candidate", SupportedLanguages.Default);
         Assert.True(result.IsSuccess);
