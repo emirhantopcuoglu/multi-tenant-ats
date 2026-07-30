@@ -504,8 +504,29 @@ builder.Services
     .AddTokenProvider<EmailConfirmationTokenProvider<ApplicationUser>>(
         EmailConfirmationTokenProviderOptions.ProviderName);
 
+// Brute-force protection for both login forms. The per-IP rate limiter counts requests from an
+// address, so it cannot see a distributed attack on one account — and FailOpenRateLimiter lets
+// everything through when Redis is down, which would otherwise leave the login form unguarded. These
+// counters live on the account instead. Shared with the candidate side so the two cannot drift.
+builder.Services.Configure<LoginLockoutOptions>(
+    builder.Configuration.GetSection(LoginLockoutOptions.SectionName));
+var loginLockoutOptions = builder.Configuration
+    .GetSection(LoginLockoutOptions.SectionName).Get<LoginLockoutOptions>() ?? new LoginLockoutOptions();
+
 builder.Services.Configure<IdentityOptions>(options =>
-    options.Tokens.EmailConfirmationTokenProvider = EmailConfirmationTokenProviderOptions.ProviderName);
+{
+    options.Tokens.EmailConfirmationTokenProvider = EmailConfirmationTokenProviderOptions.ProviderName;
+
+    // Identity owns the counters (AccessFailedCount/LockoutEnd) but enforces them through
+    // SignInManager, which this codebase does not use — AuthService calls CheckPasswordAsync
+    // directly, so it also calls AccessFailedAsync/IsLockedOutAsync itself. These options are what
+    // those calls read.
+    options.Lockout.MaxFailedAccessAttempts = loginLockoutOptions.MaxFailedAttempts;
+    options.Lockout.DefaultLockoutTimeSpan = loginLockoutOptions.LockoutDuration;
+    // Without this a newly created user has LockoutEnabled = false and IsLockedOutAsync always
+    // answers false, so the counters would tick up against nothing.
+    options.Lockout.AllowedForNewUsers = true;
+});
 
 // Tighten Identity's token lifespan from its 24-hour default. A reset token is a full account takeover
 // for as long as it lives, and an hour covers "open inbox, click link" — the same window the candidate

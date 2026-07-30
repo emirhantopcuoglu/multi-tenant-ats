@@ -20,4 +20,14 @@ internal static class CandidateServiceFactory
             new JsonEmailTextProvider(),
             Options.Create(new CandidateEmailVerificationOptions()),
             NullLogger<CandidateEmailVerificationService>.Instance);
+
+    /* The production defaults, so a suite that is not about lockout behaves as production does.
+       A test that IS about lockout passes its own smaller numbers. */
+    internal static IOptions<LoginLockoutOptions> Lockout(
+        int maxFailedAttempts = 5, int lockoutMinutes = 15) =>
+        Options.Create(new LoginLockoutOptions
+        {
+            MaxFailedAttempts = maxFailedAttempts,
+            LockoutMinutes = lockoutMinutes,
+        });
 }

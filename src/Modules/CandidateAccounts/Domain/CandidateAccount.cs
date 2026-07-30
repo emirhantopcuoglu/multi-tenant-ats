@@ -78,6 +78,21 @@ public sealed class CandidateAccount
     public DateTime? FrozenAtUtc { get; private set; }
     public DateTime? DeletedAtUtc { get; private set; }
 
+    // Brute-force counters. The company side gets these from Identity (AccessFailedCount/LockoutEnd);
+    // this side hashes passwords itself, so it carries its own. Same numbers either way — see
+    // LoginLockoutOptions.
+    //
+    // Consecutive failures, not total: a correct password clears it. Cumulative counting would lock
+    // out a candidate who mistypes twice a month.
+    public int FailedLoginCount { get; private set; }
+
+    // When the lockout lifts. Null means not locked. A timestamp rather than a bool because the
+    // lockout has to expire on its own — a permanent one would hand anyone who knows a candidate's
+    // email a way to keep them out of their own applications indefinitely.
+    public DateTime? LockoutEndsAtUtc { get; private set; }
+
+    public bool IsLockedOut(DateTime nowUtc) => LockoutEndsAtUtc > nowUtc;
+
     private CandidateAccount() { }
 
     private CandidateAccount(
@@ -227,6 +242,35 @@ public sealed class CandidateAccount
 
         PasswordHash = newPasswordHash;
         SecurityStamp = Guid.NewGuid();
+
+        // Setting a new password ends any lockout. Login answers a locked account with the same
+        // "invalid credentials" as a wrong password, so a locked-out candidate cannot tell the two
+        // apart — the reset link is their way out, and it proves mailbox ownership, which is a
+        // stronger signal than waiting out the window.
+        ClearLockout();
+    }
+
+    /* Records a failed sign-in and locks the account once the limit is reached. The caller supplies
+       the clock and the policy rather than the entity reading either: the domain has no ambient time
+       and no configuration, and passing them keeps this testable without either. */
+    public void RegisterFailedLogin(int maxFailedAttempts, TimeSpan lockoutDuration, DateTime nowUtc)
+    {
+        FailedLoginCount += 1;
+
+        if (FailedLoginCount >= maxFailedAttempts)
+        {
+            LockoutEndsAtUtc = nowUtc + lockoutDuration;
+            // Reset alongside the lock so the next window starts from zero. Left as-is, every single
+            // failure after the first lockout would re-lock the account, turning a temporary lock
+            // into a permanent one for as long as anyone kept guessing.
+            FailedLoginCount = 0;
+        }
+    }
+
+    public void ClearLockout()
+    {
+        FailedLoginCount = 0;
+        LockoutEndsAtUtc = null;
     }
 
     // Runs only after the two-phase verification flow proved the caller controls the new mailbox
