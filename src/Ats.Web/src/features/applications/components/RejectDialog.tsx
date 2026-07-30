@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Modal, Textarea } from '@/components/ui';
 
@@ -16,13 +16,18 @@ export function RejectDialog({ open, onOpenChange, onConfirm, submitting }: Reje
   const [reason, setReason] = useState('');
   const [error, setError] = useState(false);
 
-  // Reset the field each time the dialog opens, so a previous draft never lingers.
-  useEffect(() => {
+  // Reset the field each time the dialog opens, so a previous draft never lingers. Adjusted during
+  // render rather than in an effect: React discards the in-progress output and re-renders before
+  // committing, so the cleared field is what reaches the DOM. An effect would paint the stale draft
+  // first and clear it afterwards, which is the cascading render the linter flags.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (open) {
       setReason('');
       setError(false);
     }
-  }, [open]);
+  }
 
   const handleConfirm = () => {
     if (!reason.trim()) {

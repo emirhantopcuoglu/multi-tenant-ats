@@ -56,32 +56,4 @@ export default tseslint.config(
     files: ['*.config.{js,ts}'],
     languageOptions: { globals: globals.node },
   },
-
-  {
-    /* Known baseline, not an exemption.
-
-       Every file below resets its form state in `useEffect(..., [open])` when a modal opens. The
-       rule is right that this is a cascading render, and the React-recommended fix is to remount on
-       open with a `key` rather than to patch state afterwards — which means changing each component
-       and its call sites. That is a behaviour-sensitive refactor and belongs in its own change, not
-       in the one that introduces the linter.
-
-       Listing the files explicitly rather than downgrading the rule globally is the point: a new
-       component that does the same thing fails immediately, and this array only ever shrinks. When
-       the last entry goes, delete the block. */
-    files: [
-      'src/features/applications/components/CorrectStageDialog.tsx',
-      'src/features/applications/components/RejectDialog.tsx',
-      'src/features/candidates/components/DeleteAccountDialog.tsx',
-      'src/features/interviews/components/CancelInterviewModal.tsx',
-      'src/features/interviews/components/NoShowModal.tsx',
-      'src/features/interviews/components/ReassignInterviewersModal.tsx',
-      'src/features/interviews/components/RescheduleModal.tsx',
-      'src/features/interviews/components/ScheduleInterviewModal.tsx',
-      'src/features/settings/components/InviteUserModal.tsx',
-    ],
-    rules: {
-      'react-hooks/set-state-in-effect': 'warn',
-    },
-  },
 );
