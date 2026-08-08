@@ -6,15 +6,13 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Asp.Versioning;
 using Ats.Api;
+using Ats.Api.Extensions;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Prometheus;
 using RabbitMQ.Client;
 using Serilog;
 using Serilog.Enrichers.OpenTelemetry;
-using Hangfire;
-using Hangfire.Dashboard;
-using Hangfire.PostgreSql;
 using MassTransit;
 using Ats.Modules.Applications.Application;
 using Ats.Modules.Applications.Application.Applications;
@@ -475,19 +473,7 @@ builder.Services.Configure<IdempotencyOptions>(
     builder.Configuration.GetSection(IdempotencyOptions.SectionName));
 builder.Services.AddSingleton<IIdempotencyGuard, RedisIdempotencyGuard>();
 
-// Hangfire background jobs (Sprint 5.4). Jobs are stored in PostgreSQL (Hangfire's own "hangfire" schema,
-// created automatically and kept separate from our EF migrations) so they survive restarts, and run on a
-// server hosted in this process. In a multi-instance deployment Hangfire's storage-level locks ensure a
-// recurring job runs on only one instance at a time — the reason to use it over a raw BackgroundService.
-builder.Services.Configure<HangfireOptions>(
-    builder.Configuration.GetSection(HangfireOptions.SectionName));
-builder.Services.AddHangfire(hangfire => hangfire
-    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-    .UseSimpleAssemblyNameTypeSerializer()
-    .UseRecommendedSerializerSettings()
-    .UsePostgreSqlStorage(postgres =>
-        postgres.UseNpgsqlConnection(builder.Configuration.GetConnectionString("Postgres"))));
-builder.Services.AddHangfireServer();
+builder.AddBackgroundJobs();
 
 builder.Services
     .AddIdentityCore<ApplicationUser>()
@@ -592,10 +578,6 @@ builder.Services.AddScoped<IEmailSender, MailKitEmailSender>();
 // afterwards, so a per-request instance would re-parse them on every email for no benefit.
 builder.Services.AddSingleton<IEmailTextProvider, JsonEmailTextProvider>();
 builder.Services.AddScoped<IInvitationService, InvitationService>();
-
-// Resolved per execution inside the Hangfire job scope; scheduled below after the app is built.
-builder.Services.AddScoped<ExpiredInvitationCleanupJob>();
-builder.Services.AddScoped<InterviewReminderJob>();
 
 // File storage (MinIO). The client is thread-safe and meant to be reused, so it is a
 // singleton; MinioFileStorage is stateless and depends only on singletons, so it is too.
@@ -858,33 +840,8 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     ResponseWriter = WriteHealthCheckJson
 });
 
-// Hangfire dashboard at /hangfire. LocalRequestsOnlyAuthorizationFilter restricts it to localhost: the
-// dashboard exposes job data and trigger/delete controls, and the API's auth is bearer-token based (no
-// cookies), so a browser cannot carry a JWT here. Real authentication for a remote dashboard is a
-// production hardening task (Sprint 8); in dev, local-only is the correct guard.
-app.UseHangfireDashboard("/hangfire", new DashboardOptions
-{
-    Authorization = [new LocalRequestsOnlyAuthorizationFilter()]
-});
-
-// Register/refresh the recurring expired-invitation cleanup job. AddOrUpdate keys on the job id, so a
-// restart updates the existing schedule rather than creating duplicates.
-var hangfireOptions = app.Configuration.GetSection(HangfireOptions.SectionName).Get<HangfireOptions>()
-    ?? new HangfireOptions();
-RecurringJob.AddOrUpdate<ExpiredInvitationCleanupJob>(
-    "expired-invitation-cleanup",
-    job => job.CleanupAsync(CancellationToken.None),
-    hangfireOptions.ExpiredInvitationCleanupCron,
-    new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
-
-// The interview reminder sweep. Runs far more often than the cleanup above because its lateness is
-// visible to a candidate: the cadence is the worst case by which a "starting soon" nudge can arrive
-// behind schedule, so it has to stay well inside the room's 10-minute lead.
-RecurringJob.AddOrUpdate<InterviewReminderJob>(
-    "interview-reminders",
-    job => job.SendDueRemindersAsync(CancellationToken.None),
-    hangfireOptions.InterviewReminderCron,
-    new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+app.UseHangfireDashboardEndpoint();
+app.MapRecurringJobs();
 
 app.Run();
 
