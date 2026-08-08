@@ -1,9 +1,6 @@
 using System.Diagnostics;
-using System.Globalization;
-using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
-using System.Threading.RateLimiting;
 using Asp.Versioning;
 using Ats.Api;
 using Ats.Api.Extensions;
@@ -46,7 +43,6 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Minio;
 using MongoDB.Driver;
-using RedisRateLimiting;
 using Scalar.AspNetCore;
 using StackExchange.Redis;
 
@@ -250,101 +246,8 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(redisConnection);
 builder.Services.AddStackExchangeRedisCache(options =>
     options.ConnectionMultiplexerFactory = () => Task.FromResult<IConnectionMultiplexer>(redisConnection));
 
-// Distributed rate limiting (Sprint 4.4). Counters live in Redis (via the shared multiplexer), so the
-// limits hold across every app instance rather than per-process. Three fixed-window limits:
-//   - per-IP   (named policy) on login/register/public apply — unauthenticated abuse vectors
-//   - per-tenant + per-user (global, chained) on every authenticated request
-// The native middleware's default rejection is 503; OnRejected corrects it to 429 + Retry-After.
-var rateLimitingOptions = builder.Configuration
-    .GetSection(RateLimitingOptions.SectionName).Get<RateLimitingOptions>() ?? new RateLimitingOptions();
-var rateLimitWindow = TimeSpan.FromSeconds(rateLimitingOptions.WindowSeconds);
-
-builder.Services.AddRateLimiter(options =>
-{
-    options.OnRejected = async (context, cancellationToken) =>
-    {
-        // The Redis limiter reports retry-after in seconds under its own metadata name, not the
-        // framework's MetadataName.RetryAfter (which the built-in in-memory limiters use).
-        if (context.Lease.TryGetMetadata(RateLimitMetadataName.RetryAfter, out var retryAfterSeconds))
-            context.HttpContext.Response.Headers.RetryAfter =
-                retryAfterSeconds.ToString(NumberFormatInfo.InvariantInfo);
-
-        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-
-        context.HttpContext.RequestServices
-            .GetRequiredService<ILoggerFactory>()
-            .CreateLogger("RateLimiting")
-            .LogWarning("Rate limit exceeded for {Path}", context.HttpContext.Request.Path);
-
-        await context.HttpContext.Response.WriteAsync(
-            "Too many requests. Please try again later.", cancellationToken);
-    };
-
-    // Behind a reverse proxy (Sprint 8) the real client IP arrives in X-Forwarded-For, which requires
-    // ForwardedHeaders middleware to populate RemoteIpAddress. In dev it is correct as-is.
-    options.AddPolicy(RateLimitPolicies.PerIp, httpContext =>
-        FailOpenRedisFixedWindow(
-            httpContext,
-            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            rateLimitingOptions.PerIpPermitLimit));
-
-    // CreateChained runs both limiters in sequence, so an authenticated request must satisfy its
-    // tenant's shared budget and its own per-user budget. Unauthenticated requests carry neither
-    // claim and fall through to NoLimiter here, relying on the per-IP policy instead.
-    options.GlobalLimiter = PartitionedRateLimiter.CreateChained(
-        PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-        {
-            var tenantId = httpContext.User.FindFirstValue("tenant_id");
-            return string.IsNullOrEmpty(tenantId)
-                ? RateLimitPartition.GetNoLimiter("unauthenticated")
-                : FailOpenRedisFixedWindow(httpContext, $"tenant:{tenantId}", rateLimitingOptions.PerTenantPermitLimit);
-        }),
-        PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-        {
-            var userId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-            return string.IsNullOrEmpty(userId)
-                ? RateLimitPartition.GetNoLimiter("unauthenticated")
-                : FailOpenRedisFixedWindow(httpContext, $"user:{userId}", rateLimitingOptions.PerUserPermitLimit);
-        }));
-});
-
-// Builds a Redis-backed fixed-window partition wrapped in FailOpenRateLimiter, so a Redis outage lets
-// the request through instead of failing it. The limiter for each key is created once and then cached
-// by the partition, so resolving the logger per call here is cheap.
-RateLimitPartition<string> FailOpenRedisFixedWindow(HttpContext httpContext, string key, int permitLimit)
-{
-    var logger = httpContext.RequestServices
-        .GetRequiredService<ILoggerFactory>()
-        .CreateLogger("RateLimiting");
-
-    return RateLimitPartition.Get(key, partitionKey =>
-        new FailOpenRateLimiter(
-            new RedisFixedWindowRateLimiter<string>(partitionKey, new RedisFixedWindowRateLimiterOptions
-            {
-                ConnectionMultiplexerFactory = () => redisConnection,
-                PermitLimit = permitLimit,
-                Window = rateLimitWindow
-            }),
-            logger,
-            partitionKey));
-}
-
-// CORS for the SPA (Sprint 8.1). The front-end (Ats.Web) runs on a different origin than the API, so
-// the browser blocks its requests unless the API allows that origin. The allowed origins come from the
-// "Cors" section so each environment lists its own front-end without a code change. AllowCredentials is
-// required because the refresh flow carries credentials cross-origin; the CORS spec then forbids a
-// wildcard origin, which is why AllowedOrigins is an explicit list. Retry-After is exposed so the SPA
-// can read the rate limiter's back-off hint (cross-origin responses hide non-safelisted headers by default).
-var corsOptions = builder.Configuration
-    .GetSection(CorsOptions.SectionName).Get<CorsOptions>() ?? new CorsOptions();
-
-builder.Services.AddCors(options =>
-    options.AddPolicy(CorsPolicies.Spa, policy => policy
-        .WithOrigins(corsOptions.AllowedOrigins)
-        .AllowAnyHeader()
-        .AllowAnyMethod()
-        .AllowCredentials()
-        .WithExposedHeaders("Retry-After")));
+builder.AddRateLimiting();
+builder.AddCorsForSpa();
 
 // Forwarded headers (Sprint 8.1). Behind a reverse proxy (nginx/Caddy in Sprint 8), the real client IP
 // and scheme arrive in X-Forwarded-For / X-Forwarded-Proto; without this middleware RemoteIpAddress is
