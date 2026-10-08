@@ -83,7 +83,7 @@ builder.Services
 
 builder.AddPersistence();
 
-// LLM-backed CV parsing (Sprint 6.3). The PDF text extractor and the parser are stateless and
+// LLM-backed CV parsing. The PDF text extractor and the parser are stateless and
 // thread-safe (the parser holds one reusable Polly pipeline and pulls HTTP clients from the factory),
 // so both are singletons. The parser targets any OpenAI-compatible API; it defaults to GitHub Models
 // (free with a GitHub token). The key is read from User Secrets / env via LlmOptions, never from
@@ -96,8 +96,8 @@ builder.Services.AddSingleton<IDocxTextExtractor, DocxTextExtractor>();
 builder.Services.AddSingleton<ICvParser, OpenAiCompatibleCvParser>();
 
 // One Redis connection shared by the whole app. StackExchange.Redis multiplexes all traffic over a
-// single ConnectionMultiplexer by design, so both the distributed cache (4.3) and the rate limiter
-// (4.4) use this one instance. AbortOnConnectFail = false keeps the cache's fail-open behavior: a
+// single ConnectionMultiplexer by design, so both the distributed cache and the rate limiter use this
+// one instance. AbortOnConnectFail = false keeps the cache's fail-open behavior: a
 // momentarily unreachable Redis does not crash startup, and the multiplexer reconnects on its own.
 var redisOptions = builder.Configuration
     .GetSection(RedisOptions.SectionName).Get<RedisOptions>() ?? new RedisOptions();
@@ -111,7 +111,7 @@ redisConfiguration.BacklogPolicy = BacklogPolicy.FailFast;
 var redisConnection = ConnectionMultiplexer.Connect(redisConfiguration);
 builder.Services.AddSingleton<IConnectionMultiplexer>(redisConnection);
 
-// Redis-backed distributed cache (Sprint 4.3). Caches the hot, effectively immutable slug -> tenantId
+// Redis-backed distributed cache. Caches the hot, effectively immutable slug -> tenantId
 // lookup; TenantResolutionMiddleware treats it as best-effort, so a Redis outage degrades to a
 // database read rather than failing the request.
 builder.Services.AddStackExchangeRedisCache(options =>
@@ -120,7 +120,7 @@ builder.Services.AddStackExchangeRedisCache(options =>
 builder.AddRateLimiting();
 builder.AddCorsForSpa();
 
-// Forwarded headers (Sprint 8.1). Behind a reverse proxy (nginx/Caddy in Sprint 8), the real client IP
+// Forwarded headers. Behind a reverse proxy (nginx/Caddy), the real client IP
 // and scheme arrive in X-Forwarded-For / X-Forwarded-Proto; without this middleware RemoteIpAddress is
 // the proxy's address. The per-IP rate limiter partitions on RemoteIpAddress, so it would otherwise
 // throttle every client behind the proxy as one. KnownNetworks/KnownProxies are cleared because the

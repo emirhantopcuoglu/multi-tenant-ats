@@ -10,7 +10,7 @@ namespace Ats.Api.Extensions;
 
 public static class RateLimitingExtensions
 {
-    // Distributed rate limiting (Sprint 4.4). Counters live in Redis (via the shared multiplexer), so the
+    // Distributed rate limiting. Counters live in Redis (via the shared multiplexer), so the
     // limits hold across every app instance rather than per-process. Three fixed-window limits:
     //   - per-IP   (named policy) on login/register/public apply — unauthenticated abuse vectors
     //   - per-tenant + per-user (global, chained) on every authenticated request
@@ -42,7 +42,7 @@ public static class RateLimitingExtensions
                     "Too many requests. Please try again later.", cancellationToken);
             };
 
-            // Behind a reverse proxy (Sprint 8) the real client IP arrives in X-Forwarded-For, which requires
+            // Behind a reverse proxy the real client IP arrives in X-Forwarded-For, which requires
             // ForwardedHeaders middleware to populate RemoteIpAddress. In dev it is correct as-is.
             options.AddPolicy(RateLimitPolicies.PerIp, httpContext =>
                 FailOpenRedisFixedWindow(

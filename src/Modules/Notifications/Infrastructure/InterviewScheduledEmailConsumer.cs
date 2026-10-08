@@ -9,8 +9,8 @@ using Microsoft.Extensions.Options;
 namespace Ats.Modules.Notifications.Infrastructure;
 
 // Consumes InterviewScheduledIntegrationEvent off RabbitMQ and emails the candidate their
-// interview details — the email counterpart to InterviewScheduledNotificationConsumer's in-app row
-// (roadmap 3.4). Own queue, so a slow or failing SMTP send never blocks the bell from updating.
+// interview details — the email counterpart to InterviewScheduledNotificationConsumer's in-app row.
+// Own queue, so a slow or failing SMTP send never blocks the bell from updating.
 //
 // The send is wrapped in the idempotency guard keyed on the message id, matching the other email
 // consumers: an at-least-once redelivery must not email the candidate twice.

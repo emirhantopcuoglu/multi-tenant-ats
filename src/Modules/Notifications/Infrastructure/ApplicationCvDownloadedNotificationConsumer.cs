@@ -6,8 +6,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// Writes an in-app notification row the first time a company user downloads an application's CV —
-// the "cv indirildi" signal from roadmap 3.2. Own queue, same shape as
+// Writes an in-app notification row the first time a company user downloads an application's CV.
+// Own queue, same shape as
 // ApplicationViewedNotificationConsumer: skip messages with no candidate account behind them, and
 // guard the write with the message-id idempotency key so an at-least-once redelivery can't double
 // the row.

@@ -15,7 +15,7 @@ namespace Ats.Modules.Notifications.Infrastructure;
 // does not silently drop the email.
 //
 // The send is wrapped in the idempotency guard keyed on the message id, so an at-least-once
-// redelivery of the same message does not email the candidate twice (Sprint 5.5).
+// redelivery of the same message does not email the candidate twice.
 //
 // Wording comes from IEmailTextProvider in the language the candidate account carries, which is why
 // this consumer reads ICandidateAccountReader: the event identifies the recipient by address, and the

@@ -4,7 +4,7 @@ using MongoDB.Driver;
 
 namespace Ats.Modules.Applications.Infrastructure;
 
-// MongoDB-backed CV parse result store (Sprint 6.3). Like MongoActivityLogRepository it uses the
+// MongoDB-backed CV parse result store. Like MongoActivityLogRepository it uses the
 // native driver and handles tenant isolation by hand: the write stamps the tenant from the message,
 // the read filters on the current tenant.
 //

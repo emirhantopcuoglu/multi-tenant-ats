@@ -1,6 +1,6 @@
 namespace Ats.Shared.Infrastructure;
 
-// Connection settings for Redis, which from Sprint 4 backs the distributed cache (IDistributedCache).
+// Connection settings for Redis, which backs the distributed cache (IDistributedCache).
 // Mirrors MongoOptions/FileStorageOptions: bound from the "Redis" configuration section in Program.cs.
 public sealed class RedisOptions
 {

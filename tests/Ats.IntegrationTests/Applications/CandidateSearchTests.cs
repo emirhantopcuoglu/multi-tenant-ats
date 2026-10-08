@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.IntegrationTests.Applications;
 
-// The candidate search shipped in Sprint 6.4 with a stored tsvector column, a GIN index and
+// The candidate search shipped with a stored tsvector column, a GIN index and
 // websearch_to_tsquery — and no tests at all, because nothing called it. It is now reachable from
 // /candidates, so the properties it silently depended on get pinned here.
 //

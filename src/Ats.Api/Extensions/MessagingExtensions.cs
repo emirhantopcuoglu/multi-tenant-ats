@@ -10,11 +10,10 @@ namespace Ats.Api.Extensions;
 
 public static class MessagingExtensions
 {
-    // RabbitMQ message bus (Sprint 5). MassTransit is the abstraction over the broker: it owns the
-    // connection, retries, and (Sprint 5.3) the outbox, and lets consumer code stay transport-agnostic.
-    // Sprint 5.2 added the first consumer (application-submitted -> candidate email). Unlike the
-    // Mongo/MinIO initializers, MassTransit's hosted service connects in the background and retries on
-    // its own, so a broker that is briefly unreachable does not crash startup.
+    // RabbitMQ message bus. MassTransit is the abstraction over the broker: it owns the connection,
+    // retries, and the outbox, and lets consumer code stay transport-agnostic. Unlike the Mongo/MinIO
+    // initializers, MassTransit's hosted service connects in the background and retries on its own, so
+    // a broker that is briefly unreachable does not crash startup.
     public static IHostApplicationBuilder AddMessaging(this IHostApplicationBuilder builder)
     {
         builder.Services.Configure<RabbitMqOptions>(
@@ -43,8 +42,8 @@ public static class MessagingExtensions
             });
 
             // Notifications consumers: email the candidate when an application is submitted, rejected,
-            // hired, moved to a new stage, or gets an interview scheduled (roadmap 3.4). ConfigureEndpoints
-            // below creates and binds each consumer's queue automatically.
+            // hired, moved to a new stage, or gets an interview scheduled. ConfigureEndpoints below
+            // creates and binds each consumer's queue automatically.
             bus.AddConsumer<ApplicationSubmittedConsumer>();
             bus.AddConsumer<ApplicationRejectedConsumer>();
             bus.AddConsumer<ApplicationHiredConsumer>();
@@ -56,8 +55,8 @@ public static class MessagingExtensions
             // Driven by the reminder sweep rather than by a recruiter action; see InterviewReminderJob.
             bus.AddConsumer<InterviewReminderEmailConsumer>();
 
-            // In-app notification writers (FAZ 3): each event lands in its own queue, independent of the
-            // email consumers above, and becomes a row behind the candidate's bell icon.
+            // In-app notification writers: each event lands in its own queue, independent of the email
+            // consumers above, and becomes a row behind the candidate's bell icon.
             bus.AddConsumer<ApplicationStageChangedNotificationConsumer>();
             bus.AddConsumer<InterviewScheduledNotificationConsumer>();
             bus.AddConsumer<InterviewRescheduledNotificationConsumer>();
@@ -67,8 +66,8 @@ public static class MessagingExtensions
             bus.AddConsumer<ApplicationCvDownloadedNotificationConsumer>();
             bus.AddConsumer<NewApplicationNotificationConsumer>();
 
-            // CV-parsing consumer (Sprint 6.3): downloads the CV, extracts text, asks an LLM for structured
-            // data, and stores it in MongoDB. The provider is OpenAI-compatible and selected entirely
+            // CV-parsing consumer: downloads the CV, extracts text, asks an LLM for structured data, and
+            // stores it in MongoDB. The provider is OpenAI-compatible and selected entirely
             // through the Llm configuration section — naming a vendor here is what made this comment wrong
             // for months after the provider changed. Inherits the retry/dead-letter policy configured below.
             bus.AddConsumer<CvParsingConsumer>();
@@ -93,7 +92,7 @@ public static class MessagingExtensions
                     host.Password(rabbitMqOptions.Password);
                 });
 
-                // Consumer retry policy (Sprint 5.5). Applied here, before ConfigureEndpoints, so every consumer
+                // Consumer retry policy. Applied here, before ConfigureEndpoints, so every consumer
                 // endpoint inherits it: a throwing consumer is retried with an exponential back-off instead of
                 // failing once or looping forever. intervalDelta is set to the initial interval so the back-off
                 // grows from there. When all attempts are exhausted, MassTransit moves the message to the
@@ -118,8 +117,8 @@ public static class MessagingExtensions
             });
         });
 
-        // Message idempotency guard (Sprint 5.5). RabbitMQ delivers at-least-once, so a consumer can see the
-        // same message twice (a lost ack, a retry, or an error-queue replay). The guard marks a processed
+        // Message idempotency guard. RabbitMQ delivers at-least-once, so a consumer can see the same
+        // message twice (a lost ack, a retry, or an error-queue replay). The guard marks a processed
         // message in Redis so a duplicate delivery does not send a duplicate email. It reuses the shared
         // Redis multiplexer registered as a singleton at startup; it is stateless, so a singleton is fine.
         builder.Services.Configure<IdempotencyOptions>(

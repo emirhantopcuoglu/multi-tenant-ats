@@ -18,8 +18,8 @@ namespace Ats.Shared.Infrastructure;
 // GitHub Models is free with a GitHub token, which is why it backs CV parsing rather than a paid
 // provider — the ICvParser port keeps the choice an Infrastructure detail.
 //
-// Resilience is owned by Polly: retry -> circuit breaker -> per-attempt timeout (the roadmap's
-// requirement). The HTTP client comes from IHttpClientFactory. Stateless apart from the reusable
+// Resilience is owned by Polly: retry -> circuit breaker -> per-attempt timeout.
+// The HTTP client comes from IHttpClientFactory. Stateless apart from the reusable
 // pipeline, so it is registered as a singleton.
 public sealed class OpenAiCompatibleCvParser : ICvParser
 {
@@ -202,7 +202,7 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
             return await response.Content.ReadFromJsonAsync<ChatResponse>(cancellationToken: token);
         }, cancellationToken);
 
-        // Cost visibility: the roadmap asks the token count to be logged on every call.
+        // Cost visibility: log the token count on every call.
         if (chatResponse?.Usage is { } usage)
         {
             _logger.LogInformation(

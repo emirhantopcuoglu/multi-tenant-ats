@@ -1,5 +1,5 @@
 services:
-  # The built SPA served by nginx (Sprint 8.1, Step 6.1). The API base URL is baked in at build time
+  # The built SPA served by nginx. The API base URL is baked in at build time
   # (Vite inlines VITE_-prefixed vars), so it's a build arg. The default targets the API running on the
   # host's dev port; override VITE_API_BASE_URL for a real deployment. Note: the API's CORS
   # AllowedOrigins must include this origin (http://localhost:8080) for the browser calls to succeed.
@@ -81,7 +81,7 @@ services:
       - "15672:15672"  # management UI (http://localhost:15672)
     volumes:
       # Unlike Redis, the broker is a store: it must not drop messages that are in flight or waiting in
-      # durable queues across a restart. This durability is what the Sprint 5.3 outbox will build on.
+      # durable queues across a restart. The outbox relies on this durability.
       - ats-rabbitmq-data:/var/lib/rabbitmq
 
   jaeger:

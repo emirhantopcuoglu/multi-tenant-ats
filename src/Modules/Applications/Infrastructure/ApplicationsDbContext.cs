@@ -49,7 +49,7 @@ public sealed class ApplicationsDbContext : DbContext, IApplicationsDbContext
             // place that holds under concurrent inserts.
             entity.HasIndex(c => new { c.TenantId, c.Email }).IsUnique();
 
-            // Full-text search vector (Sprint 6.4). A STORED generated column so PostgreSQL
+            // Full-text search vector. A STORED generated column so PostgreSQL
             // maintains it automatically on every insert/update. The Domain entity stays clean
             // (no NpgsqlTsVector property); EF accesses it as a shadow property. The GIN index
             // makes @@ lookups O(log n) instead of O(n) sequential scans.
@@ -90,7 +90,7 @@ public sealed class ApplicationsDbContext : DbContext, IApplicationsDbContext
             // cannot serve the sort; this one provides it from the index instead of a separate sort.
             entity.HasIndex(a => new { a.TenantId, a.AppliedAtUtc })
                 .IsDescending(false, true);
-            // Used by the candidate portal (7.9) to list a candidate's own applications across
+            // Used by the candidate portal to list a candidate's own applications across
             // all tenants. IgnoreQueryFilters() + this index serves the cross-tenant read.
             entity.HasIndex(a => a.CandidateAccountId)
                 .HasFilter("\"CandidateAccountId\" IS NOT NULL");
@@ -119,7 +119,7 @@ public sealed class ApplicationsDbContext : DbContext, IApplicationsDbContext
             entity.Property(s => s.Type).HasConversion<string>().HasMaxLength(20);
         });
 
-        // The append-only activity log moved to MongoDB in Sprint 4, so every entity that remains
+        // The append-only activity log lives in MongoDB, so every entity that remains
         // here is both tenant-scoped and soft-deletable: one filter covers both. Applied via an
         // instance method so EF treats _currentTenant as a context accessor (re-evaluated per
         // query) rather than baking the first scope's value into the cached model.

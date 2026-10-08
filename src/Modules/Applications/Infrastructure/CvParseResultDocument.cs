@@ -4,7 +4,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace Ats.Modules.Applications.Infrastructure;
 
-// MongoDB persistence model for a CV parse result (Sprint 6.3). Stored in Mongo rather than Postgres
+// MongoDB persistence model for a CV parse result. Stored in Mongo rather than Postgres
 // for the same reasons as the activity log: schema-flexible, append-mostly, and produced out-of-band
 // by a consumer. Kept separate from the Kernel's CvParseResult so the storage shape can evolve
 // independently of the parse contract.

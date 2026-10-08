@@ -9,7 +9,7 @@ namespace Ats.Api.Extensions;
 
 public static class BackgroundJobsExtensions
 {
-    // Hangfire background jobs (Sprint 5.4). Jobs are stored in PostgreSQL (Hangfire's own "hangfire"
+    // Hangfire background jobs. Jobs are stored in PostgreSQL (Hangfire's own "hangfire"
     // schema, created automatically and kept separate from our EF migrations) so they survive restarts,
     // and run on a server hosted in this process. In a multi-instance deployment Hangfire's storage-level
     // locks ensure a recurring job runs on only one instance at a time — the reason to use it over a raw
@@ -38,7 +38,7 @@ public static class BackgroundJobsExtensions
     // Hangfire dashboard at /hangfire. LocalRequestsOnlyAuthorizationFilter restricts it to localhost:
     // the dashboard exposes job data and trigger/delete controls, and the API's auth is bearer-token
     // based (no cookies), so a browser cannot carry a JWT here. Real authentication for a remote
-    // dashboard is a production hardening task (Sprint 8); in dev, local-only is the correct guard.
+    // dashboard is a production hardening task; in dev, local-only is the correct guard.
     public static WebApplication UseHangfireDashboardEndpoint(this WebApplication app)
     {
         app.UseHangfireDashboard("/hangfire", new DashboardOptions

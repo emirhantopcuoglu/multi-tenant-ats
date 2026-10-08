@@ -85,16 +85,15 @@ public static class PersistenceExtensions
         builder.Services.AddScoped<IInterviewsDbContext>(sp => sp.GetRequiredService<InterviewsDbContext>());
         builder.Services.AddInterviewsApplication();
 
-        // Candidate accounts (FAZ 7): the marketplace's global, tenant-less identity. Unlike every other
+        // Candidate accounts: the marketplace's global, tenant-less identity. Unlike every other
         // context, this one takes no tenant/audit interceptors — its only entity is neither ITenantScoped
-        // nor IAuditable, so those interceptors would be inert. Registered here (deferred from 7.3) now
-        // that the auth services below consume it.
+        // nor IAuditable, so those interceptors would be inert.
         builder.Services.AddDbContext<CandidateAccountsDbContext>(options =>
             options.UseNpgsql(
                 builder.Configuration.GetConnectionString("Postgres"),
                 npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "candidate_accounts")));
 
-        // In-app notifications (FAZ 3). Like candidate accounts, no tenant/audit interceptors: a
+        // In-app notifications. Like candidate accounts, no tenant/audit interceptors: a
         // Notification row is addressed to a recipient — a global candidate account today, a company user
         // later — and the recipient, not a tenant, is the ownership boundary its queries filter on.
         builder.Services.AddDbContext<NotificationsDbContext>(options =>
@@ -105,7 +104,7 @@ public static class PersistenceExtensions
         builder.Services.AddScoped<INotificationsDbContext>(sp => sp.GetRequiredService<NotificationsDbContext>());
         builder.Services.AddNotificationsApplication();
 
-        // MongoDB holds the append-only activity log (Sprint 4). The driver's MongoClient is thread-safe
+        // MongoDB holds the append-only activity log. The driver's MongoClient is thread-safe
         // and pools connections internally, so it is a singleton; the database handle is derived from it.
         // The repository is scoped because it depends on the per-request ICurrentTenant for isolation.
         builder.Services.Configure<MongoOptions>(
@@ -122,12 +121,12 @@ public static class PersistenceExtensions
         });
         builder.Services.AddScoped<IActivityLogRepository, MongoActivityLogRepository>();
 
-        // CV parse results (Sprint 6.3) also live in MongoDB. Scoped like the activity log because the
+        // CV parse results also live in MongoDB. Scoped like the activity log because the
         // read path depends on the per-request ICurrentTenant; the write path (the CV-parsing consumer)
         // passes the tenant explicitly, since it runs outside a resolved-tenant request.
         builder.Services.AddScoped<ICvParseResultRepository, MongoCvParseResultRepository>();
 
-        // Candidate full-text search (Sprint 6.4). Backed by a PostgreSQL tsvector generated column on
+        // Candidate full-text search. Backed by a PostgreSQL tsvector generated column on
         // the Candidates table; the repository is scoped because the underlying DbContext is scoped.
         builder.Services.AddScoped<ICandidateSearchRepository, CandidateSearchRepository>();
 

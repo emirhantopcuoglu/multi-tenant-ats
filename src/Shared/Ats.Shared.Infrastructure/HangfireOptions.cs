@@ -1,6 +1,6 @@
 namespace Ats.Shared.Infrastructure;
 
-// Settings for Hangfire background jobs, introduced in Sprint 5.4. Hangfire stores its jobs in
+// Settings for Hangfire background jobs. Hangfire stores its jobs in
 // PostgreSQL (its own "hangfire" schema, separate from our EF migrations) and runs them on a server
 // hosted in the API. Mirrors MongoOptions/RedisOptions/RabbitMqOptions: bound from the "Hangfire"
 // configuration section in Program.cs. The storage reuses the existing Postgres connection string, so
