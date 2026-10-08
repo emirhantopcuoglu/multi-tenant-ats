@@ -92,7 +92,7 @@ public static class IdentityAndAuthorizationExtensions
         // company behind each job without reaching into the Tenants schema.
         builder.Services.AddScoped<ITenantDirectory, TenantDirectory>();
 
-        // Candidate authentication (FAZ 7). Binds the same "Jwt" section as the company side, so candidate and
+        // Candidate authentication. Binds the same "Jwt" section as the company side, so candidate and
         // company tokens share one signing key and are validated by the one JWT bearer scheme; they are told
         // apart only by the token_type claim. The password hasher is Identity's PBKDF2 hasher (stateless, so a
         // singleton) adapted to a subject-less port.

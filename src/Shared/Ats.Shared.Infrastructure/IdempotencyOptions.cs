@@ -1,6 +1,6 @@
 namespace Ats.Shared.Infrastructure;
 
-// Settings for the message idempotency guard (Sprint 5.5). Mirrors the other options classes
+// Settings for the message idempotency guard. Mirrors the other options classes
 // (RedisOptions/RabbitMqOptions/HangfireOptions): bound from the "Idempotency" configuration section
 // in Program.cs so the retention window is environment-tunable rather than a magic number in code.
 public sealed class IdempotencyOptions

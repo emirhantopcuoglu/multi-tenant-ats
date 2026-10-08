@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Applications.Application.Applications;
 
-// Read side of CV parsing (Sprint 6.3): exposes the structured result a recruiter can view on the
+// Read side of CV parsing: exposes the structured result a recruiter can view on the
 // application. The result is produced asynchronously by the CV-parsing consumer and stored in
 // MongoDB, so it may not exist yet for a freshly submitted application.
 public sealed record CvParseResultDto(

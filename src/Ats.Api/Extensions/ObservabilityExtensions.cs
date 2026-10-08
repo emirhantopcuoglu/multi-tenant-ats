@@ -9,7 +9,7 @@ namespace Ats.Api.Extensions;
 
 public static class ObservabilityExtensions
 {
-    // Distributed tracing (Sprint 7.2) and health checks for liveness/readiness probes. Both answer
+    // Distributed tracing and health checks for liveness/readiness probes. Both answer
     // "what is this service doing / is it doing okay right now" — kept together as one operational
     // visibility concern, unlike e.g. rate limiting and CORS which are unrelated policies.
     //

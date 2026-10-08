@@ -19,7 +19,7 @@ function SearchIcon() {
 }
 
 /* The recruiter candidate search at /candidates, over the whole tenant's candidate pool rather than
-   one job's applicants. The backend (Sprint 6.4) has been complete for a while — a stored tsvector
+   one job's applicants. The backend has been complete for a while — a stored tsvector
    column with a GIN index, websearch_to_tsquery, rank ordering — behind a placeholder screen.
 
    Term and page live in the URL, matching ApplicationsPage, so a search is shareable and the back

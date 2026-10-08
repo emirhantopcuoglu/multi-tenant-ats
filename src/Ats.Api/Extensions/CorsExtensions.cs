@@ -5,7 +5,7 @@ namespace Ats.Api.Extensions;
 
 public static class CorsExtensions
 {
-    // CORS for the SPA (Sprint 8.1). The front-end (Ats.Web) runs on a different origin than the API, so
+    // CORS for the SPA. The front-end (Ats.Web) runs on a different origin than the API, so
     // the browser blocks its requests unless the API allows that origin. The allowed origins come from the
     // "Cors" section so each environment lists its own front-end without a code change. AllowCredentials is
     // required because the refresh flow carries credentials cross-origin; the CORS spec then forbids a

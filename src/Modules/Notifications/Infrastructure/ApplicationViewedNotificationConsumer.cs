@@ -6,8 +6,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// Writes an in-app notification row the first time a company user opens an application — the
-// candidate-transparency signal from roadmap 3.2 ("başvurun görüntülendi"). Own queue, same shape
+// Writes an in-app notification row the first time a company user opens an application, so the
+// candidate can see their application is being looked at. Own queue, same shape
 // as ApplicationStageChangedNotificationConsumer: skip messages with no candidate account behind
 // them, and guard the write with the message-id idempotency key so an at-least-once redelivery
 // can't double the row.

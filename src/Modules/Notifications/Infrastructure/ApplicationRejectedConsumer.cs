@@ -13,7 +13,7 @@ namespace Ats.Modules.Notifications.Infrastructure;
 // dead-letters it — so a transient SMTP failure does not silently drop the email.
 //
 // The send is wrapped in the idempotency guard keyed on the message id, so an at-least-once
-// redelivery of the same message does not email the candidate twice (Sprint 5.5).
+// redelivery of the same message does not email the candidate twice.
 //
 // The email is deliberately generic: it never includes the recruiter's internal rejection reason.
 //

@@ -9,7 +9,7 @@ namespace Ats.Modules.Notifications.Infrastructure;
 
 // Consumes ApplicationStageChangedIntegrationEvent off RabbitMQ and emails the candidate that
 // their application moved forward — the email counterpart to
-// ApplicationStageChangedNotificationConsumer's in-app row (roadmap 3.4). Own queue, so a slow or
+// ApplicationStageChangedNotificationConsumer's in-app row. Own queue, so a slow or
 // failing SMTP send never blocks the bell from updating, and vice versa.
 //
 // The send is wrapped in the idempotency guard keyed on the message id, matching the other email

@@ -4,7 +4,7 @@ namespace Ats.UnitTests.Applications;
 
 // The validator is the one piece of the apply flow with no infrastructure dependency, so it is
 // the natural unit-test target. The handler's DB/storage orchestration is covered by the
-// integration tests added in Sprint 7 (Testcontainers).
+// Testcontainers integration tests.
 public class SubmitApplicationValidatorTests
 {
     private static SubmitApplicationCommand ValidCommand(

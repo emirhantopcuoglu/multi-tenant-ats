@@ -9,8 +9,8 @@ using Prometheus;
 
 namespace Ats.Modules.Applications.Infrastructure;
 
-// Consumes CvParseRequestedIntegrationEvent off RabbitMQ and produces the structured CV data
-// (Sprint 6.3). This is the out-of-process half of the apply flow: the candidate's request already
+// Consumes CvParseRequestedIntegrationEvent off RabbitMQ and produces the structured CV data.
+// This is the out-of-process half of the apply flow: the candidate's request already
 // returned 201, and parsing happens afterwards, decoupled.
 //
 // Steps: download the CV from object storage -> pick the extractor for its real format (PDF or

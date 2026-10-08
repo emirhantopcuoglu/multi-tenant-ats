@@ -1,6 +1,6 @@
 namespace Ats.Shared.Infrastructure;
 
-// Connection settings for MongoDB, which from Sprint 4 holds the append-only activity log.
+// Connection settings for MongoDB, which holds the append-only activity log.
 // Mirrors FileStorageOptions: bound from the "Mongo" configuration section in Program.cs.
 public sealed class MongoOptions
 {
