@@ -29,7 +29,7 @@ export const PIPELINE_STAGE_TYPES = ['Initial', 'Active', 'Interview', 'FinalHir
 export type PipelineStageType = (typeof PIPELINE_STAGE_TYPES)[number];
 
 export const APPLICATION_ACTIVITY_TYPES =
-  ['Submitted', 'Viewed', 'StageChanged', 'StageCorrected', 'Rejected', 'Hired'] as const;
+  ['Submitted', 'Viewed', 'StageChanged', 'StageCorrected', 'Rejected', 'Hired', 'Withdrawn'] as const;
 export type ApplicationActivityType = (typeof APPLICATION_ACTIVITY_TYPES)[number];
 
 export const INTERVIEW_TYPES = ['PhoneScreen', 'Technical', 'Cultural', 'Final'] as const;

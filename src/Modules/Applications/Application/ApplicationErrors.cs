@@ -21,6 +21,19 @@ public static class ApplicationErrors
     public static readonly Error CandidateAccountNotFound =
         new("application.candidate_account_not_found", "The candidate account could not be found.");
 
+    // The one gate on an unverified account. Applying is where an unreachable address stops being the
+    // candidate's own problem and starts costing a recruiter real time, so this is the action that
+    // waits for proof — not signing in, and not filling in a profile.
+    public static readonly Error EmailNotVerified =
+        new("application.email_not_verified",
+            "Verify your email address before applying. Check your inbox for the confirmation link.");
+
+    // The apply form's CV field is optional because the account may already hold one. When neither
+    // is there, this is the answer — and it names the way out.
+    public static readonly Error CvRequired =
+        new("application.cv_required",
+            "Attach a CV, or upload one to your profile so it can be reused.");
+
     public static readonly Error CvNotParsed =
         new("application.cv_not_parsed", "The CV has not been parsed yet.");
 
@@ -34,6 +47,13 @@ public static class ApplicationErrors
     public static readonly Error TerminalStageRequiresDecision =
         new("application.terminal_stage_requires_decision",
             "Hired and Rejected are outcomes, not stages to move into. Use the hire or reject action instead.");
+
+    // Withdrawal gets its own code rather than reusing InvalidOperation: this is the one lifecycle
+    // failure a candidate can trigger themselves, so the message is written for them and the code is
+    // stable enough for the portal to key a translated string on.
+    public static readonly Error NotWithdrawable =
+        new("application.not_withdrawable",
+            "This application is already closed and cannot be withdrawn.");
 
     public static Error InvalidOperation(string message) =>
         new("application.invalid_operation", message);

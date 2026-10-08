@@ -5,7 +5,7 @@ using StackExchange.Redis;
 
 namespace Ats.Shared.Infrastructure;
 
-// Redis-backed implementation of IIdempotencyGuard (Sprint 5.5). It claims a key atomically with
+// Redis-backed implementation of IIdempotencyGuard. It claims a key atomically with
 // SET NX (set-if-not-exists) and a TTL, so two concurrent deliveries of the same message cannot both
 // pass the check — only the delivery that wins the SET runs the operation. The shared
 // ConnectionMultiplexer is reused (same instance as the cache and rate limiter), and the database

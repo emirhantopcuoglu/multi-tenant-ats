@@ -4,6 +4,7 @@ using Ats.IntegrationTests.Shared;
 using Ats.Modules.CandidateAccounts.Application;
 using Ats.Modules.CandidateAccounts.Domain;
 using Ats.Modules.CandidateAccounts.Infrastructure;
+using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -456,7 +457,8 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
 
     private static CandidateTokenService CreateTokenService() => new(CreateJwtOptions());
 
-    private CandidateProfileService CreateService(RecordingEmailSender? emailSender = null)
+    private CandidateProfileService CreateService(
+        RecordingEmailSender? emailSender = null, RecordingFileStorage? fileStorage = null)
     {
         // One DbContext shared with the session issuer, matching how DI scopes them in the app: the
         // password change rotates the stamp and re-issues a session, and both writes belong together.
@@ -467,6 +469,8 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
             CreatePasswordHasher(),
             new CandidateSessionIssuer(db, CreateTokenService(), CreateJwtOptions()),
             emailSender ?? new RecordingEmailSender(),
+            new JsonEmailTextProvider(),
+            fileStorage ?? new RecordingFileStorage(),
             Options.Create(new CandidateEmailChangeOptions()),
             NullLogger<CandidateProfileService>.Instance);
     }
@@ -475,7 +479,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
     {
         await using var db = CreateDbContext();
         var passwordHash = password is null ? "hashed-password" : CreatePasswordHasher().Hash(password);
-        var account = CandidateAccount.Register(email, passwordHash, "Jane", "Doe");
+        var account = CandidateAccount.Register(email, passwordHash, "Jane", "Doe", SupportedLanguages.Default);
         db.CandidateAccounts.Add(account);
         await db.SaveChangesAsync();
         return account.Id;

@@ -5,6 +5,7 @@ import { Badge, Card, EmptyState, Pagination, Skeleton } from '@/components/ui';
 import { applicationStatusTone } from '@/lib/statusColors';
 import { PublicLayout } from '@/features/public/components/PublicLayout';
 import { useCandidateApplications } from '../useCandidateApplications';
+import { EmailVerificationBanner } from '../components/EmailVerificationBanner';
 
 const PAGE_SIZE = 10;
 
@@ -24,6 +25,10 @@ export function CandidateApplicationsPage() {
   return (
     <PublicLayout>
       <div className="space-y-6">
+        {/* The candidate's landing page after registering, so this is where the reminder belongs. It
+            renders nothing once the address is verified. */}
+        <EmailVerificationBanner />
+
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">
             {t('candidatePortal.applicationsTitle')}

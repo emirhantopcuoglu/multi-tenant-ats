@@ -10,8 +10,8 @@ public static class ActivityLogRepositoryExtensions
     // committed first; the log entry is a best-effort write afterwards. If it fails we log a
     // warning (with context, never a silent swallow) and let the operation stand — losing one
     // append-only history line must not fail or roll back a stage move that already happened.
-    // Durable cross-system delivery (write the log no-matter-what) arrives with the outbox
-    // pattern in Sprint 5.
+    // Guaranteed delivery would mean routing this write through the outbox; it deliberately
+    // does not today.
     public static Task TryAddAsync(
         this IActivityLogRepository repository,
         ApplicationActivity activity,

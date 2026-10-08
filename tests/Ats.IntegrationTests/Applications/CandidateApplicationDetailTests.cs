@@ -132,6 +132,51 @@ public sealed class CandidateApplicationDetailTests
         Assert.Equal("Technical", scheduledInterview.Type);
         Assert.Equal(scheduledAt, scheduledInterview.ScheduledAtUtc);
         Assert.Equal("Scheduled", scheduledInterview.Status);
+        // The room token has to survive the projection or the card on this screen cannot offer the
+        // join link that the candidate's "My interviews" page already does — the same interview
+        // described two ways was exactly the inconsistency this field closes.
+        Assert.Equal("room-token", scheduledInterview.RoomToken);
+    }
+
+    [Fact]
+    public async Task should_carry_a_null_room_token_for_a_phone_screen()
+    {
+        // A phone screen has no room, and the client renders that absence as "the interviewer will
+        // call you" rather than as a missing link. Pinned separately because a projection that hard-
+        // coded a token would still satisfy the test above.
+        var accountId = Guid.NewGuid();
+        var jobId = Guid.NewGuid();
+        var tenant = new FixedTenant(Guid.NewGuid());
+
+        Application application;
+        await using (var db = NewDb(tenant))
+        {
+            var pipeline = Pipeline.CreateDefault(jobId);
+            db.Pipelines.Add(pipeline);
+            var candidate = Candidate.Create("phoned@acme.test", "Phone", "Screen");
+            db.Candidates.Add(candidate);
+            application = Application.Create(
+                jobId, candidate.Id, accountId, pipeline.InitialStage.Id, "cv/phoned.pdf");
+            db.Applications.Add(application);
+            await db.SaveChangesAsync();
+        }
+
+        var interview = new CandidateInterviewInfo(
+            Guid.NewGuid(), application.Id, "PhoneScreen", DateTime.UtcNow.AddDays(1), 30,
+            "Scheduled", RoomToken: null);
+
+        await using var readDb = NewDb(tenant);
+        var handler = new GetCandidateApplicationDetailHandler(
+            readDb,
+            new FakeJobDirectory(new JobSummary(jobId, "Staff Engineer", "staff-engineer", tenant.TenantId!.Value)),
+            new FakeTenantDirectory(new TenantSummary(tenant.TenantId!.Value, "Acme", "acme")),
+            new InMemoryActivityLog([]),
+            new FakeInterviewDirectory([interview]));
+        var result = await handler.Handle(
+            new GetCandidateApplicationDetailQuery(accountId, application.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(Assert.Single(result.Value.Interviews).RoomToken);
     }
 
     [Fact]
@@ -179,6 +224,57 @@ public sealed class CandidateApplicationDetailTests
             new[] { "Submitted", "Hired" },
             result.Value.Timeline.Select(e => e.Type).ToArray());
         Assert.Equal(baseTime.AddHours(4), result.Value.Timeline[1].OccurredAtUtc);
+    }
+
+    [Fact]
+    public async Task withdrawn_activity_should_surface_in_the_candidate_timeline()
+    {
+        // Arrange — the candidate's own exit: submitted, then withdrawn. An unmapped activity type is
+        // dropped silently by BuildCandidateTimeline's switch, so without this the candidate would see
+        // their own withdrawal nowhere but the status badge.
+        var accountId = Guid.NewGuid();
+        var jobId = Guid.NewGuid();
+        var tenant = new FixedTenant(Guid.NewGuid());
+
+        Application application;
+        await using (var db = NewDb(tenant))
+        {
+            var pipeline = Pipeline.CreateDefault(jobId);
+            db.Pipelines.Add(pipeline);
+            var candidate = Candidate.Create("gone@acme.test", "Moved", "On");
+            db.Candidates.Add(candidate);
+            application = Application.Create(
+                jobId, candidate.Id, accountId, pipeline.InitialStage.Id, "cv/gone.pdf");
+            application.Withdraw();
+            db.Applications.Add(application);
+            await db.SaveChangesAsync();
+        }
+
+        var baseTime = DateTime.UtcNow.AddDays(-1);
+        var activityLog = new InMemoryActivityLog(
+        [
+            Entry(application.Id, "Submitted", actor: null, "{}", baseTime),
+            Entry(application.Id, "Withdrawn", actor: null, "{}", baseTime.AddHours(6)),
+        ]);
+
+        // Act
+        await using var readDb = NewDb(tenant);
+        var handler = new GetCandidateApplicationDetailHandler(
+            readDb,
+            new FakeJobDirectory(new JobSummary(jobId, "Staff Engineer", "staff-engineer", tenant.TenantId!.Value)),
+            new FakeTenantDirectory(new TenantSummary(tenant.TenantId!.Value, "Acme", "acme")),
+            activityLog,
+            new FakeInterviewDirectory([]));
+        var result = await handler.Handle(
+            new GetCandidateApplicationDetailQuery(accountId, application.Id), CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            new[] { "Submitted", "Withdrawn" },
+            result.Value.Timeline.Select(e => e.Type).ToArray());
+        Assert.Equal(baseTime.AddHours(6), result.Value.Timeline[1].OccurredAtUtc);
+        Assert.Equal(nameof(ApplicationStatus.Withdrawn), result.Value.Status);
     }
 
     [Fact]

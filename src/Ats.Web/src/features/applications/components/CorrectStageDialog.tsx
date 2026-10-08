@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Modal, Select, Textarea } from '@/components/ui';
 import { stageLabel } from '@/lib/stageLabel';
@@ -30,15 +30,20 @@ export function CorrectStageDialog({
   const [stageError, setStageError] = useState(false);
   const [reasonError, setReasonError] = useState(false);
 
-  // Reset the form each time the dialog opens, so a previous draft never lingers.
-  useEffect(() => {
+  // Reset when the dialog opens, so a previous draft never lingers. Adjusted during render rather
+  // than in an effect: React discards the in-progress output and re-renders before committing, so
+  // the cleared form is what reaches the DOM. An effect would paint the stale draft first and clear
+  // it afterwards, which is the cascading render the linter flags.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (open) {
       setTargetStageId('');
       setReason('');
       setStageError(false);
       setReasonError(false);
     }
-  }, [open]);
+  }
 
   const handleConfirm = () => {
     const hasStage = Boolean(targetStageId);

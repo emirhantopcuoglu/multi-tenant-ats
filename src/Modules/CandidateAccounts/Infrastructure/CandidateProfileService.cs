@@ -12,10 +12,17 @@ namespace Ats.Modules.CandidateAccounts.Infrastructure;
 
 public sealed class CandidateProfileService : ICandidateProfileService
 {
+    // The bucket is private, so a CV can only be reached through a signed, expiring link. Five
+    // minutes matches the recruiter-side download: long enough to click, short enough that a leaked
+    // URL is worth little.
+    private static readonly TimeSpan CvDownloadUrlExpiry = TimeSpan.FromMinutes(5);
+
     private readonly CandidateAccountsDbContext _db;
     private readonly ICandidatePasswordHasher _passwordHasher;
     private readonly ICandidateSessionIssuer _sessions;
     private readonly IEmailSender _emailSender;
+    private readonly IEmailTextProvider _emailText;
+    private readonly IFileStorage _fileStorage;
     private readonly CandidateEmailChangeOptions _emailChangeOptions;
     private readonly ILogger<CandidateProfileService> _logger;
 
@@ -24,6 +31,8 @@ public sealed class CandidateProfileService : ICandidateProfileService
         ICandidatePasswordHasher passwordHasher,
         ICandidateSessionIssuer sessions,
         IEmailSender emailSender,
+        IEmailTextProvider emailText,
+        IFileStorage fileStorage,
         IOptions<CandidateEmailChangeOptions> emailChangeOptions,
         ILogger<CandidateProfileService> logger)
     {
@@ -31,6 +40,8 @@ public sealed class CandidateProfileService : ICandidateProfileService
         _passwordHasher = passwordHasher;
         _sessions = sessions;
         _emailSender = emailSender;
+        _emailText = emailText;
+        _fileStorage = fileStorage;
         _emailChangeOptions = emailChangeOptions.Value;
         _logger = logger;
     }
@@ -81,6 +92,24 @@ public sealed class CandidateProfileService : ICandidateProfileService
         return Result.Success(ToDto(account));
     }
 
+    public async Task<Result> SetPreferredLanguageAsync(Guid candidateAccountId, string language)
+    {
+        // Rejected rather than normalized: unlike registration, where the language rides along with a
+        // request that is really about something else, this endpoint exists only to set it — a value
+        // outside the catalogue here is a client bug and quietly storing English would hide it.
+        if (!SupportedLanguages.IsSupported(language))
+            return Result.Failure(CandidateProfileErrors.UnsupportedLanguage);
+
+        var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
+        if (account is null)
+            return Result.Failure(CandidateProfileErrors.NotFound);
+
+        account.SetPreferredLanguage(language);
+        await _db.SaveChangesAsync();
+
+        return Result.Success();
+    }
+
     public async Task<Result<CandidatePasswordChangeResult>> ChangePasswordAsync(
         Guid candidateAccountId, ChangeCandidatePasswordCommand command)
     {
@@ -104,7 +133,7 @@ public sealed class CandidateProfileService : ICandidateProfileService
         _logger.LogInformation(
             "Password changed for candidate account {CandidateAccountId}", candidateAccountId);
 
-        await NotifyPasswordChangedAsync(account.Email);
+        await NotifyPasswordChangedAsync(account.Email, account.PreferredLanguage);
 
         // The rotation above just invalidated this request's access token AND every refresh token
         // issued under the old stamp; issue a fresh pair so the candidate's own session survives
@@ -158,7 +187,7 @@ public sealed class CandidateProfileService : ICandidateProfileService
         // NOT best-effort like the notifications below: this mail IS the flow — if it cannot be
         // sent, the request must fail loudly so the candidate retries instead of waiting for a link
         // that will never arrive. (A retry supersedes the row just written.)
-        await SendConfirmationLinkAsync(newEmail, rawToken);
+        await SendConfirmationLinkAsync(newEmail, account.PreferredLanguage, rawToken);
 
         return Result.Success();
     }
@@ -209,33 +238,128 @@ public sealed class CandidateProfileService : ICandidateProfileService
 
         // Hijack tripwire: the OLD mailbox is told after the fact. If the owner didn't do this,
         // that notification is their only signal before the attacker owns the login.
-        await NotifyEmailChangedAsync(oldEmail);
+        await NotifyEmailChangedAsync(oldEmail, account.PreferredLanguage);
 
         return Result.Success();
     }
 
-    private async Task SendConfirmationLinkAsync(string newEmail, string rawToken)
+    public async Task<Result<CandidateCvDto>> UploadCvAsync(
+        Guid candidateAccountId, UploadCandidateCvCommand command)
+    {
+        var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
+        if (account is null)
+            return Result.Failure<CandidateCvDto>(CandidateProfileErrors.NotFound);
+
+        var fileName = StorageKey.SanitizeFileName(command.FileName);
+
+        // Keyed under the account, with no tenant in the path: this CV belongs to the person, not to
+        // any company. A fresh guid per upload means a replacement never overwrites the object the
+        // old row still points at, so a failed commit below leaves the previous CV intact.
+        var fileKey = $"{CvKeyPrefix}/{account.Id}/{Guid.NewGuid()}-{fileName}";
+
+        await _fileStorage.UploadAsync(
+            fileKey, command.Content, command.SizeBytes, command.ContentType);
+
+        var replacedKey = account.AttachCv(fileKey, fileName);
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch
+        {
+            // The upload is not part of the database transaction. If the row cannot be written, the
+            // object just stored is unreferenced — and an unreferenced CV is a PII leak, not just
+            // wasted space.
+            await TryDeleteAsync(fileKey);
+            throw;
+        }
+
+        // Only after the commit: deleting first would destroy the live CV if the write then failed.
+        if (replacedKey is not null)
+            await TryDeleteAsync(replacedKey);
+
+        _logger.LogInformation("CV attached to candidate account {CandidateAccountId}", candidateAccountId);
+
+        return Result.Success(new CandidateCvDto(fileName, account.CvUploadedAtUtc!.Value));
+    }
+
+    public async Task<Result> RemoveCvAsync(Guid candidateAccountId)
+    {
+        var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
+        if (account is null)
+            return Result.Failure(CandidateProfileErrors.NotFound);
+
+        var removedKey = account.RemoveCv();
+        if (removedKey is null)
+            return Result.Success();
+
+        await _db.SaveChangesAsync();
+
+        // Best-effort and after the commit, in that order: the candidate asked for the CV to be
+        // gone, and it is gone from every read path the moment the row is written. A failed object
+        // delete leaves a file nobody can reach through the app, which is worth a log line and a
+        // later sweep — not a failed request that tells them the removal did not work.
+        await TryDeleteAsync(removedKey);
+
+        _logger.LogInformation("CV removed from candidate account {CandidateAccountId}", candidateAccountId);
+
+        return Result.Success();
+    }
+
+    public async Task<Result<CandidateCvDownloadDto>> GetCvDownloadUrlAsync(Guid candidateAccountId)
+    {
+        var cvFileKey = await _db.CandidateAccounts
+            .AsNoTracking()
+            .Where(c => c.Id == candidateAccountId)
+            .Select(c => c.CvFileKey)
+            .FirstOrDefaultAsync();
+
+        // One answer for "no such account" and "no CV on it": the caller is asking for their own
+        // account, so the distinction carries no information they do not already have.
+        if (cvFileKey is null)
+            return Result.Failure<CandidateCvDownloadDto>(CandidateProfileErrors.CvNotFound);
+
+        var url = await _fileStorage.GetPresignedDownloadUrlAsync(cvFileKey, CvDownloadUrlExpiry);
+
+        return Result.Success(
+            new CandidateCvDownloadDto(url, (int)CvDownloadUrlExpiry.TotalSeconds));
+    }
+
+    // Groups every account-owned CV under one prefix, so storage lifecycle rules (and a human
+    // reading the bucket) can tell them apart from the per-tenant application copies.
+    private const string CvKeyPrefix = "candidates";
+
+    private async Task TryDeleteAsync(string fileKey)
+    {
+        try
+        {
+            await _fileStorage.DeleteAsync(fileKey);
+        }
+        catch (Exception exception)
+        {
+            // Swallowed on purpose, but never silently: the caller's operation has already
+            // succeeded (or is already failing for a better reason), and this leaves an orphan that
+            // only the log can point at.
+            _logger.LogError(exception, "Failed to delete the CV object {CvFileKey}", fileKey);
+        }
+    }
+
+    private async Task SendConfirmationLinkAsync(string newEmail, string language, string rawToken)
     {
         var link = $"{_emailChangeOptions.ConfirmBaseUrl}?token={rawToken}";
-        var body = $"""
-            <p>A request was made to use this address as the login email of a candidate account.</p>
-            <p><a href="{link}">Confirm the email change</a></p>
-            <p>This link expires in 1 hour and can be used once. If you did not request this, ignore this email.</p>
-            """;
+        var body = _emailText.Get(EmailTextKeys.Candidate.EmailChangeConfirmBody, language, link);
 
-        await _emailSender.SendAsync(newEmail, "Confirm your new email address", body);
+        await _emailSender.SendAsync(
+            newEmail, _emailText.Get(EmailTextKeys.Candidate.EmailChangeConfirmSubject, language), body);
     }
 
     // Best-effort: the change is already committed, so a failing mail server must not turn a
     // succeeded operation into an error — but the old owner should still hear about it if possible.
-    private async Task NotifyEmailChangedAsync(string oldEmail)
+    private async Task NotifyEmailChangedAsync(string oldEmail, string language)
     {
-        const string subject = "Your login email was changed";
-        const string body = """
-            <p>The login email of your candidate account was just changed to a new address.</p>
-            <p>If you made this change, no action is needed.</p>
-            <p>If you did not, someone else may have access to your account — please contact us immediately.</p>
-            """;
+        var subject = _emailText.Get(EmailTextKeys.Candidate.EmailChangedSubject, language);
+        var body = _emailText.Get(EmailTextKeys.Candidate.EmailChangedBody, language);
 
         try
         {
@@ -265,14 +389,10 @@ public sealed class CandidateProfileService : ICandidateProfileService
 
     // Best-effort by design: the password change is already committed, so a failing mail server must
     // not turn a succeeded operation into an error response. The failure is logged, not swallowed.
-    private async Task NotifyPasswordChangedAsync(string email)
+    private async Task NotifyPasswordChangedAsync(string email, string language)
     {
-        const string subject = "Your password was changed";
-        const string body = """
-            <p>The password of your candidate account was just changed.</p>
-            <p>If you made this change, no action is needed.</p>
-            <p>If you did not, someone else may have access to your account — please contact us immediately.</p>
-            """;
+        var subject = _emailText.Get(EmailTextKeys.Candidate.PasswordChangedSubject, language);
+        var body = _emailText.Get(EmailTextKeys.Candidate.PasswordChangedBody, language);
 
         try
         {
@@ -286,7 +406,13 @@ public sealed class CandidateProfileService : ICandidateProfileService
 
     private static CandidateProfileDto ToDto(CandidateAccount account) =>
         new(account.Id, account.Email, account.FirstName, account.LastName,
-            account.PhoneNumber, account.Country, account.City, account.BirthDate);
+            account.PhoneNumber, account.Country, account.City, account.BirthDate,
+            ToCvDto(account));
+
+    private static CandidateCvDto? ToCvDto(CandidateAccount account) =>
+        account is { CvFileName: { } fileName, CvUploadedAtUtc: { } uploadedAt }
+            ? new CandidateCvDto(fileName, uploadedAt)
+            : null;
 
     private static string? NullIfWhiteSpace(string? value)
     {

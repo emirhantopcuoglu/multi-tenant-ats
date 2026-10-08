@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Field, Input, Modal } from '@/components/ui';
 import {
@@ -50,9 +50,13 @@ export function RescheduleModal({
   const [duration, setDuration] = useState<number>(DEFAULT_INTERVIEW_DURATION);
   const [errors, setErrors] = useState<{ date?: string; time?: string }>({});
 
-  // Re-seed from the current interview every time the modal opens. A legacy off-preset duration
-  // falls back to the default so the form can only ever submit an allowed value.
-  useEffect(() => {
+  // Re-seed from the current interview when the modal opens. A legacy off-preset duration falls
+  // back to the default so the form can only ever submit an allowed value. Adjusted during render
+  // rather than in an effect, which also narrows the trigger: the effect depended on the interview's
+  // own fields, so a background refetch re-seeded the form mid-edit. Only the open transition does.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (open) {
       const parts = toLocalParts(scheduledAtUtc);
       setDate(parts.date);
@@ -60,7 +64,7 @@ export function RescheduleModal({
       setDuration(isPreset(durationMinutes) ? durationMinutes : DEFAULT_INTERVIEW_DURATION);
       setErrors({});
     }
-  }, [open, scheduledAtUtc, durationMinutes]);
+  }
 
   const handleConfirm = () => {
     const nextErrors: typeof errors = {};

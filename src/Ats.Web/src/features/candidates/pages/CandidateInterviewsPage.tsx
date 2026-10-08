@@ -1,8 +1,8 @@
-import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Badge, Card, EmptyState, Skeleton } from '@/components/ui';
 import { interviewStatusTone } from '@/lib/statusColors';
 import { PublicLayout } from '@/features/public/components/PublicLayout';
+import { InterviewRoomLink } from '../components/InterviewRoomLink';
 import { useCandidateInterviews } from '../useCandidateInterviews';
 
 function CalendarIcon() {
@@ -78,24 +78,10 @@ export function CandidateInterviewsPage() {
                     <Badge tone={interviewStatusTone[interview.status]} dot>
                       {t(`status.${interview.status}`)}
                     </Badge>
-                    {interview.roomToken === null ? (
-                      // A phone screen has no room — the interviewer calls the candidate.
-                      <span className="text-sm font-medium text-text-muted">
-                        {t('candidatePortal.interviews.phone')}
-                      </span>
-                    ) : interview.status === 'Scheduled' ? (
-                      <Link
-                        to={`/interview-room/${interview.roomToken}`}
-                        className="text-sm font-medium text-accent hover:underline"
-                      >
-                        {t('candidatePortal.interviews.openRoom')}
-                      </Link>
-                    ) : (
-                      // A settled interview (completed/cancelled/no-show) has no live room to open.
-                      <span className="cursor-not-allowed text-sm font-medium text-text-disabled">
-                        {t('candidatePortal.interviews.openRoom')}
-                      </span>
-                    )}
+                    <InterviewRoomLink
+                      roomToken={interview.roomToken}
+                      status={interview.status}
+                    />
                   </div>
                 </Card>
               </li>

@@ -15,6 +15,12 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
     public const int RoomOpenLeadMinutes = 10;
     public const int RoomCloseGraceMinutes = 15;
 
+    // How far ahead of the start the day-before reminder is owed. A day is the point where the
+    // candidate can still act on it — prepare, or ask to move it — which a nudge minutes before
+    // cannot offer. The second reminder deliberately has no constant of its own: it is due exactly
+    // when the room opens, so the join link it carries works the moment the email lands.
+    public const int DayBeforeReminderLeadHours = 24;
+
     // The shortest notice an interview may be booked with. Deliberately longer than
     // RoomOpenLeadMinutes: booking inside that window would create an interview whose room is
     // already open at the moment it is created, and whose invitation email would land after the
@@ -65,6 +71,15 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
     // usable record when it cannot say which side.
     public NoShowParty? NoShowParty { get; private set; }
 
+    // When each reminder is owed, or null when none is — which covers both "already delivered" and
+    // "never applicable", the two cases that need identical handling. Storing the due instant rather
+    // than a sent-at timestamp is what lets a background sweep find work with a single indexed
+    // "due <= now" predicate and clear the row by nulling it, so the index only ever holds pending
+    // reminders. The cost is that the row does not remember that a reminder went out; the send is
+    // logged instead, and an audit trail can be added the day something actually needs one.
+    public DateTime? DayBeforeReminderDueAtUtc { get; private set; }
+    public DateTime? StartingSoonReminderDueAtUtc { get; private set; }
+
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }
@@ -77,7 +92,7 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
 
     private Interview(
         Guid id, Guid applicationId, InterviewType type, DateTime scheduledAtUtc,
-        int durationMinutes, IEnumerable<Guid> interviewerUserIds, string? notes)
+        int durationMinutes, IEnumerable<Guid> interviewerUserIds, string? notes, DateTime nowUtc)
     {
         Id = id;
         ApplicationId = applicationId;
@@ -88,6 +103,7 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
         Status = InterviewStatus.Scheduled;
         RoomToken = UsesRoom(type) ? GenerateRoomToken() : null;
         _interviewerUserIds.AddRange(interviewerUserIds);
+        ScheduleReminders(nowUtc);
     }
 
     // nowUtc is passed in rather than read from the ambient clock, the same discipline IsRoomOpen and
@@ -108,7 +124,7 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
 
         return new Interview(
             Guid.NewGuid(), applicationId, type, scheduledAtUtc, durationMinutes,
-            interviewerUserIds.Distinct(), Normalize(notes));
+            interviewerUserIds.Distinct(), Normalize(notes), nowUtc);
     }
 
     // Moves the interview to a new time (and optionally a new duration). Only allowed before the
@@ -121,6 +137,11 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
 
         ScheduledAtUtc = newScheduledAtUtc;
         DurationMinutes = newDurationMinutes;
+
+        // Recomputed from the new time, unconditionally. A reminder already sent for the old slot is
+        // not credit against the new one — the candidate was told about a meeting that no longer
+        // exists — and one still pending for the old slot would fire at a now-meaningless moment.
+        ScheduleReminders(nowUtc);
     }
 
     // Cancelling means "this will not happen", so it is only truthful before the start time. After
@@ -135,6 +156,7 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
         Status = InterviewStatus.Cancelled;
         CancellationReason = reason;
         CancellationNote = Normalize(note);
+        ClearReminders();
     }
 
     // The mirror of Cancel: an interview cannot have been completed before it began. Requiring the
@@ -144,6 +166,7 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
     {
         EnsureUnderway("completed", nowUtc);
         Status = InterviewStatus.Completed;
+        ClearReminders();
     }
 
     public void MarkNoShow(NoShowParty party, DateTime nowUtc)
@@ -154,6 +177,7 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
         EnsureUnderway("marked as a no-show", nowUtc);
         Status = InterviewStatus.NoShow;
         NoShowParty = party;
+        ClearReminders();
     }
 
     // Swaps the panel without touching the time. Kept apart from Reschedule rather than folded into
@@ -200,6 +224,13 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
     public bool CanComplete(DateTime nowUtc) => IsUnderway(nowUtc);
     public bool CanMarkNoShow(DateTime nowUtc) => IsUnderway(nowUtc);
 
+    // Whether a reminder that has come due is still worth delivering. Deliberately the same
+    // predicate the transitions guard on: a reminder is only useful while the meeting can still be
+    // acted on, so "too late to remind" and "too late to move it" must not disagree. This is what
+    // stops a sweep that ran late — after a restart, say — from telling a candidate to join an
+    // interview that already started.
+    public bool CanRemind(DateTime nowUtc) => IsPending(nowUtc);
+
     private bool IsPending(DateTime nowUtc) =>
         Status == InterviewStatus.Scheduled && !HasStarted(nowUtc);
 
@@ -217,6 +248,47 @@ public sealed class Interview : ITenantScoped, IAuditable, ISoftDeletable
         RoomToken is not null
         && Status == InterviewStatus.Scheduled
         && nowUtc >= RoomOpensAtUtc && nowUtc <= RoomClosesAtUtc;
+
+    // ---- Reminders ----
+
+    // Marks one reminder as no longer owed. Called by the sweep for every row it picks up, whether or
+    // not it actually sent anything: a reminder that came due while the interview was cancelled is
+    // just as settled as one that was delivered, and leaving it set would keep the row in the sweep's
+    // index forever.
+    public void ClearReminder(InterviewReminderKind kind)
+    {
+        switch (kind)
+        {
+            case InterviewReminderKind.DayBefore:
+                DayBeforeReminderDueAtUtc = null;
+                break;
+            case InterviewReminderKind.StartingSoon:
+                StartingSoonReminderDueAtUtc = null;
+                break;
+            default:
+                throw new ArgumentException("Unknown reminder kind.", nameof(kind));
+        }
+    }
+
+    private void ScheduleReminders(DateTime nowUtc)
+    {
+        DayBeforeReminderDueAtUtc =
+            FutureOrNull(ScheduledAtUtc.AddHours(-DayBeforeReminderLeadHours), nowUtc);
+        StartingSoonReminderDueAtUtc = FutureOrNull(RoomOpensAtUtc, nowUtc);
+    }
+
+    private void ClearReminders()
+    {
+        DayBeforeReminderDueAtUtc = null;
+        StartingSoonReminderDueAtUtc = null;
+    }
+
+    // A reminder point that is already behind us is not owed. Booking (or moving) an interview to
+    // tomorrow morning produces an invitation email carrying exactly the facts the day-before
+    // reminder would carry, seconds earlier — scheduling it anyway would send the candidate the same
+    // message twice in a row, which reads as a system fault rather than a courtesy.
+    private static DateTime? FutureOrNull(DateTime dueAtUtc, DateTime nowUtc) =>
+        dueAtUtc > nowUtc ? dueAtUtc : null;
 
     // Only an online interview type gets a live room; a phone screen happens over the phone. Keeping
     // this a single predicate means the room token, the candidate's "open room" link and the emailed

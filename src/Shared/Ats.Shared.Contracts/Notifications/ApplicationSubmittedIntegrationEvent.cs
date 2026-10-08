@@ -6,9 +6,9 @@ namespace Ats.Shared.Contracts.Notifications;
 // live in the neutral Contracts assembly so publisher and consumer never reference each other.
 //
 // The message is self-contained: every field the consumer needs to build the email travels in it,
-// so the consumer never loads another module's aggregates — and can run in a separate process once
-// Notifications is extracted into its own service (Sprint 8).
-// CandidateLastName was added alongside the new-application in-app notification (roadmap 3.2): the
+// so the consumer never loads another module's aggregates — and could run in a separate process if
+// Notifications is ever extracted into its own service.
+// CandidateLastName exists for the new-application in-app notification: the
 // company recipient sees the applicant's full name, not just a first name.
 public sealed record ApplicationSubmittedIntegrationEvent(
     Guid ApplicationId,

@@ -1,3 +1,4 @@
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using Ats.Modules.Tenants.Application;
@@ -17,8 +18,10 @@ public sealed class AuthService : IAuthService
     private readonly ITokenService _tokenService;
     private readonly JwtOptions _jwtOptions;
     private readonly PasswordResetOptions _passwordResetOptions;
+    private readonly EmailConfirmationOptions _emailConfirmationOptions;
     private readonly ICurrentTenant _currentTenant;
     private readonly IEmailSender _emailSender;
+    private readonly IEmailTextProvider _emailText;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(
@@ -27,8 +30,10 @@ public sealed class AuthService : IAuthService
         ITokenService tokenService,
         IOptions<JwtOptions> jwtOptions,
         IOptions<PasswordResetOptions> passwordResetOptions,
+        IOptions<EmailConfirmationOptions> emailConfirmationOptions,
         ICurrentTenant currentTenant,
         IEmailSender emailSender,
+        IEmailTextProvider emailText,
         ILogger<AuthService> logger)
     {
         _userManager = userManager;
@@ -36,13 +41,21 @@ public sealed class AuthService : IAuthService
         _tokenService = tokenService;
         _jwtOptions = jwtOptions.Value;
         _passwordResetOptions = passwordResetOptions.Value;
+        _emailConfirmationOptions = emailConfirmationOptions.Value;
         _currentTenant = currentTenant;
         _emailSender = emailSender;
+        _emailText = emailText;
         _logger = logger;
     }
 
-    public async Task<Result<AuthResult>> RegisterAsync(
-        string companyName, string slug, string email, string password, string firstName, string lastName)
+    // Returns no tokens, unlike the candidate side. A company user who can sign in can invite
+    // colleagues, publish jobs and start receiving applications — there is no single consequential
+    // action to gate the way "apply" gates a candidate, so the session itself waits for the address to
+    // be proven. Which makes the resend endpoint below anonymous by necessity: someone who cannot sign
+    // in is exactly who needs it.
+    public async Task<Result> RegisterAsync(
+        string companyName, string slug, string email, string password, string firstName, string lastName,
+        string preferredLanguage)
     {
         // Normalize once, then validate and check uniqueness against that exact value. The slug is
         // stored lower-cased, so comparing the raw input would let "Acme" pass the uniqueness check
@@ -51,19 +64,22 @@ public sealed class AuthService : IAuthService
 
         var slugValidation = SlugPolicy.Validate(normalizedSlug);
         if (slugValidation.IsFailure)
-            return Result.Failure<AuthResult>(slugValidation.Error);
+            return Result.Failure(slugValidation.Error);
 
         var slugTaken = await _db.Tenants.AnyAsync(t => t.Slug == normalizedSlug);
         if (slugTaken)
-            return Result.Failure<AuthResult>(AuthErrors.RegistrationFailed($"Slug '{normalizedSlug}' is already taken."));
+            return Result.Failure(AuthErrors.RegistrationFailed($"Slug '{normalizedSlug}' is already taken."));
 
         var emailTaken = await _userManager.FindByEmailAsync(email) is not null;
         if (emailTaken)
-            return Result.Failure<AuthResult>(AuthErrors.RegistrationFailed($"Email '{email}' is already registered."));
+            return Result.Failure(AuthErrors.RegistrationFailed($"Email '{email}' is already registered."));
 
+        // The tenant is staged, not saved: it used to be committed here, before the user existed, so a
+        // rejected password (or any Identity failure below) left an orphan tenant behind holding the
+        // slug — permanently unregisterable by anyone, including whoever just failed. Now both rows land
+        // in the CreateAsync call's save, or neither does.
         var tenant = Tenant.Create(companyName, normalizedSlug);
         _db.Tenants.Add(tenant);
-        await _db.SaveChangesAsync();
 
         var user = new ApplicationUser
         {
@@ -72,32 +88,77 @@ public sealed class AuthService : IAuthService
             FirstName = firstName,
             LastName = lastName,
             TenantId = tenant.Id,
-            CreatedAtUtc = DateTime.UtcNow
+            CreatedAtUtc = DateTime.UtcNow,
+            // Normalized at this boundary, not in the entity: an unrecognised language becomes English
+            // rather than failing a registration over a value the caller may not control.
+            PreferredLanguage = SupportedLanguages.Normalize(preferredLanguage)
         };
 
+        // Identity validates before it saves, so a rejected password leaves the staged tenant unsaved.
+        // The context is scoped to this request and nothing else writes to it afterwards, so the staged
+        // entity dies with the request — no explicit cleanup, and the slug stays free for a retry.
         var identityResult = await _userManager.CreateAsync(user, password);
         if (!identityResult.Succeeded)
-            return Result.Failure<AuthResult>(
+            return Result.Failure(
                 AuthErrors.RegistrationFailed(string.Join("; ", identityResult.Errors.Select(e => e.Description))));
 
         // The user who registers a tenant is its founder and therefore its administrator.
         await _userManager.AddToRoleAsync(user, Roles.Admin);
 
-        var tokens = await IssueTokensAsync(user);
-        return Result.Success(tokens);
+        await SendEmailConfirmationLinkAsync(user);
+
+        return Result.Success();
     }
 
     public async Task<Result<AuthResult>> LoginAsync(string email, string password)
     {
         var user = await _userManager.FindByEmailAsync(email);
-        if (user is null || !await _userManager.CheckPasswordAsync(user, password))
+        if (user is null)
             return Result.Failure<AuthResult>(AuthErrors.InvalidCredentials);
+
+        // Two separate decisions here, easy to conflate.
+        //
+        // The ORDER — lockout before the password — stops a locked account from re-locking itself.
+        // Verify first and every wrong guess still calls AccessFailedAsync, so an attacker who keeps
+        // hammering keeps the real owner locked out indefinitely, turning a temporary lockout into
+        // the permanent denial of service its expiry exists to prevent. Returning early also skips
+        // the password hash, which is deliberately expensive and pointless for an account that
+        // cannot sign in either way.
+        //
+        // The ANSWER — the same InvalidCredentials as a wrong password — is what keeps the response
+        // from confirming an address is registered, matching how deactivation and
+        // RequestPasswordResetAsync already behave. It costs a locked-out user an explanation: they
+        // see "invalid credentials" and cannot tell why. The way out is the password reset link,
+        // which proves they own the mailbox and clears the lockout.
+        if (await _userManager.IsLockedOutAsync(user))
+            return Result.Failure<AuthResult>(AuthErrors.InvalidCredentials);
+
+        if (!await _userManager.CheckPasswordAsync(user, password))
+        {
+            // Counts the failure and locks the account once the configured limit is reached. This is
+            // the guard the per-IP rate limiter cannot be: it counts failures against an account, so
+            // it sees a distributed attempt that the limiter reads as many well-behaved clients.
+            await _userManager.AccessFailedAsync(user);
+            return Result.Failure<AuthResult>(AuthErrors.InvalidCredentials);
+        }
+
+        // A correct password clears the count. Without this the counter is cumulative over the
+        // account's lifetime and a user who mistypes twice a month is eventually locked out for
+        // nothing.
+        if (user.AccessFailedCount > 0)
+            await _userManager.ResetAccessFailedCountAsync(user);
 
         // A deactivated user answers exactly like a wrong password. They are not owed an explanation
         // of their own employment status by a login form, and a distinct message would let anyone with
         // a leaked password list learn which accounts still exist.
         if (!user.IsActive)
             return Result.Failure<AuthResult>(AuthErrors.InvalidCredentials);
+
+        // Checked after the password, so this only ever answers someone who has proved the account is
+        // theirs — see AuthErrors.EmailNotConfirmed for why a distinct code is safe here but not for
+        // deactivation. Invited users are confirmed at creation, so this only stops self-registrations.
+        if (!user.EmailConfirmed)
+            return Result.Failure<AuthResult>(AuthErrors.EmailNotConfirmed);
 
         var tokens = await IssueTokensAsync(user);
         return Result.Success(tokens);
@@ -122,6 +183,15 @@ public sealed class AuthService : IAuthService
         if (!user.IsActive)
             return Result.Failure<AuthResult>(AuthErrors.InvalidRefreshToken);
 
+        // Registration no longer issues tokens, so an unconfirmed user should hold no refresh token to
+        // redeem and this branch should be unreachable. It stays for the same reason as the IsActive
+        // guard above: that is an argument about the current code, not an invariant the database
+        // enforces, and a row written by an older build would otherwise sail straight through.
+        // InvalidRefreshToken, not EmailNotConfirmed — this endpoint is anonymous, so unlike login
+        // nobody here has proved anything.
+        if (!user.EmailConfirmed)
+            return Result.Failure<AuthResult>(AuthErrors.InvalidRefreshToken);
+
         stored.Revoke();
         await _db.SaveChangesAsync();
 
@@ -139,6 +209,51 @@ public sealed class AuthService : IAuthService
             stored.Revoke();
             await _db.SaveChangesAsync();
         }
+
+        return Result.Success();
+    }
+
+    public async Task<Result> ConfirmEmailAsync(Guid userId, string token, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return Result.Failure(AuthErrors.InvalidEmailConfirmationToken);
+
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+            return Result.Failure(AuthErrors.InvalidEmailConfirmationToken);
+
+        // Already confirmed is a success, not an error: this is a link in an email, and a second click
+        // — a duplicate tab, a mail client prefetching URLs — must not tell someone their working
+        // account is broken. Contrast the candidate side, where the row is explicitly consumed and a
+        // replay fails; Identity's token is stateless, so "already done" is all we can distinguish.
+        if (user.EmailConfirmed)
+            return Result.Success();
+
+        var result = await _userManager.ConfirmEmailAsync(user, token);
+        if (!result.Succeeded)
+            return Result.Failure(AuthErrors.InvalidEmailConfirmationToken);
+
+        _logger.LogInformation("Email confirmed for user {UserId}", user.Id);
+
+        return Result.Success();
+    }
+
+    // Anonymous by necessity: the person who needs this cannot sign in, which is the whole problem.
+    // That forces the same anti-enumeration silence as RequestPasswordResetAsync — always success, so
+    // the endpoint cannot be used to discover which addresses work here. It also stays quiet for an
+    // already-confirmed account: answering differently would reveal that the address is registered.
+    public async Task<Result> ResendEmailConfirmationAsync(string email, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByEmailAsync(email ?? string.Empty);
+
+        if (user is null || user.EmailConfirmed)
+        {
+            _logger.LogInformation(
+                "Email confirmation resend requested for an unregistered or already-confirmed address");
+            return Result.Success();
+        }
+
+        await SendEmailConfirmationLinkAsync(user, ct);
 
         return Result.Success();
     }
@@ -166,7 +281,7 @@ public sealed class AuthService : IAuthService
         // Best-effort, unlike the invitation mail which fails loudly. That one answers an
         // authenticated admin who is owed a real result; this one must respond identically whether or
         // not the address exists, and a hard failure would leak that it does.
-        await SendPasswordResetLinkAsync(user.Email!, user.Id, token, ct);
+        await SendPasswordResetLinkAsync(user.Email!, user.PreferredLanguage, user.Id, token, ct);
 
         return Result.Success();
     }
@@ -194,6 +309,14 @@ public sealed class AuthService : IAuthService
                     string.Join("; ", result.Errors.Select(e => e.Description))));
         }
 
+        // Clearing the lockout is what makes the reset link the way out of one. Login answers a locked
+        // account with the same "invalid credentials" as a wrong password — on purpose, so it cannot
+        // be used to confirm an address exists — which leaves a locked-out user no way to tell the
+        // two apart. Proving they own the mailbox is a stronger signal than waiting out the window,
+        // so it ends the lockout rather than running alongside it.
+        await _userManager.ResetAccessFailedCountAsync(user);
+        await _userManager.SetLockoutEndDateAsync(user, null);
+
         // The candidate side gets this for free: its tokens carry a security stamp that is checked on
         // every request, so rotating it kills live sessions. Company tokens carry no stamp and nothing
         // validates one, so the refresh tokens have to be revoked by hand — otherwise resetting a
@@ -211,7 +334,25 @@ public sealed class AuthService : IAuthService
             "Password reset completed for user {UserId}; revoked {RevokedCount} refresh token(s)",
             user.Id, activeTokens.Count);
 
-        await NotifyPasswordResetAsync(user.Email!, ct);
+        await NotifyPasswordResetAsync(user.Email!, user.PreferredLanguage, ct);
+
+        return Result.Success();
+    }
+
+    public async Task<Result> SetPreferredLanguageAsync(
+        Guid userId, string language, CancellationToken ct = default)
+    {
+        // Rejected rather than normalized: this endpoint exists only to set the language, so a value
+        // outside the catalogue is a client bug, and quietly storing English would hide it.
+        if (!SupportedLanguages.IsSupported(language))
+            return Result.Failure(AuthErrors.UnsupportedLanguage);
+
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+            return Result.Failure(AuthErrors.UserNotFound);
+
+        user.PreferredLanguage = language;
+        await _userManager.UpdateAsync(user);
 
         return Result.Success();
     }
@@ -297,8 +438,48 @@ public sealed class AuthService : IAuthService
         return Convert.ToBase64String(bytes);
     }
 
+    // Best-effort, like the password reset link: registration is already committed by the time this
+    // runs, so a failing mail server must not report a failed registration for an account that exists.
+    // The founder can resend from the login screen. Logged as an error so an SMTP outage is visible to
+    // an operator rather than only to a confused user.
+    private async Task SendEmailConfirmationLinkAsync(
+        ApplicationUser user, CancellationToken ct = default)
+    {
+        var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+
+        // userId rather than the email in the URL, for the same reason as the reset link: the address
+        // would otherwise land in browser history, referrer headers and any proxy log en route.
+        var link = $"{_emailConfirmationOptions.ConfirmBaseUrl}" +
+                   $"?userId={Uri.EscapeDataString(user.Id.ToString())}" +
+                   $"&token={Uri.EscapeDataString(token)}";
+
+        var language = user.PreferredLanguage;
+
+        // The name came from a registration form, so it is untrusted inside an HTML body and is
+        // encoded before it reaches the template.
+        var body = _emailText.Get(
+            EmailTextKeys.Company.ConfirmEmailBody,
+            language,
+            WebUtility.HtmlEncode(user.FirstName),
+            link,
+            EmailConfirmationTokenProviderOptions.ValidHours);
+
+        try
+        {
+            await _emailSender.SendAsync(
+                user.Email!,
+                _emailText.Get(EmailTextKeys.Company.ConfirmEmailSubject, language),
+                body,
+                ct);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Failed to send the email confirmation link");
+        }
+    }
+
     private async Task SendPasswordResetLinkAsync(
-        string email, Guid userId, string token, CancellationToken ct)
+        string email, string language, Guid userId, string token, CancellationToken ct)
     {
         // The user id, not the email, goes in the URL: the address would otherwise end up in browser
         // history, referrer headers and any proxy log the link passes through. Both values are escaped
@@ -307,16 +488,13 @@ public sealed class AuthService : IAuthService
                    $"?userId={Uri.EscapeDataString(userId.ToString())}" +
                    $"&token={Uri.EscapeDataString(token)}";
 
-        var body = $"""
-            <p>A request was made to reset the password of your ATS account.</p>
-            <p><a href="{link}">Choose a new password</a></p>
-            <p>This link expires in {_passwordResetOptions.ValidMinutes} minutes and can be used once.
-            If you did not request this, ignore this email — your current password still works.</p>
-            """;
+        var body = _emailText.Get(
+            EmailTextKeys.Company.ResetPasswordBody, language, link, _passwordResetOptions.ValidMinutes);
 
         try
         {
-            await _emailSender.SendAsync(email, "Reset your password", body, ct);
+            await _emailSender.SendAsync(
+                email, _emailText.Get(EmailTextKeys.Company.ResetPasswordSubject, language), body, ct);
         }
         catch (Exception exception)
         {
@@ -327,16 +505,10 @@ public sealed class AuthService : IAuthService
     // Best-effort: the reset is already committed, so a failing mail server must not turn a succeeded
     // operation into an error. Doubles as a hijack tripwire — if the owner did not do this, the notice
     // is their signal.
-    private async Task NotifyPasswordResetAsync(string email, CancellationToken ct)
+    private async Task NotifyPasswordResetAsync(string email, string language, CancellationToken ct)
     {
-        const string subject = "Your password was reset";
-        const string body = """
-            <p>The password of your ATS account was just reset, and every signed-in session was
-            ended.</p>
-            <p>If you did this, no action is needed — sign in with your new password.</p>
-            <p>If you did not, someone else may have access to your email — please contact your
-            administrator immediately.</p>
-            """;
+        var subject = _emailText.Get(EmailTextKeys.Company.PasswordResetSubject, language);
+        var body = _emailText.Get(EmailTextKeys.Company.PasswordResetBody, language);
 
         try
         {

@@ -9,10 +9,8 @@
     "signOut": "Sign out",
     "viewCareers": "View careers page",
     "errorTitle": "Something went wrong",
-    "errorRetry": "Please try again later."
-  },
-  "placeholder": {
-    "body": "This screen arrives in a later step."
+    "errorRetry": "Please try again later.",
+    "remove": "Remove"
   },
   "nav": {
     "overview": "Overview",
@@ -96,6 +94,29 @@
     },
     "moveError": "Couldn't move the application. Please try again."
   },
+  "candidateSearch": {
+    "searchLabel": "Search candidates by name or email",
+    "searchPlaceholder": "Search by name or email…",
+    "rows_one": "{{count}} candidate",
+    "rows_other": "{{count}} candidates",
+    "linkedIn": "LinkedIn",
+    "loadError": "Couldn't search candidates.",
+    "retry": "Try again",
+    "col": {
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "links": "Links"
+    },
+    "prompt": {
+      "title": "Search your candidate pool",
+      "body": "Type a name or email address to search everyone who has applied to your jobs. Phone numbers and CV contents are not searchable."
+    },
+    "noResults": {
+      "title": "No candidates match \"{{term}}\"",
+      "body": "Only names and email addresses are searched. Check the spelling, or try a single word."
+    }
+  },
   "applicationDetail": {
     "back": "Back to applications",
     "linkedin": "LinkedIn",
@@ -146,7 +167,8 @@
       "moved": "Moved from {{from}} to {{to}}",
       "corrected": "Stage corrected from {{from}} to {{to}}",
       "rejected": "Application rejected",
-      "hired": "Candidate hired"
+      "hired": "Candidate hired",
+      "withdrawn": "Candidate withdrew their application"
     },
     "reject_modal": {
       "title": "Reject application",
@@ -309,7 +331,9 @@
       "applyingAs": "Applying as",
       "alreadyAppliedTitle": "You've already applied",
       "alreadyAppliedBody": "You have an active application for {{title}}. You can track its progress from your applications.",
-      "viewApplications": "View my applications"
+      "viewApplications": "View my applications",
+      "useSavedCv": "Use my saved CV",
+      "uploadNewCv": "Upload a different file"
     },
     "notFound": {
       "title": "Page not found",
@@ -428,7 +452,8 @@
       "complete": "Mark completed",
       "noShow": "No-show",
       "cancel": "Cancel",
-      "reassign": "Change interviewers"
+      "reassign": "Change interviewers",
+      "joinRoom": "Join room"
     },
     "detail": {
       "back": "Back to interviews",
@@ -650,9 +675,34 @@
       "moved": "Moved to a new stage",
       "rejected": "The process ended unsuccessfully",
       "hiredEvent": "Congratulations — you were hired!",
+      "withdrawnEvent": "You withdrew your application",
       "interviews": {
         "title": "Interviews"
       }
+    },
+    "withdraw": {
+      "action": "Withdraw application",
+      "dialogTitle": "Withdraw this application?",
+      "dialogDescription": "Your application for \"{{job}}\" at {{company}} will be closed.",
+      "dialogConsequence": "This cannot be undone. Any interviews still scheduled will be cancelled. You can apply for this role again later.",
+      "dialogConfirm": "Withdraw application",
+      "success": "Your application has been withdrawn.",
+      "alreadyClosed": "This application was already closed.",
+      "error": "Your application couldn't be withdrawn. Please try again."
+    },
+    "verifyEmail": {
+      "bannerTitle": "Verify your email address",
+      "bannerBody": "We sent a confirmation link to {{email}}. You need to confirm it before you can apply to a job.",
+      "resend": "Resend link",
+      "resent": "Confirmation link sent to {{email}}.",
+      "resendError": "Couldn't send the link. Please try again.",
+      "blockedTitle": "Confirm your email address first",
+      "blockedBody": "Applications go to the company with your email address, so we need to know it reaches you. Open the link we sent to {{email}} — you can resend it from your applications page.",
+      "goToApplications": "Go to my applications",
+      "successTitle": "Email address confirmed",
+      "successBody": "Thanks — you can now apply to jobs.",
+      "failedTitle": "This link no longer works",
+      "failedBody": "Verification links expire after 24 hours and can only be used once. Sign in and resend a new one from your applications page."
     }
   },
   "interviewRoom": {
@@ -745,6 +795,18 @@
       "deleteConfirmLabel": "Type {{word}} to confirm",
       "deleteConfirmMismatch": "Type DELETE exactly to confirm.",
       "deleteDialogConfirm": "Delete permanently"
+    },
+    "cv": {
+      "heading": "CV",
+      "description": "Upload your CV once and reuse it on every application.",
+      "uploadedOn": "Uploaded {{date}}",
+      "download": "Download",
+      "replaceHint": "Uploading a new file replaces the one above.",
+      "uploaded": "CV uploaded",
+      "uploadError": "The CV could not be uploaded.",
+      "removed": "CV removed",
+      "removeError": "The CV could not be removed.",
+      "downloadError": "The download link could not be created."
     }
   },
   "reactivateAccount": {
@@ -782,6 +844,8 @@
     "interviewScheduled": "An interview for \"{{jobTitle}}\" was scheduled: {{type}}, {{date}}",
     "interviewRescheduled": "Your \"{{jobTitle}}\" interview moved: {{type}}, {{previousDate}} → {{date}}",
     "interviewCancelled": "Your \"{{jobTitle}}\" interview was cancelled: {{type}}, {{date}}",
+    "interviewReminderDayBefore": "Reminder: your \"{{jobTitle}}\" interview is tomorrow: {{type}}, {{date}}",
+    "interviewReminderStartingSoon": "Your \"{{jobTitle}}\" interview starts shortly: {{type}}, {{date}}",
     "generic": "You have a new notification"
   },
   "auth": {
@@ -842,6 +906,19 @@
       "requestNew": "Request a new link",
       "doneTitle": "Password updated",
       "doneBody": "Sign in with your new password. All other sessions have been signed out."
+    },
+    "confirmEmail": {
+      "pendingTitle": "Check your inbox",
+      "pendingBody": "We sent a confirmation link to {{email}}. Open it to finish setting up your workspace — you need to confirm before you can sign in.",
+      "successTitle": "Email address confirmed",
+      "successBody": "You can sign in now.",
+      "failedTitle": "This confirmation link no longer works",
+      "failedBody": "Confirmation links expire after 24 hours. Enter your email address and we will send a new one.",
+      "resendLabel": "Email address",
+      "resendAction": "Send a new link",
+      "resendSent": "If that address has an account, a new link is on its way.",
+      "resendError": "Couldn't send the link. Please try again.",
+      "goToLogin": "Go to sign in"
     }
   },
   "validation": {
@@ -857,7 +934,9 @@
     "invalidCredentials": "Invalid email or password.",
     "invitationInvalid": "This invitation is invalid or has expired.",
     "emailInUse": "A user with this email already exists.",
-    "generic": "Something went wrong. Please try again."
+    "generic": "Something went wrong. Please try again.",
+    "emailNotConfirmed": "Confirm your email address before signing in.",
+    "confirmationInvalid": "This confirmation link is invalid, expired or already used."
   },
   "form": {
     "department": "Department",

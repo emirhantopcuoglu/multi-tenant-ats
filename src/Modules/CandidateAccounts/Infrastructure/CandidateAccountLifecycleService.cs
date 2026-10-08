@@ -9,15 +9,18 @@ public sealed class CandidateAccountLifecycleService : ICandidateAccountLifecycl
 {
     private readonly CandidateAccountsDbContext _db;
     private readonly ICandidatePasswordHasher _passwordHasher;
+    private readonly IFileStorage _fileStorage;
     private readonly ILogger<CandidateAccountLifecycleService> _logger;
 
     public CandidateAccountLifecycleService(
         CandidateAccountsDbContext db,
         ICandidatePasswordHasher passwordHasher,
+        IFileStorage fileStorage,
         ILogger<CandidateAccountLifecycleService> logger)
     {
         _db = db;
         _passwordHasher = passwordHasher;
+        _fileStorage = fileStorage;
         _logger = logger;
     }
 
@@ -82,6 +85,11 @@ public sealed class CandidateAccountLifecycleService : ICandidateAccountLifecycl
             .ToListAsync();
         _db.EmailChangeRequests.RemoveRange(emailChangeRequests);
 
+        // Read before Delete() clears it. The CV is personal data living outside the database, so
+        // erasure has to follow it into object storage — a row that no longer names the file does
+        // not make the file go away.
+        var cvFileKey = account.CvFileKey;
+
         try
         {
             account.Delete();
@@ -92,6 +100,24 @@ public sealed class CandidateAccountLifecycleService : ICandidateAccountLifecycl
         }
 
         await _db.SaveChangesAsync();
+
+        // After the commit: if the deletion had failed, the account would still be live and would
+        // still need its CV. Best-effort, because a storage outage must not block an erasure the
+        // database has already accepted — the failure is logged loudly enough to be swept later.
+        if (cvFileKey is not null)
+        {
+            try
+            {
+                await _fileStorage.DeleteAsync(cvFileKey);
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(
+                    exception,
+                    "Failed to delete the CV of erased candidate account {CandidateAccountId}",
+                    candidateAccountId);
+            }
+        }
 
         // The id is deliberately the only fact logged: after this line the account has no personal
         // data left anywhere, and the log must not become the place it survives.

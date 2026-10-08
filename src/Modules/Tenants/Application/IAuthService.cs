@@ -24,8 +24,29 @@ public sealed record TenantUserDto(
 
 public interface IAuthService
 {
-    Task<Result<AuthResult>> RegisterAsync(string companyName, string slug, string email, string password, string firstName, string lastName);
+    /// <summary>
+    /// Creates the tenant and its founding Admin, then mails a confirmation link. Deliberately returns
+    /// no tokens: the session waits until the address is proven, because a company user who can sign in
+    /// can already invite colleagues, publish jobs and receive applications.
+    /// </summary>
+    Task<Result> RegisterAsync(
+        string companyName, string slug, string email, string password, string firstName, string lastName,
+        string preferredLanguage);
+
     Task<Result<AuthResult>> LoginAsync(string email, string password);
+
+    /// <summary>
+    /// Marks the address proven from a mailed token. Succeeds for an already-confirmed account so a
+    /// second click of the same link never reports a working account as broken.
+    /// </summary>
+    Task<Result> ConfirmEmailAsync(Guid userId, string token, CancellationToken ct = default);
+
+    /// <summary>
+    /// Mails a fresh confirmation link. Anonymous by necessity — whoever needs it cannot sign in — so
+    /// it reports success for unknown and already-confirmed addresses alike rather than becoming a
+    /// directory of who works here.
+    /// </summary>
+    Task<Result> ResendEmailConfirmationAsync(string email, CancellationToken ct = default);
     Task<Result<AuthResult>> RefreshAsync(string refreshToken);
     Task<Result> LogoutAsync(string refreshToken);
 
@@ -44,6 +65,12 @@ public interface IAuthService
     Task<Result> ResetPasswordAsync(
         Guid userId, string token, string newPassword, CancellationToken ct = default);
     Task<Result<CurrentUserDto>> GetCurrentUserAsync(Guid userId);
+
+    /// <summary>
+    /// Records which language to write to this user in. Called from the header toggle, so it is a
+    /// single-field write rather than part of a wider profile update.
+    /// </summary>
+    Task<Result> SetPreferredLanguageAsync(Guid userId, string language, CancellationToken ct = default);
     /// <summary>Lists the members of the caller's tenant, ordered by name.</summary>
     Task<IReadOnlyList<TenantUserDto>> ListTenantUsersAsync();
 }

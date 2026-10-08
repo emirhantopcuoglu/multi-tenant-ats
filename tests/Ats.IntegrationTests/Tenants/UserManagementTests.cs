@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Ats.Shared.Infrastructure;
 
 namespace Ats.IntegrationTests.Tenants;
 
@@ -190,8 +191,8 @@ public sealed class UserManagementTests : IAsyncLifetime
     [Fact]
     public async Task A_deactivated_user_should_not_be_able_to_refresh()
     {
-        // The durable half of the pair above: revocation is a one-time sweep, this check runs on every
-        // redemption, so a token that somehow escapes the sweep still cannot mint an access token.
+        // End to end through the real flow. Note this passes on the revocation alone, so it does NOT
+        // cover the RefreshAsync guard — that is what the next test is for.
         var admin = await SeedUserAsync("admin@acme.test", Roles.Admin);
         await SeedUserAsync("rec@acme.test", Roles.Recruiter);
         var session = await LoginAsync("rec@acme.test");
@@ -200,6 +201,39 @@ public sealed class UserManagementTests : IAsyncLifetime
         await Act(admin, s => s.DeactivateAsync(target));
 
         var refresh = await RefreshAsync(session.Value.RefreshToken);
+        Assert.True(refresh.IsFailure);
+        Assert.Equal(AuthErrors.InvalidRefreshToken.Code, refresh.Error.Code);
+    }
+
+    [Fact]
+    public async Task An_unrevoked_token_belonging_to_a_deactivated_user_should_still_be_refused()
+    {
+        // Isolates AuthService.RefreshAsync's own inactive-user guard, which the test above cannot
+        // reach: deactivation revokes the rows first, so that path fails on the revocation and the
+        // guard is never consulted. Deleting the guard therefore broke nothing — the exact blind spot
+        // that already bit the revocation test, in mirror image.
+        //
+        // The flag is set straight in the database rather than through DeactivateAsync, which is the
+        // whole point: it reproduces a live row that escaped the sweep — a login racing the
+        // deactivation, or a row written before the sweep existed.
+        await SeedUserAsync("rec@acme.test", Roles.Recruiter);
+        var session = await LoginAsync("rec@acme.test");
+        var target = await UserIdOfAsync("rec@acme.test");
+
+        await using (var provider = BuildProvider(_tenantId, null))
+        {
+            using var scope = provider.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<TenantsDbContext>();
+            var user = await db.Users.SingleAsync(u => u.Id == target);
+            user.DeactivatedAtUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+        }
+
+        // The token is still active — nothing revoked it — so only the guard can refuse this.
+        Assert.Equal(1, await CountActiveRefreshTokensAsync(target));
+
+        var refresh = await RefreshAsync(session.Value.RefreshToken);
+
         Assert.True(refresh.IsFailure);
         Assert.Equal(AuthErrors.InvalidRefreshToken.Code, refresh.Error.Code);
     }
@@ -343,6 +377,11 @@ public sealed class UserManagementTests : IAsyncLifetime
             FirstName = email.Split('@')[0],
             LastName = "User",
             TenantId = _tenantId,
+            // These suites are about deactivation and password recovery, not email confirmation, so
+            // their users are seeded the way a real one looks after confirming. Without it the login
+            // guard added with company email confirmation refuses them and every assertion below is
+            // about the wrong thing.
+            EmailConfirmed = true,
             CreatedAtUtc = DateTime.UtcNow
         };
 
@@ -369,6 +408,11 @@ public sealed class UserManagementTests : IAsyncLifetime
             FirstName = "Out",
             LastName = "Sider",
             TenantId = otherTenant.Id,
+            // These suites are about deactivation and password recovery, not email confirmation, so
+            // their users are seeded the way a real one looks after confirming. Without it the login
+            // guard added with company email confirmation refuses them and every assertion below is
+            // about the wrong thing.
+            EmailConfirmed = true,
             CreatedAtUtc = DateTime.UtcNow
         };
 
@@ -408,8 +452,10 @@ public sealed class UserManagementTests : IAsyncLifetime
             new RandomTokenService(),
             Options.Create(new JwtOptions { RefreshTokenDays = 7 }),
             Options.Create(new PasswordResetOptions()),
+            Options.Create(new EmailConfirmationOptions()),
             scope.ServiceProvider.GetRequiredService<ICurrentTenant>(),
             new NoOpEmailSender(),
+            new JsonEmailTextProvider(),
             NullLogger<AuthService>.Instance);
 
     private ServiceProvider BuildProvider(Guid? tenantId, Guid? currentUserId)

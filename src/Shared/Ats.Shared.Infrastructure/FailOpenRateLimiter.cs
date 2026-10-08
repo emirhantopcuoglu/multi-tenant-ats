@@ -6,7 +6,7 @@ namespace Ats.Shared.Infrastructure;
 // Decorates a rate limiter (here, a Redis-backed one) so that a backing-store failure does not take
 // the request down with it. The rate limiter is a protective helper; if Redis is unreachable the
 // right behavior for this project is to fail open — let the request through — exactly as the
-// distributed cache does (Sprint 4.3): "a helper system's failure must not bring down the main
+// distributed cache does: "a helper system's failure must not bring down the main
 // operation." Without this, a Redis outage would turn rate limiting into a hard dependency that
 // fails (and hangs, on the Redis command timeout) every request.
 //

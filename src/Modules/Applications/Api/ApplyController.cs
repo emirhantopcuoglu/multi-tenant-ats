@@ -21,9 +21,6 @@ public sealed class ApplyController : ControllerBase
     // The CV ceiling is enforced here at the boundary, before the file is streamed anywhere.
     private const long MaxCvSizeBytes = 10 * 1024 * 1024;
 
-    // Enough leading bytes to cover every whitelisted signature (PDF/DOCX are 4 bytes).
-    private const int SignatureProbeBytes = 8;
-
     private readonly ISender _sender;
     private readonly ICurrentTenant _currentTenant;
     private readonly ICurrentUser _currentUser;
@@ -49,26 +46,33 @@ public sealed class ApplyController : ControllerBase
         // CandidateOnly policy guarantees authentication, so UserId is present.
         var candidateAccountId = _currentUser.UserId!.Value;
 
-        if (form.Cv is null || form.Cv.Length == 0)
-            return BadRequest(ToProblem(FileSignatureValidator.Empty));
+        // No file attached means "use the CV on my account"; the handler resolves that and fails
+        // with application.cv_required if there is none. An attached but empty file is a different
+        // thing — that is a broken upload, and saying so beats silently applying with a CV the
+        // candidate did not mean to send.
+        // Opened unconditionally so the stream has a single owner and a single disposal point;
+        // Stream.Null stands in when nothing was attached and is safe to dispose.
+        await using var cvStream = form.Cv?.OpenReadStream() ?? Stream.Null;
 
-        // Validate the real file at the boundary: read its leading bytes and check them against
-        // the whitelist. Never trust the extension or the client's declared content type.
-        await using var cvStream = form.Cv.OpenReadStream();
-        var header = new byte[SignatureProbeBytes];
-        var bytesRead = await cvStream.ReadAsync(header, ct);
+        CvUpload? cv = null;
 
-        var validation = FileSignatureValidator.Validate(
-            header.AsSpan(0, bytesRead), form.Cv.ContentType, form.Cv.Length, MaxCvSizeBytes);
-        if (validation.IsFailure)
-            return BadRequest(ToProblem(validation.Error));
+        if (form.Cv is not null)
+        {
+            if (form.Cv.Length == 0)
+                return BadRequest(ToProblem(FileSignatureValidator.Empty));
 
-        // Rewind so the handler streams the whole file from the start into storage.
-        cvStream.Position = 0;
+            // Validate the real file at the boundary: the leading bytes decide the format. Never
+            // trust the extension or the client's declared content type.
+            var validation = await FileSignatureValidator.ValidateAsync(
+                cvStream, form.Cv.ContentType, form.Cv.Length, MaxCvSizeBytes, ct);
+            if (validation.IsFailure)
+                return BadRequest(ToProblem(validation.Error));
+
+            cv = new CvUpload(cvStream, form.Cv.Length, form.Cv.ContentType, form.Cv.FileName);
+        }
 
         var command = new SubmitApplicationCommand(
-            jobSlug, candidateAccountId, form.Phone, form.LinkedInUrl,
-            form.CoverLetter, cvStream, form.Cv.Length, form.Cv.ContentType, form.Cv.FileName);
+            jobSlug, candidateAccountId, form.Phone, form.LinkedInUrl, form.CoverLetter, cv);
 
         var result = await _sender.Send(command, ct);
 
@@ -85,13 +89,18 @@ public sealed class ApplyController : ControllerBase
         "application.tenant_not_resolved" => NotFound(ToProblem(error)),
         "application.candidate_account_not_found" => NotFound(ToProblem(error)),
         "application.duplicate" => Conflict(ToProblem(error)),
+        // 403, not 400: the request is well-formed and the caller is authenticated — they are simply
+        // not yet permitted to do this. A 400 would read as "you sent something wrong", which would
+        // send the candidate looking for a mistake in the form instead of at their inbox.
+        "application.email_not_verified" => StatusCode(StatusCodes.Status403Forbidden, ToProblem(error)),
         _ => BadRequest(ToProblem(error))
     };
 
     private static object ToProblem(Error error) => new { error.Code, error.Message };
 
     // Bound from multipart/form-data. Identity fields (email, name) come from the authenticated
-    // CandidateAccount; only supplementary profile data is submitted at apply time.
+    // CandidateAccount; only supplementary profile data is submitted at apply time. Cv is optional:
+    // leaving it out reuses the CV stored on the account.
     public sealed class ApplyForm
     {
         public string? Phone { get; init; }

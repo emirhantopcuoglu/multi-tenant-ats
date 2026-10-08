@@ -23,10 +23,12 @@ public sealed record SubmitApplicationCommand(
     string? Phone,
     string? LinkedInUrl,
     string? CoverLetter,
-    Stream CvContent,
-    long CvSizeBytes,
-    string CvContentType,
-    string CvFileName) : ICommand<Guid>;
+    CvUpload? Cv) : ICommand<Guid>;
+
+// A CV attached to this application. Null means "use the one on my account" — the candidate
+// uploaded it once from their profile and does not have to find the file again on every job.
+// The stream belongs to the request and is only valid for the duration of the call.
+public sealed record CvUpload(Stream Content, long SizeBytes, string ContentType, string FileName);
 
 public sealed class SubmitApplicationValidator : AbstractValidator<SubmitApplicationCommand>
 {
@@ -116,6 +118,13 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
         if (account is null)
             return Result.Failure<Guid>(ApplicationErrors.CandidateAccountNotFound);
 
+        //    Applying is the one action that waits for a proven email address. Everything a candidate
+        //    does before this point only affects their own account; from here on a recruiter reads the
+        //    address, writes to it, and schedules time around it. Checked before the CV is uploaded so
+        //    a refused application leaves nothing behind in object storage.
+        if (!account.IsEmailVerified)
+            return Result.Failure<Guid>(ApplicationErrors.EmailNotVerified);
+
         // 2. Confirm the job exists and is Published — a cross-module read through the
         //    IJobDirectory port. Applications never sees the Jobs schema or entity.
         var job = await _jobs.GetPublishedJobBySlugAsync(command.JobSlug, ct);
@@ -138,13 +147,18 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
         {
             // 4. One active application per (candidate, job). A brand-new candidate cannot have
             //    a prior application, so this check only matters for a returning candidate.
-            var alreadyApplied = await _db.Applications.AnyAsync(
-                a => a.JobId == job.Id
-                     && a.CandidateId == candidate.Id
-                     && a.Status == ApplicationStatus.Active,
-                ct);
-            if (alreadyApplied)
+            //    It exists to produce a friendly error, not to enforce the rule: two concurrent
+            //    submits both pass it. The partial unique index behind Applications is the guard
+            //    that actually holds, and the catch around SaveChanges below turns its rejection
+            //    into this same error.
+            if (await HasActiveApplicationAsync(job.Id, candidate.Id, ct))
                 return Result.Failure<Guid>(ApplicationErrors.DuplicateApplication);
+
+            //    The form's phone and LinkedIn were previously read only when the candidate record
+            //    was created, so a returning candidate could type a new number and watch it be
+            //    discarded — the recruiter kept calling the old one. Applied after the duplicate
+            //    check so a refused application changes nothing.
+            candidate.UpdateContactDetails(command.Phone, command.LinkedInUrl);
         }
 
         // 5. Materialise the job's pipeline lazily on first application (custom editors are V2).
@@ -159,13 +173,15 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
         }
         var initialStageId = pipeline.InitialStage.Id;
 
-        // 6. Upload the CV before persisting. The bucket is private; the file is only ever
+        // 6. Put the CV in storage before persisting. The bucket is private; the file is only ever
         //    reachable through a short-lived presigned URL. The key is grouped under the
         //    candidate (known here) — the application id is generated inside Application.Create,
         //    so using it would force the entity to surrender id generation to this layer.
-        var cvKey = $"{tenantId}/{candidate.Id}/{Guid.NewGuid()}-{SanitizeFileName(command.CvFileName)}";
-        await _fileStorage.UploadAsync(
-            cvKey, command.CvContent, command.CvSizeBytes, command.CvContentType, ct);
+        var cvKeyResult = await ResolveCvKeyAsync(command, account, tenantId, candidate.Id, ct);
+        if (cvKeyResult.IsFailure)
+            return Result.Failure<Guid>(cvKeyResult.Error);
+
+        var cvKey = cvKeyResult.Value;
 
         var application = ApplicationEntity.Create(
             job.Id, candidate.Id, command.CandidateAccountId, initialStageId, cvKey, command.CoverLetter);
@@ -193,11 +209,24 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
             // in one transaction — SaveChanges is atomic per DbContext.
             await _db.SaveChangesAsync(ct);
         }
-        catch
+        catch (Exception exception)
         {
             // The upload is not part of the DB transaction. If persistence fails, delete the
             // orphaned object so storage does not accumulate unreferenced CVs (a PII concern).
             await TryDeleteAsync(cvKey, ct);
+
+            // A constraint rejected the insert. Rather than decode a driver-specific error code
+            // here in the Application layer, ask the database the same question step 4 asked: if an
+            // active application now exists, this request lost the race and deserves the ordinary
+            // duplicate error instead of a 500. Anything else is a real fault and must propagate —
+            // a concurrent first-time submit to a different job, for instance, fails on the
+            // candidate's own (tenant, email) index and is retryable, not a duplicate.
+            if (exception is DbUpdateException
+                && await HasActiveApplicationAsync(job.Id, candidate.Id, ct))
+            {
+                return Result.Failure<Guid>(ApplicationErrors.DuplicateApplication);
+            }
+
             throw;
         }
 
@@ -210,16 +239,49 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
         return Result.Success(application.Id);
     }
 
-    // The original file name is attacker-controlled: strip any path and keep only safe
-    // characters so it cannot escape the key prefix or smuggle separators into the object key.
-    private static string SanitizeFileName(string fileName)
+    // Asked twice on purpose: once up front for a friendly refusal, once after a failed insert to
+    // classify it. Sharing one method keeps the two answers to the same question identical.
+    private Task<bool> HasActiveApplicationAsync(Guid jobId, Guid candidateId, CancellationToken ct) =>
+        _db.Applications.AnyAsync(
+            a => a.JobId == jobId
+                 && a.CandidateId == candidateId
+                 && a.Status == ApplicationStatus.Active,
+            ct);
+
+    // Produces the key of the CV this application will own. Either way the result is an object of
+    // this application's own, under this tenant's prefix — never a pointer into the candidate's
+    // account. An application is a record of what was sent on the day it was sent: the candidate
+    // may replace or erase their account CV afterwards, and the recruiter must still see the
+    // document they were given.
+    private async Task<Result<string>> ResolveCvKeyAsync(
+        SubmitApplicationCommand command,
+        CandidateAccountSummary account,
+        Guid tenantId,
+        Guid candidateId,
+        CancellationToken ct)
     {
-        var nameOnly = Path.GetFileName(fileName);
-        var safe = new string(nameOnly
-            .Where(c => char.IsLetterOrDigit(c) || c is '.' or '-' or '_')
-            .ToArray());
-        return string.IsNullOrWhiteSpace(safe) ? "cv" : safe;
+        if (command.Cv is { } upload)
+        {
+            var uploadedKey = BuildCvKey(tenantId, candidateId, upload.FileName);
+            await _fileStorage.UploadAsync(
+                uploadedKey, upload.Content, upload.SizeBytes, upload.ContentType, ct);
+
+            return Result.Success(uploadedKey);
+        }
+
+        // Nothing attached and nothing on file: the form let them through because the CV field is
+        // optional, so this is where it is caught.
+        if (account.CvFileKey is null || account.CvFileName is null)
+            return Result.Failure<string>(ApplicationErrors.CvRequired);
+
+        var copiedKey = BuildCvKey(tenantId, candidateId, account.CvFileName);
+        await _fileStorage.CopyAsync(account.CvFileKey, copiedKey, ct);
+
+        return Result.Success(copiedKey);
     }
+
+    private static string BuildCvKey(Guid tenantId, Guid candidateId, string fileName) =>
+        $"{tenantId}/{candidateId}/{Guid.NewGuid()}-{StorageKey.SanitizeFileName(fileName)}";
 
     private async Task TryDeleteAsync(string key, CancellationToken ct)
     {

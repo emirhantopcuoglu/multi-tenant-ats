@@ -10,7 +10,14 @@ const codeToKey = {
   'candidate_auth.invalid_credentials': 'authError.invalidCredentials',
   'invite.invalid_token': 'authError.invitationInvalid',
   'invite.email_in_use': 'authError.emailInUse',
+  'auth.email_not_confirmed': 'authError.emailNotConfirmed',
+  'auth.invalid_email_confirmation_token': 'authError.confirmationInvalid',
 } as const;
+
+/* The login form needs to recognise this one specifically, not just render its message: it is the only
+   failure the user can act on from that screen, via the resend link. Exported as a constant so the
+   page and the map above cannot drift apart. */
+export const EMAIL_NOT_CONFIRMED_CODE = 'auth.email_not_confirmed';
 
 export function authErrorMessage(error: ApiError, t: TFunction): string {
   const key = codeToKey[error.code as keyof typeof codeToKey];

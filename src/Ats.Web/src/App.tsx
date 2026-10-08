@@ -4,7 +4,7 @@ import { RequireCandidateAuth } from '@/app/auth/RequireCandidateAuth';
 import { RequireActiveCandidate } from '@/app/auth/RequireActiveCandidate';
 import { RequireRole } from '@/app/auth/RequireRole';
 import { AppShell } from '@/components/layout/AppShell';
-import { PagePlaceholder } from '@/components/layout/PagePlaceholder';
+import { CandidateSearchPage } from '@/features/candidate-search/CandidateSearchPage';
 import { JobsPage } from '@/features/jobs/JobsPage';
 import { JobFormPage } from '@/features/jobs/JobFormPage';
 import { ApplicationsPage } from '@/features/applications/ApplicationsPage';
@@ -17,6 +17,7 @@ import { RegisterPage } from '@/features/auth/pages/RegisterPage';
 import { AcceptInvitationPage } from '@/features/auth/pages/AcceptInvitationPage';
 import { ForgotPasswordPage } from '@/features/auth/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '@/features/auth/pages/ResetPasswordPage';
+import { ConfirmEmailPage } from '@/features/auth/pages/ConfirmEmailPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { MarketplacePage } from '@/features/public/MarketplacePage';
 import { PublicCareersPage } from '@/features/public/PublicCareersPage';
@@ -28,6 +29,7 @@ import { CandidateRegisterPage } from '@/features/candidates/pages/CandidateRegi
 import { ConfirmEmailChangePage } from '@/features/candidates/pages/ConfirmEmailChangePage';
 import { CandidateForgotPasswordPage } from '@/features/candidates/pages/CandidateForgotPasswordPage';
 import { CandidateResetPasswordPage } from '@/features/candidates/pages/CandidateResetPasswordPage';
+import { CandidateVerifyEmailPage } from '@/features/candidates/pages/CandidateVerifyEmailPage';
 import { CandidateApplicationsPage } from '@/features/candidates/pages/CandidateApplicationsPage';
 import { CandidateApplicationDetailPage } from '@/features/candidates/pages/CandidateApplicationDetailPage';
 import { CandidateInterviewsPage } from '@/features/candidates/pages/CandidateInterviewsPage';
@@ -62,6 +64,12 @@ export default function App() {
       {/* Public like /accept-invitation: the mailed link may be opened without a session. */}
       <Route path="/candidate/confirm-email" element={<ConfirmEmailChangePage />} />
       {/* Recovery, necessarily anonymous — whoever needs these cannot sign in. */}
+      {/* Anonymous like the reset-password route below: opened from an email client, which carries no
+          session. The token in the query string is the credential. */}
+      <Route path="/candidate/verify-email" element={<CandidateVerifyEmailPage />} />
+      {/* Company counterpart, same reasoning: opened from an email client with no session — and here
+          nobody can sign in until it succeeds. */}
+      <Route path="/confirm-email" element={<ConfirmEmailPage />} />
       <Route path="/candidate/forgot-password" element={<CandidateForgotPasswordPage />} />
       <Route path="/candidate/reset-password" element={<CandidateResetPasswordPage />} />
       <Route path="/playground" element={<PlaygroundPage />} />
@@ -103,7 +111,7 @@ export default function App() {
           <Route path="/applications/:id" element={<ApplicationDetailPage />} />
           <Route path="/interviews" element={<InterviewsPage />} />
           <Route path="/interviews/:id" element={<InterviewDetailPage />} />
-          <Route path="/candidates" element={<PagePlaceholder titleKey="nav.candidates" />} />
+          <Route path="/candidates" element={<CandidateSearchPage />} />
           <Route element={<RequireRole roles={['Admin']} />}>
             <Route path="/settings" element={<SettingsPage />} />
           </Route>

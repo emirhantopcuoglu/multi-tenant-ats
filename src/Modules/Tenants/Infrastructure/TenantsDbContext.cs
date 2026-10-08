@@ -40,6 +40,17 @@ public sealed class TenantsDbContext : IdentityDbContext<ApplicationUser, Identi
             entity.Property(t => t.Location).HasMaxLength(Tenant.LocationMaxLength);
         });
 
+        builder.Entity<ApplicationUser>(entity =>
+        {
+            // Two-letter code ("en", "tr"); the boundary normalizes anything longer down to it. The
+            // DB default backfills users who predate the column — they signed up when the app only
+            // wrote English, so English is the honest value for them.
+            entity.Property(u => u.PreferredLanguage)
+                .IsRequired()
+                .HasMaxLength(2)
+                .HasDefaultValue(SupportedLanguages.Default);
+        });
+
         builder.Entity<RefreshToken>(entity =>
         {
             entity.HasKey(t => t.Id);

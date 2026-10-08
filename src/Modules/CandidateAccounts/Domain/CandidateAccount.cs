@@ -33,11 +33,44 @@ public sealed class CandidateAccount
     public DateOnly? BirthDate { get; private set; }
 
     // A CV uploaded once to the account and reused across applications, stored by its object-storage
-    // key (same convention as Application.CvFileKey). Null until the candidate uploads one from their
-    // profile area — hence nullable from birth even though nothing sets it yet.
+    // key. Null until the candidate uploads one from their profile area, and null again after they
+    // remove it — most accounts will sit at null for a while, so every read has to cope with it.
+    //
+    // The three fields move together and only through AttachCv/RemoveCv: a key with no name would
+    // leave the profile page with nothing to render, and a name with no key would promise a file
+    // that cannot be fetched.
     public string? CvFileKey { get; private set; }
 
+    // The candidate's own file name, kept for display only. Recruiters never see it — an
+    // application stores its own copy of the document — but "cv-2026-final.pdf" is how the owner
+    // recognises which version is currently attached.
+    public string? CvFileName { get; private set; }
+
+    public DateTime? CvUploadedAtUtc { get; private set; }
+
+    public bool HasCv => CvFileKey is not null;
+
+    // Which language this person is written to in. Set from the UI language at registration and
+    // changed whenever they switch it while signed in, so the mail follows the app rather than
+    // freezing at whatever the browser happened to say on the day they signed up.
+    //
+    // Not nullable and not validated here: membership of the supported-language catalogue is checked
+    // at the application boundary, the same split already used for Country/City. The domain's own
+    // invariant is only that a candidate always has a language to be written to.
+    public string PreferredLanguage { get; private set; } = null!;
+
     public DateTime CreatedAtUtc { get; private set; }
+
+    // When the candidate proved they can read the address they registered with, by clicking a link
+    // mailed to it. Null means unproven — which is how every account is born.
+    //
+    // A timestamp rather than a bool: "verified on the 3rd" answers a support question that "true"
+    // cannot, and it costs the same column. Verification is deliberately NOT a lifecycle Status: an
+    // unverified account is a normal, fully usable account that simply may not apply to a job yet.
+    // Folding it into Status would have made every status check answer two questions at once.
+    public DateTime? EmailVerifiedAtUtc { get; private set; }
+
+    public bool IsEmailVerified => EmailVerifiedAtUtc is not null;
 
     // Lifecycle state. New accounts are born Active; the timestamps record when the current state
     // was entered and are cleared/kept accordingly by the transition methods below.
@@ -45,23 +78,41 @@ public sealed class CandidateAccount
     public DateTime? FrozenAtUtc { get; private set; }
     public DateTime? DeletedAtUtc { get; private set; }
 
+    // Brute-force counters. The company side gets these from Identity (AccessFailedCount/LockoutEnd);
+    // this side hashes passwords itself, so it carries its own. Same numbers either way — see
+    // LoginLockoutOptions.
+    //
+    // Consecutive failures, not total: a correct password clears it. Cumulative counting would lock
+    // out a candidate who mistypes twice a month.
+    public int FailedLoginCount { get; private set; }
+
+    // When the lockout lifts. Null means not locked. A timestamp rather than a bool because the
+    // lockout has to expire on its own — a permanent one would hand anyone who knows a candidate's
+    // email a way to keep them out of their own applications indefinitely.
+    public DateTime? LockoutEndsAtUtc { get; private set; }
+
+    public bool IsLockedOut(DateTime nowUtc) => LockoutEndsAtUtc > nowUtc;
+
     private CandidateAccount() { }
 
     private CandidateAccount(
-        Guid id, string email, string passwordHash, string firstName, string lastName, DateTime createdAtUtc)
+        Guid id, string email, string passwordHash, string firstName, string lastName,
+        string preferredLanguage, DateTime createdAtUtc)
     {
         Id = id;
         Email = email;
         PasswordHash = passwordHash;
         FirstName = firstName;
         LastName = lastName;
+        PreferredLanguage = preferredLanguage;
         CreatedAtUtc = createdAtUtc;
         SecurityStamp = Guid.NewGuid();
     }
 
     // Hashing (algorithm, work factor, salt) is an infrastructure concern, so the caller passes an
     // already-computed hash — the domain never sees or stores the plaintext password.
-    public static CandidateAccount Register(string email, string passwordHash, string firstName, string lastName)
+    public static CandidateAccount Register(
+        string email, string passwordHash, string firstName, string lastName, string preferredLanguage)
     {
         if (string.IsNullOrWhiteSpace(email))
             throw new ArgumentException("Email is required.", nameof(email));
@@ -71,9 +122,23 @@ public sealed class CandidateAccount
             throw new ArgumentException("First name is required.", nameof(firstName));
         if (string.IsNullOrWhiteSpace(lastName))
             throw new ArgumentException("Last name is required.", nameof(lastName));
+        if (string.IsNullOrWhiteSpace(preferredLanguage))
+            throw new ArgumentException("Preferred language is required.", nameof(preferredLanguage));
 
         return new CandidateAccount(
-            Guid.NewGuid(), NormalizeEmail(email), passwordHash, firstName.Trim(), lastName.Trim(), DateTime.UtcNow);
+            Guid.NewGuid(), NormalizeEmail(email), passwordHash, firstName.Trim(), lastName.Trim(),
+            preferredLanguage, DateTime.UtcNow);
+    }
+
+    // Separate from UpdateProfile: the language switch is a one-field write the SPA makes the moment
+    // the toggle is clicked, on a screen that is not the profile form. Folding it into UpdateProfile
+    // would force that call to resend the whole profile just to change two characters.
+    public void SetPreferredLanguage(string language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+            throw new ArgumentException("Preferred language is required.", nameof(language));
+
+        PreferredLanguage = language;
     }
 
     // Stored normalised so the global unique-email constraint is case-insensitive without relying on
@@ -131,6 +196,42 @@ public sealed class CandidateAccount
         BirthDate = birthDate;
     }
 
+    // Both CV methods return the key they displaced, if any, so the caller can delete that object
+    // from storage. The domain cannot do it itself — it has no storage dependency, and the deletion
+    // must not happen until the new state is committed. Returning the key instead of firing an event
+    // keeps that ordering in the caller's hands, where the transaction already is.
+    public string? AttachCv(string fileKey, string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileKey))
+            throw new ArgumentException("CV file key is required.", nameof(fileKey));
+        if (string.IsNullOrWhiteSpace(fileName))
+            throw new ArgumentException("CV file name is required.", nameof(fileName));
+
+        var replacedKey = CvFileKey;
+
+        CvFileKey = fileKey;
+        CvFileName = fileName;
+        CvUploadedAtUtc = DateTime.UtcNow;
+
+        // Replacing a CV with itself would orphan the object that is still in use. Nothing in the
+        // upload path generates a repeated key (each carries a fresh guid), so this only guards
+        // against a future caller that reuses one.
+        return replacedKey == fileKey ? null : replacedKey;
+    }
+
+    // Idempotent: removing a CV that is not there is not an error, it is the state the caller asked
+    // for. Returns null in that case, so the caller deletes nothing.
+    public string? RemoveCv()
+    {
+        var removedKey = CvFileKey;
+
+        CvFileKey = null;
+        CvFileName = null;
+        CvUploadedAtUtc = null;
+
+        return removedKey;
+    }
+
     // Verifying the CURRENT password is the application layer's job (it owns the hasher); by the time
     // this runs the caller has proven ownership and hashed the new secret. The guard runs before any
     // mutation so a rejected change can never rotate the stamp and log the candidate out for nothing.
@@ -141,6 +242,35 @@ public sealed class CandidateAccount
 
         PasswordHash = newPasswordHash;
         SecurityStamp = Guid.NewGuid();
+
+        // Setting a new password ends any lockout. Login answers a locked account with the same
+        // "invalid credentials" as a wrong password, so a locked-out candidate cannot tell the two
+        // apart — the reset link is their way out, and it proves mailbox ownership, which is a
+        // stronger signal than waiting out the window.
+        ClearLockout();
+    }
+
+    /* Records a failed sign-in and locks the account once the limit is reached. The caller supplies
+       the clock and the policy rather than the entity reading either: the domain has no ambient time
+       and no configuration, and passing them keeps this testable without either. */
+    public void RegisterFailedLogin(int maxFailedAttempts, TimeSpan lockoutDuration, DateTime nowUtc)
+    {
+        FailedLoginCount += 1;
+
+        if (FailedLoginCount >= maxFailedAttempts)
+        {
+            LockoutEndsAtUtc = nowUtc + lockoutDuration;
+            // Reset alongside the lock so the next window starts from zero. Left as-is, every single
+            // failure after the first lockout would re-lock the account, turning a temporary lock
+            // into a permanent one for as long as anyone kept guessing.
+            FailedLoginCount = 0;
+        }
+    }
+
+    public void ClearLockout()
+    {
+        FailedLoginCount = 0;
+        LockoutEndsAtUtc = null;
     }
 
     // Runs only after the two-phase verification flow proved the caller controls the new mailbox
@@ -155,6 +285,23 @@ public sealed class CandidateAccount
 
         Email = NormalizeEmail(newEmail);
         SecurityStamp = Guid.NewGuid();
+
+        // The new address arrives already proven: this method only runs after the candidate clicked a
+        // link that was mailed to it. Re-verifying would be asking twice for the same proof — and it
+        // makes the email-change flow the recovery path for someone who mistyped at registration.
+        EmailVerifiedAtUtc = DateTime.UtcNow;
+    }
+
+    // Idempotent: a double-clicked link must not move the timestamp, so the first proof is the one
+    // that gets recorded. Returns whether this call is what verified the account, so the caller can
+    // tell "just confirmed" from "already confirmed" without re-reading the row.
+    public bool MarkEmailVerified()
+    {
+        if (IsEmailVerified)
+            return false;
+
+        EmailVerifiedAtUtc = DateTime.UtcNow;
+        return true;
     }
 
     // What anonymized name fields hold after deletion. A recognizable constant, not an empty
@@ -214,8 +361,13 @@ public sealed class CandidateAccount
         Country = null;
         City = null;
         BirthDate = null;
-        CvFileKey = null;
         SecurityStamp = Guid.NewGuid();
+
+        // Through RemoveCv rather than clearing the key inline, so a CV field added later cannot be
+        // forgotten here — erasure has to reach all of them. The returned key is discarded because
+        // the caller already read it: the object itself is deleted from storage by the lifecycle
+        // service, which is the only place that can do it after this commit succeeds.
+        _ = RemoveCv();
     }
 
     private static void ValidateBirthDate(DateOnly? birthDate)

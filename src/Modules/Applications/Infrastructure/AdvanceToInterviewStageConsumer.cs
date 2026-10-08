@@ -48,9 +48,14 @@ public sealed class AdvanceToInterviewStageConsumer : IConsumer<InterviewSchedul
         if (move is null)
             return;
 
-        // Published from the ConsumeContext, not IPublishEndpoint: the outbox is request-scoped and
-        // this runs on a consumer. Stage names come from the pipeline loaded below, candidate
-        // contact from the message we are reacting to.
+        // Published from the ConsumeContext, not the scoped IPublishEndpoint: the bus outbox in
+        // Program.cs is request-scoped, while a consumer's publish is captured by the endpoint's own
+        // outbox filter — see AdvanceToInterviewStageConsumerDefinition. That filter is what puts
+        // this write in the same transaction as AdvanceAsync's SaveChangesAsync, so a broker outage
+        // can no longer leave the stage moved with the announcement lost.
+        //
+        // Stage names come from the pipeline loaded below, candidate contact from the message we
+        // are reacting to.
         await context.Publish(
             new ApplicationStageChangedIntegrationEvent(
                 message.ApplicationId, message.JobId, message.JobTitle,

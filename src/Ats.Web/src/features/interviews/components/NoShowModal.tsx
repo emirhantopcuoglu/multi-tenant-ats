@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Field, Modal, Select } from '@/components/ui';
 import { NO_SHOW_PARTIES, type MarkNoShowRequest, type NoShowParty } from '@/types/interview';
@@ -19,12 +19,18 @@ export function NoShowModal({ open, onOpenChange, submitting, onConfirm }: NoSho
   const [party, setParty] = useState<NoShowParty | ''>('');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  // Reset when the dialog opens, so a previous draft never lingers. Adjusted during render rather
+  // than in an effect: React discards the in-progress output and re-renders before committing, so
+  // the cleared form is what reaches the DOM. An effect would paint the stale draft first and clear
+  // it afterwards, which is the cascading render the linter flags.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (open) {
       setParty('');
       setError(null);
     }
-  }, [open]);
+  }
 
   const handleConfirm = () => {
     if (!party) {

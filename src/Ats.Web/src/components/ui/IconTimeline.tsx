@@ -13,6 +13,7 @@ export type IconTimelineIcon =
   | 'movedTo'
   | 'hired'
   | 'rejected'
+  | 'withdrawn'
   | 'current'
   | 'upcoming'
   | 'screening'
@@ -47,6 +48,10 @@ function iconPath(icon: IconTimelineIcon): string {
     case 'rejected':
       // Cross.
       return 'M18 6 6 18M6 6l12 12';
+    case 'withdrawn':
+      // Arrow leaving through a doorway — the candidate stepping out. Deliberately not the rejection
+      // cross: they chose this, and the timeline should not read like a refusal.
+      return 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9';
     case 'current':
       // Clock.
       return 'M12 8v4l3 3M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z';

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Checkbox, Field, Input, Modal, Select, Textarea, useToast } from '@/components/ui';
 import { fullName, useUsers } from '@/features/users/useUsers';
@@ -59,8 +59,13 @@ export function ScheduleInterviewModal({
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
 
-  // Reset every field when the modal (re)opens, so a previous draft never lingers.
-  useEffect(() => {
+  // Reset every field when the modal opens, so a previous draft never lingers. Adjusted during
+  // render rather than in an effect: React discards the in-progress output and re-renders before
+  // committing, so the cleared form is what reaches the DOM. An effect would paint the stale draft
+  // first and clear it afterwards, which is the cascading render the linter flags.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (open) {
       setType(INTERVIEW_TYPES[0]);
       setDate('');
@@ -70,7 +75,7 @@ export function ScheduleInterviewModal({
       setNotes('');
       setErrors({});
     }
-  }, [open]);
+  }
 
   const toggleInterviewer = (id: string) =>
     setInterviewerUserIds((current) =>

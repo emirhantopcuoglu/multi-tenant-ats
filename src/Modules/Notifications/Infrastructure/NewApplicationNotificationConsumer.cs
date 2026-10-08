@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace Ats.Modules.Notifications.Infrastructure;
 
 // Writes an in-app notification row for every member of the tenant when a candidate submits a new
-// application — the "yeni başvurunuz var" signal from roadmap 3.2, and the first consumer of the
+// application. It is the first consumer of the
 // CompanyUser recipient type. Fan-out on write, decided up front: every tenant user should see new
 // applications without a separate "watchers" concept, and rows are cheap compared to the alternative
 // of computing "who should see this" at read time on every poll.

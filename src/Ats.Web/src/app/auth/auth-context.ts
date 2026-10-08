@@ -17,10 +17,12 @@ export interface AuthContextValue {
   /** True while the initial session check is in flight (avoids guard flicker on reload). */
   isLoading: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
-  register: (request: RegisterRequest) => Promise<void>;
+  /* preferredLanguage is stamped by the provider from the active UI language: it is not something
+     the registration form asks for, and no caller should have to remember to pass it. */
+  register: (request: Omit<RegisterRequest, 'preferredLanguage'>) => Promise<void>;
   logout: () => Promise<void>;
   candidateLogin: (credentials: CandidateLoginRequest) => Promise<void>;
-  candidateRegister: (request: CandidateRegisterRequest) => Promise<void>;
+  candidateRegister: (request: Omit<CandidateRegisterRequest, 'preferredLanguage'>) => Promise<void>;
 }
 
 /* Separate module (no component export) so React Fast Refresh keeps its boundary. */

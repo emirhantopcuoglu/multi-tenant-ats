@@ -105,6 +105,10 @@ namespace Ats.Modules.Applications.Infrastructure.Migrations
 
                     b.HasIndex("TenantId", "JobId", "CurrentStageId");
 
+                    b.HasIndex(new[] { "TenantId", "JobId", "CandidateId" }, "IX_Applications_TenantId_JobId_CandidateId_Active")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 'Active' AND NOT \"IsDeleted\"");
+
                     b.ToTable("Applications", "applications");
                 });
 

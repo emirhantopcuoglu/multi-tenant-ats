@@ -7,6 +7,11 @@ public enum InterviewType { PhoneScreen, Technical, Cultural, Final }
 // Completed, Cancelled and NoShow are terminal and cannot transition further.
 public enum InterviewStatus { Scheduled, Completed, Cancelled, NoShow }
 
+// The two nudges an upcoming interview produces. They answer different questions — "do I need to
+// prepare or move this?" a day out, and "it is happening now, here is the link" at the door — so
+// they are separate kinds rather than one repeated reminder, and each is tracked independently.
+public enum InterviewReminderKind { DayBefore, StartingSoon }
+
 // Structured hiring recommendation attached to a piece of feedback. Ordered from most negative
 // to most positive so comparisons and displays can sort naturally.
 public enum FeedbackRecommendation { StrongNoHire, NoHire, Hire, StrongHire }

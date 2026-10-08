@@ -79,9 +79,14 @@ jobs:
       - name: Build Docker image
         run: docker build -t ats-api:ci .
 
-  # Type-checks and builds the React SPA. Independent of the .NET jobs (no `needs`), so it runs in
-  # parallel and gives the frontend its own pass/fail signal. `npm run build` is `tsc -b && vite
-  # build` — the same gate run locally before every web PR, now enforced automatically.
+  # Lints, tests, type-checks and builds the React SPA. Independent of the .NET jobs (no `needs`), so
+  # it runs in parallel and gives the frontend its own pass/fail signal.
+  #
+  # The three steps answer different questions and none replaces another: eslint catches hazards the
+  # compiler cannot see (a conditional hook, a stale effect dependency), vitest checks the logic is
+  # right, and `npm run build` — `tsc -b && vite build` — proves the types hold and the bundle is
+  # producible. Type-checking is not testing: tsc confirms a function returns a string, never that it
+  # returns the right one.
   web:
     runs-on: ubuntu-latest
     defaults:
@@ -102,6 +107,13 @@ jobs:
       # which may resolve newer versions and mutate the lockfile.
       - name: Install dependencies
         run: npm ci
+
+      # Ordered cheapest-first so an obvious mistake fails in seconds rather than after a bundle.
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm test
 
       - name: Type-check and build
         run: npm run build

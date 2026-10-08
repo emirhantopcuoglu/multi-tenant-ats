@@ -26,6 +26,10 @@ public enum NotificationType
     NewApplication = 5,
     InterviewRescheduled = 6,
     InterviewCancelled = 7,
+
+    // One value for both nudges rather than two: the client renders the same row and the payload's
+    // reminderKind picks the sentence, so a second enum value would only duplicate the branch.
+    InterviewReminder = 8,
 }
 
 // A single in-app notification: an addressed, timestamped fact with a read marker. The payload is

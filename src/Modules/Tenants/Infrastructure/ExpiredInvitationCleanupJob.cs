@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Tenants.Infrastructure;
 
-// Background maintenance job (Sprint 5.4): removes invitation tokens that have expired without being
+// Background maintenance job: removes invitation tokens that have expired without being
 // accepted. Scheduled by Hangfire from the composition root; the class itself has no Hangfire
 // dependency, mirroring how consumers/handlers stay transport-agnostic.
 public sealed class ExpiredInvitationCleanupJob

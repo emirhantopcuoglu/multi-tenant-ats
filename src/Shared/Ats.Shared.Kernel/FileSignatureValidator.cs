@@ -28,6 +28,27 @@ public static class FileSignatureValidator
     // inspection, which is out of scope for the MVP whitelist.
     private static readonly byte[] DocxSignature = [0x50, 0x4B, 0x03, 0x04];
 
+    // Enough leading bytes to cover every whitelisted signature (PDF and DOCX are 4 each).
+    private const int SignatureProbeBytes = 8;
+
+    // Reads the leading bytes itself and rewinds, so callers with a stream in hand do not each
+    // reimplement the probe-and-rewind dance — forgetting the rewind uploads a file with its first
+    // bytes missing, which no test of the validator itself would catch.
+    public static async Task<Result> ValidateAsync(
+        Stream content, string contentType, long sizeBytes, long maxSizeBytes,
+        CancellationToken cancellationToken = default)
+    {
+        var header = new byte[SignatureProbeBytes];
+        var bytesRead = await content.ReadAsync(header, cancellationToken);
+
+        var result = Validate(header.AsSpan(0, bytesRead), contentType, sizeBytes, maxSizeBytes);
+
+        if (content.CanSeek)
+            content.Position = 0;
+
+        return result;
+    }
+
     public static Result Validate(
         ReadOnlySpan<byte> header, string contentType, long sizeBytes, long maxSizeBytes)
     {

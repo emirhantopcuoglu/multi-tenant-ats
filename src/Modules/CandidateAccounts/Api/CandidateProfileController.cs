@@ -2,6 +2,7 @@ using Asp.Versioning;
 using Ats.Modules.CandidateAccounts.Application;
 using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -62,6 +63,27 @@ public sealed class CandidateProfileController : ControllerBase
             return Ok(result.Value);
 
         // Only "account gone" is a 404; every other failure is the caller's input.
+        return result.Error == CandidateProfileErrors.NotFound
+            ? NotFound(new { result.Error.Code, result.Error.Message })
+            : BadRequest(new { result.Error.Code, result.Error.Message });
+    }
+
+    public sealed record SetPreferredLanguageRequest(string Language);
+
+    // Its own route rather than a field on PUT /profile: the SPA fires this from the header toggle on
+    // any screen, and a full profile PUT from a page that is not the profile form would happily write
+    // back a stale copy of every other field.
+    [HttpPut("language")]
+    public async Task<IActionResult> SetPreferredLanguage(SetPreferredLanguageRequest request)
+    {
+        if (_currentUser.UserId is not { } candidateAccountId)
+            return Unauthorized();
+
+        var result = await _profileService.SetPreferredLanguageAsync(candidateAccountId, request.Language);
+
+        if (result.IsSuccess)
+            return NoContent();
+
         return result.Error == CandidateProfileErrors.NotFound
             ? NotFound(new { result.Error.Code, result.Error.Message })
             : BadRequest(new { result.Error.Code, result.Error.Message });
@@ -129,4 +151,69 @@ public sealed class CandidateProfileController : ControllerBase
             ? Ok()
             : BadRequest(new { result.Error.Code, result.Error.Message });
     }
+
+    // The same ceiling the apply form enforces: a CV that may be submitted from here has to be
+    // acceptable there too.
+    private const long MaxCvSizeBytes = 10 * 1024 * 1024;
+
+    // Rate limited like the apply endpoint: this one accepts 10 MB per request and writes to object
+    // storage, so an authenticated caller looping on it costs real bandwidth and real space.
+    [HttpPost("cv")]
+    [EnableRateLimiting(RateLimitPolicies.PerIp)]
+    [RequestSizeLimit(MaxCvSizeBytes + 1024 * 1024)] // file + multipart/form-field overhead
+    public async Task<IActionResult> UploadCv(IFormFile file, CancellationToken ct)
+    {
+        if (_currentUser.UserId is not { } candidateAccountId)
+            return Unauthorized();
+
+        if (file is null || file.Length == 0)
+            return BadRequest(ToProblem(FileSignatureValidator.Empty));
+
+        // Validated at the boundary, before a byte reaches storage: the real leading bytes decide
+        // the format, never the extension or the client's declared content type.
+        await using var content = file.OpenReadStream();
+        var validation = await FileSignatureValidator.ValidateAsync(
+            content, file.ContentType, file.Length, MaxCvSizeBytes, ct);
+        if (validation.IsFailure)
+            return BadRequest(ToProblem(validation.Error));
+
+        var command = new UploadCandidateCvCommand(
+            content, file.Length, file.ContentType, file.FileName);
+
+        var result = await _profileService.UploadCvAsync(candidateAccountId, command);
+
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : NotFound(ToProblem(result.Error));
+    }
+
+    [HttpDelete("cv")]
+    public async Task<IActionResult> RemoveCv()
+    {
+        if (_currentUser.UserId is not { } candidateAccountId)
+            return Unauthorized();
+
+        var result = await _profileService.RemoveCvAsync(candidateAccountId);
+
+        return result.IsSuccess
+            ? NoContent()
+            : NotFound(ToProblem(result.Error));
+    }
+
+    // Hands back a signed URL rather than the bytes: the file goes straight from storage to the
+    // browser, so a CV never streams through the API.
+    [HttpGet("cv/download-url")]
+    public async Task<IActionResult> GetCvDownloadUrl()
+    {
+        if (_currentUser.UserId is not { } candidateAccountId)
+            return Unauthorized();
+
+        var result = await _profileService.GetCvDownloadUrlAsync(candidateAccountId);
+
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : NotFound(ToProblem(result.Error));
+    }
+
+    private static object ToProblem(Error error) => new { error.Code, error.Message };
 }

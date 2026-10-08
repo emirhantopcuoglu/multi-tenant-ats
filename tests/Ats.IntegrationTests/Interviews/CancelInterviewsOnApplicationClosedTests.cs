@@ -1,32 +1,45 @@
 using Ats.IntegrationTests.Shared;
 using Ats.Modules.Interviews.Domain;
 using Ats.Modules.Interviews.Infrastructure;
+using Ats.Shared.Contracts.Applications;
+using Ats.Shared.Contracts.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Ats.IntegrationTests.Interviews;
 
-// Rejecting an application used to leave its booked interviews on the calendar — interviewers held
-// the slot, the conflict guard treated it as occupied, and the candidate kept an invitation to a
-// meeting nobody meant to hold.
+// An application reaching a terminal status used to leave its booked interviews on the calendar —
+// interviewers held the slot, the conflict guard treated it as occupied, and the candidate kept an
+// invitation to a meeting nobody meant to hold.
+//
+// The consumer serves both closing paths (company rejects / candidate withdraws) and the reason is
+// the only thing that differs between them, so the reason-independent rules below are asserted once
+// and the per-reason part is the theory at the top.
 [Collection("Integration")]
-public sealed class CancelInterviewsOnRejectionTests
+public sealed class CancelInterviewsOnApplicationClosedTests
 {
     private readonly PostgresContainerFixture _fixture;
 
-    public CancelInterviewsOnRejectionTests(PostgresContainerFixture fixture)
+    public CancelInterviewsOnApplicationClosedTests(PostgresContainerFixture fixture)
     {
         _fixture = fixture;
     }
 
+    // Driven through the real message types, not the shared CancelAsync(reason) core: which reason a
+    // message maps to is the only per-path logic in this consumer, and calling the core with an
+    // explicit reason would leave that mapping entirely uncovered — a swap of the two would then be
+    // invisible to the suite while telling the candidate the wrong story in their cancellation email.
     [Fact]
-    public async Task should_cancel_upcoming_interviews()
+    public async Task rejection_should_cancel_upcoming_interviews_as_ApplicationRejected()
     {
         var tenant = new FixedTenant(Guid.NewGuid());
         var applicationId = Guid.NewGuid();
         var interview = await SeedAsync(tenant, applicationId, DateTime.UtcNow.AddDays(2));
 
-        var cancelled = await CancelAsync(tenant, applicationId);
+        var cancelled = await ConsumeAsync(
+            tenant, new ApplicationRejectedIntegrationEvent(
+                applicationId, Guid.NewGuid(), "Staff Engineer", Guid.NewGuid(),
+                "gone@acme.test", "Moved", tenant.TenantId!.Value));
 
         Assert.Equal(1, cancelled);
         var stored = await LoadAsync(tenant, interview.Id);
@@ -35,9 +48,25 @@ public sealed class CancelInterviewsOnRejectionTests
     }
 
     [Fact]
+    public async Task withdrawal_should_cancel_upcoming_interviews_as_CandidateWithdrew()
+    {
+        var tenant = new FixedTenant(Guid.NewGuid());
+        var applicationId = Guid.NewGuid();
+        var interview = await SeedAsync(tenant, applicationId, DateTime.UtcNow.AddDays(2));
+
+        var cancelled = await ConsumeAsync(
+            tenant, new ApplicationWithdrawnIntegrationEvent(applicationId, tenant.TenantId!.Value));
+
+        Assert.Equal(1, cancelled);
+        var stored = await LoadAsync(tenant, interview.Id);
+        Assert.Equal(InterviewStatus.Cancelled, stored.Status);
+        Assert.Equal(InterviewCancellationReason.CandidateWithdrew, stored.CancellationReason);
+    }
+
+    [Fact]
     public async Task should_leave_an_interview_that_already_happened_alone()
     {
-        // An elapsed interview is a fact. Rejecting the application afterwards does not un-hold it,
+        // An elapsed interview is a fact. Closing the application afterwards does not un-hold it,
         // and it still needs an honest outcome recorded.
         var tenant = new FixedTenant(Guid.NewGuid());
         var applicationId = Guid.NewGuid();
@@ -75,15 +104,15 @@ public sealed class CancelInterviewsOnRejectionTests
     }
 
     [Fact]
-    public async Task should_only_touch_the_rejected_application()
+    public async Task should_only_touch_the_closed_application()
     {
         var tenant = new FixedTenant(Guid.NewGuid());
-        var rejected = Guid.NewGuid();
+        var closed = Guid.NewGuid();
         var untouched = Guid.NewGuid();
-        await SeedAsync(tenant, rejected, DateTime.UtcNow.AddDays(2));
+        await SeedAsync(tenant, closed, DateTime.UtcNow.AddDays(2));
         var other = await SeedAsync(tenant, untouched, DateTime.UtcNow.AddDays(2));
 
-        await CancelAsync(tenant, rejected);
+        await CancelAsync(tenant, closed);
 
         var stored = await LoadAsync(tenant, other.Id);
         Assert.Equal(InterviewStatus.Scheduled, stored.Status);
@@ -116,13 +145,27 @@ public sealed class CancelInterviewsOnRejectionTests
         Assert.Equal(0, await CancelAsync(tenant, applicationId));
     }
 
-    private async Task<int> CancelAsync(FixedTenant tenant, Guid applicationId)
+    private Task<int> ConsumeAsync(FixedTenant tenant, ApplicationRejectedIntegrationEvent message) =>
+        RunAsync(tenant, (consumer, ct) => consumer.CancelAsync(message, ct));
+
+    private Task<int> ConsumeAsync(FixedTenant tenant, ApplicationWithdrawnIntegrationEvent message) =>
+        RunAsync(tenant, (consumer, ct) => consumer.CancelAsync(message, ct));
+
+    // The reason-independent rules below all use the rejection path; which of the two they run through
+    // is irrelevant to them, and the two tests above already pin the reasons.
+    private Task<int> CancelAsync(FixedTenant tenant, Guid applicationId) =>
+        ConsumeAsync(tenant, new ApplicationRejectedIntegrationEvent(
+            applicationId, Guid.NewGuid(), "Staff Engineer", Guid.NewGuid(),
+            "closed@acme.test", "Closed", tenant.TenantId!.Value));
+
+    private async Task<int> RunAsync(
+        FixedTenant tenant,
+        Func<CancelInterviewsOnApplicationClosedConsumer, CancellationToken, Task<int>> act)
     {
         await using var db = NewDb(tenant);
-        var consumer = new CancelInterviewsOnRejectionConsumer(
-            db, NullLogger<CancelInterviewsOnRejectionConsumer>.Instance);
-        return await consumer.CancelAsync(
-            applicationId, tenant.TenantId!.Value, CancellationToken.None);
+        var consumer = new CancelInterviewsOnApplicationClosedConsumer(
+            db, NullLogger<CancelInterviewsOnApplicationClosedConsumer>.Instance);
+        return await act(consumer, CancellationToken.None);
     }
 
     private async Task<Interview> SeedAsync(FixedTenant tenant, Guid applicationId, DateTime slot)

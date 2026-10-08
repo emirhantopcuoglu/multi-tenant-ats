@@ -68,6 +68,27 @@ public sealed class JoinInterviewRoomTests
     }
 
     [Fact]
+    public async Task should_refuse_a_company_user_who_is_not_on_the_panel()
+    {
+        // The rule the interview detail screen's "Join room" button is gated on. A recruiter or admin
+        // in the owning tenant can read this interview and manage it, but the room is for the people
+        // actually in it — so the UI must offer the link on panel membership, not on manage rights,
+        // or it hands them a button that lands on "not found".
+        var tenant = new FixedTenant(Guid.NewGuid());
+        var (interview, applications) = await SeedAsync(
+            tenant, DateTime.UtcNow.AddMinutes(5), interviewerUserIds: [Guid.NewGuid()]);
+
+        var handler = new JoinInterviewRoomHandler(NewDb(tenant), applications);
+        var result = await handler.Handle(
+            new JoinInterviewRoomQuery(
+                interview.RoomToken!, null, CompanyUserId: Guid.NewGuid(), tenant.TenantId),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(InterviewErrors.NotFound.Code, result.Error.Code);
+    }
+
+    [Fact]
     public async Task should_refuse_a_company_user_from_a_different_tenant()
     {
         var tenant = new FixedTenant(Guid.NewGuid());

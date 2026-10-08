@@ -67,6 +67,44 @@ public sealed class ApplicationDirectory : IApplicationDirectory
             row.CandidateId, row.CandidateAccountId, row.Email, row.FirstName);
     }
 
+    // Two queries total regardless of batch size: one join for the applications and their candidates,
+    // one batched call into the Jobs port for the titles. The per-id overload above would have cost
+    // two round trips per application instead — the N+1 this method exists to avoid.
+    public async Task<IReadOnlyDictionary<Guid, ApplicationForScheduling>> GetForSchedulingAsync(
+        IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default)
+    {
+        if (applicationIds.Count == 0)
+            return new Dictionary<Guid, ApplicationForScheduling>();
+
+        var rows = await (
+            from a in _db.Applications.AsNoTracking().IgnoreQueryFilters()
+            where applicationIds.Contains(a.Id)
+            join c in _db.Candidates.AsNoTracking().IgnoreQueryFilters() on a.CandidateId equals c.Id
+            select new
+            {
+                a.Id,
+                IsActive = a.Status == ApplicationStatus.Active,
+                a.JobId,
+                a.CandidateAccountId,
+                CandidateId = c.Id,
+                c.Email,
+                c.FirstName
+            })
+            .ToListAsync(cancellationToken);
+
+        var jobs = await _jobs.GetSummariesAsync(
+            rows.Select(row => row.JobId).Distinct().ToList(), cancellationToken);
+
+        // A missing job title becomes an empty string, matching the single-id overload: consumers
+        // already render that as "the role you applied for" rather than failing the message.
+        return rows.ToDictionary(
+            row => row.Id,
+            row => new ApplicationForScheduling(
+                row.Id, row.IsActive, row.JobId,
+                jobs.TryGetValue(row.JobId, out var job) ? job.Title : string.Empty,
+                row.CandidateId, row.CandidateAccountId, row.Email, row.FirstName));
+    }
+
     public async Task<IReadOnlyDictionary<Guid, string>> GetCandidateNamesByApplicationAsync(
         IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default)
     {

@@ -54,6 +54,19 @@ public static class NotificationPayloads
         DateTime ScheduledAtUtc,
         string Reason);
 
+    // Deliberately the same fields as InterviewScheduled plus the kind: a reminder restates the
+    // invitation, so the client renders it from the same facts and only swaps the sentence.
+    // ReminderKind is one of InterviewReminderKinds — a closed set, so an unknown value renders the
+    // generic row rather than a broken one.
+    public sealed record InterviewReminder(
+        Guid ApplicationId,
+        string JobTitle,
+        string InterviewType,
+        DateTime ScheduledAtUtc,
+        int DurationMinutes,
+        string? RoomToken,
+        string ReminderKind);
+
     public sealed record ApplicationViewed(Guid ApplicationId, string JobTitle);
 
     public sealed record ApplicationCvDownloaded(Guid ApplicationId, string JobTitle);

@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Ats.Shared.Infrastructure;
+using Ats.Shared.Kernel;
 
 namespace Ats.IntegrationTests.CandidateAccounts;
 
@@ -176,7 +178,7 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
         await CreateService().DeleteAsync(accountId, new DeleteCandidateAccountCommand(Password));
 
         // Act — the locked product decision: deletion is final, the address is reusable
-        var register = await CreateAuthService().RegisterAsync(Email, Password, "John", "Roe");
+        var register = await CreateAuthService().RegisterAsync(Email, Password, "John", "Roe", SupportedLanguages.Default);
 
         // Assert
         Assert.True(register.IsSuccess);
@@ -247,9 +249,11 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
 
     private static CandidateTokenService CreateTokenService() => new(CreateJwtOptions());
 
-    private CandidateAccountLifecycleService CreateService() => new(
+    private CandidateAccountLifecycleService CreateService(
+        RecordingFileStorage? fileStorage = null) => new(
         CreateDbContext(),
         CreatePasswordHasher(),
+        fileStorage ?? new RecordingFileStorage(),
         NullLogger<CandidateAccountLifecycleService>.Instance);
 
     // Both helpers hand the session issuer the same DbContext as the service under test, matching how
@@ -258,7 +262,11 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
     {
         var db = CreateDbContext();
         return new CandidateAuthService(
-            db, CreatePasswordHasher(), new CandidateSessionIssuer(db, CreateTokenService(), CreateJwtOptions()));
+            db,
+            CreatePasswordHasher(),
+            new CandidateSessionIssuer(db, CreateTokenService(), CreateJwtOptions()),
+            CandidateServiceFactory.EmailVerification(db),
+            CandidateServiceFactory.Lockout());
     }
 
     private CandidateProfileService CreateProfileService(RecordingEmailSender? emailSender = null)
@@ -269,6 +277,8 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
             CreatePasswordHasher(),
             new CandidateSessionIssuer(db, CreateTokenService(), CreateJwtOptions()),
             emailSender ?? new RecordingEmailSender(),
+            new JsonEmailTextProvider(),
+            new RecordingFileStorage(),
             Options.Create(new CandidateEmailChangeOptions()),
             NullLogger<CandidateProfileService>.Instance);
     }
@@ -276,7 +286,7 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
     private async Task<Guid> SeedAccountAsync()
     {
         await using var db = CreateDbContext();
-        var account = CandidateAccount.Register(Email, CreatePasswordHasher().Hash(Password), "Jane", "Doe");
+        var account = CandidateAccount.Register(Email, CreatePasswordHasher().Hash(Password), "Jane", "Doe", SupportedLanguages.Default);
         db.CandidateAccounts.Add(account);
         await db.SaveChangesAsync();
         return account.Id;

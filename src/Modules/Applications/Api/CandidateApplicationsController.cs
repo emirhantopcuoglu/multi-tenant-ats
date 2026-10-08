@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using Ats.Modules.Applications.Application;
 using Ats.Modules.Applications.Application.Applications;
 using Ats.Shared.Kernel;
 using MediatR;
@@ -51,6 +52,26 @@ public sealed class CandidateApplicationsController : ControllerBase
         return result.IsSuccess
             ? Ok(result.Value)
             : NotFound(new { result.Error.Code, result.Error.Message });
+    }
+
+    // The candidate closes their own application. POST rather than DELETE: the application is not
+    // removed, it reaches a terminal status and stays fully visible in their history.
+    //
+    // The two failures map differently on purpose — 404 means "no such application of yours" (an
+    // unknown or foreign id, indistinguishable by design), 409 means "yours, but already closed",
+    // which is a stale tab rather than anything suspicious.
+    [HttpPost("{id:guid}/withdraw")]
+    public async Task<IActionResult> Withdraw(Guid id)
+    {
+        var candidateAccountId = _currentUser.UserId!.Value;
+
+        var result = await _sender.Send(new WithdrawApplicationCommand(candidateAccountId, id));
+        if (result.IsSuccess)
+            return NoContent();
+
+        return result.Error.Code == ApplicationErrors.NotFound.Code
+            ? NotFound(new { result.Error.Code, result.Error.Message })
+            : Conflict(new { result.Error.Code, result.Error.Message });
     }
 
     // Membership set for the public job pages: which jobs does this candidate currently have an

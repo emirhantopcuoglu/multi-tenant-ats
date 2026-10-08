@@ -24,7 +24,7 @@ public sealed class LlmOptions
 
     public int MaxOutputTokens { get; init; } = 2048;
 
-    // Per-attempt timeout enforced by Polly (the roadmap's 30s ceiling on the LLM call).
+    // Per-attempt timeout enforced by Polly, a hard ceiling on a single LLM call.
     public int TimeoutSeconds { get; init; } = 30;
 
     // Polly retry attempts for transient failures.

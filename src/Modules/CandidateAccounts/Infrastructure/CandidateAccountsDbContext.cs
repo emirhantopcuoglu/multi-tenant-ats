@@ -1,4 +1,5 @@
 using Ats.Modules.CandidateAccounts.Domain;
+using Ats.Shared.Kernel;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.CandidateAccounts.Infrastructure;
@@ -18,6 +19,7 @@ public sealed class CandidateAccountsDbContext : DbContext
     public DbSet<EmailChangeRequest> EmailChangeRequests => Set<EmailChangeRequest>();
     public DbSet<CandidateRefreshToken> CandidateRefreshTokens => Set<CandidateRefreshToken>();
     public DbSet<PasswordResetRequest> PasswordResetRequests => Set<PasswordResetRequest>();
+    public DbSet<EmailVerificationRequest> EmailVerificationRequests => Set<EmailVerificationRequest>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -38,6 +40,16 @@ public sealed class CandidateAccountsDbContext : DbContext
             entity.Property(c => c.Country).HasMaxLength(100);
             entity.Property(c => c.City).HasMaxLength(100);
             entity.Property(c => c.CvFileKey).HasMaxLength(512);
+            // The candidate's own file name, already stripped to safe characters before it reaches
+            // storage; 255 is the ceiling every mainstream filesystem imposes on one anyway.
+            entity.Property(c => c.CvFileName).HasMaxLength(255);
+            // Two-letter code ("en", "tr"); the boundary normalizes anything longer down to it. The
+            // DB default backfills accounts that predate the column — they registered when the app
+            // only wrote English, so English is the honest value for them.
+            entity.Property(c => c.PreferredLanguage)
+                .IsRequired()
+                .HasMaxLength(2)
+                .HasDefaultValue(SupportedLanguages.Default);
             // Stored as the string name (project convention across modules); the default backfills
             // rows that existed before the column did — new rows are always born Active in code.
             entity.Property(c => c.Status)
@@ -87,6 +99,23 @@ public sealed class CandidateAccountsDbContext : DbContext
             entity.HasOne<CandidateAccount>()
                 .WithMany()
                 .HasForeignKey(t => t.CandidateAccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<EmailVerificationRequest>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            // 44 = the exact length of a base64-encoded SHA-256 digest, same as the rows above.
+            entity.Property(r => r.TokenHash).IsRequired().HasMaxLength(44);
+            // Confirmation looks the row up by the hash of the presented token, so this is the hot
+            // path. Unique for the same reason as EmailChangeRequest's: two requests sharing a token
+            // would make "which one did the click prove?" ambiguous.
+            entity.HasIndex(r => r.TokenHash).IsUnique();
+            // Superseding older pending requests scans by account, so the foreign key is indexed.
+            entity.HasIndex(r => r.CandidateAccountId);
+            entity.HasOne<CandidateAccount>()
+                .WithMany()
+                .HasForeignKey(r => r.CandidateAccountId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

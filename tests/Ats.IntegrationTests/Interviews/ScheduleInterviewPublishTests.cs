@@ -118,6 +118,15 @@ internal sealed class FakeApplicationDirectory : IApplicationDirectory
         Guid tenantId, Guid applicationId, CancellationToken cancellationToken = default) =>
         Task.FromResult(_application?.Id == applicationId ? _application : null);
 
+    // The batched overload answers from the same single canned application, so the reminder sweep
+    // can be driven through this fake without a second seeding path.
+    public Task<IReadOnlyDictionary<Guid, ApplicationForScheduling>> GetForSchedulingAsync(
+        IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyDictionary<Guid, ApplicationForScheduling>>(
+            _application is not null && applicationIds.Contains(_application.Id)
+                ? new Dictionary<Guid, ApplicationForScheduling> { [_application.Id] = _application }
+                : new Dictionary<Guid, ApplicationForScheduling>());
+
     public Task<IReadOnlyDictionary<Guid, string>> GetCandidateNamesByApplicationAsync(
         IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyDictionary<Guid, string>>(new Dictionary<Guid, string>());

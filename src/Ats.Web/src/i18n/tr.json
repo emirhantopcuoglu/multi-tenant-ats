@@ -9,10 +9,8 @@
     "signOut": "Çıkış yap",
     "viewCareers": "Kariyer sayfasını görüntüle",
     "errorTitle": "Bir hata oluştu",
-    "errorRetry": "Lütfen daha sonra tekrar deneyin."
-  },
-  "placeholder": {
-    "body": "Bu ekran ilerleyen adımlarda gelecek."
+    "errorRetry": "Lütfen daha sonra tekrar deneyin.",
+    "remove": "Kaldır"
   },
   "nav": {
     "overview": "Genel bakış",
@@ -96,6 +94,29 @@
     },
     "moveError": "Başvuru taşınamadı. Lütfen tekrar dene."
   },
+  "candidateSearch": {
+    "searchLabel": "Adaylarda ada veya e-postaya göre ara",
+    "searchPlaceholder": "Ad veya e-posta ile ara…",
+    "rows_one": "{{count}} aday",
+    "rows_other": "{{count}} aday",
+    "linkedIn": "LinkedIn",
+    "loadError": "Adaylar aranamadı.",
+    "retry": "Tekrar dene",
+    "col": {
+      "name": "Ad",
+      "email": "E-posta",
+      "phone": "Telefon",
+      "links": "Bağlantılar"
+    },
+    "prompt": {
+      "title": "Aday havuzunuzda arama yapın",
+      "body": "İlanlarınıza başvuran herkesi aramak için bir ad veya e-posta adresi yazın. Telefon numaraları ve CV içerikleri aramaya dahil değildir."
+    },
+    "noResults": {
+      "title": "\"{{term}}\" ile eşleşen aday yok",
+      "body": "Yalnızca ad ve e-posta adresleri aranır. Yazımı kontrol edin veya tek kelime deneyin."
+    }
+  },
   "applicationDetail": {
     "back": "Başvurulara dön",
     "linkedin": "LinkedIn",
@@ -146,7 +167,8 @@
       "moved": "{{from}} aşamasından {{to}} aşamasına taşındı",
       "corrected": "{{from}} aşamasından {{to}} aşamasına düzeltildi",
       "rejected": "Başvuru reddedildi",
-      "hired": "Aday işe alındı"
+      "hired": "Aday işe alındı",
+      "withdrawn": "Aday başvurusunu geri çekti"
     },
     "reject_modal": {
       "title": "Başvuruyu reddet",
@@ -309,7 +331,9 @@
       "applyingAs": "Başvuru sahibi",
       "alreadyAppliedTitle": "Bu pozisyona zaten başvurdunuz",
       "alreadyAppliedBody": "{{title}} pozisyonu için aktif bir başvurunuz var. Durumunu başvurularınızdan takip edebilirsiniz.",
-      "viewApplications": "Başvurularımı görüntüle"
+      "viewApplications": "Başvurularımı görüntüle",
+      "useSavedCv": "Kayıtlı CV'mi kullan",
+      "uploadNewCv": "Farklı bir dosya yükle"
     },
     "notFound": {
       "title": "Sayfa bulunamadı",
@@ -428,7 +452,8 @@
       "complete": "Tamamlandı işaretle",
       "noShow": "Gelmedi",
       "cancel": "İptal et",
-      "reassign": "Görüşmecileri değiştir"
+      "reassign": "Görüşmecileri değiştir",
+      "joinRoom": "Odaya katıl"
     },
     "detail": {
       "back": "Mülakatlara dön",
@@ -650,9 +675,34 @@
       "moved": "Yeni bir aşamaya geçtin",
       "rejected": "Süreç olumsuz sonuçlandı",
       "hiredEvent": "Tebrikler — işe alındın!",
+      "withdrawnEvent": "Başvurunuzu geri çektiniz",
       "interviews": {
         "title": "Mülakatlar"
       }
+    },
+    "withdraw": {
+      "action": "Başvuruyu geri çek",
+      "dialogTitle": "Bu başvuruyu geri çekmek istiyor musunuz?",
+      "dialogDescription": "{{company}} şirketindeki \"{{job}}\" pozisyonuna başvurunuz kapatılacak.",
+      "dialogConsequence": "Bu işlem geri alınamaz. Planlanmış mülakatlarınız iptal edilir. Bu pozisyona daha sonra yeniden başvurabilirsiniz.",
+      "dialogConfirm": "Başvuruyu geri çek",
+      "success": "Başvurunuz geri çekildi.",
+      "alreadyClosed": "Bu başvuru zaten kapatılmıştı.",
+      "error": "Başvurunuz geri çekilemedi. Lütfen tekrar deneyin."
+    },
+    "verifyEmail": {
+      "bannerTitle": "E-posta adresinizi doğrulayın",
+      "bannerBody": "{{email}} adresine bir onay bağlantısı gönderdik. Bir ilana başvurabilmek için önce onaylamanız gerekiyor.",
+      "resend": "Bağlantıyı yeniden gönder",
+      "resent": "Onay bağlantısı {{email}} adresine gönderildi.",
+      "resendError": "Bağlantı gönderilemedi. Lütfen tekrar deneyin.",
+      "blockedTitle": "Önce e-posta adresinizi onaylayın",
+      "blockedBody": "Başvurunuz e-posta adresinizle birlikte şirkete gidiyor, bu yüzden adresin size ulaştığını bilmemiz gerekiyor. {{email}} adresine gönderdiğimiz bağlantıyı açın — başvurularım sayfasından yeniden gönderebilirsiniz.",
+      "goToApplications": "Başvurularıma git",
+      "successTitle": "E-posta adresi onaylandı",
+      "successBody": "Teşekkürler — artık ilanlara başvurabilirsiniz.",
+      "failedTitle": "Bu bağlantı artık geçerli değil",
+      "failedBody": "Doğrulama bağlantıları 24 saat sonra geçersiz olur ve yalnızca bir kez kullanılabilir. Giriş yapıp başvurularım sayfasından yenisini gönderin."
     }
   },
   "interviewRoom": {
@@ -745,6 +795,18 @@
       "deleteConfirmLabel": "Onaylamak için {{word}} yaz",
       "deleteConfirmMismatch": "Onaylamak için tam olarak DELETE yaz.",
       "deleteDialogConfirm": "Kalıcı olarak sil"
+    },
+    "cv": {
+      "heading": "CV",
+      "description": "CV'nizi bir kez yükleyin, her başvuruda yeniden kullanın.",
+      "uploadedOn": "{{date}} tarihinde yüklendi",
+      "download": "İndir",
+      "replaceHint": "Yeni dosya yüklerseniz yukarıdakinin yerini alır.",
+      "uploaded": "CV yüklendi",
+      "uploadError": "CV yüklenemedi.",
+      "removed": "CV kaldırıldı",
+      "removeError": "CV kaldırılamadı.",
+      "downloadError": "İndirme bağlantısı oluşturulamadı."
     }
   },
   "reactivateAccount": {
@@ -782,6 +844,8 @@
     "interviewScheduled": "\"{{jobTitle}}\" için mülakat planlandı: {{type}}, {{date}}",
     "interviewRescheduled": "\"{{jobTitle}}\" mülakatın taşındı: {{type}}, {{previousDate}} → {{date}}",
     "interviewCancelled": "\"{{jobTitle}}\" mülakatın iptal edildi: {{type}}, {{date}}",
+    "interviewReminderDayBefore": "Hatırlatma: \"{{jobTitle}}\" mülakatın yarın: {{type}}, {{date}}",
+    "interviewReminderStartingSoon": "\"{{jobTitle}}\" mülakatın birazdan başlıyor: {{type}}, {{date}}",
     "generic": "Yeni bir bildirimin var"
   },
   "auth": {
@@ -842,6 +906,19 @@
       "requestNew": "Yeni bağlantı isteyin",
       "doneTitle": "Şifre güncellendi",
       "doneBody": "Yeni şifrenizle giriş yapın. Diğer tüm oturumlar kapatıldı."
+    },
+    "confirmEmail": {
+      "pendingTitle": "Gelen kutunuzu kontrol edin",
+      "pendingBody": "{{email}} adresine bir onay bağlantısı gönderdik. Çalışma alanınızı tamamlamak için açın — giriş yapabilmek için önce onaylamanız gerekiyor.",
+      "successTitle": "E-posta adresi onaylandı",
+      "successBody": "Artık giriş yapabilirsiniz.",
+      "failedTitle": "Bu onay bağlantısı artık geçerli değil",
+      "failedBody": "Onay bağlantıları 24 saat sonra geçersiz olur. E-posta adresinizi girin, yenisini gönderelim.",
+      "resendLabel": "E-posta adresi",
+      "resendAction": "Yeni bağlantı gönder",
+      "resendSent": "Bu adrese ait bir hesap varsa yeni bağlantı yolda.",
+      "resendError": "Bağlantı gönderilemedi. Lütfen tekrar deneyin.",
+      "goToLogin": "Girişe dön"
     }
   },
   "validation": {
@@ -857,7 +934,9 @@
     "invalidCredentials": "E-posta veya parola hatalı.",
     "invitationInvalid": "Bu davet geçersiz veya süresi dolmuş.",
     "emailInUse": "Bu e-posta ile bir kullanıcı zaten var.",
-    "generic": "Bir şeyler ters gitti. Lütfen tekrar deneyin."
+    "generic": "Bir şeyler ters gitti. Lütfen tekrar deneyin.",
+    "emailNotConfirmed": "Giriş yapmadan önce e-posta adresinizi onaylayın.",
+    "confirmationInvalid": "Bu onay bağlantısı geçersiz, süresi dolmuş veya kullanılmış."
   },
   "form": {
     "department": "Departman",

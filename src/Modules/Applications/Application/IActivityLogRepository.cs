@@ -2,7 +2,7 @@ using Ats.Modules.Applications.Domain;
 
 namespace Ats.Modules.Applications.Application;
 
-// Port over the activity log's persistence. From Sprint 4 the log lives in MongoDB, but this
+// Port over the activity log's persistence. The log lives in MongoDB, but this
 // abstraction never mentions Mongo — handlers depend on behaviour, not on the store (the same
 // Dependency Inversion as IFileStorage / IApplicationsDbContext).
 //

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Field, Modal, Select, Textarea } from '@/components/ui';
 import {
@@ -34,13 +34,19 @@ export function CancelInterviewModal({
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  // Reset when the dialog opens, so a previous draft never lingers. Adjusted during render rather
+  // than in an effect: React discards the in-progress output and re-renders before committing, so
+  // the cleared form is what reaches the DOM. An effect would paint the stale draft first and clear
+  // it afterwards, which is the cascading render the linter flags.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (open) {
       setReason('');
       setNote('');
       setError(null);
     }
-  }, [open]);
+  }
 
   const handleConfirm = () => {
     if (!reason) {

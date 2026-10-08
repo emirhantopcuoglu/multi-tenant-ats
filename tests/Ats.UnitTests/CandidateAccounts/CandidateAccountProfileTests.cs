@@ -1,4 +1,5 @@
 using Ats.Modules.CandidateAccounts.Domain;
+using Ats.Shared.Kernel;
 
 namespace Ats.UnitTests.CandidateAccounts;
 
@@ -7,7 +8,7 @@ public class CandidateAccountProfileTests
     private const string PasswordHash = "hashed-password";
 
     private static CandidateAccount CreateAccount() =>
-        CandidateAccount.Register("jane@example.com", PasswordHash, "Jane", "Doe");
+        CandidateAccount.Register("jane@example.com", PasswordHash, "Jane", "Doe", SupportedLanguages.Default);
 
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.UtcNow);
 

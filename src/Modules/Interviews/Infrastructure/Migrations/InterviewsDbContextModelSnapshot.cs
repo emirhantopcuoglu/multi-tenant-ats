@@ -46,6 +46,9 @@ namespace Ats.Modules.Interviews.Infrastructure.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("DayBeforeReminderDueAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime?>("DeletedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -83,6 +86,9 @@ namespace Ats.Modules.Interviews.Infrastructure.Migrations
                     b.Property<DateTime>("ScheduledAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("StartingSoonReminderDueAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -98,12 +104,18 @@ namespace Ats.Modules.Interviews.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("DayBeforeReminderDueAtUtc")
+                        .HasFilter("\"DayBeforeReminderDueAtUtc\" IS NOT NULL");
+
                     b.HasIndex("InterviewerUserIds");
 
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("InterviewerUserIds"), "gin");
 
                     b.HasIndex("RoomToken")
                         .IsUnique();
+
+                    b.HasIndex("StartingSoonReminderDueAtUtc")
+                        .HasFilter("\"StartingSoonReminderDueAtUtc\" IS NOT NULL");
 
                     b.HasIndex("TenantId", "ScheduledAtUtc");
 

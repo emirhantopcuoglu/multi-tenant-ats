@@ -53,6 +53,16 @@ public sealed class InterviewsDbContext : DbContext, IInterviewsDbContext
             // "Interviews for this interviewer" is an array-membership test (= ANY); a GIN index on the
             // uuid[] column is what makes that lookup fast.
             entity.HasIndex(i => i.InterviewerUserIds).HasMethod("gin");
+
+            // The reminder sweep asks "which reminders are owed right now" across every tenant, so
+            // these are indexed on the due column alone — a TenantId-prefixed index could not serve
+            // that query. Partial, because the column is nulled once the reminder is settled: the
+            // index then holds only pending reminders (a handful at any instant) instead of a row per
+            // interview ever scheduled.
+            entity.HasIndex(i => i.DayBeforeReminderDueAtUtc)
+                .HasFilter("\"DayBeforeReminderDueAtUtc\" IS NOT NULL");
+            entity.HasIndex(i => i.StartingSoonReminderDueAtUtc)
+                .HasFilter("\"StartingSoonReminderDueAtUtc\" IS NOT NULL");
         });
 
         builder.Entity<InterviewFeedback>(entity =>

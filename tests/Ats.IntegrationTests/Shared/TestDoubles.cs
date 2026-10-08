@@ -1,5 +1,6 @@
 using Ats.Shared.Kernel;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Ats.IntegrationTests.Shared;
 
@@ -72,4 +73,67 @@ internal sealed class CapturingPublisher : IPublisher
         Published.Add(notification);
         return Task.CompletedTask;
     }
+}
+
+// Records keys instead of talking to MinIO. Tests must never reach real object storage, and which
+// keys were written, copied and deleted is exactly what the CV flows need to be observable — an
+// orphaned or prematurely deleted object is invisible in the database alone.
+internal sealed class RecordingFileStorage : IFileStorage
+{
+    public List<string> Uploaded { get; } = [];
+    public List<(string Source, string Destination)> Copied { get; } = [];
+    public List<string> Deleted { get; } = [];
+
+    public Task UploadAsync(
+        string key, Stream content, long size, string contentType,
+        CancellationToken cancellationToken = default)
+    {
+        Uploaded.Add(key);
+        return Task.CompletedTask;
+    }
+
+    public Task<string> GetPresignedDownloadUrlAsync(
+        string key, TimeSpan expiry, CancellationToken cancellationToken = default) =>
+        Task.FromResult($"https://storage.test/{key}");
+
+    public Task<byte[]> DownloadAsync(string key, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Array.Empty<byte>());
+
+    public Task CopyAsync(
+        string sourceKey, string destinationKey, CancellationToken cancellationToken = default)
+    {
+        Copied.Add((sourceKey, destinationKey));
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(string key, CancellationToken cancellationToken = default)
+    {
+        Deleted.Add(key);
+        return Task.CompletedTask;
+    }
+}
+
+// Keeps every log entry so a test can assert on a path that deliberately does not fail. A skipped
+// candidate notification is the case this exists for: the command still succeeds, and the only
+// evidence it took the degraded route is the warning.
+internal sealed class CapturingLogger<T> : ILogger<T>
+{
+    public List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+    public bool IsEnabled(LogLevel logLevel) => true;
+
+    public void Log<TState>(
+        LogLevel logLevel,
+        EventId eventId,
+        TState state,
+        Exception? exception,
+        Func<TState, Exception?, string> formatter) =>
+        Entries.Add((logLevel, formatter(state, exception)));
+
+    public bool Warned(string containing) =>
+        Entries.Any(e =>
+            e.Level == LogLevel.Warning
+            && e.Message.Contains(containing, StringComparison.OrdinalIgnoreCase));
 }

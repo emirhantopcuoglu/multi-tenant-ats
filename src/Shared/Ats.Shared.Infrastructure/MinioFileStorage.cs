@@ -60,6 +60,21 @@ public sealed class MinioFileStorage : IFileStorage
         return buffer.ToArray();
     }
 
+    public async Task CopyAsync(
+        string sourceKey, string destinationKey, CancellationToken cancellationToken = default)
+    {
+        var source = new CopySourceObjectArgs()
+            .WithBucket(_options.BucketName)
+            .WithObject(sourceKey);
+
+        var args = new CopyObjectArgs()
+            .WithBucket(_options.BucketName)
+            .WithObject(destinationKey)
+            .WithCopyObjectSource(source);
+
+        await _client.CopyObjectAsync(args, cancellationToken);
+    }
+
     public async Task DeleteAsync(string key, CancellationToken cancellationToken = default)
     {
         var args = new RemoveObjectArgs()

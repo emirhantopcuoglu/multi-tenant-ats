@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Checkbox, Modal } from '@/components/ui';
 import { fullName, useUsers } from '@/features/users/useUsers';
@@ -30,10 +30,16 @@ export function ReassignInterviewersModal({
   const usersQuery = useUsers();
   const [selected, setSelected] = useState<string[]>(interviewerUserIds);
 
-  // Re-seed from the interview each time the dialog opens, so a cancelled edit does not linger.
-  useEffect(() => {
+  // Re-seed from the interview when the dialog opens, so a cancelled edit does not linger. Adjusted
+  // during render rather than in an effect, which also narrows the trigger: the effect had to list
+  // interviewerUserIds as a dependency, so a background refetch returning an equal-but-new array
+  // re-seeded mid-edit and discarded the recruiter's in-progress selection. Only the open
+  // transition resets it now.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (open) setSelected(interviewerUserIds);
-  }, [open, interviewerUserIds]);
+  }
 
   const toggle = (id: string) =>
     setSelected((current) =>

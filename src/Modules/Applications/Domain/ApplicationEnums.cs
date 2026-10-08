@@ -22,4 +22,9 @@ public enum PipelineStageType { Initial, Active, Interview, FinalHired, FinalRej
 //   StageCorrected - an out-of-band fix (any direction) for a wrong StageChanged, always
 //                    carrying a reason; kept distinct from StageChanged so the timeline never
 //                    implies a corrected mistake was real progress
-public enum ApplicationActivityType { Submitted, StageChanged, Rejected, Viewed, Hired, StageCorrected }
+//   Withdrawn      - the candidate closed their own application; the one entry here with no
+//                    company-side actor, so ActorUserId is always null
+public enum ApplicationActivityType
+{
+    Submitted, StageChanged, Rejected, Viewed, Hired, StageCorrected, Withdrawn
+}

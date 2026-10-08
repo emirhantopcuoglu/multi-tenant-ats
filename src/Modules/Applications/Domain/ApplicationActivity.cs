@@ -63,4 +63,10 @@ public sealed class ApplicationActivity : ITenantScoped
     // candidate-facing timeline says "the company viewed your application", not who.
     public static ApplicationActivity Viewed(Guid applicationId, Guid? actorUserId) =>
         new(applicationId, ApplicationActivityType.Viewed, actorUserId, "{}");
+
+    // No actor parameter at all, unlike every factory above: a withdrawal is only ever the
+    // candidate's own act, and ActorUserId names a company user. Passing one would be a bug the
+    // signature now makes impossible.
+    public static ApplicationActivity Withdrawn(Guid applicationId) =>
+        new(applicationId, ApplicationActivityType.Withdrawn, actorUserId: null, "{}");
 }

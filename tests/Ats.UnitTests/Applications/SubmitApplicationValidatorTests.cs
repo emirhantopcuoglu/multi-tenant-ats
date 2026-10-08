@@ -4,7 +4,7 @@ namespace Ats.UnitTests.Applications;
 
 // The validator is the one piece of the apply flow with no infrastructure dependency, so it is
 // the natural unit-test target. The handler's DB/storage orchestration is covered by the
-// integration tests added in Sprint 7 (Testcontainers).
+// Testcontainers integration tests.
 public class SubmitApplicationValidatorTests
 {
     private static SubmitApplicationCommand ValidCommand(
@@ -15,10 +15,7 @@ public class SubmitApplicationValidatorTests
             Phone: null,
             LinkedInUrl: null,
             CoverLetter: null,
-            CvContent: Stream.Null,
-            CvSizeBytes: 1024,
-            CvContentType: "application/pdf",
-            CvFileName: "cv.pdf");
+            Cv: new CvUpload(Stream.Null, SizeBytes: 1024, ContentType: "application/pdf", FileName: "cv.pdf"));
 
     private readonly SubmitApplicationValidator _validator = new();
 

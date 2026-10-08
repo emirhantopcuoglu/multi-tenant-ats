@@ -19,7 +19,10 @@ public sealed class InvitationsController : ControllerBase
     }
 
     public sealed record InviteRequest(string Email, string Role);
-    public sealed record AcceptRequest(string Token, string Password, string FirstName, string LastName);
+    // PreferredLanguage is optional and settles on English when absent — see the note on the
+    // candidate register request; an omitted language is not a reason to refuse an account.
+    public sealed record AcceptRequest(
+        string Token, string Password, string FirstName, string LastName, string? PreferredLanguage);
 
     [HttpPost]
     [Authorize(Policy = Policies.CanManageUsers)]
@@ -36,7 +39,8 @@ public sealed class InvitationsController : ControllerBase
     public async Task<IActionResult> Accept(AcceptRequest request)
     {
         var result = await _invitations.AcceptAsync(
-            request.Token, request.Password, request.FirstName, request.LastName);
+            request.Token, request.Password, request.FirstName, request.LastName,
+            request.PreferredLanguage ?? SupportedLanguages.Default);
         return result.IsSuccess
             ? Ok()
             : BadRequest(new { result.Error.Code, result.Error.Message });

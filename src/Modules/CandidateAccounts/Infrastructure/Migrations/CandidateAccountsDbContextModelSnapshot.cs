@@ -47,6 +47,13 @@ namespace Ats.Modules.CandidateAccounts.Infrastructure.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
+                    b.Property<string>("CvFileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime?>("CvUploadedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime?>("DeletedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -54,6 +61,12 @@ namespace Ats.Modules.CandidateAccounts.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime?>("EmailVerifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FailedLoginCount")
+                        .HasColumnType("integer");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
@@ -68,6 +81,9 @@ namespace Ats.Modules.CandidateAccounts.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<DateTime?>("LockoutEndsAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text");
@@ -75,6 +91,13 @@ namespace Ats.Modules.CandidateAccounts.Infrastructure.Migrations
                     b.Property<string>("PhoneNumber")
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
+
+                    b.Property<string>("PreferredLanguage")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)")
+                        .HasDefaultValue("en");
 
                     b.Property<Guid>("SecurityStamp")
                         .ValueGeneratedOnAdd()
@@ -167,6 +190,39 @@ namespace Ats.Modules.CandidateAccounts.Infrastructure.Migrations
                     b.ToTable("EmailChangeRequests", "candidate_accounts");
                 });
 
+            modelBuilder.Entity("Ats.Modules.CandidateAccounts.Domain.EmailVerificationRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CandidateAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ConsumedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(44)
+                        .HasColumnType("character varying(44)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CandidateAccountId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.ToTable("EmailVerificationRequests", "candidate_accounts");
+                });
+
             modelBuilder.Entity("Ats.Modules.CandidateAccounts.Domain.PasswordResetRequest", b =>
                 {
                     b.Property<Guid>("Id")
@@ -210,6 +266,15 @@ namespace Ats.Modules.CandidateAccounts.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("Ats.Modules.CandidateAccounts.Domain.EmailChangeRequest", b =>
+                {
+                    b.HasOne("Ats.Modules.CandidateAccounts.Domain.CandidateAccount", null)
+                        .WithMany()
+                        .HasForeignKey("CandidateAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Ats.Modules.CandidateAccounts.Domain.EmailVerificationRequest", b =>
                 {
                     b.HasOne("Ats.Modules.CandidateAccounts.Domain.CandidateAccount", null)
                         .WithMany()
