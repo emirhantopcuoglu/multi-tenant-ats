@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.12.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.11.0...v0.12.0) (2026-10-08)
+
+
+### Features
+
+* **applications:** let candidates withdraw their own application ([#166](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/166)) ([6d6f4c0](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/6d6f4c0b5b1aa643bfbbe5d028885014287372e3))
+* **auth:** lock an account after repeated failed logins on both sides ([#186](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/186)) ([9d6e62d](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/9d6e62d21873967c675e9fbbcedd1dc14c327f08))
+* **candidates:** build the recruiter candidate search screen ([#167](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/167)) ([8421ef7](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/8421ef7979b68840eaa076f8458369712d163f59))
+* **candidates:** let candidates save a CV to their profile and reuse it ([#174](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/174)) ([ccd3f4d](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/ccd3f4d36275ba787bc633226057db996895fe3d))
+* **candidates:** verify a candidate's email before they can apply ([#168](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/168)) ([6f8f708](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/6f8f708f9d473db532cfe4bbff60baa38f7e23a5))
+* **emails:** write every transactional email in the recipient's language ([#170](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/170)) ([4766354](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/476635473fc7c51163ddd80313d0d0ffb4c3d1db))
+* **interviews:** let participants open the room from inside the app ([#172](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/172)) ([b4256c2](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/b4256c2ab168f3224d2a05dcc2234566785ca04e))
+* **interviews:** remind candidates before their interview ([#171](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/171)) ([2ce7248](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/2ce72483b0daf395eb6b9e5d6cfcdaf332418e0c))
+* **tenants:** confirm a company user's email before they can sign in ([#169](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/169)) ([f07d852](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/f07d852243101db21e90d75162abd39c374988e4))
+
+
+### Bug Fixes
+
+* **applications:** enforce one active application per candidate and job in the database ([#179](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/179)) ([05acc15](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/05acc1560935531aeae279cca0e03533fdd443b2))
+* **applications:** stop dropping a returning candidate's contact details and silent notification skips ([#180](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/180)) ([3469550](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/346955076d1ba4d95cdb4a2d7c265b7a8c0c675d))
+* **applications:** stop losing the stage-change announcement on a broker hiccup ([#178](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/178)) ([5c4c916](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/5c4c91660b48fd19ebe76918a8d8f43b1965d9af))
+* **cv-parsing:** skip a corrupted CV instead of retrying it five times ([#176](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/176)) ([474abb4](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/474abb47e8bf3ac0895ae4094f44953f3a8c3553))
+* **cv-parsing:** stop retrying a rejected LLM key and localise the fit summary ([#175](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/175)) ([0696bd2](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/0696bd27e353809a1081f2e2e4bd51ea811090cc))
+
 ## [0.11.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.10.0...v0.11.0) (2026-07-26)
 
 
