@@ -172,8 +172,13 @@ public sealed class GetCandidateApplicationDetailHandler
                         && a.CandidateAccountId == query.CandidateAccountId)
             .Select(a => new
             {
-                a.Id, a.JobId, a.TenantId, a.CurrentStageId,
-                a.Status, a.AppliedAtUtc, a.FirstViewedAtUtc
+                a.Id,
+                a.JobId,
+                a.TenantId,
+                a.CurrentStageId,
+                a.Status,
+                a.AppliedAtUtc,
+                a.FirstViewedAtUtc
             })
             .FirstOrDefaultAsync(ct);
 

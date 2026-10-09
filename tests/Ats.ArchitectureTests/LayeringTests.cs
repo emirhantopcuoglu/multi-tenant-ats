@@ -29,6 +29,8 @@ public class LayeringTests
     [Fact]
     public void A_layer_should_only_reference_what_its_layer_allows()
     {
+        // Cross-module references are skipped: they have their own rule and their own failure
+        // message; this one is only about the direction of dependencies inside a module.
         var violations =
             from assembly in ModuleGraph.ModuleAssemblies
             let module = ModuleGraph.ModuleOf(assembly)!
@@ -36,8 +38,6 @@ public class LayeringTests
             where layer is not null
             let allowed = AllowedReferences(module, layer.Value)
             from reference in ModuleGraph.SolutionReferencesOf(assembly)
-            // Cross-module references have their own rule and their own failure message; this one is
-            // only about the direction of dependencies inside a module.
             where ModuleGraph.ModuleOf(reference) is null || ModuleGraph.ModuleOf(reference) == module
             where !allowed.Contains(reference)
             select $"{ModuleGraph.NameOf(assembly)} -> {reference}";
