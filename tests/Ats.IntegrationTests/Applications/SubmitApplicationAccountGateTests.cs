@@ -11,17 +11,49 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Ats.IntegrationTests.Applications;
 
-// Applying is the single action gated on a verified email address. Everything else a candidate can do
-// affects only their own account; from here on a recruiter reads that address, writes to it and
-// schedules time around it.
+// Applying is the one candidate action that reaches a company: everything else affects only the
+// candidate's own account, while an application hands a recruiter an address to write to and a
+// person to schedule time with. So it is gated on the account itself — a verified address, and an
+// account that is not frozen.
 [Collection("Integration")]
-public sealed class SubmitApplicationEmailGateTests
+public sealed class SubmitApplicationAccountGateTests
 {
     private readonly PostgresContainerFixture _fixture;
 
-    public SubmitApplicationEmailGateTests(PostgresContainerFixture fixture)
+    public SubmitApplicationAccountGateTests(PostgresContainerFixture fixture)
     {
         _fixture = fixture;
+    }
+
+    [Fact]
+    public async Task should_refuse_a_frozen_account_without_uploading_the_cv()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var storage = new RecordingFileStorage();
+
+        // Act
+        var result = await SubmitAsync(tenantId, storage, isEmailVerified: true, isActive: false);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal(ApplicationErrors.AccountFrozen.Code, result.Error.Code);
+        Assert.Empty(storage.Uploaded);
+        Assert.Equal(0, await CountApplicationsAsync(tenantId));
+    }
+
+    [Fact]
+    public async Task should_report_a_frozen_account_before_an_unverified_email()
+    {
+        // A frozen account has to be reactivated before anything else about it matters. Pointing the
+        // candidate at their inbox first would send them through verification only to be refused again.
+        var tenantId = Guid.NewGuid();
+
+        var result = await SubmitAsync(
+            tenantId, new RecordingFileStorage(), isEmailVerified: false, isActive: false);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(ApplicationErrors.AccountFrozen.Code, result.Error.Code);
     }
 
     [Fact]
@@ -32,7 +64,7 @@ public sealed class SubmitApplicationEmailGateTests
         var storage = new RecordingFileStorage();
 
         // Act
-        var result = await SubmitAsync(tenantId, storage, isEmailVerified: false);
+        var result = await SubmitAsync(tenantId, storage, isEmailVerified: false, isActive: true);
 
         // Assert
         Assert.True(result.IsFailure);
@@ -46,14 +78,14 @@ public sealed class SubmitApplicationEmailGateTests
     }
 
     [Fact]
-    public async Task should_accept_a_verified_candidate()
+    public async Task should_accept_a_verified_active_candidate()
     {
-        // The counterpart: without this, deleting the gate entirely would still leave the test above
-        // failing for the wrong reason, and nothing would prove the happy path still works.
+        // The counterpart: without this, a gate that refused everyone would pass every test above, and
+        // nothing would prove the happy path still works.
         var tenantId = Guid.NewGuid();
         var storage = new RecordingFileStorage();
 
-        var result = await SubmitAsync(tenantId, storage, isEmailVerified: true);
+        var result = await SubmitAsync(tenantId, storage, isEmailVerified: true, isActive: true);
 
         Assert.True(result.IsSuccess);
         Assert.Single(storage.Uploaded);
@@ -61,7 +93,7 @@ public sealed class SubmitApplicationEmailGateTests
     }
 
     private async Task<Result<Guid>> SubmitAsync(
-        Guid tenantId, IFileStorage storage, bool isEmailVerified)
+        Guid tenantId, IFileStorage storage, bool isEmailVerified, bool isActive)
     {
         var tenant = new FixedTenant(tenantId);
         var accountId = Guid.NewGuid();
@@ -72,7 +104,7 @@ public sealed class SubmitApplicationEmailGateTests
             db,
             new StubPublishedJobDirectory(job),
             new StubCandidateAccountReader(new CandidateAccountSummary(
-                accountId, $"{Guid.NewGuid():N}@acme.test", "Test", "Candidate", isEmailVerified,
+                accountId, $"{Guid.NewGuid():N}@acme.test", "Test", "Candidate", isEmailVerified, isActive,
                 CvFileKey: null, CvFileName: null)),
             storage,
             tenant,
@@ -138,8 +170,8 @@ internal sealed class StubCandidateAccountReader : ICandidateAccountReader
     public Task<CandidateAccountSummary?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         Task.FromResult<CandidateAccountSummary?>(id == _account.Id ? _account : null);
 
-    // These tests are about the email-verification gate, not about wording, so the language answer
-    // is a constant.
+    // These tests are about the account gates, not about wording, so the language answer is a
+    // constant.
     public Task<string> GetPreferredLanguageByEmailAsync(string email, CancellationToken ct = default) =>
         Task.FromResult(SupportedLanguages.Default);
 }

@@ -47,6 +47,26 @@ public sealed class CandidateAccountReaderTests : IAsyncLifetime
         Assert.Equal("alice@example.com", summary.Email);
         Assert.Equal("Alice", summary.FirstName);
         Assert.Equal("Smith", summary.LastName);
+        Assert.True(summary.IsActive);
+    }
+
+    [Fact]
+    public async Task Reports_a_frozen_account_as_inactive()
+    {
+        // Arrange
+        await using var db = CreateDb();
+        var hasher = new PasswordHasher<CandidateAccount>();
+        var account = CandidateAccount.Register("bob@example.com", hasher.HashPassword(null!, "pass"), "Bob", "Jones", SupportedLanguages.Default);
+        account.Freeze();
+        db.CandidateAccounts.Add(account);
+        await db.SaveChangesAsync();
+
+        // Act
+        var summary = await new CandidateAccountReader(db).GetByIdAsync(account.Id);
+
+        // Assert
+        Assert.NotNull(summary);
+        Assert.False(summary.IsActive);
     }
 
     [Fact]

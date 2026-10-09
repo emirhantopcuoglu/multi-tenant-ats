@@ -97,6 +97,7 @@ public sealed class SubmitApplicationCvSourceTests
             new StubPublishedJobDirectory(job),
             new StubCandidateAccountReader(new CandidateAccountSummary(
                 accountId, $"{Guid.NewGuid():N}@acme.test", "Test", "Candidate", IsEmailVerified: true,
+                IsActive: true,
                 CvFileKey: accountCvKey,
                 CvFileName: accountCvKey is null ? null : "account-cv.pdf")),
             storage,

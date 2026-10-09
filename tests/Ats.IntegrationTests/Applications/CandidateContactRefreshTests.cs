@@ -96,7 +96,7 @@ public sealed class CandidateContactRefreshTests
             db,
             new StubPublishedJobDirectory(job),
             new StubCandidateAccountReader(new CandidateAccountSummary(
-                accountId, email, "Ada", "Applicant", IsEmailVerified: true,
+                accountId, email, "Ada", "Applicant", IsEmailVerified: true, IsActive: true,
                 CvFileKey: null, CvFileName: null)),
             new RecordingFileStorage(),
             tenant,
