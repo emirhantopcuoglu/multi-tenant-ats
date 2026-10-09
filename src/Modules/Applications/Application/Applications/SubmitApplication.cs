@@ -118,6 +118,11 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
         if (account is null)
             return Result.Failure<Guid>(ApplicationErrors.CandidateAccountNotFound);
 
+        //    A frozen account keeps its session, so the token alone cannot stop it. Checked first:
+        //    reactivating comes before anything else, including verifying the address.
+        if (!account.IsActive)
+            return Result.Failure<Guid>(ApplicationErrors.AccountFrozen);
+
         //    Applying is the one action that waits for a proven email address. Everything a candidate
         //    does before this point only affects their own account; from here on a recruiter reads the
         //    address, writes to it, and schedules time around it. Checked before the CV is uploaded so

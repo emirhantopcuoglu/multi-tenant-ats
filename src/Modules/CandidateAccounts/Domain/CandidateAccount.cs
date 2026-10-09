@@ -75,6 +75,7 @@ public sealed class CandidateAccount
     // Lifecycle state. New accounts are born Active; the timestamps record when the current state
     // was entered and are cleared/kept accordingly by the transition methods below.
     public CandidateAccountStatus Status { get; private set; }
+    public bool IsActive => Status == CandidateAccountStatus.Active;
     public DateTime? FrozenAtUtc { get; private set; }
     public DateTime? DeletedAtUtc { get; private set; }
 
@@ -320,7 +321,7 @@ public sealed class CandidateAccount
     // session that just clicked "freeze" would only force a pointless re-login.
     public void Freeze()
     {
-        if (Status != CandidateAccountStatus.Active)
+        if (!IsActive)
             throw new InvalidOperationException("Only an active account can be frozen.");
 
         Status = CandidateAccountStatus.Frozen;

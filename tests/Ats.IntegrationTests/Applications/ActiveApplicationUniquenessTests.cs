@@ -140,7 +140,7 @@ public sealed class ActiveApplicationUniquenessTests
             handlerDb,
             new StubPublishedJobDirectory(job),
             new StubCandidateAccountReader(new CandidateAccountSummary(
-                accountId, email, "Race", "Loser", IsEmailVerified: true,
+                accountId, email, "Race", "Loser", IsEmailVerified: true, IsActive: true,
                 CvFileKey: null, CvFileName: null)),
             storage,
             tenant,

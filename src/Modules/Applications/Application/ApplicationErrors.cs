@@ -21,6 +21,12 @@ public static class ApplicationErrors
     public static readonly Error CandidateAccountNotFound =
         new("application.candidate_account_not_found", "The candidate account could not be found.");
 
+    // A frozen account is one the candidate has paused, and the promise of pausing is that no company
+    // hears from them until they come back. The message names the way out, like the one below.
+    public static readonly Error AccountFrozen =
+        new("application.account_frozen",
+            "Your account is frozen. Reactivate it before applying.");
+
     // The one gate on an unverified account. Applying is where an unreachable address stops being the
     // candidate's own problem and starts costing a recruiter real time, so this is the action that
     // waits for proof — not signing in, and not filling in a profile.

@@ -6,6 +6,13 @@ namespace Ats.Shared.Contracts.CandidateAccounts;
 //
 // A bool, not the timestamp: the only question outside this module is "may they apply?". When the
 // address was proven stays the CandidateAccounts module's business.
+//
+// IsActive rides along for the same reason, and is also a bool rather than the lifecycle status:
+// outside this module the only question is "may this account act towards a company right now?".
+// It is phrased positively so that any status added later counts as not active until someone
+// decides otherwise — the safe default for a gate. Deleted accounts never reach a caller at all;
+// a query filter hides them, so GetByIdAsync returns null for them.
+//
 // CvFileKey and CvFileName ride along for the same reason as IsEmailVerified: the one caller that
 // needs them (SubmitApplicationHandler) already loads this record, so a dedicated port method would
 // be a second round trip for two more columns of the same row.
@@ -21,6 +28,7 @@ public sealed record CandidateAccountSummary(
     string FirstName,
     string LastName,
     bool IsEmailVerified,
+    bool IsActive,
     string? CvFileKey,
     string? CvFileName);
 

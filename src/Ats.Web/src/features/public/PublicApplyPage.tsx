@@ -163,6 +163,12 @@ export function PublicApplyPage() {
       setBannerError(t('public.apply.unavailable'));
       return;
     }
+    // Reached when the account was frozen in another tab after this page loaded: the session in
+    // memory still says Active, so the block below never rendered and only the server knows.
+    if (code === 'application.account_frozen') {
+      setBannerError(t('public.apply.frozen'));
+      return;
+    }
     setBannerError(t('public.apply.error'));
   };
 
@@ -176,6 +182,31 @@ export function PublicApplyPage() {
             action={
               <Link to={`/${slug}`} className="text-sm font-medium text-accent hover:underline">
                 {t('public.apply.backToJobs')}
+              </Link>
+            }
+          />
+        </Card>
+      </PublicLayout>
+    );
+  }
+
+  // A frozen account cannot apply — the server refuses it with 403 application.account_frozen. This
+  // page sits outside RequireActiveCandidate (it is public, reachable from the marketplace), so the
+  // check has to live here. It comes before the email one for the same reason the server's does:
+  // reactivating is the first thing to fix.
+  if (user.kind === 'candidate' && user.status === 'Frozen') {
+    return (
+      <PublicLayout>
+        <Card className="py-12">
+          <EmptyState
+            title={t('public.apply.frozenTitle')}
+            description={t('public.apply.frozenBody')}
+            action={
+              <Link
+                to="/candidate/reactivate"
+                className="text-sm font-medium text-accent hover:underline"
+              >
+                {t('public.apply.frozenAction')}
               </Link>
             }
           />

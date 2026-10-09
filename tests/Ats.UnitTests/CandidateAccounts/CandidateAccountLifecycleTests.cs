@@ -22,6 +22,7 @@ public sealed class CandidateAccountLifecycleTests
         var account = CreateAccount();
 
         Assert.Equal(CandidateAccountStatus.Active, account.Status);
+        Assert.True(account.IsActive);
         Assert.Null(account.FrozenAtUtc);
         Assert.Null(account.DeletedAtUtc);
     }
@@ -38,6 +39,7 @@ public sealed class CandidateAccountLifecycleTests
 
         // Assert — a frozen account keeps its session (it must reach the reactivation screen)
         Assert.Equal(CandidateAccountStatus.Frozen, account.Status);
+        Assert.False(account.IsActive);
         Assert.NotNull(account.FrozenAtUtc);
         Assert.Equal(stampBefore, account.SecurityStamp);
     }
@@ -63,6 +65,7 @@ public sealed class CandidateAccountLifecycleTests
 
         // Assert
         Assert.Equal(CandidateAccountStatus.Active, account.Status);
+        Assert.True(account.IsActive);
         Assert.Null(account.FrozenAtUtc);
     }
 
@@ -83,6 +86,7 @@ public sealed class CandidateAccountLifecycleTests
 
         // Assert — right to erasure: nothing personally identifying may survive on the row
         Assert.Equal(CandidateAccountStatus.Deleted, account.Status);
+        Assert.False(account.IsActive);
         Assert.NotNull(account.DeletedAtUtc);
         Assert.Equal(CandidateAccount.BuildAnonymizedEmail(account.Id), account.Email);
         Assert.Equal(CandidateAccount.AnonymizedFirstName, account.FirstName);

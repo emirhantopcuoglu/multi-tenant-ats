@@ -24,7 +24,7 @@ public sealed class CandidateAccountReader : ICandidateAccountReader
             ? null
             : new CandidateAccountSummary(
                 account.Id, account.Email, account.FirstName, account.LastName, account.IsEmailVerified,
-                account.CvFileKey, account.CvFileName);
+                account.IsActive, account.CvFileKey, account.CvFileName);
     }
 
     public async Task<string> GetPreferredLanguageByEmailAsync(string email, CancellationToken ct = default)
