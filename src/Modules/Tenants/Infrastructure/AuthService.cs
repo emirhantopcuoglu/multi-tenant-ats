@@ -396,6 +396,8 @@ public sealed class AuthService : IAuthService
         // One query joining the Identity role tables, rather than UserManager.GetRolesAsync per user
         // (which would be N+1). ApplicationUser is not ITenantScoped, so the tenant filter is explicit
         // here rather than coming from the global query filter. One role per user, so one row per user.
+        // Ordered active first, then by name: a deactivated colleague stays visible (so an Admin can
+        // reactivate them) without cluttering the top of the interviewer picker.
         var users = await (
             from user in _db.Users.AsNoTracking()
             where user.TenantId == tenantId
@@ -403,8 +405,6 @@ public sealed class AuthService : IAuthService
             from userRole in userRoles.DefaultIfEmpty()
             join role in _db.Roles on userRole.RoleId equals role.Id into roles
             from role in roles.DefaultIfEmpty()
-            // Active first, then by name: a deactivated colleague stays visible (so an Admin can
-            // reactivate them) without cluttering the top of the interviewer picker.
             orderby user.DeactivatedAtUtc == null descending, user.FirstName, user.LastName
             select new TenantUserDto(
                 user.Id, user.FirstName, user.LastName, user.Email!,
