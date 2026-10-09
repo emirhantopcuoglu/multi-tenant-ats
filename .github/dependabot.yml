@@ -1,0 +1,61 @@
+# Weekly update PRs against develop, so they go through CI and the normal release flow like any
+# other change. Minor and patch bumps are grouped into one PR per ecosystem to keep the noise down;
+# majors arrive one by one because each needs reading.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      nuget-minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # A new major of these is a move to the next .NET version, which is a decision of its own.
+      - dependency-name: "Microsoft.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Npgsql.EntityFrameworkCore.PostgreSQL"
+        update-types: ["version-update:semver-major"]
+      # MassTransit 9 and MediatR 13 moved to commercial licences.
+      - dependency-name: "MassTransit*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "MediatR"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: npm
+    directory: /src/Ats.Web
+    target-branch: develop
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
+
+  - package-ecosystem: docker
+    directories: [/, /src/Ats.Web]
+    target-branch: develop
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
+    ignore:
+      # Same as the Microsoft.* packages above: the image major is the .NET version.
+      - dependency-name: "*dotnet/*"
+        update-types: ["version-update:semver-major"]
