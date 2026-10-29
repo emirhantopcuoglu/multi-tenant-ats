@@ -6,10 +6,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// Writes an in-app notification row when a recruiter schedules an interview, so the candidate
-// hears about it inside the product and not only by (future) email. Same shape as the
-// stage-changed consumer: skip when no candidate account, idempotency guard keyed on the message
-// id against duplicate deliveries.
 public sealed class InterviewScheduledNotificationConsumer
     : IConsumer<InterviewScheduledIntegrationEvent>
 {
@@ -63,9 +59,7 @@ public sealed class InterviewScheduledNotificationConsumer
             message.CandidateAccountId);
     }
 
-    // Static mapping for the same reason as the stage-changed consumer: the payload contract and
-    // the no-account skip are unit-testable without a ConsumeContext. The event type carries no
-    // recruiter notes at all, so the payload cannot leak them by construction.
+    // Static so tests can check the mapping without a ConsumeContext.
     public static Notification? TryBuildNotification(InterviewScheduledIntegrationEvent message)
     {
         if (message.CandidateAccountId is not { } candidateAccountId)

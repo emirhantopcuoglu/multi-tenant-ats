@@ -3,9 +3,7 @@ using Microsoft.EntityFrameworkCore.Design;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// Design-time factory used by `dotnet ef` to build the context outside the running app (which is
-// why it reads the connection string from an env var with a dev fallback, and takes no DI). Like
-// the candidate accounts factory: no tenant filter, so nothing to stub out.
+// Used by dotnet ef at design time.
 public sealed class NotificationsDbContextFactory : IDesignTimeDbContextFactory<NotificationsDbContext>
 {
     public NotificationsDbContext CreateDbContext(string[] args)

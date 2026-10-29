@@ -7,14 +7,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// Writes an in-app notification row for every member of the tenant when a candidate submits a new
-// application. It is the first consumer of the
-// CompanyUser recipient type. Fan-out on write, decided up front: every tenant user should see new
-// applications without a separate "watchers" concept, and rows are cheap compared to the alternative
-// of computing "who should see this" at read time on every poll.
-//
-// The recipient list comes from ITenantDirectory (the Tenants module's cross-module read port) —
-// this module has no view onto ApplicationUser, an Identity entity that lives in the Tenants schema.
+// Writes a row for every member of the tenant when someone applies. Fan-out on write is cheaper
+// than working out recipients on every poll. Members come from ITenantDirectory.
 public sealed class NewApplicationNotificationConsumer : IConsumer<ApplicationSubmittedIntegrationEvent>
 {
     private readonly NotificationsDbContext _db;
@@ -50,8 +44,7 @@ public sealed class NewApplicationNotificationConsumer : IConsumer<ApplicationSu
             return;
         }
 
-        // One guard key for the whole batch: a redelivery must not double every row, so the fan-out
-        // is all-or-nothing, not per-recipient.
+        // One key for the whole batch, so a redelivery can't double every row.
         var key = $"notifications:in-app:new-application:{context.MessageId}";
         var written = await _idempotencyGuard.ProcessOnceAsync(key, async () =>
         {
@@ -72,9 +65,7 @@ public sealed class NewApplicationNotificationConsumer : IConsumer<ApplicationSu
             notifications.Count, message.ApplicationId, message.TenantId);
     }
 
-    // The message-to-rows mapping, kept static and side-effect free (recipient ids passed in rather
-    // than resolved here) so tests can pin the payload contents and the fan-out count without a fake
-    // ITenantDirectory or a ConsumeContext.
+    // Recipient ids are passed in so tests don't need a fake ITenantDirectory.
     public static IReadOnlyList<Notification> BuildNotifications(
         ApplicationSubmittedIntegrationEvent message, IReadOnlyCollection<Guid> tenantUserIds)
     {

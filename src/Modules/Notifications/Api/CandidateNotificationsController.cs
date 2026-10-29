@@ -8,9 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ats.Modules.Notifications.Api;
 
-// The candidate's notification feed: what powers the bell icon. The CandidateOnly policy ensures
-// this is only reachable with a candidate JWT, and the recipient is always the token's subject —
-// the client never names whose notifications it wants, so ownership cannot be forged at the API.
+// The recipient is always the token's subject; the client never says whose feed it wants.
 [ApiController]
 [Authorize(Policy = Policies.CandidateOnly)]
 [Route("api/v{version:apiVersion}/candidate/notifications")]
@@ -29,7 +27,6 @@ public sealed class CandidateNotificationsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        // CandidateOnly guarantees the token is present and carries the sub claim.
         var candidateAccountId = _currentUser.UserId!.Value;
 
         var result = await _sender.Send(new ListNotificationsQuery(
@@ -38,8 +35,7 @@ public sealed class CandidateNotificationsController : ControllerBase
         return Ok(result.Value);
     }
 
-    // The badge number. A dedicated endpoint because the client polls it much more often than it
-    // opens the feed, and it must stay a bare COUNT.
+    // Separate endpoint because the client polls it often; it stays a plain COUNT.
     [HttpGet("unread-count")]
     public async Task<IActionResult> GetUnreadCount()
     {
@@ -51,8 +47,7 @@ public sealed class CandidateNotificationsController : ControllerBase
         return Ok(result.Value);
     }
 
-    // A notification that exists but is addressed to someone else is a 404, never a 403 — the
-    // handler folds ownership into the lookup, so ids cannot be probed for existence.
+    // Someone else's notification is a 404, so ids can't be probed.
     [HttpPost("{id:guid}/read")]
     public async Task<IActionResult> MarkRead(Guid id)
     {
