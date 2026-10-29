@@ -13,12 +13,8 @@ import { usePublicJob, usePublicJobs } from './usePublicJobs';
 
 const OTHER_JOBS_LIMIT = 3;
 
-/* Public job detail at /{slug}/jobs/{jobSlug}: full markdown description, salary, posting date, a
-   company card linking to the careers page, and up to three other open roles from the same company.
-   A signed-in candidate who already has an active application sees an "applied" state instead of
-   the Apply CTA. An unknown or unpublished job resolves to a 404 state (the backend returns 404,
-   never a stub). The company profile and sibling-jobs queries only enrich the page — if either is
-   still loading or failed, their sections are simply absent; the job itself decides 404. */
+/* Only the job decides the 404 state; the company and other-roles sections just disappear if they
+   fail. */
 export function PublicJobDetailPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -142,9 +138,7 @@ export function PublicJobDetailPage() {
   );
 }
 
-/* The "who is hiring" card: initials avatar (no logo upload yet), name and location, the public
-   description, and a link back to the careers page. Everything but the name is optional — the card
-   collapses gracefully when the company never filled its profile in. */
+/* Everything except the name is optional. */
 function CompanyCard({ slug, company }: { slug: string; company: PublicCompanyProfile }) {
   const { t } = useTranslation();
 
@@ -189,8 +183,7 @@ function CompanyCard({ slug, company }: { slug: string; company: PublicCompanyPr
   );
 }
 
-/* One sibling role, rendered with the same shape as the careers-page cards so the two lists read
-   as the same thing. */
+/* Same shape as the careers page cards. */
 function OtherJobRow({ slug, job }: { slug: string; job: Job }) {
   const { t } = useTranslation();
 
@@ -214,9 +207,7 @@ function OtherJobRow({ slug, job }: { slug: string; job: Job }) {
   );
 }
 
-/* Render a salary range as a localized currency string, or null when no salary was set. Wrapped in a
-   try/catch because Intl throws on an unrecognized currency code; we fall back to a plain rendering
-   rather than crash the page on bad data. */
+/* Intl throws on an unknown currency code, so fall back to plain text. */
 function formatSalaryRange(
   min: number | null,
   max: number | null,

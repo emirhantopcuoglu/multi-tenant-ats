@@ -1,8 +1,6 @@
 import { apiClient, API_V1 } from '@/lib/apiClient';
 
-/* /candidate/account — the account itself as a resource, distinct from /candidate/profile which
-   edits what the account says about its owner. Freeze/reactivate are plain state flips; delete is
-   permanent, so the backend demands the current password with it. */
+/* Deleting needs the current password. */
 
 const CANDIDATE_ACCOUNT_BASE = `${API_V1}/candidate/account`;
 
@@ -21,6 +19,6 @@ export interface DeleteCandidateAccountRequest {
 export async function deleteCandidateAccount(
   request: DeleteCandidateAccountRequest,
 ): Promise<void> {
-  /* axios puts a DELETE body under `data` — there is no positional body argument like post(). */
+  /* axios puts a DELETE body under `data`. */
   await apiClient.delete(CANDIDATE_ACCOUNT_BASE, { data: request });
 }

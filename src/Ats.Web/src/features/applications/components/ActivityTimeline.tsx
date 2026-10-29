@@ -12,33 +12,27 @@ import type { ApplicationActivityType } from '@/types/enums';
 
 interface ActivityTimelineProps {
   activities: ApplicationActivity[];
-  /** Used to resolve the stage ids in a StageChanged payload to readable names. */
+  /* Resolves stage ids in StageChanged payloads to names. */
   stages: PipelineStage[];
 }
 
-/* Tones mirror the candidate tracking page (trackingSteps.ts) so both sides of the pipeline
-   speak the same visual language. */
+/* Same tones as the candidate tracking page (trackingSteps.ts). */
 const displayByType: Record<ApplicationActivityType, { icon: IconTimelineIcon; tone: IconTimelineTone }> = {
   Submitted: { icon: 'submitted', tone: 'success' },
   Viewed: { icon: 'viewed', tone: 'accent' },
   StageChanged: { icon: 'movedTo', tone: 'accent' },
-  // Same arrow icon as an ordinary move, but a warning tone — a correction is a fix, not progress.
+  // Warning tone: a correction is a fix, not progress.
   StageCorrected: { icon: 'movedTo', tone: 'warning' },
   Rejected: { icon: 'rejected', tone: 'danger' },
   Hired: { icon: 'hired', tone: 'success' },
-  // Neutral, not danger: nobody at the company did anything wrong, the candidate simply left.
+  // Neutral: the candidate left; nobody did anything wrong.
   Withdrawn: { icon: 'withdrawn', tone: 'neutral' },
 };
 
-/* An activity type the frontend doesn't know yet must never masquerade as a known event (a
-   missing 'Viewed' branch once rendered view receipts as "Application submitted"), so it falls
-   back to the raw type name in a neutral tone. */
+/* Unknown types show the raw name instead of passing for a known event. */
 const unknownDisplay = { icon: 'upcoming' as IconTimelineIcon, tone: 'neutral' as IconTimelineTone };
 
-/* Renders the append-only application history in story order (oldest first), matching the
-   candidate tracking page. The actor's display name isn't available yet (the activity carries
-   only actorUserId and there's no user-lookup endpoint), so entries show the action and
-   timestamp. */
+/* Oldest first, like the candidate page. No actor names: there's no user-lookup endpoint. */
 export function ActivityTimeline({ activities, stages }: ActivityTimelineProps) {
   const { t, i18n } = useTranslation();
   const formatter = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });

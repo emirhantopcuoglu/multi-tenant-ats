@@ -7,16 +7,12 @@ import type { PipelineStage } from '@/types/application';
 interface CorrectStageDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Every non-terminal stage except the one the application is currently in. */
   stageOptions: PipelineStage[];
   onConfirm: (targetStageId: string, reason: string) => void;
   submitting: boolean;
 }
 
-/* The escape hatch for a wrong move-stage: unlike RejectDialog's single reason field, this also
-   needs a target stage picker, since a correction can go in any direction. Both fields are
-   required — a stage pick with no reason would leave the audit trail unable to explain why an
-   application moved backward. */
+/* Both fields are required, so the history can explain why an application moved backward. */
 export function CorrectStageDialog({
   open,
   onOpenChange,
@@ -30,10 +26,7 @@ export function CorrectStageDialog({
   const [stageError, setStageError] = useState(false);
   const [reasonError, setReasonError] = useState(false);
 
-  // Reset when the dialog opens, so a previous draft never lingers. Adjusted during render rather
-  // than in an effect: React discards the in-progress output and re-renders before committing, so
-  // the cleared form is what reaches the DOM. An effect would paint the stale draft first and clear
-  // it afterwards, which is the cascading render the linter flags.
+  // Reset when the dialog opens. Done during render, not in an effect, so the old draft is never painted.
   const [prevOpen, setPrevOpen] = useState(open);
   if (prevOpen !== open) {
     setPrevOpen(open);

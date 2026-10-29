@@ -3,19 +3,12 @@ import { useTranslation } from 'react-i18next';
 import type { InterviewStatus } from '@/types/enums';
 
 interface InterviewRoomLinkProps {
-  /** Null for a phone screen, which has no room. */
   roomToken: string | null;
   status: InterviewStatus;
 }
 
-/* How a candidate reaches (or is told they cannot reach) an interview's room. Extracted because the
-   same interview appears on two of their screens — the "My interviews" list and the card on the
-   application they applied through — and those two had drifted: one offered the link, the other
-   showed nothing at all. One component is what stops them drifting again.
-
-   Three outcomes, and the middle one is easy to miss: a settled interview keeps the label but loses
-   the link, so the room's absence reads as "this is over" rather than as a page that forgot to
-   render something. */
+/* Shared by "My interviews" and the application card so they show the same thing. A settled
+   interview keeps the label but loses the link. */
 export function InterviewRoomLink({ roomToken, status }: InterviewRoomLinkProps) {
   const { t } = useTranslation();
 

@@ -2,13 +2,11 @@ import { Fragment, type ReactNode } from 'react';
 
 export interface BreadcrumbItem {
   label: ReactNode;
-  /** Omit href on the last (current) item; it renders as plain, non-link text. */
+  /* Leave href off the current item. */
   href?: string;
 }
 
-/* Breadcrumb trail. Uses a nav + ordered list for semantics; the current page is marked with
-   aria-current and rendered without a link. Navigation is handled by the consumer's onNavigate
-   (the router lands in Step 2.1, so we don't hard-wire <a> behaviour here). */
+/* The consumer handles navigation through onNavigate. */
 export function Breadcrumb({
   items,
   onNavigate,

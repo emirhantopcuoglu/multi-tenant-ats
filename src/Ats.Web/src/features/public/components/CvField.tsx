@@ -10,11 +10,7 @@ interface CvDropZoneProps {
   disabled?: boolean;
 }
 
-/* Click-to-browse or drag-and-drop, reporting the chosen file upward and nothing else. Validation
-   (type/size) lives with the caller so the same rule covers a dropped and a browsed file alike, and
-   so the two callers — the apply form, which holds the file until submit, and the profile card,
-   which uploads it immediately — can each do what they need with it. The hidden native input keeps
-   the control fully keyboard- and screen-reader-accessible. */
+/* Only reports the chosen file; callers validate it. The hidden native input keeps it accessible. */
 export function CvDropZone({ onSelect, error, disabled }: CvDropZoneProps) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -79,10 +75,7 @@ interface ApplyCvFieldProps {
   error?: string;
 }
 
-/* The apply form's CV field. With a CV saved to the account there are two ways to answer, so the
-   choice is explicit — an upload control that silently ignores the saved file, or a saved file with
-   no way past it, would each be wrong half the time. With nothing saved there is only one way, and
-   no radio group is drawn for a choice that does not exist. */
+/* With a saved CV, the choice between it and a new file is explicit. Without one, no radio group. */
 export function ApplyCvField({
   savedCv,
   useSavedCv,
@@ -161,8 +154,6 @@ export function ApplyCvField({
   );
 }
 
-/* Human-readable size: KB under a megabyte, MB above, one decimal so a 9.4 MB file reads clearly
-   against the 10 MB ceiling. */
 function formatFileSize(bytes: number): string {
   const kb = bytes / 1024;
   if (kb < 1024) return `${Math.round(kb)} KB`;

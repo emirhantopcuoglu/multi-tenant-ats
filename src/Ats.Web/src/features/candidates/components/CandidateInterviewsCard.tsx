@@ -13,9 +13,7 @@ function CalendarIcon() {
   );
 }
 
-/* Every interview scheduled against the application, most recent first — the candidate's own
-   transparent view of what's ahead (or already happened). Shown above the tracking timeline so it
-   is the first thing a candidate with an upcoming interview sees. */
+/* Most recent first, shown above the timeline. */
 export function CandidateInterviewsCard({ interviews }: { interviews: CandidateInterview[] }) {
   const { t, i18n } = useTranslation();
   const dateFormatter = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'long', timeStyle: 'short' });

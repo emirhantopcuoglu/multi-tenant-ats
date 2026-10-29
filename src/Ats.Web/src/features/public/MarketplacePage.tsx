@@ -7,12 +7,9 @@ import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, WORK_ARRANGEMENTS } from '@/types/
 import { PublicLayout } from './components/PublicLayout';
 import { useMarketplaceJobs, useMarketplaceTotals } from './useMarketplaceJobs';
 
-/* Cross-tenant public job marketplace. Sits at / so it is the first page any visitor sees.
-   Search, filters and page all live in URL query params (?q=&type=&level=&loc=&page=) so results
-   are shareable and survive a browser refresh. */
+/* Search, filters and page live in the URL so results can be shared. */
 
-/* A raw URL value that is not a known enum member renders the select blank AND would be ignored
-   by the backend anyway, so it is normalized to "no filter" before it reaches either. */
+/* Unknown enum values from the URL become "no filter". */
 function sanitizeChoice(raw: string | null, allowed: readonly string[]): string {
   return raw !== null && allowed.includes(raw) ? raw : '';
 }
@@ -22,7 +19,6 @@ export function MarketplacePage() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Derived values before any hooks — no hooks violation risk here (these are plain assignments).
   const search = searchParams.get('q') ?? '';
   const employmentType = sanitizeChoice(searchParams.get('type'), EMPLOYMENT_TYPES);
   const experienceLevel = sanitizeChoice(searchParams.get('level'), EXPERIENCE_LEVELS);
@@ -31,7 +27,6 @@ export function MarketplacePage() {
   const page = Math.max(1, Number(searchParams.get('page') ?? '1'));
   const hasFilters = Boolean(employmentType || experienceLevel || workArrangement || location);
 
-  // All hooks must be called unconditionally, before any early return.
   const searchInputRef = useRef<HTMLInputElement>(null);
   const locationInputRef = useRef<HTMLInputElement>(null);
   const jobsQuery = useMarketplaceJobs(page, {
@@ -43,8 +38,7 @@ export function MarketplacePage() {
   });
   const totalsQuery = useMarketplaceTotals();
 
-  // Company users have their own dashboard. This return sits after all hooks so React always
-  // calls the same set of hooks regardless of the user kind (Rules of Hooks).
+  // After all hooks, so the hook order doesn't change.
   if (user?.kind === 'company') {
     return <Navigate to="/dashboard" replace />;
   }
@@ -54,9 +48,7 @@ export function MarketplacePage() {
   const totals = totalsQuery.data;
   const dateFormat = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium' });
 
-  /* Every filter mutation goes through here so they all share one rule: changing what you are
-     looking for always jumps back to page 1 — page 3 of the old result set is meaningless in the
-     new one. */
+  /* Every filter change goes back to page 1. */
   function updateParams(mutate: (next: URLSearchParams) => void) {
     setSearchParams(
       (prev) => {
@@ -111,7 +103,6 @@ export function MarketplacePage() {
   return (
     <PublicLayout wide>
       <div className="space-y-12">
-        {/* Hero */}
         <div className="space-y-6 pt-4 text-center">
           <div className="mx-auto max-w-2xl space-y-3">
             <h1 className="text-4xl font-bold tracking-tight">{t('public.marketplace.title')}</h1>
@@ -135,9 +126,7 @@ export function MarketplacePage() {
             </button>
           </form>
 
-          {/* Stats strip: global marketplace totals, deliberately independent of the active
-              filters (the result count next to the list reflects those). Hidden until loaded —
-              a "0 open positions" flash would read as an empty marketplace. */}
+          {/* Totals ignore the active filters. Hidden until loaded so "0 open positions" never flashes. */}
           {totals && (
             <div className="flex items-center justify-center gap-6 text-sm text-text-muted">
               <span>
@@ -153,8 +142,7 @@ export function MarketplacePage() {
           )}
         </div>
 
-        {/* Entry cards: only anonymous visitors need to pick a door. A signed-in candidate is
-            already through it, and company users never reach this page (redirected above). */}
+        {/* Anonymous visitors only. */}
         {!user && (
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-3 rounded-xl border border-accent/40 bg-card p-5 text-center">
@@ -197,7 +185,6 @@ export function MarketplacePage() {
           </div>
         )}
 
-        {/* Jobs */}
         <div className="space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -211,9 +198,7 @@ export function MarketplacePage() {
               )}
             </div>
 
-            {/* Filter bar. The selects apply instantly (a dropdown pick is already a deliberate
-                choice); the free-text location applies on submit like the search box, so typing
-                does not fire a request per keystroke. */}
+            {/* Selects apply instantly; location applies on submit. */}
             <form onSubmit={handleLocationSubmit} className="flex flex-wrap items-center gap-2">
               <Select
                 aria-label={t('public.marketplace.filterType')}
@@ -346,9 +331,7 @@ export function MarketplacePage() {
           )}
         </div>
 
-        {/* For-companies pitch: the employer-side counterpart of the entry cards, placed after
-            the jobs so the candidate flow (the page's primary audience) stays first. Anonymous
-            visitors only — a signed-in candidate is not the target of this pitch. */}
+        {/* Anonymous visitors only, after the jobs. */}
         {!user && (
           <div className="space-y-6 rounded-2xl border border-border bg-card p-8 text-center">
             <div className="mx-auto max-w-2xl space-y-2">

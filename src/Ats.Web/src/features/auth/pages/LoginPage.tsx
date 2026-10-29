@@ -22,10 +22,9 @@ export function LoginPage() {
   const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
   const resend = useMutation({ mutationFn: (email: string) => resendEmailConfirmation(email) });
 
-  // Where to return after login: the page the guard bounced us from, or the dashboard.
   const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/';
 
-  // Schema built with t() so validation messages are localized; memoized per language.
+  // Built with t() so messages are translated.
   const schema = useMemo(
     () =>
       z.object({
@@ -49,9 +48,7 @@ export function LoginPage() {
     } catch (error) {
       const apiError = toApiError(error);
       setFormError(authErrorMessage(apiError, t));
-      /* The one login failure the user can act on from this screen. Their password was correct — the
-         server only reaches this error after verifying it — so remembering the address to offer a
-         resend reveals nothing they have not already proved they know. */
+      /* Only returned after the password is verified, so offering a resend reveals nothing. */
       if (apiError.code === EMAIL_NOT_CONFIRMED_CODE) setUnconfirmedEmail(values.email);
     }
   });

@@ -5,9 +5,8 @@ import type { ApplicationListItem } from '@/types/application';
 
 interface ApplicationsTableProps {
   applications: ApplicationListItem[];
-  /** Resolves a job id to its title (the list DTO carries only the id). */
+  /* The list DTO only has the job id. */
   jobTitleOf: (jobId: string) => string;
-  /** Opens the application's detail page. */
   onSelect: (id: string) => void;
 }
 

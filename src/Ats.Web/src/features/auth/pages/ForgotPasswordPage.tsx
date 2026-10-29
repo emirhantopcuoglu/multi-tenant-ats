@@ -8,9 +8,7 @@ import { Button, Field, Input } from '@/components/ui';
 import { AuthLayout } from '../components/AuthLayout';
 import { requestPasswordReset } from '../passwordResetApi';
 
-/* Company-side step one of recovery. Same anti-enumeration copy as the candidate page: the
-   confirmation says "if an account exists" and is shown for every submitted address, because the
-   backend answers identically either way and a friendlier message here would leak who works where. */
+/* Same "if an account exists" wording for every address, so it can't reveal who has an account. */
 export function ForgotPasswordPage() {
   const { t } = useTranslation();
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -33,8 +31,7 @@ export function ForgotPasswordPage() {
       await requestPasswordReset(values.email);
       setIsSubmitted(true);
     } catch {
-      // Only transport or rate-limit failures reach here — the endpoint reports success for unknown
-      // addresses — so this is "try again", not "no such account".
+      // Only network or rate-limit errors get here.
       setFormError(t('auth.forgotPassword.failed'));
     }
   });

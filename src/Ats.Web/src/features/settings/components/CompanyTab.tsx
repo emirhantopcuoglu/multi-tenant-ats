@@ -10,15 +10,12 @@ import { isAbsoluteHttpUrl } from '@/lib/validation';
 import type { CompanyProfile } from '../companyProfileApi';
 import { useCompanyProfile, useUpdateCompanyProfile } from '../useCompanyProfile';
 
-/* Mirrors of Tenant.*MaxLength on the backend — keep in sync when either changes. */
+/* Mirror Tenant.*MaxLength on the backend. */
 const DESCRIPTION_MAX_LENGTH = 2000;
 const WEBSITE_MAX_LENGTH = 300;
 const LOCATION_MAX_LENGTH = 200;
 
-/* Company tab. Name and slug stay read-only (set at registration, no update path); the public
-   profile fields — description, website, location — are editable and feed the careers page header.
-   The data comes from /tenant/profile rather than the auth context: the form needs the current
-   saved values, not the login-time snapshot. */
+/* Loads /tenant/profile rather than the auth context, which is a login-time snapshot. */
 export function CompanyTab() {
   const { t } = useTranslation();
   const profileQuery = useCompanyProfile();
@@ -44,8 +41,7 @@ export function CompanyTab() {
   return <CompanyProfileForm profile={profileQuery.data} />;
 }
 
-/* Split so the form mounts only once the profile is loaded — react-hook-form reads defaultValues
-   on mount, and feeding it late data would need an effect-driven reset instead. */
+/* The form mounts only after the profile loads, because react-hook-form reads defaultValues once. */
 function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -82,7 +78,7 @@ function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
   });
 
   const onSubmit = handleSubmit((form) => {
-    // The API models "cleared" as null, the form as '' — translate at the boundary.
+    // The API uses null for cleared, the form uses ''.
     update.mutate(
       {
         description: form.description || null,

@@ -1,20 +1,13 @@
-/* Pure formatting logic for the masked phone input, kept apart from the component so it can be
-   exercised without a DOM. No masking library: the whole need is "fill digits into a template",
-   which is a handful of small functions — a dependency would cost more than it saves.
+/* Display formatting only; the backend strips formatting and checks the digit count. Pure, so it
+   can be tested without a DOM. */
 
-   The composed value stays a plain string like "+90 (532) 123 45 67". The backend already strips
-   formatting characters and enforces E.164's 7-15 digits (CandidateAccount.UpdateProfile), so this
-   file is presentation only — nothing server-side changes shape. */
-
-/* One entry per supported residence country (types/location.ts). The dial list is deliberately its
-   own concept though: where a candidate lives and which country issued their phone number are
-   independent facts. '#' marks a digit slot; everything else in a template is literal. */
+/* Dial countries are separate from residence: where someone lives and their phone's country can
+   differ. '#' marks a digit slot. */
 export interface PhoneCountry {
-  /** ISO 3166-1 alpha-2, used as the select value and React key. */
+  /* ISO 3166-1 alpha-2. */
   iso: string;
-  /** International dial code without '+'. */
+  /* Without '+'. */
   dialCode: string;
-  /** National-number template; '#' is a digit slot. */
   template: string;
 }
 
@@ -34,9 +27,8 @@ export function digitCapacity(template: string): number {
   return [...template].filter((char) => char === '#').length;
 }
 
-/* "5321234567" + "(###) ### ## ##" → "(532) 123 45 67"; a partial "532" → "(532".
-   Literals are emitted only while digits remain, so the visible value never ends in dangling
-   punctuation the user has to delete. O(n) over the template. */
+/* "5321234567" + "(###) ### ## ##" → "(532) 123 45 67"; "532" → "(532". Literals stop when the
+   digits run out, so there's no trailing punctuation. */
 export function formatNationalDigits(digits: string, template: string): string {
   let result = '';
   let digitIndex = 0;
@@ -54,7 +46,6 @@ export function formatNationalDigits(digits: string, template: string): string {
   return result;
 }
 
-/* The placeholder is the template itself with the slots visible: "(xxx) xxx xx xx". */
 export function placeholderFor(template: string): string {
   return template.replaceAll('#', 'x');
 }
@@ -69,10 +60,8 @@ export interface ParsedPhone {
   nationalDigits: string;
 }
 
-/* Best-effort split of a stored value ("+905321234567" or a previously composed string) back into
-   dial country + national digits. Longest dial code wins so "+90..." is Turkey, not a hypothetical
-   "+9". Values without a recognisable dial code (legacy free-text entries) fall back to the default
-   country, dropping one leading trunk zero ("0532..." is how Turkish numbers are typed locally). */
+/* Splits a stored value back into dial country and digits. Longest dial code wins. Values without a
+   known code fall back to the default country, dropping a leading trunk zero. */
 export function parsePhoneValue(value: string): ParsedPhone {
   const digits = value.replace(/\D/g, '');
   if (digits.length === 0) return { country: DEFAULT_PHONE_COUNTRY, nationalDigits: '' };
@@ -94,9 +83,7 @@ export function parsePhoneValue(value: string): ParsedPhone {
   };
 }
 
-/* Where the caret belongs after reformatting: the index just past the Nth digit of the formatted
-   string. Restoring by digit count (not raw index) is what keeps the caret in place when
-   formatting inserts or removes punctuation around it. */
+/* Index just past the Nth digit, so the caret stays put when punctuation changes. */
 export function caretIndexAfterDigit(formatted: string, digitCount: number): number {
   if (digitCount <= 0) return 0;
 

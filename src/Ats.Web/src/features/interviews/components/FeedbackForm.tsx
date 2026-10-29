@@ -12,10 +12,8 @@ interface FeedbackFormProps {
 
 const MIN_RATING = 1;
 
-/* Feedback form for an assigned interviewer. The parent only renders this once it has decided the user
-   is eligible (assigned + not cancelled), but the backend is still the source of truth, so we map its
-   error codes: a 409 "duplicate" flips us to the submitted state, while "not eligible"/403 surface as
-   an inline message. */
+/* The parent decides eligibility, but the backend has the final say: a 409 duplicate shows the
+   submitted state, "not eligible" or 403 shows a message. */
 export function FeedbackForm({ interviewId }: FeedbackFormProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -51,7 +49,6 @@ export function FeedbackForm({ interviewId }: FeedbackFormProps) {
         },
         onError: (error) => {
           const { code } = toApiError(error);
-          // A duplicate means feedback already exists for this user — treat it as done, not a failure.
           if (code === 'interview.duplicate_feedback') {
             setSubmitted(true);
             return;

@@ -6,7 +6,6 @@ import { JobRowActions, type JobAction } from './JobRowActions';
 
 interface JobsTableProps {
   jobs: Job[];
-  /** Whether the current role may run lifecycle actions (adds the actions column). */
   canManage: boolean;
   onAction: (job: Job, action: JobAction) => void;
 }
@@ -68,7 +67,7 @@ export function JobsTable({ jobs, canManage, onAction }: JobsTableProps) {
   );
 }
 
-/* Loading skeleton with the same column count, so the table doesn't reflow when real rows arrive. */
+/* Same column count, so the table doesn't reflow. */
 export function JobsTableSkeleton({ canManage }: { canManage: boolean }) {
   const columnCount = canManage ? 9 : 8;
 

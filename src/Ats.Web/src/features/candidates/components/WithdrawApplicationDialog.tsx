@@ -10,13 +10,7 @@ interface WithdrawApplicationDialogProps {
   companyName: string;
 }
 
-/* Withdrawal is irreversible — Application.Withdraw() is a terminal transition with no way back — so
-   the dialog names the job and company rather than asking "are you sure?" about an unnamed thing. It
-   also says the one consequence that is not obvious: the application closes for good, but re-applying
-   later stays allowed (the backend's duplicate rule only blocks a second *active* application).
-
-   No typed-phrase confirmation, unlike account deletion: nothing is destroyed and the candidate can
-   apply again, so a plain click is proportionate. */
+/* Names the job and says that re-applying stays allowed. A plain click is enough: nothing is destroyed. */
 export function WithdrawApplicationDialog({
   open,
   onOpenChange,

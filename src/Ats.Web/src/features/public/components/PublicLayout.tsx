@@ -7,13 +7,7 @@ import { useAuth } from '@/app/auth/auth-context';
 import { CandidateNotificationBell } from '@/features/notifications/components/CandidateNotificationBell';
 import { cn } from '@/lib/cn';
 
-/* Chrome for anonymous careers and marketplace pages: a slim branded header with theme + language
-   toggles, a candidate auth CTA (sign in / register when anonymous, name + sign out when a
-   candidate is active), a centered content column, and a shared footer.
-
-   `wide` widens the content column for landing-style pages (the marketplace homepage); the
-   narrower default stays right for reading-focused pages like a job description. The header and
-   footer follow the same width so the page edges stay aligned. */
+/* `wide` is for landing pages like the marketplace; reading pages keep the narrow column. */
 export function PublicLayout({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   const { t } = useTranslation();
   const { user, logout } = useAuth();

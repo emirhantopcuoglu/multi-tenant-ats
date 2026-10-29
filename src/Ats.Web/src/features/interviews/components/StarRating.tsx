@@ -3,7 +3,7 @@ import { cn } from '@/lib/cn';
 
 interface StarRatingProps {
   value: number;
-  /** Omitted together with readOnly, when the rating is being displayed rather than picked. */
+  /* Omitted with readOnly. */
   onChange?: (value: number) => void;
   ariaLabel: string;
   describedById?: string;
@@ -29,10 +29,7 @@ function StarIcon({ filled }: { filled: boolean }) {
   );
 }
 
-/* 1–5 star picker as a labelled button group. Each star is a button with its own aria-label ("3
-   stars"), so screen-reader users can pick a value directly; the filled state cascades up to the
-   selected rating for a clear visual. Kept as buttons rather than a custom radiogroup — the set is
-   tiny and each button is independently labelled, so the extra arrow-key wiring buys little here. */
+/* Buttons with their own aria-label ("3 stars"); a radiogroup's arrow keys aren't worth it for five. */
 export function StarRating({
   value,
   onChange,
@@ -44,8 +41,7 @@ export function StarRating({
   const { t } = useTranslation();
   const stars = Array.from({ length: max }, (_, index) => index + 1);
 
-  // Displaying a submitted rating is a single readable value, not five controls: one img-role
-  // element with the score in its label beats five disabled buttons a screen reader has to walk.
+  // Read-only: one labelled img instead of five disabled buttons.
   if (readOnly) {
     return (
       <div

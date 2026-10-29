@@ -19,10 +19,7 @@ function KebabIcon() {
   );
 }
 
-/* The per-row action menu. Items are derived from the job's status so only valid lifecycle
-   transitions are offered (publish: Draft only; close: Published only; archive/edit: anything but
-   Archived) — matching the domain rules in Job.cs. An archived job exposes no actions, so the menu
-   isn't rendered at all. */
+/* Only valid transitions are offered, matching Job.cs. Archived jobs get no menu. */
 export function JobRowActions({ job, onAction }: JobRowActionsProps) {
   const { t } = useTranslation();
 

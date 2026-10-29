@@ -1,8 +1,5 @@
-/* Enum unions mirrored 1:1 from the backend (verified against the *Enums.cs files).
-   The API serializes enums as their string name (JsonStringEnumConverter), so these are string
-   unions, not numbers. Each is declared as a `const` array first and the union is derived from it,
-   so we get a single source of truth that doubles as a runtime list (for selects, filters, and
-   i18n label maps) and a compile-time type. */
+/* Mirrors the backend enums, which are serialized as names. Each is a const array plus a derived
+   union, so it works both as a runtime list and as a type. */
 
 export const JOB_STATUSES = ['Draft', 'Published', 'Closed', 'Archived'] as const;
 export type JobStatus = (typeof JOB_STATUSES)[number];
@@ -16,9 +13,7 @@ export type ExperienceLevel = (typeof EXPERIENCE_LEVELS)[number];
 export const APPLICATION_STATUSES = ['Active', 'Withdrawn', 'Rejected', 'Hired'] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
-/* Mirrors the backend's Jobs.Domain.SupportedCurrencies constant list (not a real backend enum
-   -- kept as plain strings there so existing rows with any legacy value can still be read). This
-   is the frontend-only source of truth that constrains the salary currency dropdown. */
+/* Mirrors SupportedCurrencies (strings on the backend too). */
 export const CURRENCIES = ['TRY', 'USD', 'EUR', 'GBP'] as const;
 export type Currency = (typeof CURRENCIES)[number];
 
@@ -38,8 +33,7 @@ export type InterviewType = (typeof INTERVIEW_TYPES)[number];
 export const INTERVIEW_STATUSES = ['Scheduled', 'Completed', 'Cancelled', 'NoShow'] as const;
 export type InterviewStatus = (typeof INTERVIEW_STATUSES)[number];
 
-/* The durations a recruiter may pick, in minutes. Mirrors Interview.AllowedDurationMinutes on the
-   backend — the schedule/reschedule forms offer exactly these and the API rejects anything else. */
+/* Mirrors Interview.AllowedDurationMinutes. */
 export const INTERVIEW_DURATION_OPTIONS = [10, 15, 20, 30, 45, 60] as const;
 export const DEFAULT_INTERVIEW_DURATION = 30;
 
@@ -49,6 +43,6 @@ export type FeedbackRecommendation = (typeof FEEDBACK_RECOMMENDATIONS)[number];
 export const ROLES = ['Admin', 'Recruiter', 'HiringManager', 'ReadOnly'] as const;
 export type Role = (typeof ROLES)[number];
 
-/* Qualitative on purpose (mirrors CvJobFitRating on the backend) -- never a numeric score. */
+/* Qualitative, never a numeric score. */
 export const CV_JOB_FIT_RATINGS = ['Weak', 'Moderate', 'Strong'] as const;
 export type CvJobFitRating = (typeof CV_JOB_FIT_RATINGS)[number];

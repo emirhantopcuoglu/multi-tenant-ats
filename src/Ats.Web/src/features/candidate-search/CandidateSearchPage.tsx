@@ -18,12 +18,7 @@ function SearchIcon() {
   );
 }
 
-/* The recruiter candidate search at /candidates, over the whole tenant's candidate pool rather than
-   one job's applicants. The backend has been complete for a while — a stored tsvector
-   column with a GIN index, websearch_to_tsquery, rank ordering — behind a placeholder screen.
-
-   Term and page live in the URL, matching ApplicationsPage, so a search is shareable and the back
-   button steps through it. */
+/* Searches the tenant's whole candidate pool. Term and page live in the URL. */
 export function CandidateSearchPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -44,8 +39,7 @@ export function CandidateSearchPage() {
     );
   };
 
-  // The input is local and the URL trails it by the debounce, so typing does not spend a request per
-  // keystroke. Page is dropped on a new term: page 3 of the previous search means nothing for this one.
+  // The URL follows the input after the debounce. A new term resets the page.
   const [searchInput, setSearchInput] = useState(term);
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -58,15 +52,12 @@ export function CandidateSearchPage() {
       });
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(handle);
-    // Re-run when the user types or the URL settles.
   }, [searchInput, term]);
 
   const query = useCandidateSearch(term, page, PAGE_SIZE);
   const candidates = query.data?.items ?? [];
 
-  /* There is no candidate detail endpoint, so a row leads to the one place that answers "who is this
-     person to us": their applications. The email is the precise handle — the applications filter
-     matches name or email, and two people can share a name. */
+  /* No candidate detail endpoint, so a row opens their applications, filtered by email (names can repeat). */
   const openApplications = (candidate: CandidateSearchResult) =>
     navigate(`/applications?q=${encodeURIComponent(candidate.email)}`);
 
@@ -87,10 +78,7 @@ export function CandidateSearchPage() {
         />
       </div>
 
-      {/* An empty box is a distinct state from a search with no hits — the API requires a term, so
-          nothing has been asked yet. Saying which fields are searchable belongs here: the tsvector
-          covers name and email only, and a recruiter typing a phone number deserves to know why it
-          found nothing. */}
+      {/* An empty box is its own state: the API needs a term. Only name and email are searchable, so say so. */}
       {term.length === 0 ? (
         <Card>
           <EmptyState

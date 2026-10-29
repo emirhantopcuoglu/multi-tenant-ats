@@ -27,15 +27,11 @@ import {
 import { InviteUserModal } from './InviteUserModal';
 import { UserRowActions, type UserAction } from './UserRowActions';
 
-/* Server-side rules that deserve their own message rather than the generic failure. Both are refusals
-   the row cannot predict — the last-admin count is not in the client's hands — so they arrive as an
-   error and are translated here. */
+/* Refusals the client can't predict, shown with their own message. */
 const LAST_ADMIN_CODE = 'user_management.last_admin';
 const CANNOT_TARGET_SELF_CODE = 'user_management.cannot_target_self';
 
-/* Users tab. Lists the tenant's members, opens the invite modal, and (for an Admin) changes a
-   member's role or revokes their access. The list reuses the shared `useUsers` query — the same one
-   the interviewer picker reads — so the mutations invalidate one cache and every screen updates. */
+/* Shares the `useUsers` query with the interviewer picker, so one invalidate updates both. */
 export function UsersTab() {
   const { t } = useTranslation();
   const { user: currentUser } = useAuth();
@@ -62,8 +58,7 @@ export function UsersTab() {
   };
 
   const handleAction = (user: (typeof users)[number], action: UserAction) => {
-    // The key is constrained to the three literals rather than `string`: `t` is typed against the
-    // real translation keys, so a widened parameter would defeat the check that they exist.
+    // Literal keys, so the type-safe t() still checks they exist.
     type SuccessKey =
       | 'settings.users.roleChanged'
       | 'settings.users.deactivated'

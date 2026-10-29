@@ -8,9 +8,7 @@ import { DeleteAccountDialog } from '../components/DeleteAccountDialog';
 
 const DELETE_INVALID_PASSWORD_CODE = 'candidate_account.invalid_current_password';
 
-/* The Hesap tab of /candidate/settings: the danger zone. Freeze (reversible, one click undoes it
-   from the reactivation screen) and delete (permanent — the backend anonymizes the row) each get
-   their own card and their own confirmation dialog, so neither action fires on a stray click. */
+/* Freeze and delete each have their own card and confirmation dialog. */
 export function CandidateAccountSettingsTab() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -34,8 +32,7 @@ export function CandidateAccountSettingsTab() {
       { currentPassword },
       {
         onSuccess: () => {
-          /* The success hook already ended the session and routed to the login page; the toast is
-             the only trace of why. */
+          /* The session has already ended and the user is on the login page. */
           toast({ title: t('candidateSettings.account.deleted'), tone: 'success' });
         },
         onError: (error) => {

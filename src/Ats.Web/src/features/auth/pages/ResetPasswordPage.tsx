@@ -9,19 +9,14 @@ import { toApiError } from '@/lib/problemDetails';
 import { AuthLayout } from '../components/AuthLayout';
 import { resetPassword } from '../passwordResetApi';
 
-/* Mirrors Identity's configured minimum; the server is the enforcement point, this is UX. */
+/* Mirrors Identity's minimum; the server enforces it. */
 const PASSWORD_MIN = 8;
 
-/* A password the server rejected on policy grounds, as opposed to a dead link. Worth telling apart:
-   one is something the user can fix by typing a different password, the other sends them back to
-   their inbox. The backend keeps them as separate error codes for exactly this reason. */
+/* A rejected password, which the user can fix, as opposed to a dead link. */
 const PASSWORD_REJECTED_CODE = 'auth.password_rejected';
 
-/* Company-side step two: the landing page for the mailed link, carrying userId + token in the query
-   string. The token is only spent on submit, so a mail scanner that opens the link cannot burn it.
-
-   On success the user is sent to sign in rather than being logged in here: the reset revoked their
-   refresh tokens, and handing out a session would reward anyone who merely guessed a token. */
+/* The token is only used on submit, so a mail scanner opening the link can't spend it. Afterwards
+   the user signs in; no session is handed out. */
 export function ResetPasswordPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();

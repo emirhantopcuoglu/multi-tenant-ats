@@ -16,13 +16,8 @@ interface CancelInterviewModalProps {
 
 const MAX_NOTE_LENGTH = 500;
 
-/* Cancelling now asks why, because the answer is what the candidate's email is built from —
-   specifically whether it promises a new invitation or closes the door. Controlled-confirm like the
-   reschedule dialog: the page owns the mutation and the toast, this only collects input.
-
-   The note is labelled internal on screen. It is stored on the interview and never leaves the
-   company side — it is not even carried on the integration event — and saying so here is what stops
-   someone writing their explanation in this box assuming the candidate will read it. */
+/* The reason decides what the candidate's email says. The note is labelled internal: it never
+   leaves the company side. */
 export function CancelInterviewModal({
   open,
   onOpenChange,
@@ -34,10 +29,7 @@ export function CancelInterviewModal({
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  // Reset when the dialog opens, so a previous draft never lingers. Adjusted during render rather
-  // than in an effect: React discards the in-progress output and re-renders before committing, so
-  // the cleared form is what reaches the DOM. An effect would paint the stale draft first and clear
-  // it afterwards, which is the cascading render the linter flags.
+  // Reset when the dialog opens. Done during render, not in an effect, so the old draft is never painted.
   const [prevOpen, setPrevOpen] = useState(open);
   if (prevOpen !== open) {
     setPrevOpen(open);
@@ -97,8 +89,7 @@ export function CancelInterviewModal({
           )}
         </Field>
 
-        {/* Shows what the candidate will actually be told, so the choice is made with its
-            consequence visible rather than from a label alone. */}
+        {/* Shows what the candidate will be told. */}
         {reason && (
           <p className="rounded-xl bg-divider/60 px-3 py-2 text-sm text-text-muted">
             {t(`interviews.cancel.effect.${reason}`)}

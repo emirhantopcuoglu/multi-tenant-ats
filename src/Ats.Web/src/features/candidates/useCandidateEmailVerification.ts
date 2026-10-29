@@ -9,9 +9,7 @@ export function useResendCandidateVerification() {
   return useMutation({ mutationFn: resendCandidateVerification });
 }
 
-/* On success the cached "me" entry is invalidated: isEmailVerified is what hides the banner and
-   unblocks the apply form, so it has to be refetched or a candidate who verifies in this tab keeps
-   being told to check their inbox. */
+/* Refetch "me" so the banner hides and the apply form unlocks. */
 export function useVerifyCandidateEmail() {
   const queryClient = useQueryClient();
 

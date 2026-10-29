@@ -5,8 +5,7 @@ interface ToggleProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'
   label?: ReactNode;
 }
 
-/* Switch built on a native checkbox (role="switch" for assistive tech). Track and knob are styled
-   siblings of the hidden input, so `peer-checked` flips the track colour and slides the knob. */
+/* Native checkbox with role="switch"; the track and knob are siblings styled with peer-checked. */
 export const Toggle = forwardRef<HTMLInputElement, ToggleProps>(function Toggle(
   { label, className, ...rest },
   ref,

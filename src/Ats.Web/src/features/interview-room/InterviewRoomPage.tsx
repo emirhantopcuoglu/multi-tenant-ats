@@ -34,11 +34,8 @@ function RoomShell({ children }: { children: ReactNode }) {
   );
 }
 
-/* Landing page for the (future) live interview room link mailed to both the candidate and the
-   interviewers. No video yet — this is the gated shell: it resolves the token, shows why the room
-   isn't reachable when it isn't (too early / ended / cancelled), and will host the actual call once
-   that infrastructure exists. Reachable by either a candidate or a company session; someone with
-   neither is asked to sign in as whichever they are and is sent straight back here afterward. */
+/* The room link target. There's no video yet: it resolves the token and shows why the room isn't
+   open. Works for a candidate or company session; anyone else is asked to sign in and comes back here. */
 export function InterviewRoomPage() {
   const { t, i18n } = useTranslation();
   const { roomToken } = useParams<{ roomToken: string }>();

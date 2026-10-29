@@ -5,9 +5,7 @@ import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { useAuth } from '@/app/auth/auth-context';
 import { useReactivateCandidateAccount } from '../useCandidateAccount';
 
-/* Where RequireActiveCandidate sends a frozen account. The session itself is valid (freezing does
-   not rotate the security stamp), so undoing the freeze is one authenticated call — no email loop,
-   no support ticket. */
+/* Freezing keeps the session valid, so reactivating is one call. */
 export function CandidateReactivatePage() {
   const { t } = useTranslation();
   const { user, logout } = useAuth();
@@ -15,7 +13,6 @@ export function CandidateReactivatePage() {
   const navigate = useNavigate();
   const reactivate = useReactivateCandidateAccount();
 
-  /* An active account has nothing to reactivate — e.g. a stale bookmark of this page. */
   if (user?.kind === 'candidate' && user.status === 'Active') {
     return <Navigate to="/candidate/settings" replace />;
   }

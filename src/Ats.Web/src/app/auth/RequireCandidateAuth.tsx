@@ -13,9 +13,7 @@ function FullPageSpinner() {
   );
 }
 
-/* Gate for candidate-authenticated areas (applications, notifications, profile). Anonymous visitors
-   are sent to /candidate/login remembering their intended destination; company users are redirected
-   to /dashboard since they have no candidate identity to view these pages with. */
+/* Candidate areas. Anonymous users go to /candidate/login; company users go to /dashboard. */
 export function RequireCandidateAuth() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();

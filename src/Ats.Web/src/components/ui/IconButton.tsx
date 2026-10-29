@@ -9,7 +9,7 @@ const toneClasses: Record<IconButtonTone, string> = {
 };
 
 interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  /** Required: an icon button has no text, so it must carry its own accessible name. */
+  /* Required: there is no visible text to name the button. */
   'aria-label': string;
   icon: ReactNode;
   tone?: IconButtonTone;

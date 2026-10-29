@@ -13,9 +13,7 @@ function FullPageSpinner() {
   );
 }
 
-/* Gate for company-authenticated areas. Unauthenticated users are sent to /login remembering
-   their intended destination. Candidate accounts are redirected to / (the marketplace) because
-   they have no access to the company dashboard. */
+/* Company areas. Anonymous users go to /login; candidates go to the marketplace. */
 export function RequireAuth() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();

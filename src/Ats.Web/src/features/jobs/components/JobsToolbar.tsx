@@ -10,7 +10,6 @@ interface JobsToolbarProps {
   onStatusChange: (value: JobStatus | '') => void;
   canManage: boolean;
   onNewJob: () => void;
-  /** Tenant slug for the "View careers page" link; omitted if the identity has no slug. */
   careersSlug?: string;
 }
 
@@ -31,8 +30,6 @@ function PlusIcon() {
   );
 }
 
-/* Filter bar above the table: title search, status filter, and (for managers) the New job button.
-   Fully controlled — the page owns the values and reflects them to the URL. */
 export function JobsToolbar({
   searchValue,
   onSearchChange,

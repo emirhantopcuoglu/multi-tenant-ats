@@ -4,8 +4,7 @@ import { toApiError } from '@/lib/problemDetails';
 import { cvJobFitRatingTone } from '@/lib/statusColors';
 import { useCvParseResult } from '../useApplicationDetail';
 
-/* The async CV-parse result. A 404 with code "application.cv_not_parsed" is the expected "still
-   processing" state (parsing runs in the background), distinguished from a real load error. */
+/* A 404 "application.cv_not_parsed" means still processing, not an error. */
 export function CvAnalysisTab({ applicationId }: { applicationId: string }) {
   const { t } = useTranslation();
   const { data, isLoading, isError, error } = useCvParseResult(applicationId);

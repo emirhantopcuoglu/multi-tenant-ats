@@ -4,15 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 
-/* The persistent application shell wrapping every authenticated route. On lg+ the sidebar is fixed
-   and the content is inset to clear it; below lg the sidebar collapses into an off-canvas drawer
-   toggled from the Topbar. The routed screen renders through <Outlet/>. */
+/* Fixed sidebar on lg+, an off-canvas drawer below that. */
 export function AppShell() {
   const { t } = useTranslation();
   const [isDrawerOpen, setDrawerOpen] = useState(false);
   const closeDrawer = () => setDrawerOpen(false);
 
-  // Dismiss the drawer on Escape, matching the overlay-dismissal convention of our other overlays.
   useEffect(() => {
     if (!isDrawerOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {

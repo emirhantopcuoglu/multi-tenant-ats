@@ -5,14 +5,10 @@ import {
   type NotificationsApi,
 } from './notificationsApi';
 
-/* Polling instead of a push channel: the project has no WebSocket/SSE infrastructure, and a badge
-   that lags by up to 30s is fine. The backend exposes unread-count as a dedicated bare COUNT
-   endpoint precisely so this poll stays cheap. */
+/* Polling, since there is no WebSocket/SSE; up to 30s of lag is fine for a badge. */
 const UNREAD_POLL_INTERVAL_MS = 30_000;
 
-/* Same four hooks for both audiences, parameterized by the underlying API and a query-key prefix
-   so the candidate and company caches never collide. `enabled` on useNotifications lets a bell
-   dropdown defer fetching until it is actually opened. */
+/* The key prefix keeps candidate and company caches apart. `enabled` lets the bell wait until opened. */
 function createNotificationHooks(keyPrefix: QueryKey, api: NotificationsApi) {
   function useUnreadNotificationCount() {
     return useQuery({

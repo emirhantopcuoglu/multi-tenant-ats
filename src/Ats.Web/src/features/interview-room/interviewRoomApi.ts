@@ -13,9 +13,7 @@ export interface InterviewRoomInfo {
   opensAtUtc: string;
 }
 
-/* GET /api/v1/interview-room/{roomToken} — resolves the token to the interview behind it, for
-   whichever participant kind is calling (candidate or company interviewer); the backend does the
-   resource-based authorization, this call either succeeds or 401/404s. */
+/* The backend checks the caller is a participant; this either succeeds or fails with 401/404. */
 export async function getInterviewRoom(roomToken: string): Promise<InterviewRoomInfo> {
   const { data } = await apiClient.get<InterviewRoomInfo>(
     `/api/v1/interview-room/${encodeURIComponent(roomToken)}`,

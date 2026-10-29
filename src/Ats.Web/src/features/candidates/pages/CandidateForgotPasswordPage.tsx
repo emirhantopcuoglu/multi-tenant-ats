@@ -8,12 +8,7 @@ import { Button, Field, Input } from '@/components/ui';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { requestCandidatePasswordReset } from '../candidatePasswordResetApi';
 
-/* Step one of recovery: collect an address and ask the backend to mail a link.
-
-   The confirmation copy says "if an account exists, we sent a link" rather than "we sent you a
-   link", and it is shown for every submitted address. The backend answers identically whether or not
-   the email is registered; a friendlier "no account with that address" here would hand back exactly
-   the account directory the endpoint is written to withhold. */
+/* Same "if an account exists" wording for every address, so it can't reveal who has an account. */
 export function CandidateForgotPasswordPage() {
   const { t } = useTranslation();
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -36,8 +31,7 @@ export function CandidateForgotPasswordPage() {
       await requestCandidatePasswordReset(values.email);
       setIsSubmitted(true);
     } catch {
-      // Only a transport or rate-limit failure can land here — the endpoint reports success for
-      // unknown addresses — so this is a "try again", not "no such account".
+      // Only network or rate-limit errors get here.
       setFormError(t('candidateAuth.forgotPassword.failed'));
     }
   });

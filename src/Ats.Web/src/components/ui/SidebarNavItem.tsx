@@ -8,9 +8,6 @@ interface SidebarNavItemProps {
   onClick?: () => void;
 }
 
-/* A single sidebar navigation entry. Active state uses the accent-subtle surface; rendered as a
-   button for now (the router that turns these into links arrives in Step 2.1). `aria-current`
-   exposes the active page to assistive tech. */
 export function SidebarNavItem({ icon, label, active = false, onClick }: SidebarNavItemProps) {
   return (
     <button

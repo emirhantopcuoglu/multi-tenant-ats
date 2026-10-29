@@ -41,14 +41,13 @@ export function AcceptInvitationPage() {
     if (!token) return;
     setFormError(null);
     try {
-      // The invitation mail itself went out in the inviter's language; from here on this person
-      // is written to in the language they are reading this page in.
+      // From now on this person gets email in the language they're using here.
       await acceptInvitation({
         token,
         ...values,
         preferredLanguage: i18n.resolvedLanguage as Language,
       });
-      // The endpoint returns no tokens, so the user isn't signed in — confirm and send them to login.
+      // No tokens are returned, so send them to login.
       toast({ title: t('auth.invitationAccepted'), tone: 'success' });
       navigate('/login', { replace: true });
     } catch (error) {

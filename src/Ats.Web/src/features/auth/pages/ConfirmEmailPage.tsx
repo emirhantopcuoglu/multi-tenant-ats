@@ -6,10 +6,7 @@ import { Button, Card, EmptyState, Skeleton } from '@/components/ui';
 import { AuthLayout } from '../components/AuthLayout';
 import { confirmEmail, resendEmailConfirmation } from '../authApi';
 
-/* Landing page for the mailed confirmation link. Fires on mount rather than showing a button: the
-   click on the link in the email IS the confirmation, and asking again here would be asking twice.
-
-   No auth guard — nobody can sign in until this succeeds, which is the whole point. */
+/* Confirms on mount: clicking the link is the confirmation. No auth guard; nobody can sign in yet. */
 export function ConfirmEmailPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
@@ -20,15 +17,13 @@ export function ConfirmEmailPage() {
   const confirm = useMutation({ mutationFn: () => confirmEmail(userId, token) });
   const resend = useMutation({ mutationFn: (email: string) => resendEmailConfirmation(email) });
 
-  /* StrictMode mounts effects twice in development. Identity's token is not single-use the way the
-     candidate side's row is, so a double call is harmless — but the ref keeps the request count
-     honest and matches the candidate page. */
+  /* StrictMode runs effects twice in dev; the ref keeps it to one request. */
   const attempted = useRef(false);
   useEffect(() => {
     if (attempted.current || userId.length === 0 || token.length === 0) return;
     attempted.current = true;
     confirm.mutate();
-    // Fires once per mounted page; confirm.mutate is stable and deliberately not a dependency.
+    // Runs once per mount; confirm.mutate is stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, token]);
 
@@ -47,9 +42,7 @@ export function ConfirmEmailPage() {
   if (!hasLink || confirm.isError) {
     return (
       <AuthLayout title={t('auth.confirmEmail.failedTitle')} subtitle={t('auth.confirmEmail.failedBody')}>
-        {/* The recovery path lives here rather than only on the login screen: someone whose link
-            expired arrives on this page, not that one, and sending them elsewhere to ask for a new
-            link would be a dead end they have to figure out themselves. */}
+        {/* Resend lives here too, since someone with an expired link lands on this page. */}
         <form
           className="space-y-3"
           onSubmit={(event) => {
@@ -71,8 +64,7 @@ export function ConfirmEmailPage() {
           <Button type="submit" disabled={resend.isPending} className="w-full">
             {t('auth.confirmEmail.resendAction')}
           </Button>
-          {/* Success is reported for any address — the endpoint deliberately cannot say whether one is
-              registered — so the wording promises only that a link was sent if the account exists. */}
+          {/* Reported as success for any address, so the wording says "if the account exists". */}
           {resend.isSuccess && (
             <p className="text-sm text-success">{t('auth.confirmEmail.resendSent')}</p>
           )}
@@ -97,9 +89,7 @@ export function ConfirmEmailPage() {
   );
 }
 
-/* Shown right after registering: the workspace exists, the session does not yet. Kept separate from
-   the page above because the two are different moments — one is "we mailed you something", the other
-   is "you clicked it". */
+/* Shown right after registering, before the link is clicked. */
 export function RegistrationPendingPage({ email }: { email: string }) {
   const { t } = useTranslation();
   const resend = useMutation({ mutationFn: () => resendEmailConfirmation(email) });

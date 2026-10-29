@@ -1,5 +1,4 @@
-/* Shared input checks used by more than one feature. Each mirrors a backend rule; the backend
-   stays authoritative — these only exist to give feedback before the round-trip. */
+/* Each mirrors a backend rule; the backend stays the authority. */
 
 export function isAbsoluteHttpUrl(value: string): boolean {
   try {

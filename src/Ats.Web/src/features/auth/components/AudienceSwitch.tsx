@@ -8,11 +8,8 @@ const PATHS = {
 
 type Audience = keyof typeof PATHS;
 
-/* Two-pill switch shown on every auth screen so a visitor who landed on the wrong door
-   (job seeker vs employer) sees which one they are on and can cross over in one click.
-   The active side is a plain span — linking a pill to the page it is already on would be
-   dead navigation. Router state is passed through so a candidate keeps their post-login
-   return target when switching between login and register. */
+/* Job seeker / employer switch on every auth screen. Router state is passed on so a candidate keeps
+   their return target. */
 export function AudienceSwitch({
   active,
   variant,

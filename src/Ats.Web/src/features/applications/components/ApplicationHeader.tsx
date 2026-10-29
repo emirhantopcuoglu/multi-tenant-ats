@@ -15,9 +15,6 @@ interface ApplicationHeaderProps {
   busy: boolean;
 }
 
-/* Detail header: candidate identity, current stage + status, and (for managers, while the
-   application is still Active) the move-stage menu, the correction escape hatch, and the two
-   terminal decisions. */
 export function ApplicationHeader({
   application,
   stages,
@@ -32,10 +29,8 @@ export function ApplicationHeader({
   const isActive = application.status === 'Active';
   const currentOrder = stages.find((stage) => stage.id === application.stageId)?.order;
 
-  /* Terminal stages are outcomes, not move targets: reaching them must flip the application's
-     status, which only the hire/reject actions do (the backend refuses them here too). A plain
-     move is also forward-only — a same-or-earlier stage isn't offered here at all; fixing a wrong
-     move is the separate, reason-required "correct stage" action below. */
+  /* Terminal stages are reached only through hire/reject, and a plain move is forward only. Going
+     back is the "correct stage" action. */
   const moveItems: DropdownAction[] = stages
     .filter(
       (stage) =>
@@ -45,8 +40,7 @@ export function ApplicationHeader({
     )
     .map((stage) => ({ key: stage.id, label: stageLabel(stage.name, t), onSelect: () => onMove(stage.id) }));
 
-  /* Whether there is any other working stage to correct into — independent of moveItems, since a
-     correction may also go backward. */
+  /* Separate from moveItems because a correction can also go backward. */
   const canCorrectStage = stages.some(
     (stage) => stage.id !== application.stageId && stage.type !== 'FinalHired' && stage.type !== 'FinalRejected',
   );

@@ -10,8 +10,7 @@ export function useCompanyProfile() {
   });
 }
 
-/* The PUT echoes the saved profile back, so write it straight into the cache instead of
-   invalidating — no second round-trip for data we already hold. */
+/* The PUT returns the saved profile, so update the cache directly. */
 export function useUpdateCompanyProfile() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -8,17 +8,16 @@ export interface DropdownAction {
   onSelect: () => void;
   icon?: ReactNode;
   tone?: 'default' | 'danger';
-  /** Render a separator above this item (e.g. before a destructive action). */
   separatorBefore?: boolean;
   disabled?: boolean;
 }
 
 interface DropdownProps {
-  /** The element that opens the menu (rendered via asChild, so it stays your component). */
+  /* Rendered via asChild. */
   trigger: ReactNode;
   items: DropdownAction[];
   align?: 'start' | 'end';
-  /** Optional non-interactive section above the items (e.g. the signed-in user's identity). */
+  /* Non-interactive section above the items. */
   header?: ReactNode;
 }
 
@@ -27,8 +26,6 @@ const itemToneClasses: Record<NonNullable<DropdownAction['tone']>, string> = {
   danger: 'text-danger',
 };
 
-/* Action menu on Radix DropdownMenu: keyboard navigation, typeahead, focus return, and outside-click
-   dismissal come from the primitive. The items-array API keeps row action menus declarative. */
 export function Dropdown({ trigger, items, align = 'end', header }: DropdownProps) {
   return (
     <DropdownMenu.Root>

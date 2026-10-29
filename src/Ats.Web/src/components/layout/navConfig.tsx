@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Role } from '@/types/enums';
 
-/* Restricting labelKey to the actual `nav.*` keys keeps it assignable to the type-safe `t()` (a bare
-   `string` is not). Adding a nav item therefore forces both a real translation and a real icon. */
+/* Limited to real nav.* keys so it works with the type-safe t(); a new item needs a translation. */
 export type NavLabelKey =
   | 'nav.overview'
   | 'nav.jobs'
@@ -15,11 +14,10 @@ export interface NavItem {
   path: string;
   labelKey: NavLabelKey;
   icon: ReactNode;
-  /** When present, only these roles see the item. Undefined = visible to every authenticated user. */
+  /* Undefined means every authenticated user sees it. */
   roles?: Role[];
 }
 
-/* Shared SVG wrapper so each glyph only carries its own paths (same stroke language as ThemeToggle). */
 function Glyph({ children }: { children: ReactNode }) {
   return (
     <svg
@@ -38,8 +36,7 @@ function Glyph({ children }: { children: ReactNode }) {
   );
 }
 
-/* Single source of truth for navigation, consumed by both the Sidebar (renders the items) and the
-   Topbar (derives the page title from the active path). Order here is the order shown in the rail. */
+/* Used by the Sidebar and by the Topbar for the page title. Order here is the order shown. */
 export const NAV_ITEMS: NavItem[] = [
   {
     path: '/dashboard',
@@ -108,8 +105,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-/* Dashboard (/dashboard) matches exactly; every other item also matches its own sub-paths
-   (e.g. /jobs/42 keeps "Jobs" highlighted) without bleeding into siblings. */
+/* /dashboard matches exactly; other items also match their sub-paths. */
 export function isNavItemActive(pathname: string, path: string): boolean {
   if (path === '/dashboard') return pathname === '/dashboard';
   return pathname === path || pathname.startsWith(`${path}/`);

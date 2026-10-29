@@ -3,22 +3,20 @@ import type { PagedResult } from '@/types/pagination';
 import type { Job, JobDetail, JobWriteRequest } from '@/types/job';
 import type { JobStatus } from '@/types/enums';
 
-/* Typed wrappers over the recruiter Jobs endpoints (JobsController). Lifecycle transitions are POSTs
-   that return 204 No Content, so their wrappers resolve to void. */
 
 const JOBS_BASE = `${API_V1}/jobs`;
 
 export interface ListJobsParams {
   page: number;
   pageSize: number;
-  /** Single status filter; omitted means "all statuses". */
+  /* Omitted means all statuses. */
   status?: JobStatus;
-  /** Title contains-search; the backend matches on Title only. */
+  /* Matches the title only. */
   search?: string;
 }
 
 export async function listJobs(params: ListJobsParams): Promise<PagedResult<Job>> {
-  // Axios drops params whose value is undefined, so empty filters simply aren't sent.
+  // Axios drops undefined params.
   const { data } = await apiClient.get<PagedResult<Job>>(JOBS_BASE, {
     params: {
       page: params.page,
@@ -36,7 +34,6 @@ export async function getJob(id: string): Promise<JobDetail> {
 }
 
 export async function createJob(body: JobWriteRequest): Promise<string> {
-  // The controller returns 201 with { id }.
   const { data } = await apiClient.post<{ id: string }>(JOBS_BASE, body);
   return data.id;
 }

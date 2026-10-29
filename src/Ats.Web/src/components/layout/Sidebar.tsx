@@ -5,13 +5,10 @@ import { useAuth } from '@/app/auth/auth-context';
 import { NAV_ITEMS, isNavItemActive } from './navConfig';
 
 interface SidebarProps {
-  /** Called after a navigation so the mobile drawer can close itself. */
   onNavigate?: () => void;
 }
 
-/* The navigation rail: brand mark plus the nav items the current role is allowed to see.
-   SidebarNavItem is a button (from Step 1.5), so we navigate imperatively here rather than rendering
-   anchors — acceptable for an in-app SPA rail; revisit if open-in-new-tab becomes a requirement. */
+/* SidebarNavItem is a button, so navigation is imperative; no open-in-new-tab. */
 export function Sidebar({ onNavigate }: SidebarProps) {
   const { t } = useTranslation();
   const { pathname } = useLocation();

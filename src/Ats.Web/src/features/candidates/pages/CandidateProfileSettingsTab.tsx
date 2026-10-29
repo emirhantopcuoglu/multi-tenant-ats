@@ -10,28 +10,22 @@ import type { CandidateProfile } from '../candidateProfileApi';
 import { PhoneInput } from '../components/PhoneInput';
 import { CandidateCvCard } from '../components/CandidateCvCard';
 
-/* Mirrors CandidateAccount.FirstName/LastName HasMaxLength(100) on the backend. */
 const NAME_MAX_LENGTH = 100;
 
-/* Mirrors the backend's E.164 window. The masked input already guarantees the charset and caps
-   the maximum per dial country, so the only thing left to validate is "too few digits". */
+/* The masked input handles characters and the maximum; only the minimum is left to check. */
 const PHONE_MIN_DIGITS = 7;
 
-/* Mirror CandidateAccount.MinimumAgeYears/MaximumAgeYears on the backend. */
 const MINIMUM_AGE_YEARS = 15;
 const MAXIMUM_AGE_YEARS = 100;
 
-/* ISO yyyy-MM-dd strings order the same lexicographically as chronologically, so the allowed
-   birth-date window is just two strings compared with < and >. */
+/* yyyy-MM-dd strings sort chronologically, so string comparison works. */
 function isoDateYearsAgo(years: number): string {
   const date = new Date();
   date.setFullYear(date.getFullYear() - years);
   return date.toISOString().slice(0, 10);
 }
 
-/* The Profil tab of /candidate/settings. Split so the form mounts only once the profile is loaded —
-   react-hook-form reads defaultValues on mount, and feeding it late data would need an
-   effect-driven reset instead (same reasoning as the company Settings form). */
+/* The form mounts only after the profile loads, because react-hook-form reads defaultValues once. */
 export function CandidateProfileSettingsTab() {
   const { t } = useTranslation();
   const profileQuery = useCandidateProfile();
@@ -133,9 +127,7 @@ function CandidateProfileForm({ profile }: { profile: CandidateProfile }) {
     },
   });
 
-  /* Which cities are offered depends on the selected country, so we read it live with watch().
-     The country <Select>'s onChange also clears the city field — otherwise switching country
-     could leave a city selected that doesn't belong to it (same pattern as JobForm). */
+  /* Cities depend on the country; changing the country clears the city. */
   const selectedCountry = watch('country');
   const availableCities = selectedCountry
     ? (CITIES_BY_COUNTRY[selectedCountry as Country] ?? [])
@@ -197,8 +189,7 @@ function CandidateProfileForm({ profile }: { profile: CandidateProfile }) {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          {/* A masked, controlled component can't go through register() (that API hands out an
-              uncontrolled ref); Controller is react-hook-form's bridge for exactly this case. */}
+          {/* Controller, because a controlled masked input can't use register(). */}
           <Field label={t('candidateSettings.profile.phone')} error={formState.errors.phoneNumber?.message}>
             {({ id, describedById, invalid }) => (
               <Controller

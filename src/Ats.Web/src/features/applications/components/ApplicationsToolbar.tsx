@@ -15,7 +15,7 @@ interface ApplicationsToolbarProps {
   onStatusChange: (value: ApplicationStatus | '') => void;
   jobs: Job[];
   stages: PipelineStage[];
-  /** Stages are per-job, so the stage filter is only usable once a job is selected. */
+  /* Stages are per job, so this needs a selected job. */
   stagesEnabled: boolean;
 }
 
@@ -28,8 +28,6 @@ function SearchIcon() {
   );
 }
 
-/* Filter bar: candidate search plus job, stage, and status selects. Fully controlled — the page owns
-   the values and mirrors them to the URL. */
 export function ApplicationsToolbar({
   searchValue,
   onSearchChange,

@@ -15,11 +15,8 @@ import { MINIMUM_LEAD_MINUTES, isSlotTooSoon, toScheduledAt } from '../scheduleV
 interface ScheduleInterviewModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** The application this interview is for — always fixed now that scheduling is candidate-contextual. */
   applicationId: string;
-  /** Shown read-only so the user sees who they are scheduling for. */
   candidateName?: string;
-  /** Called with the new interview's id after a successful schedule (the caller may navigate/refetch). */
   onScheduled?: (id: string) => void;
 }
 
@@ -28,17 +25,13 @@ interface FormErrors {
   time?: string;
 }
 
-/* Today's date as the YYYY-MM-DD a native date input expects, in the viewer's local zone (so it
-   doesn't slip a day near midnight the way a naive UTC slice would). Used as the min so a past day
-   can't be picked; the future-instant check below still guards a past time on today. */
+/* Local date, so it doesn't slip a day near midnight. The future-time check covers past times today. */
 function localDateInputValue(date: Date): string {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 10);
 }
 
-/* Schedule form. It collects a local date + time and converts to a UTC ISO string before sending,
-   since the API stores scheduledAtUtc in UTC. Interviewers are optional here (an interview can be
-   scheduled before the panel is finalised); feedback later gates on the panel. */
+/* Local date and time are sent as UTC. Interviewers are optional when scheduling. */
 export function ScheduleInterviewModal({
   open,
   onOpenChange,
@@ -59,10 +52,7 @@ export function ScheduleInterviewModal({
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
 
-  // Reset every field when the modal opens, so a previous draft never lingers. Adjusted during
-  // render rather than in an effect: React discards the in-progress output and re-renders before
-  // committing, so the cleared form is what reaches the DOM. An effect would paint the stale draft
-  // first and clear it afterwards, which is the cascading render the linter flags.
+  // Reset when the modal opens. Done during render, not in an effect, so the old draft is never painted.
   const [prevOpen, setPrevOpen] = useState(open);
   if (prevOpen !== open) {
     setPrevOpen(open);
@@ -87,8 +77,6 @@ export function ScheduleInterviewModal({
     if (!date) nextErrors.date = t('interviews.form.dateRequired');
     if (!time) nextErrors.time = t('interviews.form.timeRequired');
 
-    // datetime-local yields a local wall-clock time; combining date + time the same way and then
-    // checking the instant keeps a past slot (or an invalid combination) out.
     const scheduledAt = toScheduledAt(date, time);
     if (scheduledAt && isSlotTooSoon(scheduledAt))
       nextErrors.time = t('interviews.form.whenTooSoon', { count: MINIMUM_LEAD_MINUTES });
@@ -118,7 +106,6 @@ export function ScheduleInterviewModal({
     );
   };
 
-  // Turn the backend's 409 conflict codes into a specific message; anything else is the generic error.
   const conflictMessage = (error: unknown): string => {
     const { code } = toApiError(error);
     if (code === 'interview.interviewer_conflict') return t('interviews.conflict.interviewer');

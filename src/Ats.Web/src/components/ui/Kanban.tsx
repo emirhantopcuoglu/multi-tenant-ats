@@ -3,13 +3,11 @@ import { cn } from '@/lib/cn';
 
 interface KanbanColumnProps {
   title: ReactNode;
-  /** Item count shown as a pill next to the title. */
   count?: number;
   children: ReactNode;
 }
 
-/* Presentational pipeline column. Drag-and-drop wiring (dnd-kit) is added with the Applications
-   Kanban board (Step 3.4); here we only provide the column shell and card styling. */
+/* Presentational only; drag and drop lives in the applications board. */
 export function KanbanColumn({ title, count, children }: KanbanColumnProps) {
   return (
     <div className="flex w-72 shrink-0 flex-col gap-2.5 rounded-2xl border border-border bg-bg p-3">

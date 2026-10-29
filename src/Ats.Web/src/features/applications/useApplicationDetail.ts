@@ -21,14 +21,12 @@ export function useApplicationActivities(id: string) {
   return useQuery({ queryKey: activitiesKey(id), queryFn: () => getApplicationActivities(id) });
 }
 
-/* CV parse result. retry:false because a 404 ("not parsed yet") is an expected state, not a transient
-   failure — retrying would just hammer the endpoint three times before showing the processing state. */
+/* retry: false because a 404 here is expected while parsing runs. */
 export function useCvParseResult(id: string) {
   return useQuery({ queryKey: cvParseKey(id), queryFn: () => getCvParseResult(id), retry: false });
 }
 
-/* Move-stage, reject and hire mutations for the detail page. All invalidate the detail, its
-   timeline, and the application lists/board so every view reflects the change. */
+/* All invalidate the detail, timeline, lists and board. */
 export function useApplicationActions(id: string) {
   const queryClient = useQueryClient();
   const invalidate = () => {
