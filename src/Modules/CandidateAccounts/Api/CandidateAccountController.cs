@@ -7,9 +7,6 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace Ats.Modules.CandidateAccounts.Api;
 
-// The account itself as a resource — distinct from /candidate/profile, which edits what the account
-// says about its owner. This controller changes whether the account is usable at all, which is why
-// it gets its own surface instead of more actions on the profile controller.
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/candidate/account")]
@@ -36,9 +33,7 @@ public sealed class CandidateAccountController : ControllerBase
         return ToResponse(result);
     }
 
-    // Reachable by a frozen account on purpose: freezing does not rotate the security stamp, so the
-    // frozen candidate's own session stays valid and can undo the freeze from the reactivation
-    // screen without support intervention.
+    // Freezing keeps the session valid, so a frozen candidate can call this themselves.
     [HttpPost("reactivate")]
     public async Task<IActionResult> Reactivate()
     {
@@ -51,8 +46,7 @@ public sealed class CandidateAccountController : ControllerBase
 
     public sealed record DeleteCandidateAccountRequest(string CurrentPassword);
 
-    // Rate limited like every endpoint that verifies the current password: without it, a stolen
-    // token could brute-force the password against this check.
+    // Rate limited: with a stolen token this could be used to guess the current password.
     [HttpDelete]
     [EnableRateLimiting(RateLimitPolicies.PerIp)]
     public async Task<IActionResult> Delete(DeleteCandidateAccountRequest request)

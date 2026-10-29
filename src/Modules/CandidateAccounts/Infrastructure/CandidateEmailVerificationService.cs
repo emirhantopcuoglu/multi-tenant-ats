@@ -37,17 +37,13 @@ public sealed class CandidateEmailVerificationService : ICandidateEmailVerificat
         var account = await _db.CandidateAccounts
             .FirstOrDefaultAsync(c => c.Id == candidateAccountId, ct);
 
-        // Only ever reached with the id from a valid candidate token, so a miss means the account was
-        // deleted mid-session. InvalidToken rather than a "not found": there is no verifiable address.
         if (account is null)
             return Result.Failure(CandidateEmailVerificationErrors.InvalidToken);
 
         if (account.IsEmailVerified)
             return Result.Failure(CandidateEmailVerificationErrors.AlreadyVerified);
 
-        // A newer link supersedes older pending ones, so an old email cannot be used to verify after
-        // the address has since been changed. Loaded and removed rather than bulk-deleted: an account
-        // has at most a handful of these.
+        // Only the latest link should work.
         var pending = await _db.EmailVerificationRequests
             .Where(r => r.CandidateAccountId == account.Id && r.ConsumedAtUtc == null)
             .ToListAsync(ct);
@@ -61,9 +57,7 @@ public sealed class CandidateEmailVerificationService : ICandidateEmailVerificat
         _logger.LogInformation(
             "Email verification link issued for candidate account {CandidateAccountId}", account.Id);
 
-        // Best-effort: the row is already committed, so a failing mail server must not turn a stored
-        // token into an error response — the candidate can simply ask again. Logged as an error, not
-        // swallowed, so an SMTP outage is visible to an operator.
+        // Best-effort: the candidate can ask for another link.
         await SendVerificationLinkAsync(account, rawToken, ct);
 
         return Result.Success();
@@ -74,8 +68,7 @@ public sealed class CandidateEmailVerificationService : ICandidateEmailVerificat
         if (string.IsNullOrWhiteSpace(token))
             return Result.Failure(CandidateEmailVerificationErrors.InvalidToken);
 
-        // Hashed outside the query: EF can translate a comparison against a variable, not a call to a
-        // local static method.
+        // Hashed outside the query; EF can't translate the method call.
         var tokenHash = Hash(token);
         var request = await _db.EmailVerificationRequests
             .FirstOrDefaultAsync(r => r.TokenHash == tokenHash, ct);
@@ -88,15 +81,11 @@ public sealed class CandidateEmailVerificationService : ICandidateEmailVerificat
         if (account is null)
             return Result.Failure(CandidateEmailVerificationErrors.InvalidToken);
 
-        // The token is consumed whether or not it moved the timestamp: a link that has served its
-        // purpose must not stay redeemable, and MarkEmailVerified already guards the double-click.
         var justVerified = account.MarkEmailVerified();
         request.MarkConsumed();
         await _db.SaveChangesAsync(ct);
 
-        // No security stamp rotation, unlike a password or email change. Nothing about the account's
-        // credentials changed, so ending the candidate's sessions here would log them out of the very
-        // tab they are verifying from — for no security benefit.
+        // No stamp rotation: credentials didn't change, so there is no reason to end sessions.
         _logger.LogInformation(
             "Email verified for candidate account {CandidateAccountId} (newly verified: {JustVerified})",
             account.Id, justVerified);
@@ -110,9 +99,7 @@ public sealed class CandidateEmailVerificationService : ICandidateEmailVerificat
         var link = $"{_options.ConfirmBaseUrl}?token={Uri.EscapeDataString(rawToken)}";
         var language = account.PreferredLanguage;
 
-        // The name came from a registration form, so it is untrusted inside an HTML body and is
-        // encoded before it reaches the template. The link is built from configuration and an
-        // URL-escaped token, both ours.
+        // The name is user input going into HTML.
         var body = _emailText.Get(
             EmailTextKeys.Candidate.VerifyEmailBody,
             language,
@@ -134,8 +121,6 @@ public sealed class CandidateEmailVerificationService : ICandidateEmailVerificat
         }
     }
 
-    // Same construction as CandidatePasswordResetService's and CandidateProfileService's: 256 bits of
-    // randomness, URL-safe base64. Kept local rather than hoisted — see the note in those files.
     private static string GenerateToken()
     {
         var bytes = RandomNumberGenerator.GetBytes(32);
