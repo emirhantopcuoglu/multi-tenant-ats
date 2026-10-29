@@ -23,18 +23,15 @@ using MongoDB.Driver;
 using Scalar.AspNetCore;
 using StackExchange.Redis;
 
-// Bootstrap Serilog before the host so startup errors (DB unreachable, bad config) are also
-// captured. ReadFrom.Configuration picks up the "Serilog" section from appsettings;
-// ReadFrom.Services allows DI-registered sinks (none currently, but keeps the door open).
-// Destructure.With masks sensitive properties when {@obj} is used in log messages.
+// Serilog starts before the host so startup errors are logged too. Destructure.With masks
+// sensitive properties.
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog((ctx, services, config) => config
     .ReadFrom.Configuration(ctx.Configuration)
     .ReadFrom.Services(services)
     .Enrich.FromLogContext()
-    // Adds TraceId and SpanId from the current OTel Activity to every log event, so a log line
-    // in Seq can be linked to the matching trace in Jaeger by TraceId.
+    // Adds TraceId and SpanId so log lines can be matched to traces.
     .Enrich.WithOpenTelemetryTraceId()
     .Enrich.WithOpenTelemetrySpanId()
     .Destructure.With(new SensitiveDataMaskingPolicy()));
@@ -62,8 +59,7 @@ builder.Services.AddOpenApi(options =>
     });
 });
 
-// Order matters: the validation handler runs first and only handles
-// ValidationException; everything else falls through to the catch-all.
+// Order matters: the validation handler runs first.
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
@@ -83,11 +79,7 @@ builder.Services
 
 builder.AddPersistence();
 
-// LLM-backed CV parsing. The PDF text extractor and the parser are stateless and
-// thread-safe (the parser holds one reusable Polly pipeline and pulls HTTP clients from the factory),
-// so both are singletons. The parser targets any OpenAI-compatible API; it defaults to GitHub Models
-// (free with a GitHub token). The key is read from User Secrets / env via LlmOptions, never from
-// appsettings.json.
+// Both are stateless, so singletons. The API key comes from User Secrets or environment variables.
 builder.Services.Configure<LlmOptions>(
     builder.Configuration.GetSection(LlmOptions.SectionName));
 builder.Services.AddHttpClient();
@@ -95,37 +87,28 @@ builder.Services.AddSingleton<IPdfTextExtractor, PdfPigTextExtractor>();
 builder.Services.AddSingleton<IDocxTextExtractor, DocxTextExtractor>();
 builder.Services.AddSingleton<ICvParser, OpenAiCompatibleCvParser>();
 
-// One Redis connection shared by the whole app. StackExchange.Redis multiplexes all traffic over a
-// single ConnectionMultiplexer by design, so both the distributed cache and the rate limiter use this
-// one instance. AbortOnConnectFail = false keeps the cache's fail-open behavior: a
-// momentarily unreachable Redis does not crash startup, and the multiplexer reconnects on its own.
+// One Redis connection for the whole app. AbortOnConnectFail = false so Redis being down doesn't
+// stop startup.
 var redisOptions = builder.Configuration
     .GetSection(RedisOptions.SectionName).Get<RedisOptions>() ?? new RedisOptions();
 var redisConfiguration = ConfigurationOptions.Parse(redisOptions.ConnectionString);
 redisConfiguration.AbortOnConnectFail = false;
-// While Redis is unreachable, fail commands immediately instead of queueing them until the (5s)
-// timeout. Both consumers here are fail-open (cache falls back to the database, the rate limiter lets
-// the request through), so a fast failure keeps requests responsive during an outage instead of
-// stacking multi-second waits per Redis call.
+// Fail Redis commands immediately while it is down instead of waiting for the timeout; everything
+// using Redis is fail-open.
 redisConfiguration.BacklogPolicy = BacklogPolicy.FailFast;
 var redisConnection = ConnectionMultiplexer.Connect(redisConfiguration);
 builder.Services.AddSingleton<IConnectionMultiplexer>(redisConnection);
 
-// Redis-backed distributed cache. Caches the hot, effectively immutable slug -> tenantId
-// lookup; TenantResolutionMiddleware treats it as best-effort, so a Redis outage degrades to a
-// database read rather than failing the request.
+// Caches the slug -> tenant lookup. Best-effort.
 builder.Services.AddStackExchangeRedisCache(options =>
     options.ConnectionMultiplexerFactory = () => Task.FromResult<IConnectionMultiplexer>(redisConnection));
 
 builder.AddRateLimiting();
 builder.AddCorsForSpa();
 
-// Forwarded headers. Behind a reverse proxy (nginx/Caddy), the real client IP
-// and scheme arrive in X-Forwarded-For / X-Forwarded-Proto; without this middleware RemoteIpAddress is
-// the proxy's address. The per-IP rate limiter partitions on RemoteIpAddress, so it would otherwise
-// throttle every client behind the proxy as one. KnownNetworks/KnownProxies are cleared because the
-// proxy runs in an unknown Docker/host network range; this is safe only when the app is not exposed
-// directly to the internet (it always sits behind the proxy) — revisit if that assumption changes.
+// Behind the proxy the client IP is in X-Forwarded-For, and the per-IP limiter depends on it.
+// Known networks are cleared because the proxy's Docker network is unknown; only safe while the API
+// is never exposed directly.
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -141,13 +124,9 @@ builder.Services.Configure<EmailOptions>(
 builder.Services.Configure<InvitationOptions>(
     builder.Configuration.GetSection(InvitationOptions.SectionName));
 builder.Services.AddScoped<IEmailSender, MailKitEmailSender>();
-// Singleton: it parses its two embedded JSON files once in the constructor and is immutable
-// afterwards, so a per-request instance would re-parse them on every email for no benefit.
 builder.Services.AddSingleton<IEmailTextProvider, JsonEmailTextProvider>();
 builder.Services.AddScoped<IInvitationService, InvitationService>();
 
-// File storage (MinIO). The client is thread-safe and meant to be reused, so it is a
-// singleton; MinioFileStorage is stateless and depends only on singletons, so it is too.
 builder.Services.Configure<FileStorageOptions>(
     builder.Configuration.GetSection(FileStorageOptions.SectionName));
 builder.Services.AddSingleton<IMinioClient>(sp =>
@@ -172,38 +151,30 @@ using (var scope = app.Services.CreateScope())
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
     await RoleSeeder.SeedAsync(roleManager);
 
-    // Like the migrations and role seeding above, this couples startup to its backing
-    // service being reachable — acceptable for a hard dependency in dev.
+    // Startup needs MinIO, like migrations and role seeding above. Fine for dev.
     var minioClient = scope.ServiceProvider.GetRequiredService<IMinioClient>();
     var fileStorageOptions = scope.ServiceProvider.GetRequiredService<IOptions<FileStorageOptions>>();
     await FileStorageInitializer.EnsureBucketAsync(minioClient, fileStorageOptions);
 
-    // Ensure the activity-log and audit-log read indexes exist. Idempotent.
     var mongoDatabase = scope.ServiceProvider.GetRequiredService<IMongoDatabase>();
     await MongoActivityLogInitializer.EnsureIndexesAsync(mongoDatabase);
     await MongoAuditLogInitializer.EnsureIndexesAsync(mongoDatabase);
 }
 
-// Apply X-Forwarded-* first so every downstream component (request logging, metrics, the per-IP rate
-// limiter) sees the real client IP and scheme instead of the reverse proxy's. Must run before
-// UseRateLimiter, which partitions on RemoteIpAddress.
+// First, so logging, metrics and the rate limiter see the real client IP.
 app.UseForwardedHeaders();
 
 app.UseExceptionHandler();
 
-// Metrics endpoint at /metrics (scraped by Prometheus). Placed before auth so Prometheus can
-// reach it without a token. The endpoint itself exposes no sensitive business data.
+// Before auth so Prometheus doesn't need a token. No business data here.
 app.UseMetricServer();
 
-// Tracks HTTP request count, duration, and in-progress count per method/route/status.
-// Placed early so it captures every request including 4xx/5xx responses.
 app.UseHttpMetrics();
 
-// Assign / forward X-Correlation-ID before anything else so every log line carries it.
+// Before anything else so every log line has it.
 app.UseMiddleware<CorrelationIdMiddleware>();
 
-// One structured log per request: method, path, status, elapsed ms. TenantId and UserId
-// are enriched here via the diagnostic context (resolved by the time the request completes).
+// One log line per request, with TenantId and UserId added at the end.
 app.UseSerilogRequestLogging(options =>
 {
     options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
@@ -225,33 +196,25 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-// CORS runs after routing but before tenant resolution and authentication so that a preflight (OPTIONS)
-// request — which carries no slug and no token — is answered here and never falls through to tenant or
-// auth logic that would reject it.
+// Before tenant resolution and auth, so preflight requests (no slug, no token) are answered here.
 app.UseCors(CorsPolicies.Spa);
 
 app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthentication();
-// After UseAuthentication so the tenant_id/sub claims the global limiter partitions on are populated,
-// and after routing (added automatically at the pipeline start) so the per-IP policy can read the
-// endpoint's [EnableRateLimiting] metadata.
+// After authentication so the claims it partitions on are set.
 app.UseRateLimiter();
 app.UseMiddleware<TenantClaimResolutionMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 
-// Liveness: is the process alive? Predicate = false means no checks run — the endpoint
-// just confirms the process can accept connections. A container orchestrator that gets 200
-// here knows the app started; it should restart if this ever returns 503.
+// No checks: only confirms the process is up.
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = _ => false,
     ResponseWriter = WriteHealthCheckJson
 });
 
-// Readiness: are all external dependencies reachable? Only checks tagged "ready" run.
-// A load balancer should route traffic here only when this returns 200; on 503 it removes
-// the instance from rotation until the dependency recovers.
+// Only checks tagged "ready".
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
     Predicate = check => check.Tags.Contains("ready"),

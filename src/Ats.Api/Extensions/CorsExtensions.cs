@@ -5,12 +5,8 @@ namespace Ats.Api.Extensions;
 
 public static class CorsExtensions
 {
-    // CORS for the SPA. The front-end (Ats.Web) runs on a different origin than the API, so
-    // the browser blocks its requests unless the API allows that origin. The allowed origins come from the
-    // "Cors" section so each environment lists its own front-end without a code change. AllowCredentials is
-    // required because the refresh flow carries credentials cross-origin; the CORS spec then forbids a
-    // wildcard origin, which is why AllowedOrigins is an explicit list. Retry-After is exposed so the SPA
-    // can read the rate limiter's back-off hint (cross-origin responses hide non-safelisted headers by default).
+    // Origins come from the "Cors" section. AllowCredentials rules out a wildcard. Retry-After is
+    // exposed so the SPA can read the rate limiter's hint.
     public static IHostApplicationBuilder AddCorsForSpa(this IHostApplicationBuilder builder)
     {
         var corsOptions = builder.Configuration
