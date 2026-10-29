@@ -4,11 +4,7 @@ using MediatR;
 
 namespace Ats.Modules.Applications.Application.Events;
 
-// Bridges the in-process domain event onto the message bus, mirroring
-// PublishApplicationRejectedIntegrationEvent. With the transactional outbox enabled,
-// IPublishEndpoint.Publish writes the message to the outbox tables in the same DbContext rather
-// than reaching the broker. The command handler publishes before its SaveChanges, so the message
-// and the hired status commit atomically — hence no try/catch: a failure must propagate.
+// Goes through the outbox, so a failure must propagate and roll back the save.
 public sealed class PublishApplicationHiredIntegrationEvent
     : INotificationHandler<ApplicationHiredEvent>
 {

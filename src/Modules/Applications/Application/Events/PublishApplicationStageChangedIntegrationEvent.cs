@@ -4,15 +4,7 @@ using MediatR;
 
 namespace Ats.Modules.Applications.Application.Events;
 
-// Bridges the in-process domain event onto the message bus, mirroring
-// PublishApplicationRejectedIntegrationEvent. MediatR delivers ApplicationStageChangedEvent
-// synchronously inside the move-stage request; this handler republishes it as an integration
-// event for the notification backbone.
-//
-// With the transactional outbox enabled, IPublishEndpoint.Publish writes the message to the outbox
-// tables in the same DbContext rather than reaching the broker. The command handler publishes before
-// its SaveChanges, so the message and the stage move commit atomically (or roll back together) —
-// hence no try/catch: a failure must propagate, not be swallowed.
+// Goes through the outbox, so a failure must propagate and roll back the save.
 public sealed class PublishApplicationStageChangedIntegrationEvent
     : INotificationHandler<ApplicationStageChangedEvent>
 {

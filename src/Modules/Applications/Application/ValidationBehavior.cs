@@ -3,10 +3,7 @@ using MediatR;
 
 namespace Ats.Modules.Applications.Application;
 
-// MediatR pipeline behaviour that runs every registered FluentValidation validator before the
-// handler. A failed validation throws ValidationException, which the API's
-// ValidationExceptionHandler turns into a 400 ProblemDetails — so handlers can assume their
-// input is already well-formed.
+// Runs the validators before the handler; a failure becomes a 400 ProblemDetails.
 public sealed class ValidationBehavior<TRequest, TResponse>
     : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull

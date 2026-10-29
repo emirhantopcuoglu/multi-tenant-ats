@@ -8,15 +8,12 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-// "Application" is both the aggregate and this layer's namespace; alias the type so
-// Application.Create below resolves to the entity, not the namespace.
+// Alias because "Application" is also this namespace.
 using ApplicationEntity = Ats.Modules.Applications.Domain.Application;
 
 namespace Ats.Modules.Applications.Application.Applications;
 
-// A candidate's application to a job. The identity fields (email, name) are no longer
-// submitted in the form — they come from the authenticated CandidateAccount, fetched via the
-// ICandidateAccountReader port so this module never couples to the CandidateAccounts schema.
+// Email and name come from the candidate account through ICandidateAccountReader.
 public sealed record SubmitApplicationCommand(
     string JobSlug,
     Guid CandidateAccountId,
@@ -25,16 +22,13 @@ public sealed record SubmitApplicationCommand(
     string? CoverLetter,
     CvUpload? Cv) : ICommand<Guid>;
 
-// A CV attached to this application. Null means "use the one on my account" — the candidate
-// uploaded it once from their profile and does not have to find the file again on every job.
-// The stream belongs to the request and is only valid for the duration of the call.
+// Null means use the CV on the account. The stream is only valid during the call.
 public sealed record CvUpload(Stream Content, long SizeBytes, string ContentType, string FileName);
 
 public sealed class SubmitApplicationValidator : AbstractValidator<SubmitApplicationCommand>
 {
-    // Phone numbers arrive pasted in every format ("+90 (555) 111-22-33", "0555.111.2233"),
-    // so the shape check only constrains the character set; plausibility is the digit count.
-    // ITU E.164 caps subscriber numbers at 15 digits; 7 is the shortest national number in use.
+    // Pasted numbers come in many formats, so only the character set is checked here; the digit
+    // count (7 to 15, E.164) is the real check.
     private const string PhoneAllowedCharactersPattern = @"^\+?[\d\s().-]+$";
     private const int PhoneMinDigits = 7;
     private const int PhoneMaxDigits = 15;
@@ -104,41 +98,31 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
 
     public async Task<Result<Guid>> Handle(SubmitApplicationCommand command, CancellationToken ct)
     {
-        // The whole flow is tenant-scoped. If the slug did not resolve to a tenant there is no
-        // safe way to stamp or query rows, so fail fast.
         if (!_currentTenant.TenantId.HasValue)
             return Result.Failure<Guid>(ApplicationErrors.TenantNotResolved);
 
         var tenantId = _currentTenant.TenantId.Value;
 
-        // 1. Resolve the candidate identity from the global account. A valid CandidateOnly token
-        //    guarantees the account existed at token mint; returning null here would mean it was
-        //    deleted in the interim, which we treat as a bad request.
+        // The token was valid when issued; a missing account means it was deleted since.
         var account = await _candidateAccounts.GetByIdAsync(command.CandidateAccountId, ct);
         if (account is null)
             return Result.Failure<Guid>(ApplicationErrors.CandidateAccountNotFound);
 
-        //    A frozen account keeps its session, so the token alone cannot stop it. Checked first:
-        //    reactivating comes before anything else, including verifying the address.
+        // A frozen account keeps its session, so check it here. Before the email check.
         if (!account.IsActive)
             return Result.Failure<Guid>(ApplicationErrors.AccountFrozen);
 
-        //    Applying is the one action that waits for a proven email address. Everything a candidate
-        //    does before this point only affects their own account; from here on a recruiter reads the
-        //    address, writes to it, and schedules time around it. Checked before the CV is uploaded so
-        //    a refused application leaves nothing behind in object storage.
+        // Applying is the only action that needs a verified email. Checked before the CV upload so a
+        // refusal leaves nothing in storage.
         if (!account.IsEmailVerified)
             return Result.Failure<Guid>(ApplicationErrors.EmailNotVerified);
 
-        // 2. Confirm the job exists and is Published — a cross-module read through the
-        //    IJobDirectory port. Applications never sees the Jobs schema or entity.
+        // The job must exist and be published.
         var job = await _jobs.GetPublishedJobBySlugAsync(command.JobSlug, ct);
         if (job is null)
             return Result.Failure<Guid>(ApplicationErrors.JobNotAvailable);
 
-        // 3. Deduplicate the per-tenant candidate by email. The tenant half of the (tenant, email)
-        //    key is applied automatically by the global query filter. Phone/LinkedIn come from the
-        //    form: they can differ per-tenant and are not stored on the global account.
+        // Phone and LinkedIn come from the form; they aren't stored on the global account.
         var email = Candidate.NormalizeEmail(account.Email);
         var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.Email == email, ct);
         if (candidate is null)
@@ -150,24 +134,16 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
         }
         else
         {
-            // 4. One active application per (candidate, job). A brand-new candidate cannot have
-            //    a prior application, so this check only matters for a returning candidate.
-            //    It exists to produce a friendly error, not to enforce the rule: two concurrent
-            //    submits both pass it. The partial unique index behind Applications is the guard
-            //    that actually holds, and the catch around SaveChanges below turns its rejection
-            //    into this same error.
+            // Friendly pre-check only. Concurrent submits can both pass it; the partial unique index is the
+            // real guard and the catch below maps its failure to the same error.
             if (await HasActiveApplicationAsync(job.Id, candidate.Id, ct))
                 return Result.Failure<Guid>(ApplicationErrors.DuplicateApplication);
 
-            //    The form's phone and LinkedIn were previously read only when the candidate record
-            //    was created, so a returning candidate could type a new number and watch it be
-            //    discarded — the recruiter kept calling the old one. Applied after the duplicate
-            //    check so a refused application changes nothing.
+            // After the duplicate check, so a refused application changes nothing.
             candidate.UpdateContactDetails(command.Phone, command.LinkedInUrl);
         }
 
-        // 5. Materialise the job's pipeline lazily on first application (custom editors are V2).
-        //    The unique (tenant, job) index makes this at-most-one per job.
+        // Created on the first application. The (tenant, job) unique index keeps it to one.
         var pipeline = await _db.Pipelines
             .Include(p => p.Stages)
             .FirstOrDefaultAsync(p => p.JobId == job.Id, ct);
@@ -178,10 +154,7 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
         }
         var initialStageId = pipeline.InitialStage.Id;
 
-        // 6. Put the CV in storage before persisting. The bucket is private; the file is only ever
-        //    reachable through a short-lived presigned URL. The key is grouped under the
-        //    candidate (known here) — the application id is generated inside Application.Create,
-        //    so using it would force the entity to surrender id generation to this layer.
+        // Stored under the candidate; the application id isn't known until Application.Create.
         var cvKeyResult = await ResolveCvKeyAsync(command, account, tenantId, candidate.Id, ct);
         if (cvKeyResult.IsFailure)
             return Result.Failure<Guid>(cvKeyResult.Error);
@@ -192,40 +165,29 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
             job.Id, candidate.Id, command.CandidateAccountId, initialStageId, cvKey, command.CoverLetter);
         _db.Applications.Add(application);
 
-        // Publish before saving: with the transactional outbox, the bridge handler writes the
-        // integration event to the outbox tables in this same DbContext, so it commits atomically
-        // with the rows below — a broker outage can no longer lose it or block this request.
+        // Published before saving so the outbox message commits with the application.
         await _publisher.Publish(
             new ApplicationSubmittedEvent(
                 application.Id, job.Id, job.Title, candidate.Id,
                 candidate.Email, candidate.FirstName, candidate.LastName, tenantId),
             ct);
 
-        // Also request CV parsing. Like the event above, this is bridged onto RabbitMQ via the
-        // outbox, so it commits in the same transaction as the application row: a parse can never be
-        // requested for an application that was not saved, and vice versa.
+        // Also through the outbox, so a parse is only requested for a saved application.
         await _publisher.Publish(
             new CvParseRequestedEvent(application.Id, job.Id, candidate.Id, cvKey, tenantId),
             ct);
 
         try
         {
-            // Candidate (if new), pipeline (if new), the application and the outbox message commit
-            // in one transaction — SaveChanges is atomic per DbContext.
             await _db.SaveChangesAsync(ct);
         }
         catch (Exception exception)
         {
-            // The upload is not part of the DB transaction. If persistence fails, delete the
-            // orphaned object so storage does not accumulate unreferenced CVs (a PII concern).
+            // Not part of the transaction, so delete the uploaded CV if the save fails.
             await TryDeleteAsync(cvKey, ct);
 
-            // A constraint rejected the insert. Rather than decode a driver-specific error code
-            // here in the Application layer, ask the database the same question step 4 asked: if an
-            // active application now exists, this request lost the race and deserves the ordinary
-            // duplicate error instead of a 500. Anything else is a real fault and must propagate —
-            // a concurrent first-time submit to a different job, for instance, fails on the
-            // candidate's own (tenant, email) index and is retryable, not a duplicate.
+            // Ask the database the same question as the pre-check instead of decoding a driver error. Any
+            // other failure (e.g. the candidate's own email index) is real and propagates.
             if (exception is DbUpdateException
                 && await HasActiveApplicationAsync(job.Id, candidate.Id, ct))
             {
@@ -235,17 +197,14 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
             throw;
         }
 
-        // Record the first entry in the application's history, now in MongoDB. This is not part of
-        // the transaction above (Mongo is a separate system): the application is committed first,
-        // then logged best-effort.
+        // After the save; the activity log is in MongoDB, outside the transaction.
         await _activityLog.TryAddAsync(
             ApplicationActivity.Submitted(application.Id, job.Id, candidate.Email), _logger, ct);
 
         return Result.Success(application.Id);
     }
 
-    // Asked twice on purpose: once up front for a friendly refusal, once after a failed insert to
-    // classify it. Sharing one method keeps the two answers to the same question identical.
+    // Shared by the pre-check and the post-failure check so the two can't drift.
     private Task<bool> HasActiveApplicationAsync(Guid jobId, Guid candidateId, CancellationToken ct) =>
         _db.Applications.AnyAsync(
             a => a.JobId == jobId
@@ -253,11 +212,8 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
                  && a.Status == ApplicationStatus.Active,
             ct);
 
-    // Produces the key of the CV this application will own. Either way the result is an object of
-    // this application's own, under this tenant's prefix — never a pointer into the candidate's
-    // account. An application is a record of what was sent on the day it was sent: the candidate
-    // may replace or erase their account CV afterwards, and the recruiter must still see the
-    // document they were given.
+    // Always a copy under this tenant, never a pointer to the account CV: the candidate may replace
+    // or delete that later, and the recruiter must keep what was sent.
     private async Task<Result<string>> ResolveCvKeyAsync(
         SubmitApplicationCommand command,
         CandidateAccountSummary account,
@@ -274,8 +230,7 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
             return Result.Success(uploadedKey);
         }
 
-        // Nothing attached and nothing on file: the form let them through because the CV field is
-        // optional, so this is where it is caught.
+        // The CV field is optional, so this is where a missing CV is caught.
         if (account.CvFileKey is null || account.CvFileName is null)
             return Result.Failure<string>(ApplicationErrors.CvRequired);
 
@@ -296,7 +251,7 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
         }
         catch
         {
-            // Best-effort compensation: swallow so the original persistence failure surfaces.
+            // Best-effort; let the original failure surface.
         }
     }
 }

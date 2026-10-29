@@ -21,13 +21,8 @@ public sealed record CandidateApplicationSummaryDto(
 public sealed record ListCandidateApplicationsQuery(Guid CandidateAccountId, int Page = 1, int PageSize = 20)
     : IQuery<PagedResult<CandidateApplicationSummaryDto>>;
 
-// Reads a candidate's own applications across all tenants. Unlike every other query in this
-// module, this one deliberately bypasses the tenant global filter — the global account is the
-// scope root, not a tenant. IgnoreQueryFilters() is called explicitly on each queryable that
-// carries the filter so the intent is unmissable at the call sites below.
-//
-// Company names (ITenantDirectory) and job titles/slugs (IJobDirectory) are fetched in two
-// batched calls so the page cost is O(1), not O(n) per row.
+// Spans all tenants: the candidate account is the scope, not a tenant, so each queryable calls
+// IgnoreQueryFilters. Company names and job titles come in two batched calls.
 public sealed class ListCandidateApplicationsHandler
     : IQueryHandler<ListCandidateApplicationsQuery, PagedResult<CandidateApplicationSummaryDto>>
 {
@@ -66,7 +61,6 @@ public sealed class ListCandidateApplicationsHandler
         if (rows.Count == 0)
             return Result.Success(new PagedResult<CandidateApplicationSummaryDto>([], page, pageSize, total));
 
-        // Batch the cross-module lookups so each page costs one extra query per port, not one per row.
         var stageIds = rows.Select(r => r.CurrentStageId).Distinct().ToList();
         var stages = await _db.PipelineStages
             .AsNoTracking()
@@ -97,23 +91,12 @@ public sealed class ListCandidateApplicationsHandler
     }
 }
 
-// ---- GetCandidateApplicationDetail ----
-// The candidate's transparent view of one application: where it sits in the company's full
-// pipeline plus a timeline of what happened. These DTOs are candidate-safe BY SHAPE — they have
-// no field for the acting user or the internal rejection reason, so a mapping bug cannot leak
-// either; the projection below never reads them into the response in the first place.
+// Candidate-safe by shape: no field for the acting user or the internal rejection reason.
 public sealed record CandidatePipelineStageDto(Guid Id, string Name, string Type, int Order);
 
 public sealed record CandidateTimelineEntryDto(string Type, string? StageName, DateTime OccurredAtUtc);
 
-// Candidate-safe projection of CandidateInterviewInfo — same shape, kept as its own record so this
-// module's public contract doesn't leak a Shared.Contracts type verbatim into the API response.
-//
-// RoomToken is here for the same reason it is on CandidateInterviewSummaryDto: both records describe
-// the same interview to the same candidate, on two different screens. Carrying it on one and not the
-// other is what left the application-detail card unable to offer a link the "My interviews" page
-// already had. It is a locator, not a bearer secret — see Interview.RoomToken — and null for a phone
-// screen, which has no room.
+// Its own record so a Shared.Contracts type isn't exposed directly. RoomToken is null for phone screens.
 public sealed record CandidateInterviewDto(
     Guid Id, string Type, DateTime ScheduledAtUtc, int DurationMinutes, string Status,
     string? RoomToken);
@@ -161,9 +144,7 @@ public sealed class GetCandidateApplicationDetailHandler
     public async Task<Result<CandidateApplicationDetailDto>> Handle(
         GetCandidateApplicationDetailQuery query, CancellationToken ct)
     {
-        // Ownership is part of the WHERE, not a separate check: an application that exists but
-        // belongs to someone else is indistinguishable from one that doesn't exist. Probing ids
-        // therefore reveals nothing. Cross-tenant scope as in the list query above.
+        // Ownership is part of the WHERE, so someone else's id looks like a missing one.
         var application = await _db.Applications
             .AsNoTracking()
             .IgnoreQueryFilters()
@@ -195,7 +176,7 @@ public sealed class GetCandidateApplicationDetailHandler
         if (stages.Count == 0)
             return Result.Failure<CandidateApplicationDetailDto>(ApplicationErrors.NotFound);
 
-        // The tenant comes from the application row we just verified — never from the caller.
+        // The tenant comes from the verified row, never from the caller.
         var entries = await _activityLog.GetByApplicationAsync(application.Id, application.TenantId, ct);
         var stageNames = stages.ToDictionary(s => s.Id, s => s.Name);
         var timeline = BuildCandidateTimeline(entries, stageNames);
@@ -215,8 +196,7 @@ public sealed class GetCandidateApplicationDetailHandler
     private async Task<IReadOnlyList<CandidatePipelineStageDto>> LoadPipelineStagesAsync(
         Guid jobId, Guid tenantId, CancellationToken ct)
     {
-        // Two narrow queries instead of a join: the pipeline id first, then its live stages in
-        // funnel order. TenantId is matched explicitly because the global filter is bypassed.
+        // TenantId is matched explicitly because the filter is bypassed.
         var pipelineId = await _db.Pipelines
             .AsNoTracking()
             .IgnoreQueryFilters()
@@ -236,10 +216,8 @@ public sealed class GetCandidateApplicationDetailHandler
             .ToListAsync(ct);
     }
 
-    // Pure mapping from internal log entries to the candidate-visible timeline. Ascending by
-    // time; only the earliest Viewed survives (a concurrent double-stamp may log two); stage ids
-    // resolve to names here so raw ids never reach the candidate; the Rejected payload's internal
-    // reason is intentionally never read.
+    // Oldest first, only the earliest Viewed, stage ids resolved to names. The rejection reason is
+    // never read.
     internal static IReadOnlyList<CandidateTimelineEntryDto> BuildCandidateTimeline(
         IReadOnlyList<ActivityLogEntry> entries, IReadOnlyDictionary<Guid, string> stageNames)
     {
@@ -291,24 +269,18 @@ public sealed class GetCandidateApplicationDetailHandler
         }
         catch (JsonException)
         {
-            // A legacy or malformed payload should degrade to a nameless move, not a 500.
+            // A malformed payload becomes a nameless move instead of a 500.
         }
 
         return null;
     }
 }
 
-// ---- ListCandidateAppliedJobIds ----
 public sealed record ListCandidateAppliedJobIdsQuery(Guid CandidateAccountId)
     : IQuery<IReadOnlyList<Guid>>;
 
-// Returns the job ids the candidate currently has an Active application for, so the public job
-// pages can render an "already applied" state instead of the apply CTA. Only Active applications
-// count — SubmitApplicationHandler's duplicate rule allows re-applying after a rejection or
-// withdrawal, and this projection must mirror that rule exactly or the UI will contradict the API.
-//
-// The result is deliberately unpaged: it is a membership set of GUIDs bounded by how many jobs one
-// person can apply to, and the pages that consume it need the whole set for O(1) lookups.
+// Only Active applications count, matching SubmitApplicationHandler's duplicate rule. Not paged:
+// it is a small set the pages need in full.
 public sealed class ListCandidateAppliedJobIdsHandler
     : IQueryHandler<ListCandidateAppliedJobIdsQuery, IReadOnlyList<Guid>>
 {
@@ -319,8 +291,6 @@ public sealed class ListCandidateAppliedJobIdsHandler
     public async Task<Result<IReadOnlyList<Guid>>> Handle(
         ListCandidateAppliedJobIdsQuery query, CancellationToken ct)
     {
-        // Same cross-tenant scope as the list above: the global candidate account is the root,
-        // so the tenant filter is explicitly bypassed.
         var jobIds = await _db.Applications
             .AsNoTracking()
             .IgnoreQueryFilters()
@@ -335,10 +305,7 @@ public sealed class ListCandidateAppliedJobIdsHandler
     }
 }
 
-// ---- ListCandidateInterviews ----
-// The candidate's own interviews across every application they hold, regardless of which company
-// or job it's under — the aggregate the "My interviews" tab needs, as opposed to the per-application
-// list GetCandidateApplicationDetailQuery already returns.
+// All of the candidate's interviews, across companies, for the "My interviews" tab.
 public sealed record CandidateInterviewSummaryDto(
     Guid Id,
     Guid ApplicationId,
@@ -372,8 +339,6 @@ public sealed class ListCandidateInterviewsHandler
     public async Task<Result<IReadOnlyList<CandidateInterviewSummaryDto>>> Handle(
         ListCandidateInterviewsQuery query, CancellationToken ct)
     {
-        // Same cross-tenant scope as ListCandidateApplicationsHandler: the global account is the
-        // scope root, so every application this candidate holds is fair game regardless of tenant.
         var applications = await _db.Applications
             .AsNoTracking()
             .IgnoreQueryFilters()

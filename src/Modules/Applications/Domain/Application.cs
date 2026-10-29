@@ -2,9 +2,7 @@ using Ats.Shared.Kernel;
 
 namespace Ats.Modules.Applications.Domain;
 
-// One candidate's application to one job. Aggregate root. It references the job, candidate
-// and current stage by id only — it never holds those objects — so the three aggregates stay
-// independent. The lifecycle (Active -> terminal) is enforced here, not in a service.
+// Aggregate root. References the job, candidate and stage by id only.
 public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
 {
     public Guid Id { get; private set; }
@@ -18,12 +16,10 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
     public ApplicationStatus Status { get; private set; }
     public string? RejectionReason { get; private set; }
     public DateTime AppliedAtUtc { get; private set; }
-    // Read receipt for candidate transparency: when someone at the company first opened this
-    // application. Later views never move it — "first viewed" is the honest signal.
+    // When someone at the company first opened it. Later views don't change it.
     public DateTime? FirstViewedAtUtc { get; private set; }
 
-    // Same idea as FirstViewedAtUtc, for the CV specifically: when someone at the company first
-    // downloaded it. A recruiter can re-download the same CV many times; only the first counts.
+    // When someone at the company first downloaded the CV.
     public DateTime? FirstCvDownloadedAtUtc { get; private set; }
 
     public DateTime CreatedAtUtc { get; private set; }
@@ -69,9 +65,7 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
             string.IsNullOrWhiteSpace(coverLetter) ? null : coverLetter);
     }
 
-    // Recruiter advances the application. Moving to a stage that does not belong to this
-    // job's pipeline is a cross-aggregate check the command handler does (it has the
-    // pipeline); the entity only guards that the application is still in play.
+    // The handler checks the stage belongs to this pipeline; the entity only checks the status.
     public void MoveToStage(Guid stageId)
     {
         if (stageId == Guid.Empty)
@@ -81,9 +75,7 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
         CurrentStageId = stageId;
     }
 
-    // Reject and Hire take the pipeline's matching terminal stage so the terminal status and the
-    // stage move commit as one operation — an application must never read "Rejected" while its
-    // card still sits in a working column, or vice versa.
+    // Takes the terminal stage so status and stage always change together.
     public void Reject(string reason, Guid rejectedStageId)
     {
         if (string.IsNullOrWhiteSpace(reason))
@@ -113,9 +105,7 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
         Status = ApplicationStatus.Withdrawn;
     }
 
-    // Returns true only on the first call so the caller knows whether to record a timeline
-    // entry. Deliberately valid in any status: a terminal application can still be opened, and
-    // the candidate deserves to know it was looked at.
+    // True only on the first call. Allowed in any status: a closed application can still be opened.
     public bool MarkViewed()
     {
         if (FirstViewedAtUtc is not null)
@@ -125,7 +115,6 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
         return true;
     }
 
-    // Same "first time only" contract as MarkViewed, for the CV download signal.
     public bool MarkCvDownloaded()
     {
         if (FirstCvDownloadedAtUtc is not null)

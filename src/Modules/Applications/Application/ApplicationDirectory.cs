@@ -5,10 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Applications.Application;
 
-// The Applications module's implementation of the cross-module read port, the counterpart to the
-// Jobs module's JobDirectory. It answers the Interviews module's questions about applications —
-// returning flat read models, never the Application aggregate. Tenant scoping is automatic via the
-// global query filter on the context.
+// Read port for other modules. Returns flat read models, never the Application aggregate.
 public sealed class ApplicationDirectory : IApplicationDirectory
 {
     private readonly IApplicationsDbContext _db;
@@ -32,12 +29,8 @@ public sealed class ApplicationDirectory : IApplicationDirectory
             _db.Candidates.AsNoTracking().IgnoreQueryFilters().Where(c => c.TenantId == tenantId),
             applicationId, cancellationToken);
 
-    // The candidate join can't miss: an application is always created against a candidate in
-    // this module's own schema. The job title comes through the Jobs read port because the
-    // title lives in that module's schema — same one-hop rule the Interviews caller follows.
-    // Both base queryables are either the ambient-tenant-filtered set (in-tenant caller) or an
-    // explicit-tenant, filter-bypassing set (cross-tenant caller) — Candidate is tenant-scoped
-    // too, so the join side needs the same bypass or it silently finds nothing.
+    // The job title comes from the Jobs port. For cross-tenant callers both queries bypass the
+    // filter and match the tenant explicitly, Candidate included, or the join finds nothing.
     private async Task<ApplicationForScheduling?> GetForSchedulingAsync(
         IQueryable<Domain.Application> applications, IQueryable<Candidate> candidates,
         Guid applicationId, CancellationToken cancellationToken)
@@ -67,9 +60,7 @@ public sealed class ApplicationDirectory : IApplicationDirectory
             row.CandidateId, row.CandidateAccountId, row.Email, row.FirstName);
     }
 
-    // Two queries total regardless of batch size: one join for the applications and their candidates,
-    // one batched call into the Jobs port for the titles. The per-id overload above would have cost
-    // two round trips per application instead — the N+1 this method exists to avoid.
+    // Two queries for any batch size, instead of two per application.
     public async Task<IReadOnlyDictionary<Guid, ApplicationForScheduling>> GetForSchedulingAsync(
         IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default)
     {
@@ -95,8 +86,7 @@ public sealed class ApplicationDirectory : IApplicationDirectory
         var jobs = await _jobs.GetSummariesAsync(
             rows.Select(row => row.JobId).Distinct().ToList(), cancellationToken);
 
-        // A missing job title becomes an empty string, matching the single-id overload: consumers
-        // already render that as "the role you applied for" rather than failing the message.
+        // A missing title becomes an empty string; consumers fall back to a generic phrase.
         return rows.ToDictionary(
             row => row.Id,
             row => new ApplicationForScheduling(
@@ -124,8 +114,6 @@ public sealed class ApplicationDirectory : IApplicationDirectory
     public async Task<IReadOnlyList<Guid>> GetApplicationIdsForCandidateAsync(
         Guid candidateId, CancellationToken cancellationToken = default)
     {
-        // Ambient tenant filter applies: only this tenant's applications for the candidate. Soft
-        // deletes are excluded by the same global filter (Application is ISoftDeletable).
         return await _db.Applications
             .AsNoTracking()
             .Where(a => a.CandidateId == candidateId)
@@ -143,8 +131,7 @@ public sealed class ApplicationDirectory : IApplicationDirectory
 
     public async Task<int> CountActiveCandidatesAsync(CancellationToken cancellationToken = default)
     {
-        // Distinct candidates, not applications: one candidate may hold several open applications but
-        // is a single "active candidate". Distinct + count is one aggregate query (no N+1).
+        // Counts distinct candidates, not applications.
         return await _db.Applications
             .AsNoTracking()
             .Where(a => a.Status == ApplicationStatus.Active)

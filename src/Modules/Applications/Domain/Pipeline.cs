@@ -2,12 +2,10 @@ using Ats.Shared.Kernel;
 
 namespace Ats.Modules.Applications.Domain;
 
-// The set of stages an application moves through for one job. The MVP gives every job the
-// same default template (custom editors are V2), so the only way to build a pipeline is
-// CreateDefault. The aggregate owns its stages: callers read them but never mutate the list.
+// Every job gets the same default stages. The pipeline owns its stages.
 public sealed class Pipeline : ITenantScoped, IAuditable, ISoftDeletable
 {
-    // Standard funnel. Names are user-facing; the Type drives behaviour, not the name.
+    // Names are shown to users; behaviour depends on Type.
     private const string AppliedStage = "Applied";
     private const string ScreeningStage = "Screening";
     private const string InterviewStage = "Interview";
@@ -53,8 +51,7 @@ public sealed class Pipeline : ITenantScoped, IAuditable, ISoftDeletable
         return pipeline;
     }
 
-    // The stage a new application starts in. Single (not FirstOrDefault) on purpose: a
-    // pipeline without exactly one Initial stage is a bug we want to surface loudly.
+    // Single, not FirstOrDefault: anything but exactly one Initial stage is a bug.
     public PipelineStage InitialStage => _stages.Single(s => s.Type == PipelineStageType.Initial);
 
     private void AddStage(string name, int order, PipelineStageType type)

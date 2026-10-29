@@ -9,24 +9,12 @@ using Prometheus;
 
 namespace Ats.Modules.Applications.Infrastructure;
 
-// Consumes CvParseRequestedIntegrationEvent off RabbitMQ and produces the structured CV data.
-// This is the out-of-process half of the apply flow: the candidate's request already
-// returned 201, and parsing happens afterwards, decoupled.
-//
-// Steps: download the CV from object storage -> pick the extractor for its real format (PDF or
-// DOCX, by magic bytes) -> extract text -> ask the LLM to extract structured fields -> store the
-// result in MongoDB. If parsing throws (e.g. a transient LLM failure that outlasts the parser's own
-// Polly retries), the exception propagates so MassTransit retries the message and, once retries are
-// exhausted, dead-letters it.
-//
-// No idempotency guard is needed: the store upserts on the application id, so a duplicate delivery
-// simply overwrites the same result. (The only cost of a redelivery is a repeat LLM call, which is
-// rare and acceptable for the MVP.)
+// Downloads the CV, extracts text (PDF or DOCX, by magic bytes), asks the LLM for structured data
+// and stores it in MongoDB. Failures propagate so MassTransit retries. No idempotency guard: the
+// store upserts on the application id.
 public sealed class CvParsingConsumer : IConsumer<CvParseRequestedIntegrationEvent>
 {
-    // %PDF and PK\x03\x04 (ZIP, which is what a DOCX package is on disk). We check the real
-    // content, not the file name, for the same reason the upload boundary does
-    // (FileSignatureValidator): names lie.
+    // Detected from the content, not the file name.
     private static readonly byte[] PdfMagic = [0x25, 0x50, 0x44, 0x46];
     private static readonly byte[] ZipMagic = [0x50, 0x4B, 0x03, 0x04];
 
@@ -61,9 +49,7 @@ public sealed class CvParsingConsumer : IConsumer<CvParseRequestedIntegrationEve
         var message = context.Message;
         var bytes = await _fileStorage.DownloadAsync(message.CvFileKey, context.CancellationToken);
 
-        // A format outside the upload whitelist (which should not happen while the boundary and
-        // this dispatch agree) is acknowledged and skipped rather than retried/dead-lettered:
-        // redelivery cannot turn an unknown format into a known one.
+        // An unknown format is skipped, not retried; a retry can't change it.
         string? text;
         try
         {
@@ -71,10 +57,7 @@ public sealed class CvParsingConsumer : IConsumer<CvParseRequestedIntegrationEve
         }
         catch (TextExtractionException exception)
         {
-            // Same reasoning, one step further in: the file is the format it claimed to be, but its
-            // bytes are unreadable. Retrying a corrupted upload produces the identical failure every
-            // time and leaves the error queue full of messages nothing can ever process, which is
-            // exactly what buries the failures worth looking at.
+            // Same for a corrupted file: it would fail the same way on every retry.
             _logger.LogWarning(
                 exception,
                 "Skipping CV parse for application {ApplicationId}: the file could not be read.",
@@ -98,10 +81,7 @@ public sealed class CvParsingConsumer : IConsumer<CvParseRequestedIntegrationEve
             return;
         }
 
-        // A job that was deleted between application and parsing is an edge case with no requirements
-        // left to judge against; the parser still runs, just without job-specific fit (empty
-        // description reads as "no requirements stated" to the prompt, same as a job with no
-        // description written at all).
+        // A deleted job just means no requirements to compare against.
         var job = await _jobDirectory.GetJobRequirementsAsync(
             message.TenantId, message.JobId, context.CancellationToken);
 
@@ -119,8 +99,7 @@ public sealed class CvParsingConsumer : IConsumer<CvParseRequestedIntegrationEve
             message.ApplicationId, result.Skills.Count);
     }
 
-    // Null means "format we don't extract from"; empty string means "known format, no text".
-    // The caller logs the two cases differently, so the distinction is deliberate.
+    // Null means unsupported format; empty means no text. Logged differently.
     private string? ExtractText(byte[] bytes)
     {
         if (StartsWith(bytes, PdfMagic))

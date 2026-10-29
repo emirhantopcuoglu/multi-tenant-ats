@@ -3,21 +3,17 @@ using Ats.Shared.Kernel;
 
 namespace Ats.Modules.Applications.Domain;
 
-// An append-only entry in an application's history: who did what, when, with a small JSON
-// payload describing the change. Stored in PostgreSQL (jsonb) for now; it moves to MongoDB
-// later, which is why the payload is a flexible document rather than typed columns.
-//
-// Unlike the other aggregates it is ITenantScoped but not IAuditable/ISoftDeletable: a log is
-// never edited or deleted, and OccurredAtUtc plus ActorUserId already capture the "when/who".
+// Append-only history entry with a JSON payload, stored in MongoDB. Never edited or deleted, so
+// not IAuditable or ISoftDeletable.
 public sealed class ApplicationActivity : ITenantScoped
 {
     public Guid Id { get; private set; }
     public Guid TenantId { get; private set; }
     public Guid ApplicationId { get; private set; }
     public ApplicationActivityType ActivityType { get; private set; }
-    // Null for actions taken by an anonymous candidate (e.g. submitting an application).
+    // Null when the candidate acted, e.g. submitting or withdrawing.
     public Guid? ActorUserId { get; private set; }
-    // Serialized JSON, mapped to a jsonb column. Shape depends on ActivityType.
+    // JSON; the shape depends on ActivityType.
     public string Payload { get; private set; } = "{}";
     public DateTime OccurredAtUtc { get; private set; }
 
@@ -43,8 +39,7 @@ public sealed class ApplicationActivity : ITenantScoped
         new(applicationId, ApplicationActivityType.StageChanged, actorUserId,
             JsonSerializer.Serialize(new { fromStageId, toStageId }));
 
-    // Unlike StageChanged, always carries a reason: a correction is a deliberate out-of-band fix,
-    // never an automated move.
+    // Always has a reason.
     public static ApplicationActivity StageCorrected(
         Guid applicationId, Guid? actorUserId, Guid fromStageId, Guid toStageId, string reason) =>
         new(applicationId, ApplicationActivityType.StageCorrected, actorUserId,
@@ -54,19 +49,14 @@ public sealed class ApplicationActivity : ITenantScoped
         new(applicationId, ApplicationActivityType.Rejected, actorUserId,
             JsonSerializer.Serialize(new { reason }));
 
-    // No payload: the hired stage is implied by the decision and the candidate-facing timeline
-    // only needs the fact and the timestamp.
     public static ApplicationActivity Hired(Guid applicationId, Guid? actorUserId) =>
         new(applicationId, ApplicationActivityType.Hired, actorUserId, "{}");
 
-    // The actor is kept for internal auditing but is never exposed to the candidate — the
-    // candidate-facing timeline says "the company viewed your application", not who.
+    // The actor is kept for internal audit and never shown to the candidate.
     public static ApplicationActivity Viewed(Guid applicationId, Guid? actorUserId) =>
         new(applicationId, ApplicationActivityType.Viewed, actorUserId, "{}");
 
-    // No actor parameter at all, unlike every factory above: a withdrawal is only ever the
-    // candidate's own act, and ActorUserId names a company user. Passing one would be a bug the
-    // signature now makes impossible.
+    // No actor: only the candidate can withdraw, and ActorUserId is for company users.
     public static ApplicationActivity Withdrawn(Guid applicationId) =>
         new(applicationId, ApplicationActivityType.Withdrawn, actorUserId: null, "{}");
 }

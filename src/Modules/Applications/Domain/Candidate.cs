@@ -2,9 +2,7 @@ using Ats.Shared.Kernel;
 
 namespace Ats.Modules.Applications.Domain;
 
-// A person who has applied to at least one job in a tenant. Deduplicated by
-// (TenantId, Email): the same person applying to a second job reuses this record rather
-// than creating a duplicate. TenantId is stamped by the persistence interceptor on insert.
+// Someone who applied to a job in this tenant. One per (TenantId, Email).
 public sealed class Candidate : ITenantScoped, IAuditable, ISoftDeletable
 {
     public Guid Id { get; private set; }
@@ -51,14 +49,8 @@ public sealed class Candidate : ITenantScoped, IAuditable, ISoftDeletable
             string.IsNullOrWhiteSpace(linkedInUrl) ? null : linkedInUrl.Trim());
     }
 
-    // Applying again is the only moment a candidate can correct the contact details this tenant
-    // holds for them — the record is deduplicated by email, so the second application would
-    // otherwise leave the recruiter looking at a number from months ago.
-    //
-    // A blank field means "nothing new", not "erase what you have". The application form's phone
-    // and LinkedIn inputs are optional, so an empty one cannot be told apart from a deliberate
-    // clear — and wiping a working number the recruiter is about to call is the worse of the two
-    // mistakes. Clearing a detail stays a profile action, not a side effect of applying.
+    // A blank field means "nothing new", not "clear it": the form fields are optional, and wiping a
+    // working phone number is the worse mistake.
     public void UpdateContactDetails(string? phone, string? linkedInUrl)
     {
         if (!string.IsNullOrWhiteSpace(phone))
@@ -68,7 +60,6 @@ public sealed class Candidate : ITenantScoped, IAuditable, ISoftDeletable
             LinkedInUrl = linkedInUrl.Trim();
     }
 
-    // Stored normalised so the (TenantId, Email) uniqueness check is case-insensitive
-    // without relying on collation: "Jane@x.com" and "jane@x.com" are the same person.
+    // Lowercased so the unique index is case-insensitive without relying on DB collation.
     public static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 }

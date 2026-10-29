@@ -4,12 +4,7 @@ using MediatR;
 
 namespace Ats.Modules.Applications.Application.Events;
 
-// Bridges the in-process withdrawal event onto the message bus, mirroring
-// PublishApplicationRejectedIntegrationEvent.
-//
-// With the transactional outbox enabled, Publish writes to the outbox tables in the same DbContext
-// instead of reaching the broker. The command handler publishes before its SaveChanges, so the
-// message and the Withdrawn status commit atomically — hence no try/catch: a failure must propagate.
+// Goes through the outbox, so a failure must propagate and roll back the save.
 public sealed class PublishApplicationWithdrawnIntegrationEvent
     : INotificationHandler<ApplicationWithdrawnEvent>
 {
