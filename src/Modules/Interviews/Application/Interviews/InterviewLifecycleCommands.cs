@@ -8,11 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Interviews.Application.Interviews;
 
-// The interview lifecycle transitions, all sharing the same shape: load the interview, ask the entity
-// to change state (it guards the invariant that a terminal interview can't transition), then save. No
-// integration events yet — emailing/reminders on cancel land in a later slice.
 
-// ---- Reschedule ----
 public sealed record RescheduleInterviewCommand(
     Guid InterviewId, DateTime ScheduledAtUtc, int DurationMinutes) : ICommand<bool>;
 
@@ -56,24 +52,20 @@ public sealed class RescheduleInterviewHandler : ICommandHandler<RescheduleInter
         if (interview is null)
             return Result.Failure<bool>(InterviewErrors.NotFound);
 
-        // Resolve the candidate behind the interview so the overlap check catches the candidate being
-        // double-booked too, not only an interviewer. The application always exists in this tenant
-        // (the interview was scheduled against it); an empty set just skips the candidate check.
+        // So the overlap check also covers the candidate. An empty set skips that part.
         var application = await _applications.GetForSchedulingAsync(interview.ApplicationId, ct);
         IReadOnlyList<Guid> candidateApplicationIds = application is null
             ? []
             : await _applications.GetApplicationIdsForCandidateAsync(application.CandidateId, ct);
 
-        // The new time must not collide with the interviewers' or the candidate's other interviews;
-        // this interview itself is excluded so it never conflicts with its own old slot.
+        // This interview is excluded so it doesn't conflict with its own old slot.
         var conflict = await InterviewConflictGuard.CheckAsync(
             _db, command.ScheduledAtUtc, command.DurationMinutes, interview.InterviewerUserIds,
             candidateApplicationIds, excludeInterviewId: interview.Id, ct);
         if (conflict is not null)
             return Result.Failure<bool>(conflict);
 
-        // Captured before the move: the candidate is holding this time, so the notification has to
-        // be able to say what it changed from, not only what it changed to.
+        // Kept so the notification can show the old time.
         var previousScheduledAtUtc = interview.ScheduledAtUtc;
 
         try
@@ -91,10 +83,8 @@ public sealed class RescheduleInterviewHandler : ICommandHandler<RescheduleInter
 
         await _db.SaveChangesAsync(ct);
 
-        // Published after the commit, like ScheduleInterview and for the same reason: this module
-        // has no transactional outbox, and announcing a move that then failed to save would be a
-        // lie. A missing application (deleted between the read above and here) only costs the
-        // notification — the reschedule itself already stands.
+        // Published after the save (no outbox in this module). A missing application only skips the
+        // notification.
         if (application is not null)
         {
             await _publisher.Publish(
@@ -112,13 +102,10 @@ public sealed class RescheduleInterviewHandler : ICommandHandler<RescheduleInter
     }
 }
 
-// Shared by the two no-argument transitions (complete/no-show), which differ only by the domain
-// method they call. Reschedule and cancel are kept separate: both take parameters and both raise a
-// candidate-facing event, so there is nothing left for them to share here.
+// Shared by complete and no-show. Reschedule and cancel take parameters and raise events.
 internal static class InterviewTransition
 {
-    // The clock is read once here and handed to the transition, so a single request can never see two
-    // different "now"s — the guard and any timestamp it writes agree by construction.
+    // One clock read per request, so the guard and the timestamps agree.
     public static async Task<Result<bool>> ApplyAsync(
         IInterviewsDbContext db, Guid interviewId,
         Action<Domain.Interview, DateTime> transition, CancellationToken ct)
@@ -141,10 +128,7 @@ internal static class InterviewTransition
     }
 }
 
-// ---- Cancel ----
-// Unlike complete/no-show this one does not use InterviewTransition: cancelling is the only
-// transition the candidate must hear about, so the handler also resolves their contact details and
-// raises a domain event.
+// Cancelling notifies the candidate, so it resolves their details and raises an event.
 public sealed record CancelInterviewCommand(
     Guid InterviewId, InterviewCancellationReason Reason, string? Note) : ICommand<bool>;
 
@@ -200,8 +184,7 @@ public sealed class CancelInterviewHandler : ICommandHandler<CancelInterviewComm
 
         await _db.SaveChangesAsync(ct);
 
-        // Read after the commit, not before: nothing above needs the application, and a lookup that
-        // only feeds a best-effort notification must not sit between the guard and the save.
+        // Looked up after the save; it only feeds the notification.
         var application = await _applications.GetForSchedulingAsync(interview.ApplicationId, ct);
         if (application is not null)
         {
@@ -219,7 +202,6 @@ public sealed class CancelInterviewHandler : ICommandHandler<CancelInterviewComm
     }
 }
 
-// ---- Complete ----
 public sealed record CompleteInterviewCommand(Guid InterviewId) : ICommand<bool>;
 
 public sealed class CompleteInterviewValidator : AbstractValidator<CompleteInterviewCommand>
@@ -236,7 +218,6 @@ public sealed class CompleteInterviewHandler : ICommandHandler<CompleteInterview
         InterviewTransition.ApplyAsync(_db, command.InterviewId, (i, now) => i.Complete(now), ct);
 }
 
-// ---- Mark no-show ----
 public sealed record MarkInterviewNoShowCommand(Guid InterviewId, NoShowParty Party) : ICommand<bool>;
 
 public sealed class MarkInterviewNoShowValidator : AbstractValidator<MarkInterviewNoShowCommand>
@@ -258,10 +239,7 @@ public sealed class MarkInterviewNoShowHandler : ICommandHandler<MarkInterviewNo
             _db, command.InterviewId, (i, now) => i.MarkNoShow(command.Party, now), ct);
 }
 
-// ---- Reassign interviewers ----
-// Its own command rather than an extra field on reschedule: changing who is in the room and
-// changing when it happens are different operations with different failure modes, and one endpoint
-// doing both under the name "reschedule" would be lying about what it does.
+// Separate from reschedule: changing who and changing when are different operations.
 public sealed record ReassignInterviewersCommand(
     Guid InterviewId, IReadOnlyList<Guid> InterviewerUserIds) : ICommand<bool>;
 
@@ -288,9 +266,7 @@ public sealed class ReassignInterviewersHandler : ICommandHandler<ReassignInterv
         if (interview is null)
             return Result.Failure<bool>(InterviewErrors.NotFound);
 
-        // The slot is unchanged, so only the incoming interviewers can newly conflict. The candidate
-        // set is empty on purpose: this interview already occupies the candidate's slot and it is not
-        // moving, so re-checking them here could only ever flag the interview against itself.
+        // The slot doesn't move, so only new interviewers can conflict; the candidate isn't re-checked.
         var conflict = await InterviewConflictGuard.CheckAsync(
             _db, interview.ScheduledAtUtc, interview.DurationMinutes, command.InterviewerUserIds,
             candidateApplicationIds: [], excludeInterviewId: interview.Id, ct);
@@ -312,10 +288,7 @@ public sealed class ReassignInterviewersHandler : ICommandHandler<ReassignInterv
 
         await _db.SaveChangesAsync(ct);
 
-        // No event: the candidate is never told who is interviewing them (no contract carries
-        // interviewer names), and this system has no "you were assigned an interview" notification
-        // for interviewers even at scheduling time. Adding one here only for reassignment would be
-        // inconsistent — it belongs with an interviewer-facing notification slice, not this one.
+        // No event: no contract carries interviewer names, and interviewers get no notifications.
         return Result.Success(true);
     }
 }

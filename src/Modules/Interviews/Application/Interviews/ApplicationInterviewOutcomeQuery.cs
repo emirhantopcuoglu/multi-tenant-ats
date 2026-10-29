@@ -4,12 +4,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Interviews.Application.Interviews;
 
-// Whether an application's interviews are finished and what they concluded — the signal a stage
-// decision should rest on. Feedback existed but only per interview, so deciding meant opening each
-// one in turn and holding the scores in your head.
-//
-// AwaitingOutcomeCount is the number whose slot has passed with nothing recorded. Deciding while
-// those are outstanding means deciding on incomplete information, which is worth saying out loud.
+// Summary of an application's interviews. AwaitingOutcomeCount is interviews whose slot passed
+// with nothing recorded.
 public sealed record ApplicationInterviewOutcomeDto(
     int TotalCount,
     int CompletedCount,
@@ -17,8 +13,7 @@ public sealed record ApplicationInterviewOutcomeDto(
     int FeedbackCount,
     int ExpectedFeedbackCount,
     double? AverageRating,
-    // Recommendation name -> how many interviewers gave it. A dictionary rather than one field per
-    // value so adding a recommendation does not change this shape.
+    // Recommendation name to count, so a new recommendation doesn't change the shape.
     IReadOnlyDictionary<string, int> RecommendationCounts);
 
 public sealed record GetApplicationInterviewOutcomeQuery(Guid ApplicationId)
@@ -51,9 +46,7 @@ public sealed class GetApplicationInterviewOutcomeHandler
             .Where(f => interviewIds.Contains(f.InterviewId))
             .ToListAsync(ct);
 
-        // Only interviews that happened can be evaluated, so only they count towards the expected
-        // total. A cancelled or no-show interview is not missing feedback — there was nothing to
-        // evaluate, and counting it would make a complete panel look permanently incomplete.
+        // Cancelled and no-show interviews have nothing to evaluate, so they don't count as missing feedback.
         var expectedFeedback = interviews
             .Where(i => i.Status == InterviewStatus.Completed || i.IsAwaitingOutcome(nowUtc))
             .Sum(i => i.InterviewerUserIds.Count);

@@ -5,10 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Interviews.Application.Interviews;
 
-// The four states a room can be in for a caller who is otherwise allowed to see it. The web client
-// renders each one differently (countdown, join panel, "the interview has ended", ...). Unavailable
-// covers every non-Scheduled status (cancelled/completed/no-show) with one label rather than
-// exposing the interview's internal lifecycle to a room visitor.
+// Unavailable covers every non-Scheduled status, so visitors don't see the internal lifecycle.
 public enum InterviewRoomState { TooEarly, Open, Ended, Unavailable }
 
 public sealed record InterviewRoomDto(
@@ -20,9 +17,7 @@ public sealed record InterviewRoomDto(
     string State,
     DateTime OpensAtUtc);
 
-// Exactly one of CandidateAccountId or (CompanyUserId, CompanyTenantId) is set — the controller
-// decides which, from the token_type claim, before sending this. A caller with neither is not
-// something the controller can produce ([Authorize] already requires a valid token of one kind).
+// Exactly one of CandidateAccountId or (CompanyUserId, CompanyTenantId) is set, by the controller.
 public sealed record JoinInterviewRoomQuery(
     string RoomToken, Guid? CandidateAccountId, Guid? CompanyUserId, Guid? CompanyTenantId)
     : IQuery<InterviewRoomDto>;
@@ -40,9 +35,7 @@ public sealed class JoinInterviewRoomHandler : IQueryHandler<JoinInterviewRoomQu
 
     public async Task<Result<InterviewRoomDto>> Handle(JoinInterviewRoomQuery query, CancellationToken ct)
     {
-        // No ambient tenant to rely on: a candidate has none, and a company caller's tenant may not
-        // even be the interview's tenant yet (that's exactly what we're about to check) — the token
-        // in the URL is what identifies the row, the same reasoning as the unique index on it.
+        // No ambient tenant: the token identifies the row, and the participant check comes next.
         var interview = await _db.Interviews
             .AsNoTracking()
             .IgnoreQueryFilters()
@@ -56,8 +49,7 @@ public sealed class JoinInterviewRoomHandler : IQueryHandler<JoinInterviewRoomQu
             return Result.Failure<InterviewRoomDto>(InterviewErrors.NotFound);
 
         if (!IsAuthorized(query, interview, application))
-            // Wrong candidate, wrong company, or an uninvited interviewer: indistinguishable from a
-            // bad token. Revealing which case applies would leak who the real participants are.
+            // Same answer as a bad token, so it doesn't reveal who the participants are.
             return Result.Failure<InterviewRoomDto>(InterviewErrors.NotFound);
 
         return Result.Success(new InterviewRoomDto(

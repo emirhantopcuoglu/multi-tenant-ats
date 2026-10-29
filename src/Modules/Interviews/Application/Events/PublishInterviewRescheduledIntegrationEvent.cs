@@ -5,8 +5,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Interviews.Application.Events;
 
-// Bridges "this interview moved" onto the bus. See IntegrationEventBridge for the transport and
-// failure policy shared with the other bridges in this module.
 public sealed class PublishInterviewRescheduledIntegrationEvent
     : INotificationHandler<InterviewRescheduledEvent>
 {
