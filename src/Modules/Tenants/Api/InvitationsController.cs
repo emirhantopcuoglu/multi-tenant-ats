@@ -19,8 +19,7 @@ public sealed class InvitationsController : ControllerBase
     }
 
     public sealed record InviteRequest(string Email, string Role);
-    // PreferredLanguage is optional and settles on English when absent — see the note on the
-    // candidate register request; an omitted language is not a reason to refuse an account.
+    // A missing or unknown PreferredLanguage falls back to English.
     public sealed record AcceptRequest(
         string Token, string Password, string FirstName, string LastName, string? PreferredLanguage);
 

@@ -41,8 +41,7 @@ public sealed class TenantProfileService : ITenantProfileService
         return Result.Success(ToDto(tenant));
     }
 
-    // The Tenant entity is the scope root, not a tenant-scoped row, so there is no global query
-    // filter doing this for us — the caller's tenant id from the token is the explicit key.
+    // Tenant isn't tenant-scoped, so the id from the token is used explicitly.
     private async Task<Tenant?> FindCurrentTenantAsync(CancellationToken cancellationToken)
     {
         if (_currentTenant.TenantId is not { } tenantId)
@@ -51,9 +50,7 @@ public sealed class TenantProfileService : ITenantProfileService
         return await _db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId, cancellationToken);
     }
 
-    // Boundary validation returning typed errors (the entity's own guard throws, which would surface
-    // as a 500). Checked against the trimmed value: trailing whitespace should not fail a length cap
-    // when the entity is about to trim it away anyway.
+    // Returns typed errors; the entity's guards would throw and become a 500.
     private static Error? Validate(UpdateTenantProfileRequest request)
     {
         if (request.Description?.Trim().Length > Tenant.DescriptionMaxLength)
@@ -71,8 +68,7 @@ public sealed class TenantProfileService : ITenantProfileService
         return null;
     }
 
-    // Same rule as the apply form's LinkedIn field: the value is rendered as a link on the public
-    // careers page, and a non-absolute or non-http(s) value would produce a broken or unsafe href.
+    // Rendered as a link on the careers page, so it must be an absolute http(s) URL.
     private static bool IsAbsoluteHttpUrl(string url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri)
         && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);

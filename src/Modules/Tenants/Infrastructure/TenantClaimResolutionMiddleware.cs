@@ -4,10 +4,8 @@ using Microsoft.AspNetCore.Http;
 
 namespace Ats.Modules.Tenants.Infrastructure;
 
-// Resolves the current tenant from the authenticated user's `tenant_id` claim.
-// Runs after authentication and only when path-based resolution has not already
-// set a tenant. This is what gives authenticated /api/v1 requests their tenant
-// scope: those paths carry no slug, so the path-based middleware cannot resolve them.
+// Sets the tenant from the tenant_id claim for authenticated /api/v1 requests, which have no slug.
+// Runs after authentication and only if the path-based middleware didn't resolve one.
 public sealed class TenantClaimResolutionMiddleware
 {
     private const string TenantIdClaim = "tenant_id";
@@ -26,8 +24,7 @@ public sealed class TenantClaimResolutionMiddleware
             && tenantContext is TenantContext concrete
             && Guid.TryParse(context.User.FindFirstValue(TenantIdClaim), out var tenantId))
         {
-            // The slug is not carried in the JWT, so it stays empty here; tenant
-            // isolation (interceptor + query filter) only depends on the TenantId.
+            // The JWT has no slug; tenant isolation only needs the id.
             concrete.SetTenant(tenantId, string.Empty);
         }
 

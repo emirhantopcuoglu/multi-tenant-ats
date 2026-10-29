@@ -6,7 +6,6 @@ public sealed class InvitationOptions
 
     public int ValidDays { get; init; } = 7;
 
-    // Where the mailed invitation link points: the SPA's accept page, not the API. The path must stay
-    // one of SlugPolicy's reserved routes — see InvitationLinkTests.
+    // The path must stay in SlugPolicy's reserved list (see InvitationLinkTests).
     public string AcceptBaseUrl { get; init; } = "http://localhost:5173/accept-invitation";
 }
