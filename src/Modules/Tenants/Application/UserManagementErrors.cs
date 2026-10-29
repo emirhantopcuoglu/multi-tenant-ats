@@ -4,16 +4,14 @@ namespace Ats.Modules.Tenants.Application;
 
 public static class UserManagementErrors
 {
-    // Covers "no such id" and "belongs to another tenant" alike: an Admin has no business learning
-    // that a given id exists somewhere else on the platform.
+    // Also returned for users in another tenant, so ids from other tenants aren't revealed.
     public static readonly Error NotFound =
         new("user_management.not_found", "User not found.");
 
     public static readonly Error InvalidRole =
         new("user_management.invalid_role", "Unknown role.");
 
-    // Guards against the two ways an Admin can lock their own company out of its workspace. Separate
-    // errors because the fix differs: promote someone else first, versus ask a colleague to do it.
+    // Separate errors because the fix differs: promote someone else first, or ask a colleague.
     public static readonly Error LastAdmin =
         new("user_management.last_admin",
             "This is the only active administrator. Promote another administrator first.");

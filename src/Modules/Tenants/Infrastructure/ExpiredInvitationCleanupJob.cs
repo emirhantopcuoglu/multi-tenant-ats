@@ -3,9 +3,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Tenants.Infrastructure;
 
-// Background maintenance job: removes invitation tokens that have expired without being
-// accepted. Scheduled by Hangfire from the composition root; the class itself has no Hangfire
-// dependency, mirroring how consumers/handlers stay transport-agnostic.
+// Removes expired, never-accepted invitations. Scheduled by Hangfire.
 public sealed class ExpiredInvitationCleanupJob
 {
     private readonly TenantsDbContext _db;
@@ -21,16 +19,8 @@ public sealed class ExpiredInvitationCleanupJob
     {
         var now = DateTime.UtcNow;
 
-        // Hard delete on purpose: an expired, never-accepted token is already unreachable (Invitation.IsValid
-        // is false), so soft-deleting it would neither preserve useful history nor reclaim space — it would
-        // defeat the point of a cleanup job. ExecuteDeleteAsync issues a single DELETE, so it also bypasses
-        // the soft-delete interceptor (which only runs on SaveChanges) and never loads rows into memory.
-        //
-        // IgnoreQueryFilters is required: this runs without an HTTP request, so there is no current tenant for
-        // the global filter to match. As a system-wide maintenance job it must span every tenant — the same
-        // reason the invitation-accept flow ignores the filter.
-        //
-        // The predicate makes the job idempotent: a second run finds nothing left to delete.
+        // Hard delete: an expired invitation has no history worth keeping, and ExecuteDeleteAsync skips
+        // the soft-delete interceptor. IgnoreQueryFilters because the job has no tenant and covers them all.
         var deletedCount = await _db.Invitations
             .IgnoreQueryFilters()
             .Where(invitation => invitation.AcceptedAtUtc == null && invitation.ExpiresAtUtc < now)

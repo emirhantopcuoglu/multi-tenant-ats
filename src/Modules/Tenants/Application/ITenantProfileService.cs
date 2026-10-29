@@ -2,9 +2,7 @@ using Ats.Shared.Kernel;
 
 namespace Ats.Modules.Tenants.Application;
 
-// The tenant's own view of its public profile, for the Settings screen. Name and slug ride along
-// read-only (they are set at registration and have no update path); the optional fields are what
-// the admin edits here and what the public careers page renders.
+// Name and slug are read-only; they are set at registration.
 public sealed record TenantProfileDto(
     string CompanyName,
     string Slug,
@@ -17,8 +15,6 @@ public sealed record UpdateTenantProfileRequest(
     string? Website,
     string? Location);
 
-// Follows the module's service convention (IAuthService, IInvitationService) rather than CQRS —
-// the Tenants module has no MediatR pipeline, and two methods do not justify introducing one.
 public interface ITenantProfileService
 {
     Task<Result<TenantProfileDto>> GetAsync(CancellationToken cancellationToken = default);
