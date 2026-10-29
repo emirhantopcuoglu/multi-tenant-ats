@@ -17,11 +17,13 @@ public interface ICandidateAuthService
         string email, string password, string firstName, string lastName, string preferredLanguage);
     Task<Result<CandidateAuthResult>> LoginAsync(string email, string password);
 
-    /// Exchanges a refresh token for a new pair and revokes the old one. Tokens issued before the last security stamp rotation are rejected.
-   
+    /// <summary>
+    /// Exchanges a refresh token for a new pair and revokes the old one. Tokens issued before the
+    /// last security stamp rotation are rejected.
+    /// </summary>
     Task<Result<CandidateAuthResult>> RefreshAsync(string refreshToken);
 
-    // Revokes the presented refresh token. Succeeds even if it was already unusable.
+    /// <summary>Revokes the presented refresh token. Succeeds even if it was already unusable.</summary>
     Task<Result> LogoutAsync(string refreshToken);
 
     Task<Result<CurrentCandidateDto>> GetCurrentCandidateAsync(Guid candidateAccountId);
