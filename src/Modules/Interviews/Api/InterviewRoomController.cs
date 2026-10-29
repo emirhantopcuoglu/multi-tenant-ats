@@ -8,10 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ats.Modules.Interviews.Api;
 
-// Resolves a room token to the interview behind it, for whichever of the two participant kinds is
-// calling — a candidate (their own application) or a company user (an assigned interviewer). Plain
-// [Authorize]: no role or CandidateOnly policy, since either token kind is legitimate here and the
-// handler tells them apart via the token_type claim and does the real (resource-based) check.
+// Open to both candidate and company tokens. The handler tells them apart by token_type and checks
+// that the caller is a participant.
 [ApiController]
 [Authorize]
 [Route("api/v{version:apiVersion}/interview-room")]

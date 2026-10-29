@@ -10,8 +10,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ats.Modules.Interviews.Api;
 
-// Authenticated recruiter/hiring-manager view over interviews. Tenant isolation is automatic: every
-// query runs through the global query filter, so a caller only ever sees their own tenant's data.
 [ApiController]
 [Authorize]
 [Route("api/v{version:apiVersion}/interviews")]
@@ -40,8 +38,7 @@ public sealed class InterviewsController : ControllerBase
         return Ok(result.Value);
     }
 
-    // Evaluation roll-up for one application's interviews, so the application screen can show what
-    // the interviews concluded without opening each one.
+    // Feedback summary across all of an application's interviews.
     [HttpGet("outcome")]
     [Authorize(Policy = Policies.CanViewInterviews)]
     public async Task<IActionResult> GetApplicationOutcome([FromQuery] Guid applicationId)
@@ -120,36 +117,30 @@ public sealed class InterviewsController : ControllerBase
     [Authorize(Policy = Policies.CanViewInterviews)]
     public async Task<IActionResult> GetFeedback(Guid id)
     {
-        // The caller's identity decides whether the panel's evaluations are withheld, so it comes
-        // from the JWT rather than the route — see GetInterviewFeedbackHandler.
+        // The caller decides whether the panel's feedback is withheld; see GetInterviewFeedbackHandler.
         var result = await _sender.Send(new GetInterviewFeedbackQuery(id, CurrentUserId()));
         return result.IsSuccess
             ? Ok(result.Value)
             : NotFound(new { result.Error.Code, result.Error.Message });
     }
 
-    // Gated on viewing rather than managing interviews: submitting feedback is what an assigned
-    // interviewer does, and an interviewer is not necessarily a recruiter. CanManageInterviews
-    // excluded the ReadOnly role, so a ReadOnly user put on a panel could not evaluate the candidate
-    // they had just interviewed. IsInterviewParticipant below is the real gate — it always was.
+    // CanViewInterviews, not CanManageInterviews: an interviewer isn't necessarily a recruiter.
+    // IsInterviewParticipant is the real check.
     [HttpPost("{id:guid}/feedback")]
     [Authorize(Policy = Policies.CanViewInterviews)]
     public async Task<IActionResult> SubmitFeedback(Guid id, SubmitFeedbackBody body)
     {
-        // Load the interview first so we can run a resource-based authorization check.
         var interviewResult = await _sender.Send(new GetInterviewByIdQuery(id));
         if (!interviewResult.IsSuccess)
             return MapFailure(interviewResult.Error);
 
-        // Second gate: only an assigned interviewer may submit feedback for this specific interview.
-        // CanManageInterviews (above) checks the role; IsInterviewParticipant checks the resource.
+        // Only an interviewer on this panel may submit feedback.
         var authResult = await _authorizationService.AuthorizeAsync(
             User, interviewResult.Value, Policies.IsInterviewParticipant);
         if (!authResult.Succeeded)
             return Forbid();
 
-        // The interviewer's identity comes from the JWT, not from the request body — callers must
-        // not be able to self-declare another user's identity.
+        // The interviewer comes from the token, not the request body.
         var command = new SubmitInterviewFeedbackCommand(
             id, CurrentUserId(), body.Rating, body.Recommendation, body.Comments);
 
@@ -159,7 +150,6 @@ public sealed class InterviewsController : ControllerBase
             : MapFailure(result.Error);
     }
 
-    // Always present: every action here sits behind [Authorize], so the subject claim exists.
     private Guid CurrentUserId() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     private IActionResult MapFailure(Error error) => error.Code switch
@@ -184,14 +174,12 @@ public sealed class InterviewsController : ControllerBase
 
     public sealed record RescheduleBody(DateTime ScheduledAtUtc, int DurationMinutes);
 
-    // Note is the recruiter's internal wording and never reaches the candidate — only Reason does,
-    // and only as the sentence the cancellation email leads with.
+    // Note stays internal; only Reason reaches the candidate.
     public sealed record CancelInterviewBody(InterviewCancellationReason Reason, string? Note);
 
     public sealed record MarkNoShowBody(NoShowParty Party);
 
-    // The full replacement panel, not a delta: a caller sending the list it wants cannot race a
-    // concurrent edit into a half-applied add/remove pair.
+    // The full new panel, not a diff, so concurrent edits can't half-apply.
     public sealed record ReassignInterviewersBody(IReadOnlyList<Guid>? InterviewerUserIds);
 
     public sealed record SubmitFeedbackBody(

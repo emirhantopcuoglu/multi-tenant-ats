@@ -3,13 +3,8 @@ using MediatR;
 
 namespace Ats.Modules.Interviews.Application.Events;
 
-// Raised by the reminder sweep when a scheduled nudge falls due, and bridged onto RabbitMQ by
-// PublishInterviewReminderDueIntegrationEvent — the same in-process/cross-process split the
-// scheduled, rescheduled and cancelled events already use.
-//
-// Going through the in-process event rather than reaching for IBus in the job keeps every
-// interview→bus mapping in one folder, and lets the sweep be tested against the same IPublisher
-// double the command handlers use instead of a hand-rolled broker stub.
+// Raised by the reminder sweep. Going through MediatR keeps the bus mapping with the other bridges
+// and lets tests use the same IPublisher double.
 public sealed record InterviewReminderDueEvent(
     Guid InterviewId,
     Guid ApplicationId,

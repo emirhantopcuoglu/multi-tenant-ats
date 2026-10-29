@@ -1,42 +1,29 @@
 namespace Ats.Modules.Interviews.Domain;
 
-// The kind of interview, used to label it and (later) to drive type-specific reminders or templates.
 public enum InterviewType { PhoneScreen, Technical, Cultural, Final }
 
-// Lifecycle of a single interview. Scheduled is the only state from which the others are reachable;
-// Completed, Cancelled and NoShow are terminal and cannot transition further.
+// Scheduled is the only non-terminal state.
 public enum InterviewStatus { Scheduled, Completed, Cancelled, NoShow }
 
-// The two nudges an upcoming interview produces. They answer different questions — "do I need to
-// prepare or move this?" a day out, and "it is happening now, here is the link" at the door — so
-// they are separate kinds rather than one repeated reminder, and each is tracked independently.
 public enum InterviewReminderKind { DayBefore, StartingSoon }
 
-// Structured hiring recommendation attached to a piece of feedback. Ordered from most negative
-// to most positive so comparisons and displays can sort naturally.
+// Ordered from most negative to most positive.
 public enum FeedbackRecommendation { StrongNoHire, NoHire, Hire, StrongHire }
 
-// Who failed to appear. Recorded separately from the NoShow status because the two cases are not
-// the same fact: a candidate who did not turn up is a signal about that candidate, while an
-// interviewer who did not is the company's own failure and should never count against the person
-// who did show up. Collapsing both into one status made the record unusable for either purpose.
+// Separate from the status: a candidate no-show and an interviewer no-show mean different things.
 public enum NoShowParty { Candidate, Interviewer }
 
-// Why a scheduled interview was called off. A closed set rather than free text because this value
-// is candidate-facing: it selects the sentence the cancellation email leads with, and the one thing
-// a candidate actually needs to know is whether another invitation is coming. The recruiter's own
-// wording lives in Interview.CancellationNote and never leaves the company side.
+// Candidate-facing, so a closed set. The recruiter's own text is Interview.CancellationNote.
 public enum InterviewCancellationReason
 {
-    // A replacement will be booked. The only reason that promises a follow-up.
+    // The only reason that promises a new invitation.
     Rescheduling,
 
     CandidateRequested,
     CandidateWithdrew,
     PositionClosed,
 
-    // Set by the system when the application behind the interview is rejected, never chosen in the
-    // cancel dialog — rejecting an application is its own action, not a way to call off a meeting.
+    // Set by the system when the application is rejected; not offered in the cancel dialog.
     ApplicationRejected,
 
     Other,

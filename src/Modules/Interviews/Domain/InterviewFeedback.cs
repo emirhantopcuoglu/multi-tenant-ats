@@ -2,10 +2,7 @@ using Ats.Shared.Kernel;
 
 namespace Ats.Modules.Interviews.Domain;
 
-// Feedback submitted by one interviewer after an interview. Not soft-deleted: feedback is a
-// permanent record and removing it would silently erase hiring signal.
-// Each (InterviewId, InterviewerUserId) pair is unique — enforced by a DB index. The domain
-// guard here is intentional belt-and-suspenders for tests and in-memory scenarios.
+// Never deleted or edited. One per interviewer per interview, enforced by a unique index.
 public sealed class InterviewFeedback : ITenantScoped, IAuditable
 {
     public Guid Id { get; private set; }
@@ -17,7 +14,6 @@ public sealed class InterviewFeedback : ITenantScoped, IAuditable
     public string? Comments { get; private set; }
     public DateTime SubmittedAtUtc { get; private set; }
 
-    // IAuditable — written by the interceptor, not application code.
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }

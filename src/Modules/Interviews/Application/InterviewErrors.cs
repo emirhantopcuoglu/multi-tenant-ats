@@ -2,8 +2,6 @@ using Ats.Shared.Kernel;
 
 namespace Ats.Modules.Interviews.Application;
 
-// Typed, structured failures returned via Result instead of thrown. The controller maps each code
-// to an HTTP status, so the transport concern (404 vs 409) stays out of the handler.
 public static class InterviewErrors
 {
     public static readonly Error ApplicationNotFound =
@@ -18,10 +16,8 @@ public static class InterviewErrors
     public static Error InvalidOperation(string message) =>
         new("interview.invalid_operation", message);
 
-    // Distinct from InvalidOperation (a malformed request, 400): the request is well-formed but the
-    // interview is not in a state that allows it — already terminal, or the clock has moved past the
-    // point where the transition made sense. A 409, and the code the UI keys off to explain that the
-    // page it is showing is stale.
+    // 409: the request is valid but the interview's state or the clock no longer allows it.
+    // The UI uses it to say the page is stale.
     public static Error TransitionNotAllowed(string message) =>
         new("interview.transition_not_allowed", message);
 

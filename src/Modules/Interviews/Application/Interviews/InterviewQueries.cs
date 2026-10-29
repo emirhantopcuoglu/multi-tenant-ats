@@ -5,33 +5,24 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Interviews.Application.Interviews;
 
-// IsAwaitingOutcome travels with the row rather than being recomputed on the client: the rule is
-// domain logic, and a browser deriving it from its own clock is how the list and the detail screen
-// end up disagreeing about the same interview.
+// Computed on the server so the list and the detail page always agree.
 public sealed record InterviewListItemDto(
     Guid Id, Guid ApplicationId, string CandidateName, string Type, DateTime ScheduledAtUtc,
     int DurationMinutes, string Status, IReadOnlyList<Guid> InterviewerUserIds,
     bool IsAwaitingOutcome);
 
-// The detail DTO additionally carries what the caller is allowed to *do*. The buttons are rendered
-// straight from these flags instead of from a client-side reading of the status and the clock —
-// the drift between those two is the bug this slice exists to fix.
+// The Can* flags drive the UI buttons, so the client doesn't re-derive them from the clock.
 public sealed record InterviewDetailDto(
     Guid Id, Guid ApplicationId, string Type, DateTime ScheduledAtUtc, int DurationMinutes,
     string Status, string? Notes, IReadOnlyList<Guid> InterviewerUserIds, string? RoomToken,
     bool IsAwaitingOutcome, bool CanReschedule, bool CanCancel, bool CanComplete,
     bool CanMarkNoShow, bool CanReassignInterviewers, bool CanReceiveFeedback,
-    // The outcome details, each null unless the interview reached that state. CancellationNote is
-    // included because this DTO serves the company side only — the candidate's view of an interview
-    // is built by InterviewDirectory, which has no field for it.
+    // CancellationNote is fine here: this DTO is company-side only.
     string? CancellationReason, string? CancellationNote, string? NoShowParty);
 
-// A list bucket, not a stored status. Upcoming and AwaitingOutcome are both slices of
-// Status.Scheduled cut by the clock — precisely the distinction the status column cannot express on
-// its own, and the reason "show me what still needs a decision" was unanswerable before.
+// Upcoming and AwaitingOutcome are both Scheduled, split by the clock.
 public enum InterviewListFilter { Upcoming, AwaitingOutcome, Completed, Cancelled, NoShow }
 
-// ---- ListInterviews (filtered by date range / interviewer / bucket, paginated) ----
 public sealed record ListInterviewsQuery(
     DateTime? FromDate = null, DateTime? ToDate = null, Guid? InterviewerId = null,
     Guid? ApplicationId = null, InterviewListFilter? Filter = null, int Page = 1, int PageSize = 20)
@@ -61,15 +52,13 @@ public sealed class ListInterviewsHandler
             interviews = interviews.Where(i => i.ScheduledAtUtc >= query.FromDate.Value);
         if (query.ToDate.HasValue)
             interviews = interviews.Where(i => i.ScheduledAtUtc <= query.ToDate.Value);
-        // Translates to "@interviewerId = ANY(InterviewerUserIds)" against the uuid[] column.
+        // Translates to "@interviewerId = ANY(InterviewerUserIds)".
         if (query.InterviewerId.HasValue)
             interviews = interviews.Where(i => i.InterviewerUserIds.Contains(query.InterviewerId.Value));
         if (query.ApplicationId.HasValue)
             interviews = interviews.Where(i => i.ApplicationId == query.ApplicationId.Value);
 
-        // The end-time arithmetic is inlined rather than reusing Interview.EndsAtUtc: that property is
-        // a C# getter EF cannot translate, so it would silently drag the whole table into memory.
-        // Npgsql turns AddMinutes over a column into a native interval addition.
+        // Inlined because EF can't translate Interview.EndsAtUtc; Npgsql handles AddMinutes on a column.
         interviews = query.Filter switch
         {
             InterviewListFilter.Upcoming => interviews.Where(
@@ -86,17 +75,13 @@ public sealed class ListInterviewsHandler
 
         var totalCount = await interviews.CountAsync(ct);
 
-        // Materialise the page, then map in memory: the uuid[] interviewer list comes back with the
-        // row, so there is no need to project a primitive collection into the DTO in SQL.
         var rows = await interviews
             .OrderBy(i => i.ScheduledAtUtc)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(ct);
 
-        // Candidate names live in the Applications module; resolve them for the page in one cross-module
-        // call (the interview row carries only the application id). Keeps the Interviews module unaware
-        // of the Applications schema.
+        // Candidate names come from the Applications module in one batched call.
         var applicationIds = rows.Select(i => i.ApplicationId).Distinct().ToList();
         var candidateNames = await _applications.GetCandidateNamesByApplicationAsync(applicationIds, ct);
 
@@ -111,7 +96,6 @@ public sealed class ListInterviewsHandler
     }
 }
 
-// ---- GetInterviewById (detail) ----
 public sealed record GetInterviewByIdQuery(Guid Id) : IQuery<InterviewDetailDto>;
 
 public sealed class GetInterviewByIdHandler : IQueryHandler<GetInterviewByIdQuery, InterviewDetailDto>

@@ -16,7 +16,6 @@ public static class DependencyInjection
         services.AddTransient(
             typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
-        // Cross-module read port: lets the API compose interview counts for the dashboard.
         services.AddScoped<IInterviewDirectory, InterviewDirectory>();
 
         return services;

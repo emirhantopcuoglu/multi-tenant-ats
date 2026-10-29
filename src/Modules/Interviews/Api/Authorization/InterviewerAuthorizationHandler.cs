@@ -4,9 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace Ats.Modules.Interviews.Api.Authorization;
 
-// Grants access when the authenticated user's id appears in the interview's InterviewerUserIds.
-// Works as a second gate after the role-based CanManageInterviews policy: role says "you have the
-// right job title", this says "you were actually assigned to this specific interview".
+// Succeeds when the current user is on the interview's panel. The role policy only checks the role.
 public sealed class InterviewerAuthorizationHandler
     : AuthorizationHandler<InterviewerRequirement, InterviewDetailDto>
 {

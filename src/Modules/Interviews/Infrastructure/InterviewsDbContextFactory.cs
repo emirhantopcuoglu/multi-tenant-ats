@@ -4,9 +4,7 @@ using Microsoft.EntityFrameworkCore.Design;
 
 namespace Ats.Modules.Interviews.Infrastructure;
 
-// Used only by the EF Core CLI (migrations add / database update) at design time. The runtime builds
-// the context from DI in Program.cs instead. The tenant is null here because design-time tooling
-// never executes tenant-scoped queries.
+// Used by dotnet ef at design time.
 public sealed class InterviewsDbContextFactory : IDesignTimeDbContextFactory<InterviewsDbContext>
 {
     public InterviewsDbContext CreateDbContext(string[] args)

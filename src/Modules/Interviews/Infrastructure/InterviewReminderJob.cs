@@ -7,20 +7,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Interviews.Infrastructure;
 
-// Delivers the reminders an upcoming interview owes. Scheduled by Hangfire from the composition
-// root; like ExpiredInvitationCleanupJob it has no Hangfire dependency of its own, so it stays a
-// plain class the tests can call directly.
-//
-// A periodic sweep rather than one delayed job per interview. The alternative would mean storing a
-// Hangfire job id on the interview row and cancelling/re-creating it on every reschedule and
-// cancellation — two systems holding the same truth, where a lost id is a reminder that silently
-// never arrives. A sweep re-reads the current state every run, so rescheduling and cancelling need
-// no scheduler-side handling at all: the domain already moved the due instant, or cleared it.
+// Sends due interview reminders. Scheduled by Hangfire. A periodic sweep instead of one delayed
+// job per interview, so reschedules and cancels need no scheduler changes.
 public sealed class InterviewReminderJob
 {
-    // Upper bound on one run. Reminders come due at a rate set by the interview schedule, not by
-    // this number, so a backlog only forms after an outage — and then it drains over the following
-    // runs instead of one sweep holding a transaction open across thousands of rows.
+    // Caps one run; a backlog after an outage drains over the next runs.
     private const int BatchSize = 200;
 
     private readonly InterviewsDbContext _db;
@@ -42,16 +33,13 @@ public sealed class InterviewReminderJob
 
     public async Task SendDueRemindersAsync(CancellationToken ct = default)
     {
-        // Read once and passed down, so every decision in this run agrees on what "now" is.
         var now = DateTime.UtcNow;
 
         var due = await LoadDueInterviewsAsync(now, ct);
         if (due.Count == 0)
             return;
 
-        // One batched lookup for the whole sweep. Resolving the candidate and job behind each
-        // interview individually would be an N+1: the cost of a run would scale with the number of
-        // reminders rather than with the single query the work actually needs.
+        // One batched lookup for the whole run instead of one per interview.
         var applications = await _applications.GetForSchedulingAsync(
             due.Select(interview => interview.ApplicationId).Distinct().ToList(), ct);
 
@@ -65,9 +53,8 @@ public sealed class InterviewReminderJob
             }
         }
 
-        // Every reminder examined above is settled by this single save. A publish that throws takes
-        // the whole run down before it — nothing is cleared, Hangfire retries, and the reminders
-        // that did go out are republished into consumers that deduplicate them.
+        // One save settles every reminder above. If a publish throws, nothing is cleared and Hangfire
+        // retries; consumers drop repeats.
         await _db.SaveChangesAsync(ct);
 
         _logger.LogInformation(
@@ -75,10 +62,7 @@ public sealed class InterviewReminderJob
             due.Count, published);
     }
 
-    // IgnoreQueryFilters because a background job has no ambient tenant for the global filter to
-    // match — the sweep is system-wide by definition, the same reason ExpiredInvitationCleanupJob
-    // bypasses it. That bypass also drops the soft-delete filter, so IsDeleted is restated by hand:
-    // a deleted interview must not reach anyone's inbox.
+    // No ambient tenant in a job, so the filter is bypassed and IsDeleted is checked by hand.
     private Task<List<Interview>> LoadDueInterviewsAsync(DateTime nowUtc, CancellationToken ct) =>
         _db.Interviews
             .IgnoreQueryFilters()
@@ -89,7 +73,6 @@ public sealed class InterviewReminderJob
             .Take(BatchSize)
             .ToListAsync(ct);
 
-    // A null due instant compares false, so this yields only what is actually owed.
     private static IEnumerable<InterviewReminderKind> DueKinds(Interview interview, DateTime nowUtc)
     {
         if (interview.DayBeforeReminderDueAtUtc <= nowUtc)
@@ -99,9 +82,7 @@ public sealed class InterviewReminderJob
             yield return InterviewReminderKind.StartingSoon;
     }
 
-    // Returns whether anything was published. Every other outcome still clears the reminder: none of
-    // them can become deliverable later, so leaving the row pending would only have the sweep
-    // re-examine a dead interview on every run from now on.
+    // Returns whether anything was published. The reminder is cleared either way.
     private async Task<bool> TryPublishAsync(
         Interview interview,
         InterviewReminderKind kind,
@@ -117,8 +98,7 @@ public sealed class InterviewReminderJob
 
         if (!applications.TryGetValue(interview.ApplicationId, out var application))
         {
-            // The application was hard-deleted out from under the interview. Worth a warning rather
-            // than a silent skip: there is no legitimate path that produces this state.
+            // Shouldn't happen, so log it.
             _logger.LogWarning(
                 "Dropped {ReminderKind} reminder for interview {InterviewId}: application {ApplicationId} no longer exists",
                 kind, interview.Id, interview.ApplicationId);
@@ -126,18 +106,13 @@ public sealed class InterviewReminderJob
             return false;
         }
 
-        // Published before the reminder is cleared, and the order matters. If the save fails, the
-        // next sweep republishes and the consumers — keyed on (interview, kind), not on a message id
-        // — drop the repeat. Clearing first would instead lose the reminder outright, which is the
-        // failure a candidate actually notices.
+        // Publish before clearing: a failed save means a repeat (deduped), clearing first could lose it.
         await _publisher.Publish(BuildEvent(interview, application, kind), ct);
         interview.ClearReminder(kind);
         return true;
     }
 
-    // Both reminders fall due together when the sweep has not run for a while. Only the later one is
-    // still true by then: "your interview is tomorrow", delivered ten minutes before it starts,
-    // reads as a broken system rather than a courtesy, so the day-before nudge is settled silently.
+    // If both are due at once, only send the starting-soon one.
     private static bool IsSuperseded(
         Interview interview, InterviewReminderKind kind, DateTime nowUtc) =>
         kind == InterviewReminderKind.DayBefore
