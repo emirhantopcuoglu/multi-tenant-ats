@@ -3,12 +3,8 @@ import { Button, useToast } from '@/components/ui';
 import { useAuth } from '@/app/auth/auth-context';
 import { useResendCandidateVerification } from '../useCandidateEmailVerification';
 
-/* Shown to a signed-in candidate whose address is still unproven. Renders nothing otherwise, so the
-   pages that include it need no condition of their own.
-
-   Deliberately a banner rather than a blocking screen: an unverified account is fully usable except
-   for applying. Locking the portal would strand anyone who mistyped their address, since the email is
-   already taken and they cannot register again — they need to get in to correct it from settings. */
+/* Renders nothing once verified. A banner, not a block: unverified accounts can do everything but apply,
+   including fixing a mistyped address. */
 export function EmailVerificationBanner() {
   const { t } = useTranslation();
   const { toast } = useToast();

@@ -9,10 +9,7 @@ interface TooltipProps {
 
 const TOOLTIP_DELAY_MS = 200;
 
-/* Tooltip on Radix: hover + focus triggering, dismissal, and pointer-safe timing handled for us.
-   Colours invert (text surface on background) to match the prototype. The Provider is co-located for
-   a self-contained component; if many tooltips render at once, a single app-level Provider is the
-   optimisation, but it isn't needed yet. */
+/* The Provider is per tooltip for now; move it app-level if many render at once. */
 export function Tooltip({ content, children, side = 'top' }: TooltipProps) {
   return (
     <RadixTooltip.Provider delayDuration={TOOLTIP_DELAY_MS}>

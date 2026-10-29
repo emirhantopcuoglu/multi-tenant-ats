@@ -12,11 +12,7 @@ interface MarkdownFieldProps {
   placeholder?: string;
 }
 
-/* Markdown description editor: a plain textarea for writing plus a rendered preview tab. We use
-   react-markdown (well-maintained, sanitizes by default — no dangerouslySetInnerHTML) rather than
-   hand-rolling a parser; the public job page renders the same markdown, so a preview here lets
-   recruiters see the result before publishing. Styling is a few arbitrary variants instead of the
-   typography plugin, which we don't otherwise need. */
+/* Textarea plus a preview tab that renders like the public job page. */
 export function MarkdownField({
   id,
   value,

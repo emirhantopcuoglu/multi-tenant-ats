@@ -14,7 +14,7 @@ import { authErrorMessage } from '../authErrorMessage';
 import { RegistrationPendingPage } from './ConfirmEmailPage';
 
 const PASSWORD_MIN = 8;
-// Display-only host for the workspace URL preview; the real public host is configured at deploy time.
+// Display only; the real host is set at deploy time.
 const WORKSPACE_HOST = 'ats.app';
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -22,8 +22,7 @@ export function RegisterPage() {
   const { t } = useTranslation();
   const { register: registerUser } = useAuth();
   const [formError, setFormError] = useState<string | null>(null);
-  /* Set on success instead of navigating: registration no longer signs anyone in, so there is nowhere
-     authenticated to go. Holding the address here lets the pending screen offer a resend. */
+  /* Registration doesn't sign in, so keep the address for the resend link instead of navigating. */
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 
   const schema = useMemo(
@@ -95,7 +94,7 @@ export function RegisterPage() {
                   invalid={invalid}
                   value={field.value}
                   onBlur={field.onBlur}
-                  // Normalize as the user types, so the stored slug matches the live preview.
+                  // Normalized while typing so the stored slug matches the preview.
                   onChange={(e) => field.onChange(slugify(e.target.value))}
                 />
               )}

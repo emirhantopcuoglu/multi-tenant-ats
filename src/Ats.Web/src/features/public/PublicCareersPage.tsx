@@ -6,10 +6,7 @@ import { PublicNotFound } from './components/PublicNotFound';
 import { usePublicCompany } from './usePublicCompany';
 import { usePublicJobs } from './usePublicJobs';
 
-/* Public careers page for a company, reached at /{slug}. The header is the company's public profile
-   (name, description, website, location — edited in Settings); below it, the Published jobs as cards.
-   Profile and jobs are separate queries against separate endpoints, but both 404 on an unknown slug,
-   so either failing surfaces the not-found state. */
+/* Profile and jobs come from separate endpoints; both 404 on an unknown slug. */
 export function PublicCareersPage() {
   const { t } = useTranslation();
   const { slug = '' } = useParams();

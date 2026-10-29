@@ -25,8 +25,6 @@ export function CandidateApplicationsPage() {
   return (
     <PublicLayout>
       <div className="space-y-6">
-        {/* The candidate's landing page after registering, so this is where the reminder belongs. It
-            renders nothing once the address is verified. */}
         <EmailVerificationBanner />
 
         <div className="space-y-1">

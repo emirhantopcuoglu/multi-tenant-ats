@@ -51,9 +51,7 @@ import {
   JOB_STATUSES,
 } from '@/types/enums';
 
-/* Dev-only gallery (nominally the /playground route; real routing arrives in Step 2.1). It renders
-   every primitive so we can eyeball them in light + dark. Labels are plain English on purpose —
-   this page is for developers, not end users, so it isn't run through i18n. */
+/* Dev-only gallery of the UI primitives in light and dark. Plain English, not translated. */
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (

@@ -14,9 +14,7 @@ import type { JobAction } from './components/JobRowActions';
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 350;
 
-/* Recruiter Jobs list (Step 3.1). Filters and the page number live in the URL (?status&q&page) so the
-   view is shareable and survives reload; the search box is debounced into the URL to avoid a request
-   per keystroke. The four list states (loading / error / empty / data) are each handled explicitly. */
+/* Filters and page live in the URL; search is debounced into it. */
 export function JobsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -39,7 +37,6 @@ export function JobsPage() {
         const next = new URLSearchParams(previous);
         if (value) next.set(key, value);
         else next.delete(key);
-        // Any filter change returns to the first page; otherwise page 2 of a no-longer-matching filter.
         if (key !== 'page') next.delete('page');
         return next;
       },
@@ -47,14 +44,12 @@ export function JobsPage() {
     );
   };
 
-  // Local search text, committed to the URL after a pause so typing stays responsive.
   const [searchInput, setSearchInput] = useState(search);
   useEffect(() => {
     const handle = setTimeout(() => {
       if (searchInput.trim() !== search) setParam('q', searchInput.trim());
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(handle);
-    // Re-run when the user types (searchInput) or the URL settles (search); setParam reads fresh state.
   }, [searchInput, search]);
 
   const { data, isLoading, isError, refetch } = useJobs({

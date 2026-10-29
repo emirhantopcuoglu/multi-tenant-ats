@@ -8,16 +8,13 @@ import type { NotificationItem } from '../notificationsApi';
 import { formatNotificationTime, renderNotification } from '../notificationText';
 import type { candidateNotifications, companyNotifications } from '../useNotifications';
 
-/* The dropdown shows just enough to triage; the full page has pagination. */
 const DROPDOWN_PAGE_SIZE = 5;
-/* Past this the exact number stops mattering — cap the badge so it can't outgrow its circle. */
 const MAX_BADGE_COUNT = 9;
 
 interface NotificationBellProps {
   hooks: typeof candidateNotifications | typeof companyNotifications;
-  /** Route prefix for an application deep-link, e.g. "/candidate/applications" or "/applications". */
+  /* e.g. "/candidate/applications" or "/applications". */
   applicationBasePath: string;
-  /** Route for the "view all" link and the empty-applicationId fallback. */
   notificationsPath: string;
 }
 
@@ -30,14 +27,9 @@ function BellIcon() {
   );
 }
 
-/* Bell + unread badge + recent-notifications feed, shared by the candidate and company chrome
-   (they differ only in which endpoints back the hooks and where a click should navigate). Built
-   directly on the Radix DropdownMenu primitive rather than the shared <Dropdown> wrapper: the
-   wrapper's items-array API models an action menu, while this panel needs loading/empty/error
-   states and a two-line row layout. Same primitive, same a11y guarantees — just a custom body.
-
-   The list query only runs while the menu is open (`enabled`), so the always-mounted bell costs a
-   single polled COUNT, not a feed fetch per page view. */
+/* Shared by the candidate and company headers. Built on Radix DropdownMenu directly because the
+   <Dropdown> wrapper is for action menus. The list only loads while open, so the bell itself costs
+   one polled count. */
 export function NotificationBell({ hooks, applicationBasePath, notificationsPath }: NotificationBellProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -54,7 +46,7 @@ export function NotificationBell({ hooks, applicationBasePath, notificationsPath
   const items = listQuery.data?.items ?? [];
 
   const openNotification = (item: NotificationItem) => {
-    // Fire-and-forget: navigation must not wait on the read receipt.
+    // Fire-and-forget: navigation doesn't wait for the read receipt.
     if (!item.readAtUtc) {
       markRead.mutate(item.id);
     }
@@ -135,7 +127,7 @@ export function NotificationBell({ hooks, applicationBasePath, notificationsPath
           <DropdownMenu.Separator className="my-1.5 h-px bg-divider" />
           {unreadCount > 0 && (
             <DropdownMenu.Item
-              // preventDefault keeps the menu open so the user sees the unread dots clear.
+              // Keeps the menu open so the unread dots visibly clear.
               onSelect={(event) => {
                 event.preventDefault();
                 markAllRead.mutate();

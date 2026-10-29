@@ -12,7 +12,7 @@ export interface ToastContextValue {
   toast: (options: ToastOptions) => void;
 }
 
-/* Kept separate from the provider component so React Fast Refresh keeps its boundary. */
+/* Separate module so React Fast Refresh keeps its boundary. */
 export const ToastContext = createContext<ToastContextValue | null>(null);
 
 export function useToast(): ToastContextValue {

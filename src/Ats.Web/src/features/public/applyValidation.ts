@@ -1,10 +1,8 @@
-/* Client-side mirror of the rules in SubmitApplicationValidator (backend stays authoritative —
-   these only exist to give feedback before the round-trip). Keep the two in sync when either
-   changes. */
+/* Mirrors SubmitApplicationValidator; keep them in sync. The backend is the authority. */
 
 const PHONE_ALLOWED_CHARACTERS = /^\+?[\d\s().-]+$/;
 const PHONE_MAX_LENGTH = 40;
-// ITU E.164 caps subscriber numbers at 15 digits; 7 is the shortest national number in use.
+// E.164: at most 15 digits.
 const PHONE_MIN_DIGITS = 7;
 const PHONE_MAX_DIGITS = 15;
 

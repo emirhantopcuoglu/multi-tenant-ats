@@ -7,18 +7,16 @@ import { Button, Card, Field, Input, useToast } from '@/components/ui';
 import { toApiError } from '@/lib/problemDetails';
 import { useChangeCandidatePassword, useRequestCandidateEmailChange } from '../useCandidateProfile';
 
-/* Mirrors CandidatePasswordPolicy.MinimumLength on the backend (UX only — the server enforces). */
+/* Mirrors CandidatePasswordPolicy.MinimumLength; the server enforces it. */
 const PASSWORD_MIN_LENGTH = 8;
 
-/* The backend's typed error codes, each mapped to a field-level message instead of the generic
-   failure toast — every one of them is something the caller can fix by editing the form. */
+/* Each maps to a field message instead of the generic toast. */
 const INVALID_CURRENT_PASSWORD_CODE = 'candidate_profile.invalid_current_password';
 const EMAIL_ALREADY_REGISTERED_CODE = 'candidate_profile.email_already_registered';
 const EMAIL_UNCHANGED_CODE = 'candidate_profile.email_unchanged';
 const INVALID_EMAIL_CODE = 'candidate_profile.invalid_email';
 
-/* The Güvenlik tab of /candidate/settings: password change and email change, each its own card and
-   its own form so neither shares dirty state or a submit button with the other. */
+/* Separate forms so they don't share dirty state or a submit button. */
 export function CandidateSecuritySettingsTab() {
   const { t } = useTranslation();
 
@@ -35,9 +33,7 @@ export function CandidateSecuritySettingsTab() {
   );
 }
 
-/* Submitting mails a confirmation link to the new address — the account's email itself changes only
-   once that link is opened, so the success state stays on screen (not just a toast) since the user
-   leaves the app to act on it. */
+/* The email changes only after the link is opened, so the success message stays on screen. */
 function EmailChangeCard() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -183,8 +179,6 @@ function PasswordChangeCard() {
           reset();
         },
         onError: (error) => {
-          /* A wrong current password is the caller's own typo — point at the field. Anything
-             else (network, server) gets the generic failure toast. */
           if (toApiError(error).code === INVALID_CURRENT_PASSWORD_CODE) {
             setError('currentPassword', {
               message: t('candidateSettings.currentPasswordInvalid'),

@@ -4,7 +4,6 @@ import type { CandidateSearchResult } from '../candidateSearchApi';
 
 interface CandidateSearchTableProps {
   candidates: CandidateSearchResult[];
-  /** Opens the candidate's applications. */
   onSelect: (candidate: CandidateSearchResult) => void;
 }
 
@@ -43,9 +42,7 @@ export function CandidateSearchTable({ candidates, onSelect }: CandidateSearchTa
             <TD className="whitespace-nowrap text-text-muted">{candidate.phone ?? '—'}</TD>
             <TD>
               {candidate.linkedInUrl ? (
-                /* stopPropagation so opening the profile does not also trigger the row's navigation.
-                   noreferrer alongside _blank: without it the opened tab can reach back through
-                   window.opener, and this URL is candidate-supplied. */
+                /* stopPropagation so the row doesn't also navigate. noreferrer because the URL is candidate-supplied. */
                 <a
                   href={candidate.linkedInUrl}
                   target="_blank"

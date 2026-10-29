@@ -37,8 +37,7 @@ export async function listApplications(
   return data;
 }
 
-/* Stages of a job's pipeline. Lives under the jobs route on the server but is an Applications concern
-   on the client, so it sits in this feature next to the table that consumes it. */
+/* Served under the jobs route, but used by this feature. */
 export async function listJobStages(jobId: string): Promise<PipelineStage[]> {
   const { data } = await apiClient.get<PipelineStage[]>(`${API_V1}/jobs/${jobId}/stages`);
   return data;
@@ -54,8 +53,7 @@ export async function getApplicationActivities(id: string): Promise<ApplicationA
   return data;
 }
 
-/* 404 with code "application.cv_not_parsed" means parsing hasn't finished yet — the caller treats
-   that as a processing state rather than an error. */
+/* 404 "application.cv_not_parsed" means parsing hasn't finished; callers show a processing state. */
 export async function getCvParseResult(id: string): Promise<CvParseResult> {
   const { data } = await apiClient.get<CvParseResult>(`${APPLICATIONS_BASE}/${id}/cv-parse-result`);
   return data;
@@ -66,15 +64,12 @@ export async function getCvDownloadUrl(id: string): Promise<CvDownloadUrl> {
   return data;
 }
 
-/* Move an application to another stage of its job's pipeline (the Kanban drag target). Forward-only:
-   the backend rejects a same-or-earlier target with a 400, same as a terminal one. */
+/* Forward only: the backend rejects same-or-earlier and terminal stages with a 400. */
 export async function moveApplicationStage(id: string, targetStageId: string): Promise<void> {
   await apiClient.post(`${APPLICATIONS_BASE}/${id}/move-stage`, { targetStageId });
 }
 
-/* The escape hatch for a wrong move: unlike moveApplicationStage this allows any direction
-   (including backward), requires a reason, and never notifies the candidate. Reserved for
-   correcting a mistake, not for routine pipeline progress. */
+/* Fixes a wrong move: any direction, needs a reason, never notifies the candidate. */
 export async function correctApplicationStage(id: string, targetStageId: string, reason: string): Promise<void> {
   await apiClient.post(`${APPLICATIONS_BASE}/${id}/correct-stage`, { targetStageId, reason });
 }
@@ -83,8 +78,7 @@ export async function rejectApplication(id: string, reason: string): Promise<voi
   await apiClient.post(`${APPLICATIONS_BASE}/${id}/reject`, { reason });
 }
 
-/* The positive terminal decision: flips the status to Hired and parks the application in the
-   pipeline's FinalHired stage. The only way into that stage — move-stage refuses terminal targets. */
+/* The only way into the FinalHired stage. */
 export async function hireApplication(id: string): Promise<void> {
   await apiClient.post(`${APPLICATIONS_BASE}/${id}/hire`);
 }

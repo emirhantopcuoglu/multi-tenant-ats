@@ -25,8 +25,7 @@ export function TrackingTimeline({
           tone={step.tone}
           last={index === steps.length - 1}
           title={stepLabel(step, detail, t)}
-          /* Dated for everything that has happened, including the current stage; blank for the
-             steps still ahead. */
+          /* Blank for steps still ahead. */
           meta={
             step.occurredAtUtc ? dateFormatter.format(new Date(step.occurredAtUtc)) : undefined
           }
@@ -36,10 +35,7 @@ export function TrackingTimeline({
   );
 }
 
-/* One place decides the wording of every step. A stage move into the pipeline's FinalHired stage
-   is celebrated rather than announced like an ordinary move. Stage names are translated here (at
-   render time) rather than in trackingSteps.ts, which stays a pure data transform over the raw
-   backend names. */
+/* All step wording lives here. Stage names are translated here, keeping trackingSteps.ts pure. */
 function stepLabel(
   step: TrackingStep,
   detail: CandidateApplicationDetail,
@@ -63,7 +59,6 @@ function stepLabel(
       return step.stageName
         ? t('candidatePortal.tracking.movedTo', { stage: stageLabel(step.stageName, t) })
         : t('candidatePortal.tracking.moved');
-    // Reads as a state ("you are in X"), not an event, and carries the date it was entered.
     case 'current':
       return step.stageName
         ? t('candidatePortal.tracking.currentStage', { stage: stageLabel(step.stageName, t) })

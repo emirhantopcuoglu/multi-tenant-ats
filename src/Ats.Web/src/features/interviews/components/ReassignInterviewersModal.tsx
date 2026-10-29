@@ -7,18 +7,12 @@ import type { ReassignInterviewersRequest } from '@/types/interview';
 interface ReassignInterviewersModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Current panel, used to pre-fill the checkboxes. */
   interviewerUserIds: string[];
   submitting: boolean;
   onConfirm: (body: ReassignInterviewersRequest) => void;
 }
 
-/* Swaps who is on the panel without touching the schedule — the gap that previously forced a
-   recruiter to cancel and rebook (losing the interview's history) just because someone fell ill.
-
-   Sends the whole panel rather than an add/remove delta, matching the endpoint: two recruiters
-   editing at once then overwrite each other with a complete intent instead of interleaving into a
-   list neither of them chose. */
+/* Sends the whole panel, matching the endpoint, so concurrent edits can't interleave. */
 export function ReassignInterviewersModal({
   open,
   onOpenChange,
@@ -30,11 +24,8 @@ export function ReassignInterviewersModal({
   const usersQuery = useUsers();
   const [selected, setSelected] = useState<string[]>(interviewerUserIds);
 
-  // Re-seed from the interview when the dialog opens, so a cancelled edit does not linger. Adjusted
-  // during render rather than in an effect, which also narrows the trigger: the effect had to list
-  // interviewerUserIds as a dependency, so a background refetch returning an equal-but-new array
-  // re-seeded mid-edit and discarded the recruiter's in-progress selection. Only the open
-  // transition resets it now.
+  // Re-seed only when the dialog opens (during render), so a background refetch doesn't discard an
+  // in-progress selection.
   const [prevOpen, setPrevOpen] = useState(open);
   if (prevOpen !== open) {
     setPrevOpen(open);
@@ -59,8 +50,7 @@ export function ReassignInterviewersModal({
           </Button>
           <Button
             onClick={() => onConfirm({ interviewerUserIds: selected })}
-            /* An interview with nobody on it is not a valid state, and the backend rejects it —
-               disabling here explains why instead of letting the request bounce. */
+            /* The backend rejects an empty panel. */
             disabled={submitting || selected.length === 0}
           >
             {t('interviews.reassign.confirm')}

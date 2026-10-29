@@ -9,9 +9,7 @@ import { useJobStages } from './useApplications';
 const BOARD_PAGE_SIZE = 100;
 const boardKey = (jobId: string) => ['applications', 'board', jobId] as const;
 
-/* Data + move mutation for the Kanban board of one job. The board shows only Active applications
-   (terminal ones can't be moved), grouped client-side by stage. The move is optimistic: the card
-   jumps to the target column immediately, and the previous board is restored if the request fails. */
+/* Only Active applications, grouped by stage. Moves are optimistic and roll back on failure. */
 export function useApplicationsBoard(jobId: string | undefined) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -31,7 +29,7 @@ export function useApplicationsBoard(jobId: string | undefined) {
     onMutate: async ({ id, targetStageId }) => {
       if (!jobId) return undefined;
       const key = boardKey(jobId);
-      // Cancel in-flight refetches so they don't clobber the optimistic state.
+      // So in-flight refetches don't overwrite the optimistic state.
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData<PagedResult<ApplicationListItem>>(key);
       const stageName = stagesQuery.data?.find((stage) => stage.id === targetStageId)?.name ?? '';

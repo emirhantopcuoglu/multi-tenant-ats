@@ -5,9 +5,7 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   invalid?: boolean;
 }
 
-/* A styled native <select>: we keep the native element (free accessibility + mobile pickers) and
-   only restyle it. `appearance-none` removes the OS arrow so we can render our own chevron, which
-   sits in an absolutely-positioned span over the right padding. */
+/* Native <select> for accessibility and mobile pickers; appearance-none so our own chevron shows. */
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
   { invalid = false, className, children, ...rest },
   ref,

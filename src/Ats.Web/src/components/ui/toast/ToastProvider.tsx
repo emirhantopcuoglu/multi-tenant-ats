@@ -10,16 +10,13 @@ interface ToastEntry extends ToastOptions {
 
 const TOAST_DURATION_MS = 5000;
 
-/* Accent stripe per tone, matching the prototype's toast styling. */
 const toneAccent: Record<ToastTone, string> = {
   default: 'border-l-accent',
   success: 'border-l-success',
   danger: 'border-l-danger',
 };
 
-/* Imperative toast system on Radix Toast (swipe-to-dismiss, timers, hotkey, and aria-live region
-   handled for us). The provider owns the toast list; `useToast().toast(...)` appends to it. Closed
-   toasts are marked `open: false` (so Radix can animate out) and pruned on the close callback. */
+/* Closed toasts are set to open: false so Radix can animate them out, then removed on close. */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastEntry[]>([]);
   const nextId = useRef(0);

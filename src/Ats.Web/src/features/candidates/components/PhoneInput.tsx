@@ -14,18 +14,14 @@ import {
 
 interface PhoneInputProps {
   id: string;
-  /** The composed value as the form stores it, e.g. "+90 (532) 123 45 67" or "". */
   value: string;
   onChange: (value: string) => void;
   describedById?: string;
   invalid?: boolean;
 }
 
-/* Masked phone entry: a dial-code select plus a digits-only national-number input that formats as
-   the user types. Controlled all the way — the single source of truth is the composed string in
-   the form; this component re-derives dial country + digits from it on every render. The one bit
-   of internal state is which dial country is selected while the digits are still empty (an empty
-   composed value can't carry that information). */
+/* Controlled: the composed string in the form is the source of truth. The only local state is the
+   dial country chosen while the digits are still empty. */
 export function PhoneInput({ id, value, onChange, describedById, invalid }: PhoneInputProps) {
   const { t } = useTranslation();
   const parsed = parsePhoneValue(value);
@@ -38,10 +34,8 @@ export function PhoneInput({ id, value, onChange, describedById, invalid }: Phon
 
   const formattedNational = formatNationalDigits(parsed.nationalDigits, country.template);
 
-  /* Writing a reformatted value back into a controlled input throws the caret to the end, which
-     breaks editing in the middle of the number. Fix: on change, remember how many DIGITS sat left
-     of the caret; after React commits the new value, place the caret just past that same digit.
-     Counting digits (not characters) keeps the position stable when punctuation shifts around. */
+  /* Reformatting moves the caret to the end. Remember how many digits were left of it and put it back
+     after that digit; counting digits survives punctuation changes. */
   const inputRef = useRef<HTMLInputElement>(null);
   const pendingCaretDigits = useRef<number | null>(null);
 
@@ -57,8 +51,7 @@ export function PhoneInput({ id, value, onChange, describedById, invalid }: Phon
     const caret = event.target.selectionStart ?? raw.length;
     const digitsBeforeCaret = raw.slice(0, caret).replace(/\D/g, '').length;
 
-    /* This strip is the "only digits can go in" rule: letters and symbols vanish before they are
-       ever committed, whether typed or pasted. */
+    /* Only digits get in, typed or pasted. */
     const digits = raw.replace(/\D/g, '').slice(0, digitCapacity(country.template));
 
     pendingCaretDigits.current = Math.min(digitsBeforeCaret, digits.length);
@@ -69,7 +62,6 @@ export function PhoneInput({ id, value, onChange, describedById, invalid }: Phon
     const next = PHONE_COUNTRIES.find((c) => c.iso === event.target.value) ?? DEFAULT_PHONE_COUNTRY;
     setEmptyStateIso(next.iso);
 
-    /* Digits carry over, re-capped and re-formatted under the new country's template. */
     const digits = parsed.nationalDigits.slice(0, digitCapacity(next.template));
     onChange(composePhoneValue(next, digits));
   }

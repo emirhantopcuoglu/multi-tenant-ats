@@ -1,15 +1,7 @@
 import type { AuthResult } from '@/types/auth';
 
-/* Token storage for two distinct identity types: company workspace users and candidate accounts.
-   They never coexist — logging in as one clears the other (enforced in AuthProvider).
-
-   Storage strategy — identical for both identities:
-   - accessToken: memory only (re-minted from the refresh token on reload via the interceptor).
-   - refreshToken: localStorage (survives reload; XSS risk, documented as known trade-off).
-
-   The candidate access token used to live in localStorage because no refresh token existed, which
-   capped a candidate session at the access token's fifteen minutes. Now that candidates rotate
-   refresh tokens like company users, the short-lived half stays in memory for both. */
+/* Company and candidate tokens never coexist; logging in as one clears the other. For both, the
+   access token lives in memory and the refresh token in localStorage (an accepted XSS trade-off). */
 
 const REFRESH_TOKEN_KEY = 'ats-refresh-token';
 const CANDIDATE_REFRESH_TOKEN_KEY = 'ats-candidate-refresh-token';
@@ -42,53 +34,46 @@ export const tokenStore = {
 
   getCandidateRefreshToken,
 
-  /** Derives which session type is active, used by the API interceptor to decide which refresh
-   *  endpoint to call and which logout event to fire. Company takes precedence if both are set.
-   *  Keyed on the persisted refresh tokens, not the in-memory access tokens, so it still answers
-   *  correctly on a fresh page load before either access token has been re-minted. */
+  /* Company wins if both are set. Based on the stored refresh tokens, so it works on a fresh load. */
   getSessionKind: (): 'company' | 'candidate' | null => {
     if (getRefreshToken() !== null) return 'company';
     if (getCandidateRefreshToken() !== null) return 'candidate';
     return null;
   },
 
-  /** Persist a fresh company token pair after login/register/refresh. */
   setTokens: ({ accessToken: access, refreshToken: refresh }: AuthResult): void => {
     accessToken = access;
     try {
       localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
     } catch {
-      // Persistence is best-effort; the in-memory access token still works for this session.
+      // Best-effort; the in-memory token still works for this session.
     }
   },
 
-  /** Persist a fresh candidate token pair after login/register/refresh/password change. */
   setCandidateTokens: ({ accessToken: access, refreshToken: refresh }: AuthResult): void => {
     candidateAccessToken = access;
     try {
       localStorage.setItem(CANDIDATE_REFRESH_TOKEN_KEY, refresh);
     } catch {
-      // Persistence is best-effort; the in-memory access token still works for this session.
+      // Best-effort; the in-memory token still works for this session.
     }
   },
 
-  /** Drop all company credentials (logout, or an unrecoverable refresh failure). */
   clear: (): void => {
     accessToken = null;
     try {
       localStorage.removeItem(REFRESH_TOKEN_KEY);
     } catch {
-      // Nothing to do if storage is unavailable.
+      // Storage unavailable; nothing to clear.
     }
   },
 
-  /** Drop all candidate credentials (candidate logout, or an unrecoverable refresh failure). */
   clearCandidateToken: (): void => {
     candidateAccessToken = null;
     try {
       localStorage.removeItem(CANDIDATE_REFRESH_TOKEN_KEY);
     } catch {
-      // Nothing to do if storage is unavailable.
+      // Storage unavailable; nothing to clear.
     }
   },
 };

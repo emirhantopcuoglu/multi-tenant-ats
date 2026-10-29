@@ -21,8 +21,7 @@ import type {
   SubmitFeedbackRequest,
 } from '@/types/interview';
 
-/* Root key for every interviews query, so a single invalidate after any mutation refreshes all
-   filtered list pages and the open detail. */
+/* One invalidate refreshes every list and the open detail. */
 const INTERVIEWS_KEY = ['interviews'] as const;
 export const interviewsListKey = (params: ListInterviewsParams) =>
   [...INTERVIEWS_KEY, 'list', params] as const;
@@ -32,7 +31,6 @@ export function useInterviews(params: ListInterviewsParams) {
   return useQuery({
     queryKey: interviewsListKey(params),
     queryFn: () => listInterviews(params),
-    // Keep the current page visible while the next loads (no empty flash on paging/filtering).
     placeholderData: keepPreviousData,
   });
 }
@@ -41,8 +39,6 @@ export function useInterview(id: string) {
   return useQuery({ queryKey: interviewDetailKey(id), queryFn: () => getInterview(id) });
 }
 
-/* Schedule mutation. Invalidates the whole interviews cache on success so every list reflects the new
-   row; the caller handles navigation and the toast. */
 export function useScheduleInterview() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -51,9 +47,7 @@ export function useScheduleInterview() {
   });
 }
 
-/* Reschedule + the three terminal transitions for the detail page. Each invalidates the interviews
-   cache on success so the detail and the lists reflect the new schedule/status. Toasts are the
-   caller's responsibility (it knows which action ran). */
+/* Toasts are left to the caller. */
 export function useInterviewActions(id: string) {
   const queryClient = useQueryClient();
   const invalidate = () => queryClient.invalidateQueries({ queryKey: INTERVIEWS_KEY });
@@ -98,9 +92,7 @@ export function useInterviewFeedback(id: string) {
   });
 }
 
-/* Feedback submission. Invalidates the feedback query as well as the detail: submitting is exactly
-   what un-withholds the rest of the panel for this caller, so the list has to be refetched or they
-   would keep seeing the "yours first" state they just cleared. */
+/* Also invalidates the feedback list: submitting un-withholds the panel's feedback for this user. */
 export function useSubmitFeedback(id: string) {
   const queryClient = useQueryClient();
   return useMutation({

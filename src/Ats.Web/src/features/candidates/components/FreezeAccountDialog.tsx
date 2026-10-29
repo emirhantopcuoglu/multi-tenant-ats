@@ -8,8 +8,7 @@ interface FreezeAccountDialogProps {
   submitting: boolean;
 }
 
-/* Freeze is reversible from the reactivation screen (Freeze() doesn't rotate the security stamp),
-   so the dialog only asks for a plain click — unlike delete, no typed phrase is warranted. */
+/* Freezing is reversible, so a plain confirmation is enough. */
 export function FreezeAccountDialog({
   open,
   onOpenChange,

@@ -1,6 +1,4 @@
-/* Date-range presets for the interviews list filter. The backend filters on a raw fromDate/toDate
-   pair; these presets turn a single friendly choice into that pair so the URL stays a short token
-   (?range=next7) instead of two timestamps. Bounds are computed at query time, relative to now. */
+/* Presets keep the URL short (?range=next7); bounds are computed relative to now. */
 export const DATE_RANGES = ['all', 'upcoming', 'next7', 'past'] as const;
 export type DateRange = (typeof DATE_RANGES)[number];
 
@@ -16,11 +14,6 @@ export interface DateBounds {
   toDate?: string;
 }
 
-/* Resolve a preset to ISO bounds:
-   - all:      no bounds
-   - upcoming: from now onward
-   - next7:    now → now + 7 days
-   - past:     up to now */
 export function resolveDateRange(range: DateRange, now: Date = new Date()): DateBounds {
   const nowIso = now.toISOString();
   switch (range) {

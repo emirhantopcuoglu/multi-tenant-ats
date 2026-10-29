@@ -2,8 +2,6 @@ import { apiClient } from '@/lib/apiClient';
 import type { PagedResult } from '@/types/pagination';
 import type { MarketplaceJob } from '@/types/marketplace';
 
-/* The cross-tenant public feed at GET /public/jobs. Unlike the tenant-scoped careers pages
-   (/{slug}/jobs), this endpoint has no slug and is served by PublicJobFeedController. */
 
 export interface MarketplaceJobFilters {
   search?: string;
@@ -37,10 +35,7 @@ export interface MarketplaceTotals {
   hiringCompanies: number;
 }
 
-/* The homepage stats strip. There is no dedicated stats endpoint: both list endpoints already
-   return totalCount, so two pageSize=1 requests give the global numbers without any new API
-   surface. If the strip ever grows beyond these two counters, that is the moment to introduce a
-   real /public/stats endpoint. */
+/* No stats endpoint: two pageSize=1 requests give both totals. */
 export async function getMarketplaceTotals(): Promise<MarketplaceTotals> {
   const [jobs, companies] = await Promise.all([
     apiClient.get<PagedResult<unknown>>('/public/jobs', { params: { page: 1, pageSize: 1 } }),

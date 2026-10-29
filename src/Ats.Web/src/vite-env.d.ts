@@ -1,7 +1,6 @@
 /// <reference types="vite/client" />
 
-// Typed access to the build-time environment. Vite only exposes variables prefixed with VITE_ to
-// client code (import.meta.env.VITE_API_BASE_URL), which keeps server-only secrets out of the bundle.
+// Vite only exposes VITE_ variables to client code.
 interface ImportMetaEnv {
   readonly VITE_API_BASE_URL: string;
 }

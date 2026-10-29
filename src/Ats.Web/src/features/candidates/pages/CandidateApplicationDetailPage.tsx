@@ -13,9 +13,6 @@ import { CandidateInterviewsCard } from '../components/CandidateInterviewsCard';
 import { WithdrawApplicationDialog } from '../components/WithdrawApplicationDialog';
 import type { CandidateApplicationDetail } from '../candidateApplicationsApi';
 
-/* The transparent tracking view at /candidate/applications/{id}: everything that happened to the
-   application (dated, colour-coded) followed by where it sits in the company's full pipeline and
-   what is still ahead. The backend guarantees the data is candidate-safe; this page only renders. */
 export function CandidateApplicationDetailPage() {
   const { t } = useTranslation();
   const { id = '' } = useParams();
@@ -75,9 +72,7 @@ function TrackingView({ detail }: { detail: CandidateApplicationDetail }) {
       },
       onError: (error) => {
         setDialogOpen(false);
-        // 409 is the application having closed since this page loaded — a stale tab, not a failure the
-        // candidate can act on, so it gets the neutral tone and a message that explains what they are
-        // about to see rather than offering a retry.
+        // 409: closed since the page loaded. Neutral tone, no retry.
         const alreadyClosed = isAxiosError(error) && error.response?.status === 409;
         toast({
           title: alreadyClosed
@@ -104,8 +99,6 @@ function TrackingView({ detail }: { detail: CandidateApplicationDetail }) {
           <Badge tone={applicationStatusTone[detail.status]} dot>
             {t(`status.${detail.status}`)}
           </Badge>
-          {/* Only an application still in play can be withdrawn, and the backend enforces that too —
-              this just keeps the UI from offering an action it knows will be refused. */}
           {detail.status === 'Active' && (
             <Button
               variant="ghost"

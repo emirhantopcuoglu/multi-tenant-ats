@@ -7,9 +7,7 @@ import { UsersTab } from './components/UsersTab';
 const TABS = { company: 'company', users: 'users' } as const;
 type SettingsTab = (typeof TABS)[keyof typeof TABS];
 
-/* Settings (Step 4.2), Admin-only via the route guard. Two tabs: a read-only Company panel and the
-   tenant user directory with invite. The page owns only the active-tab state; each tab fetches its
-   own data so switching tabs doesn't re-render the other. */
+/* Admin-only via the route guard. Each tab loads its own data. */
 export function SettingsPage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<SettingsTab>(TABS.company);

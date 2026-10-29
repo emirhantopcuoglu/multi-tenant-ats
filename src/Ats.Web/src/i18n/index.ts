@@ -6,8 +6,6 @@ import tr from './tr.json';
 export const SUPPORTED_LANGUAGES = ['en', 'tr'] as const;
 export type Language = (typeof SUPPORTED_LANGUAGES)[number];
 
-/* Shared with the rest of the app; mirrors the THEME_STORAGE_KEY convention so language and
-   theme persistence read the same way. */
 export const LANGUAGE_STORAGE_KEY = 'ats-lang';
 
 const FALLBACK_LANGUAGE: Language = 'en';
@@ -16,8 +14,7 @@ function isSupported(value: string | null): value is Language {
   return value !== null && (SUPPORTED_LANGUAGES as readonly string[]).includes(value);
 }
 
-/* Precedence: an explicit saved choice wins; otherwise honour the browser language if we ship it;
-   otherwise fall back to English. Reads storage defensively (can throw in private mode). */
+/* Saved choice first, then the browser language if supported, then English. Storage can throw. */
 function getInitialLanguage(): Language {
   try {
     const saved = localStorage.getItem(LANGUAGE_STORAGE_KEY);
@@ -25,7 +22,7 @@ function getInitialLanguage(): Language {
       return saved;
     }
   } catch {
-    // Ignore storage errors and fall through to the browser/fallback language.
+    // Storage unavailable; use the browser language.
   }
 
   const browser = navigator.language.split('-')[0];
@@ -41,18 +38,16 @@ i18n.use(initReactI18next).init({
   fallbackLng: FALLBACK_LANGUAGE,
   supportedLngs: SUPPORTED_LANGUAGES,
   interpolation: {
-    // React escapes values during render, so i18next must not double-escape them.
+    // React already escapes values.
     escapeValue: false,
   },
 });
 
-// Persist the choice whenever it changes, so it survives a reload. Kept out of components on
-// purpose: the side effect belongs to the i18n layer, not the UI.
 i18n.on('languageChanged', (language) => {
   try {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
   } catch {
-    // Persistence is best-effort; the in-memory language still works without it.
+    // Best-effort; the language still works without storage.
   }
 });
 

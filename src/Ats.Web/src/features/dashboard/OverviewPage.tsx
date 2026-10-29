@@ -10,15 +10,13 @@ import { useDashboardStats } from './useDashboardStats';
 
 const PREVIEW_PAGE_SIZE = 5;
 
-/* Dashboard home (Step 4.1). A row of four headline stats over two preview lists — recent
-   applications and upcoming interviews — each reusing the list hooks from their own features. */
 export function OverviewPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
 
   const statsQuery = useDashboardStats();
   const recentApplications = useApplications({ page: 1, pageSize: PREVIEW_PAGE_SIZE });
-  // "Upcoming" = scheduled from now on; pin the boundary once per mount so the query key is stable.
+  // Fixed once per mount so the query key is stable.
   const nowIso = useMemo(() => new Date().toISOString(), []);
   const upcomingInterviews = useInterviews({ page: 1, pageSize: PREVIEW_PAGE_SIZE, fromDate: nowIso });
 

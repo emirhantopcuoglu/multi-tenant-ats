@@ -1,5 +1,3 @@
-/* Barrel for the shared UI primitives, so screens import from '@/components/ui' rather than
-   reaching into individual files. */
 export { Button, type ButtonVariant } from './Button';
 export { IconButton } from './IconButton';
 export { Input } from './Input';
@@ -15,7 +13,6 @@ export { Skeleton } from './Skeleton';
 export { EmptyState } from './EmptyState';
 export { Field } from './Field';
 
-// Interactive / overlay components (Radix-based where accessibility is hard to hand-roll).
 export { Modal } from './Modal';
 export { Dropdown, type DropdownAction } from './Dropdown';
 export { Tabs, TabPanel, type TabItem } from './Tabs';

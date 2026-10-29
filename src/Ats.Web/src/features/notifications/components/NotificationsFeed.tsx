@@ -11,17 +11,13 @@ const PAGE_SIZE = 10;
 
 interface NotificationsFeedProps {
   hooks: typeof candidateNotifications | typeof companyNotifications;
-  /** Route prefix for an application deep-link, e.g. "/candidate/applications" or "/applications". */
+  /* e.g. "/candidate/applications" or "/applications". */
   applicationBasePath: string;
-  /** i18n key for the page subtitle — candidate and company copy differ ("your applications" vs
-      "your team's hiring"), so the caller supplies it rather than this component picking a default. */
+  /* Candidate and company copy differ, so the caller supplies it. */
   subtitleKey: 'notifications.subtitle' | 'notifications.companySubtitle';
 }
 
-/* The full notification history behind a bell dropdown: same rows, plus pagination and a
-   mark-all action. Shared by the candidate and company notifications pages — each page supplies
-   its own hooks (which endpoint) and applicationBasePath (where a row should navigate), and owns
-   its own outer layout (PublicLayout for the candidate portal, AppShell's <Outlet/> for company). */
+/* Shared by the candidate and company notification pages; each passes its hooks, link path and layout. */
 export function NotificationsFeed({ hooks, applicationBasePath, subtitleKey }: NotificationsFeedProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -37,7 +33,7 @@ export function NotificationsFeed({ hooks, applicationBasePath, subtitleKey }: N
   const unreadCount = unreadQuery.data ?? 0;
 
   const openNotification = (item: NotificationItem) => {
-    // Fire-and-forget: navigation must not wait on the read receipt.
+    // Fire-and-forget: navigation doesn't wait for the read receipt.
     if (!item.readAtUtc) {
       markRead.mutate(item.id);
     }

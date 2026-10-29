@@ -21,8 +21,7 @@ export async function candidateRegister(request: CandidateRegisterRequest): Prom
   return data;
 }
 
-/* Revokes the refresh token server-side before the client forgets it. Best-effort: a failure here
-   still has to end the local session, so callers drop credentials regardless of the outcome. */
+/* Best-effort; callers drop the local session either way. */
 export async function candidateLogout(): Promise<void> {
   const refreshToken = tokenStore.getCandidateRefreshToken();
   if (!refreshToken) return;
@@ -30,7 +29,7 @@ export async function candidateLogout(): Promise<void> {
   try {
     await apiClient.post(`${CANDIDATE_AUTH_BASE}/logout`, { refreshToken });
   } catch {
-    // The session ends locally either way; a dead token on the server is harmless.
+    // The local session ends either way.
   }
 }
 

@@ -13,8 +13,7 @@ export interface CandidateApplicationItem {
   currentStageName: string | null;
 }
 
-/* GET /api/v1/candidate/applications/{id} — the transparent tracking view. The backend already
-   sanitized it: no acting user, no internal rejection reason, stage ids resolved to names. */
+/* Already sanitized by the backend: no actor, no rejection reason, stage names resolved. */
 
 export interface CandidatePipelineStage {
   id: string;
@@ -43,7 +42,6 @@ export interface CandidateInterview {
   scheduledAtUtc: string;
   durationMinutes: number;
   status: InterviewStatus;
-  /** Null for a phone screen, which has no room. */
   roomToken: string | null;
 }
 
@@ -69,16 +67,12 @@ export async function getCandidateApplication(id: string): Promise<CandidateAppl
   return data;
 }
 
-/* The candidate closes their own application. POST, not DELETE: nothing is removed — the application
-   reaches a terminal status and stays in their history. 409 means it was already closed (a stale tab);
-   the caller surfaces that rather than treating it as a hard failure. */
+/* 409 means it was already closed (a stale tab). */
 export async function withdrawCandidateApplication(id: string): Promise<void> {
   await apiClient.post(`/api/v1/candidate/applications/${encodeURIComponent(id)}/withdraw`);
 }
 
-/* Job ids the candidate has an Active application for. Rejected/withdrawn applications are
-   excluded on purpose: the backend duplicate rule allows re-applying after those, and the UI must
-   agree with it. */
+/* Only Active applications, matching the backend's re-apply rule. */
 export async function listAppliedJobIds(): Promise<string[]> {
   const { data } = await apiClient.get<string[]>('/api/v1/candidate/applications/job-ids');
   return data;

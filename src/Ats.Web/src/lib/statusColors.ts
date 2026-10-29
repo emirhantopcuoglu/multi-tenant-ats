@@ -7,7 +7,6 @@ import type {
   Role,
 } from '@/types/enums';
 
-/* Visual tones a Badge can take, named after the prototype's pill kinds (Design System.dc.html). */
 export type BadgeTone =
   | 'neutral'
   | 'gray'
@@ -19,9 +18,7 @@ export type BadgeTone =
   | 'solidDanger'
   | 'solidSuccess';
 
-/* Status → tone mapping, ported verbatim from the design's "Status color mapping" (the `sb(...)`
-   calls in Design System.dc.html). Kept as exhaustive Record<Enum, BadgeTone> maps so adding a new
-   enum value becomes a compile error here until its colour is decided — no silent default. */
+/* Exhaustive Records, so a new enum value fails to compile until it has a colour. */
 
 export const jobStatusTone: Record<JobStatus, BadgeTone> = {
   Draft: 'neutral',
@@ -44,10 +41,8 @@ export const interviewStatusTone: Record<InterviewStatus, BadgeTone> = {
   NoShow: 'warning',
 };
 
-/* What an interview is shown as, which is not always what it is stored as: an interview whose slot
-   has passed with no outcome recorded is still `Scheduled` in the database, but calling it
-   "Scheduled" on screen is what made a finished interview look like an upcoming one. `warning`
-   because it is the one state that needs a human to do something. */
+/* An elapsed interview with no outcome is still Scheduled in the database but shown as awaiting
+   outcome. Warning, because someone needs to act. */
 export type InterviewDisplayStatus = InterviewStatus | 'AwaitingOutcome';
 
 export const interviewDisplayStatusTone: Record<InterviewDisplayStatus, BadgeTone> = {
@@ -75,9 +70,7 @@ export const cvJobFitRatingTone: Record<CvJobFitRating, BadgeTone> = {
   Strong: 'success',
 };
 
-/* Role → tone for the user directory badges. Admin is the privileged role, so it takes the accent
-   tone; the rest are informational. Exhaustive like the maps above — a new role won't compile until
-   its colour is chosen here. */
+/* Admin gets the accent tone. Exhaustive like the maps above. */
 export const roleTone: Record<Role, BadgeTone> = {
   Admin: 'accent',
   Recruiter: 'info',

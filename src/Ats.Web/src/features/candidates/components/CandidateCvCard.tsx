@@ -7,9 +7,7 @@ import { toApiError } from '@/lib/problemDetails';
 import { getCandidateCvDownloadUrl, type CandidateCv } from '../candidateProfileApi';
 import { useRemoveCandidateCv, useUploadCandidateCv } from '../useCandidateProfile';
 
-/* Shared with the apply form: the same file rules produce the same messages wherever a CV is
-   chosen. 'file.content_mismatch' has no client-side check — only the server reads magic bytes —
-   but it can come back from the upload, so it is mapped here too. */
+/* Shared with the apply form. 'file.content_mismatch' only comes from the server (magic bytes). */
 const FILE_ERROR_KEYS = {
   'file.empty': 'public.apply.fileEmpty',
   'file.too_large': 'public.apply.fileTooLarge',
@@ -17,9 +15,7 @@ const FILE_ERROR_KEYS = {
   'file.content_mismatch': 'public.apply.fileMismatch',
 } as const satisfies Record<CvFileError | 'file.content_mismatch', string>;
 
-/* The CV saved to the account, uploaded once and reused on every application. Unlike the apply
-   form's field, choosing a file here sends it immediately — there is no surrounding form to submit,
-   and a "save" button for a single file would be a step with nothing else in it. */
+/* Choosing a file uploads it right away; there's no form to submit. */
 export function CandidateCvCard({ cv }: { cv: CandidateCv | null }) {
   const { t, i18n } = useTranslation();
   const { toast } = useToast();
@@ -52,8 +48,7 @@ export function CandidateCvCard({ cv }: { cv: CandidateCv | null }) {
     });
   };
 
-  /* The signed link is fetched at click time, not held in state: it expires in five minutes, and a
-     URL obtained when the page loaded would be dead by the time most people click it. */
+  /* Fetched at click time: the link expires after five minutes. */
   const download = async () => {
     setIsPreparingDownload(true);
     try {
@@ -114,8 +109,6 @@ export function CandidateCvCard({ cv }: { cv: CandidateCv | null }) {
             </div>
           </div>
 
-          {/* Replacing is the same act as uploading, so it is the same control — no separate
-              "replace" mode to get out of. */}
           <p className="text-xs text-text-muted">{t('candidateSettings.cv.replaceHint')}</p>
           <CvDropZone onSelect={select} error={error} disabled={upload.isPending} />
         </div>

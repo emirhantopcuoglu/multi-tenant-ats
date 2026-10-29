@@ -8,14 +8,11 @@ interface ModalProps {
   title: ReactNode;
   description?: ReactNode;
   children?: ReactNode;
-  /** Footer area, typically the cancel/confirm actions. */
   footer?: ReactNode;
   className?: string;
 }
 
-/* Modal built on Radix Dialog, which gives us focus trapping, Escape-to-close, scroll locking,
-   `aria-modal`, and labelling for free — the parts that are easy to get subtly wrong by hand.
-   We only supply the styling and layout. Controlled via `open`/`onOpenChange`. */
+/* Radix Dialog handles focus trapping, Escape, scroll lock and aria. Controlled via open/onOpenChange. */
 export function Modal({
   open,
   onOpenChange,

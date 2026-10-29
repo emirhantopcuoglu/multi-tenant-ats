@@ -1,7 +1,5 @@
 import { useTheme } from '@/app/theme/theme-context';
 
-/* Inline stroke SVGs (same visual language as the design prototype) so the toggle has no
-   icon-library dependency yet — the shared icon set arrives with the component library (Step 1.5). */
 function SunIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

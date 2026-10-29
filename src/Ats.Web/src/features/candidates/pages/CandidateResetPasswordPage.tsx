@@ -8,18 +8,11 @@ import { Button, Field, Input } from '@/components/ui';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { resetCandidatePassword } from '../candidatePasswordResetApi';
 
-/* Mirrors CandidatePasswordPolicy.MinimumLength; the server is the enforcement point, this is UX. */
+/* Mirrors CandidatePasswordPolicy.MinimumLength; the server enforces it. */
 const PASSWORD_MIN = 8;
 
-/* Step two of recovery: the landing page for the mailed link.
-
-   No auto-submit on mount, unlike nothing here but worth stating: the token is only spent when the
-   candidate submits a password, so a corporate mail scanner that opens the link (the hazard
-   ConfirmEmailChangePage documents) cannot burn it.
-
-   On success the candidate is sent to sign in rather than being logged in here. The reset revoked
-   every session by rotating the security stamp, so there is no session to continue — and a reset
-   that handed out a session would reward anyone who merely guessed a token. */
+/* The token is only used on submit, so a mail scanner opening the link can't spend it. Afterwards
+   the candidate signs in; no session is handed out. */
 export function CandidateResetPasswordPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -57,8 +50,7 @@ export function CandidateResetPasswordPage() {
       await resetCandidatePassword({ token: token!, newPassword: values.newPassword });
       setIsDone(true);
     } catch {
-      // The backend collapses unknown, expired and already-used into one answer, so this message
-      // has to cover all three rather than guess which applies.
+      // The backend returns one error for unknown, expired and used tokens.
       setFormError(t('candidateAuth.resetPassword.invalidLink'));
     }
   });

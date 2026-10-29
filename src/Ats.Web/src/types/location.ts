@@ -1,9 +1,5 @@
-/* Mirrors the backend's Ats.Shared.Kernel.SupportedCountries constant list -- a curated, hand-maintained
-   set rather than a full world dataset. The obvious npm package for a cascading country/city select
-   (country-state-city) is GPL-3.0, which is not safe to depend on from a private codebase, and the
-   MIT-licensed alternatives only cover countries, not cities. So this list is grown deliberately by
-   hand, same reasoning as CURRENCIES in enums.ts. Kept in its own file (not enums.ts) because the
-   Turkey city list alone is 81 entries -- too large to sit next to the small string-union enums. */
+/* Mirrors the backend's SupportedCountries. Hand-maintained: the common country/city package is
+   GPL-3.0. */
 
 export const COUNTRIES = [
   'Turkey',
@@ -16,9 +12,7 @@ export const COUNTRIES = [
 ] as const;
 export type Country = (typeof COUNTRIES)[number];
 
-/* Turkey's list is the full, official 81 provinces (a genuinely closed set). ASCII spellings
-   throughout (Istanbul, not İstanbul) to match the backend list exactly -- an exact-match check
-   against a Turkish-specific character (dotted/dotless I) is a classic silent-bug trap. */
+/* All 81 provinces. ASCII spellings (Istanbul, not İstanbul) to match the backend exactly. */
 export const CITIES_BY_COUNTRY: Record<Country, readonly string[]> = {
   Turkey: [
     'Adana', 'Adiyaman', 'Afyonkarahisar', 'Agri', 'Amasya', 'Ankara', 'Antalya', 'Artvin',

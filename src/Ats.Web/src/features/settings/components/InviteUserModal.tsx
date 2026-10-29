@@ -10,7 +10,7 @@ interface InviteUserModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// A pragmatic email shape check at the boundary; the backend is the authority on uniqueness.
+// A basic shape check; the backend decides the rest.
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEFAULT_ROLE: Role = 'Recruiter';
 
@@ -19,9 +19,7 @@ interface FormErrors {
   role?: string;
 }
 
-/* Invite form. Collects an email + role and posts to /invitations. The backend owns the real rules
-   (valid role, email not already in use), so we map its structured codes to inline messages rather
-   than duplicating that logic — a thin client-side email check only spares an obvious round-trip. */
+/* The backend checks the role and duplicate emails; its codes are mapped to messages here. */
 export function InviteUserModal({ open, onOpenChange }: InviteUserModalProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -31,10 +29,7 @@ export function InviteUserModal({ open, onOpenChange }: InviteUserModalProps) {
   const [role, setRole] = useState<Role>(DEFAULT_ROLE);
   const [errors, setErrors] = useState<FormErrors>({});
 
-  // Reset when the dialog opens, so a previous draft never lingers. Adjusted during render rather
-  // than in an effect: React discards the in-progress output and re-renders before committing, so
-  // the cleared form is what reaches the DOM. An effect would paint the stale draft first and clear
-  // it afterwards, which is the cascading render the linter flags.
+  // Reset when the dialog opens. Done during render, not in an effect, so the old draft is never painted.
   const [prevOpen, setPrevOpen] = useState(open);
   if (prevOpen !== open) {
     setPrevOpen(open);
@@ -66,7 +61,6 @@ export function InviteUserModal({ open, onOpenChange }: InviteUserModalProps) {
         },
         onError: (error) => {
           const { code } = toApiError(error);
-          // Surface the duplicate-email case on the field; anything else is a generic toast.
           if (code === 'invite.email_in_use') {
             setErrors({ email: t('settings.invite.emailInUse') });
             return;

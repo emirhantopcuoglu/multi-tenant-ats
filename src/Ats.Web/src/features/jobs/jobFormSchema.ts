@@ -13,13 +13,9 @@ import {
 import { CITIES_BY_COUNTRY, COUNTRIES, type Country } from '@/types/location';
 import type { JobDetail, JobWriteRequest } from '@/types/job';
 
-/* Salary inputs stay as strings in the form (native number inputs surface empty as '' rather than a
-   number), and are parsed/validated together: a salary is either fully blank or fully provided.
-   salaryCurrency narrows to the dropdown's own literal union (matching the zod schema below) rather
-   than a plain string, or zodResolver's inferred resolver type stops matching JobFormValues.
-   Country is a fixed dropdown (Country | ''); City stays a plain string here because its valid set
-   depends on which Country is picked (checked in superRefine below against CITIES_BY_COUNTRY), not
-   a single flat union of every city across every country. */
+/* Salary fields stay strings ('' when empty) and are all-or-nothing. salaryCurrency uses the
+   dropdown's union so zodResolver's type matches. City is a string because its options depend on
+   the country. */
 export interface JobFormValues {
   title: string;
   description: string;
@@ -37,8 +33,7 @@ export interface JobFormValues {
 const TITLE_MAX = 200;
 const DEPARTMENT_MAX = 100;
 
-/* Schema built with `t` so validation messages are localized (same pattern as the auth forms).
-   Description may be empty for a draft; the publish action enforces it separately in the form. */
+/* Built with t() so messages are translated. Drafts may have no description; publish checks it. */
 export function buildJobSchema(t: TFunction) {
   return z
     .object({
@@ -49,8 +44,7 @@ export function buildJobSchema(t: TFunction) {
         .max(TITLE_MAX, t('jobForm.titleMax', { count: TITLE_MAX })),
       description: z.string(),
       department: z.string().max(DEPARTMENT_MAX, t('jobForm.fieldMax')),
-      // '' means "no country picked yet"; city is checked against CITIES_BY_COUNTRY[country] in
-      // superRefine below, since the valid options depend on which country is selected.
+      // '' means no country yet; the city is checked in superRefine.
       city: z.string(),
       country: z.enum(['', ...COUNTRIES]),
       employmentType: z.enum(EMPLOYMENT_TYPES),
@@ -58,12 +52,11 @@ export function buildJobSchema(t: TFunction) {
       workArrangement: z.enum(WORK_ARRANGEMENTS),
       salaryMin: z.string(),
       salaryMax: z.string(),
-      // '' represents "no currency picked yet" -- the field is optional unless a salary is set.
+      // Optional unless a salary is set.
       salaryCurrency: z.enum(['', ...CURRENCIES]),
     })
     .superRefine((values, ctx) => {
-      // Country/City are required on every job (same as Title/Description), not just when a salary
-      // is set -- unlike salaryCurrency below, this check always runs.
+      // Always required, unlike salaryCurrency.
       if (!values.country) {
         ctx.addIssue({ code: 'custom', path: ['country'], message: t('jobForm.countryRequired') });
       } else if (!CITIES_BY_COUNTRY[values.country].includes(values.city)) {
@@ -112,16 +105,14 @@ export function jobToValues(job: JobDetail): JobFormValues {
     description: job.description,
     department: job.department,
     city: job.city,
-    // Cast is safe for display only: a legacy row whose country isn't in COUNTRIES just won't match
-    // any <option> and the select shows blank -- it never throws. Same for city vs. CITIES_BY_COUNTRY.
+    // Display-only cast: an old value outside the list just shows a blank select.
     country: (job.country as Country | null) ?? '',
     employmentType: job.employmentType,
     experienceLevel: job.experienceLevel,
     workArrangement: job.workArrangement,
     salaryMin: job.salaryMin?.toString() ?? '',
     salaryMax: job.salaryMax?.toString() ?? '',
-    // Cast is safe for display only: a legacy row outside the fixed list just won't match any
-    // <option> and the select shows blank -- it never throws.
+    // Display-only cast: an old value outside the list just shows a blank select.
     salaryCurrency: (job.salaryCurrency as Currency | null) ?? '',
   };
 }

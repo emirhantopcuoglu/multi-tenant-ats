@@ -2,10 +2,7 @@ import { apiClient } from '@/lib/apiClient';
 import type { PagedResult } from '@/types/pagination';
 import type { Job, JobDetail } from '@/types/job';
 
-/* The public careers endpoints live at the URL root (e.g. /acmecorp/jobs), not under /api/v1: the
-   tenant is taken from the path slug, resolved by TenantResolutionMiddleware. These calls go out
-   anonymously — apiClient simply omits the Authorization header when no token is present. The slug
-   is encoded so an unexpected character can't break the path. */
+/* At the URL root, not /api/v1: the tenant comes from the slug. Sent anonymously. */
 
 export async function listPublicJobs(
   slug: string,

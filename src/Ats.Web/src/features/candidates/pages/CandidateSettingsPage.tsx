@@ -6,8 +6,6 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { SidebarNavItem } from '@/components/ui';
 import { useAuth } from '@/app/auth/auth-context';
 
-/* Same stroke language as the company nav's icons (navConfig.tsx), kept local rather than shared —
-   this rail belongs to the candidate settings page only, not the authenticated app shell. */
 function Glyph({ children }: { children: ReactNode }) {
   return (
     <svg
@@ -59,11 +57,7 @@ const SETTINGS_NAV_ITEMS = [
   },
 ];
 
-/* Thin chrome for the candidate settings area: PublicLayout's marketing header/footer would just be
-   dead weight here, so this is its own minimal shell — brand mark, theme/language toggles, sign out
-   — plus a left-hand section nav next to the routed tab (<Outlet/>). Each tab is a real route
-   (/candidate/settings/profile|security|account) so it is bookmarkable and gets its own history
-   entry, rather than being client-only tab state. */
+/* Its own minimal shell instead of PublicLayout. Each tab is a real route, so it can be bookmarked. */
 export function CandidateSettingsPage() {
   const { t } = useTranslation();
   const { pathname } = useLocation();

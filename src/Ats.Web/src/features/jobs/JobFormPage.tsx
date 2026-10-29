@@ -12,9 +12,8 @@ import {
   type JobFormValues,
 } from './jobFormSchema';
 
-/* Create (/jobs/new) and edit (/jobs/:id/edit) job form. Managing jobs is gated to Admin/Recruiter,
-   so a non-manager who reaches the URL directly is redirected back to the list (the API enforces the
-   same policy). Edit waits for the detail load before mounting the form so its defaults are correct. */
+/* Non-managers who open the URL are sent back to the list. Edit waits for the job before mounting
+   the form so the defaults are right. */
 export function JobFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
@@ -49,7 +48,6 @@ export function JobFormPage() {
   }
 
   const defaultValues = isEdit && job ? jobToValues(job) : emptyJobValues();
-  // Publishing only applies when creating or when the job is still a draft.
   const showPublish = !isEdit || job?.status === 'Draft';
   const submitting = create.isPending || update.isPending || publish.isPending;
 

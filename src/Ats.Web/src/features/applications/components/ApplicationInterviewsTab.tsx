@@ -19,18 +19,13 @@ function CalendarIcon() {
 
 interface ApplicationInterviewsTabProps {
   applicationId: string;
-  /** True once the application has reached the Interview stage — see ApplicationDetailPage. */
   canSchedule: boolean;
-  /** Opens the schedule dialog (owned by the parent, shared with the stage-move trigger). */
+  /* The dialog is owned by the parent. */
   onSchedule: () => void;
 }
 
-/* The application detail's Interviews tab: every interview scheduled against this application,
-   most recent first. Reuses the existing GET /interviews?applicationId= endpoint (useInterviews)
-   rather than adding a new one — the same data the standalone /interviews page and the pipeline's
-   auto-advance-on-schedule consumer both key off. The schedule button is the only entry point for
-   follow-up interviews now that the standalone buttons are gone; the first interview still comes
-   from moving the application into the Interview stage. */
+/* Uses GET /interviews?applicationId=. The button here is how follow-up interviews are scheduled;
+   the first one comes from moving the application into the Interview stage. */
 export function ApplicationInterviewsTab({ applicationId, canSchedule, onSchedule }: ApplicationInterviewsTabProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();

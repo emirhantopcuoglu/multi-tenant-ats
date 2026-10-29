@@ -3,9 +3,7 @@ import { cn } from '@/lib/cn';
 
 export type SortDirection = 'asc' | 'desc';
 
-/* Composable, styled table parts rather than a generic data-table abstraction: screens have
-   different columns and cell content, so primitives that compose stay simpler than a config-driven
-   table (and we avoid building features we don't need yet — YAGNI). */
+/* Composable parts instead of a config-driven data table. */
 
 export function Table({ children, className }: { children: ReactNode; className?: string }) {
   return (
@@ -26,7 +24,6 @@ export function TBody({ children }: { children: ReactNode }) {
 }
 
 interface TRProps extends HTMLAttributes<HTMLTableRowElement> {
-  /** Add hover affordance + border for body rows. Header rows leave this off. */
   interactive?: boolean;
 }
 
@@ -57,14 +54,12 @@ export function TH({ className, children, ...rest }: ThHTMLAttributes<HTMLTableC
 
 interface SortableTHProps {
   children: ReactNode;
-  /** Current sort direction for this column, or undefined when it isn't the active sort. */
+  /* Undefined when this column isn't the active sort. */
   direction?: SortDirection;
   onSort: () => void;
   align?: 'left' | 'right';
 }
 
-/* Header cell whose label is a button; clicking cycles the sort. The chevron reflects the active
-   direction, and `aria-sort` exposes it to assistive tech. */
 export function SortableTH({ children, direction, onSort, align = 'left' }: SortableTHProps) {
   const ariaSort = direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : 'none';
   return (
@@ -108,7 +103,6 @@ export function TD({ className, children, ...rest }: TdHTMLAttributes<HTMLTableC
   );
 }
 
-/* Footer band, typically holding a row count and Pagination. */
 export function TableFooter({ children }: { children: ReactNode }) {
   return (
     <div className="flex items-center justify-between border-t border-divider bg-bg px-4.5 py-3">

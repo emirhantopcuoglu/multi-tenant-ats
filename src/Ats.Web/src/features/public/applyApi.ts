@@ -1,19 +1,15 @@
 import { apiClient } from '@/lib/apiClient';
 
-/* Fields submitted with a job application. Identity (name, email) is omitted — the backend reads
-   those from the CandidateAccount linked to the JWT. Only the supplemental fields remain. */
+/* Name and email come from the candidate account. */
 export interface ApplyRequest {
   phone?: string;
   linkedInUrl?: string;
   coverLetter?: string;
-  /* Omitted to apply with the CV saved on the account. The server then copies that file into this
-     application, so the two stay independent from the moment it is submitted. */
+  /* Omit to use the account's CV; the server copies it. */
   cv?: File;
 }
 
-/* Submits a candidate application as multipart/form-data. The endpoint is gated behind the
-   CandidateOnly policy, so the apiClient request interceptor attaches the candidate access token
-   automatically. Axios sets the multipart boundary header when handed a FormData. */
+/* Axios sets the multipart boundary for FormData. */
 export async function submitApplication(
   slug: string,
   jobSlug: string,

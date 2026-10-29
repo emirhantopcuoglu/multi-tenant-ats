@@ -19,17 +19,13 @@ import type { ApplicationListItem, PipelineStage } from '@/types/application';
 interface ApplicationsBoardProps {
   stages: PipelineStage[];
   applications: ApplicationListItem[];
-  /** Read-only roles see the board but can't drag cards. */
   canManage: boolean;
   onMove: (applicationId: string, targetStageId: string) => void;
-  /** Dropped onto an Interview-typed column: the move itself is deferred until the recruiter
-      actually schedules something (see ApplicationsPage) rather than happening immediately. */
+  /* The move waits until an interview is actually scheduled (see ApplicationsPage). */
   onScheduleInterview: (applicationId: string, candidateName: string) => void;
-  /** Clicking a card (without dragging) opens its detail page. */
   onSelect: (id: string) => void;
 }
 
-/* The visual content of a card, reused by the column cards and the drag overlay. */
 function CardBody({ application }: { application: ApplicationListItem }) {
   return (
     <>
@@ -58,7 +54,7 @@ function BoardCard({
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      // A drag needs 6px of movement to start, so a plain click falls through to open the detail.
+      // A drag needs 6px of movement, so a plain click opens the detail.
       onClick={() => onSelect(application.id)}
       className={cn(
         'cursor-pointer',
@@ -83,8 +79,7 @@ function BoardColumn({
   stage: PipelineStage;
   applications: ApplicationListItem[];
   canManage: boolean;
-  /** False while a card is being dragged from a stage at or after this column's order — a plain
-      move is forward-only, so backward columns must not accept the drop at all. */
+  /* Moves are forward only, so earlier columns don't accept the drop. */
   isValidDropTarget: boolean;
   onSelect: (id: string) => void;
 }) {
@@ -113,10 +108,7 @@ function BoardColumn({
   );
 }
 
-/* Drag-and-drop pipeline board built on @dnd-kit/core: it gives us pointer + touch dragging, a
-   floating DragOverlay, and droppable columns without hand-rolling the HTML5 drag API. Only
-   cross-column moves are meaningful (there's no intra-column order to persist), so plain
-   draggable/droppable suffices — no sortable. Cards are grouped by their current stage id. */
+/* Only cross-column moves matter (no order inside a column), so @dnd-kit/core is enough; no sortable. */
 export function ApplicationsBoard({
   stages,
   applications,
@@ -126,12 +118,10 @@ export function ApplicationsBoard({
   onSelect,
 }: ApplicationsBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
-  // A small activation distance so a click on a card isn't mistaken for a drag.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
-  /* The board shows only Active applications and terminal stages can only be reached through the
-     hire/reject decisions, so Hired/Rejected columns would be permanently empty drop targets that
-     the backend refuses anyway — they are not rendered at all. */
+  /* Hired/Rejected columns aren't shown: the board has only Active applications and those stages are
+     only reachable through hire/reject. */
   const workingStages = useMemo(
     () => stages.filter((stage) => stage.type !== 'FinalHired' && stage.type !== 'FinalRejected'),
     [stages],
@@ -162,9 +152,7 @@ export function ApplicationsBoard({
     if (!application || application.stageId === targetStageId) return;
 
     const targetStage = stages.find((stage) => stage.id === targetStageId);
-    // Dropping onto the Interview stage doesn't move the card by itself — it opens the scheduling
-    // dialog instead, and the move happens server-side once an interview is actually scheduled
-    // (AdvanceToInterviewStageConsumer). Any other column moves immediately, as before.
+    // The Interview column opens the scheduling dialog instead of moving the card.
     if (targetStage?.type === 'Interview') {
       onScheduleInterview(application.id, application.candidateName);
       return;

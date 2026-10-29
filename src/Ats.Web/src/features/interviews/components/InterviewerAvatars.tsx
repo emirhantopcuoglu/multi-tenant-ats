@@ -3,13 +3,10 @@ import { fullName, useUserLookup } from '@/features/users/useUsers';
 
 interface InterviewerAvatarsProps {
   interviewerUserIds: string[];
-  /** How many avatars to render before collapsing the rest into a "+N" token. */
   max?: number;
 }
 
-/* Overlapping avatar stack for an interview's panel. Resolves each id to a tenant member (loaded once
-   via useUserLookup) so the avatar shows real initials and a name tooltip; ids not yet resolved fall
-   back to a neutral placeholder rather than disappearing. */
+/* Unresolved ids show a placeholder instead of disappearing. */
 export function InterviewerAvatars({ interviewerUserIds, max = 4 }: InterviewerAvatarsProps) {
   const lookup = useUserLookup();
   const shown = interviewerUserIds.slice(0, max);
