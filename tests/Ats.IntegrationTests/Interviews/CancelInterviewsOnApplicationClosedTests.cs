@@ -8,13 +8,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Ats.IntegrationTests.Interviews;
 
-// An application reaching a terminal status used to leave its booked interviews on the calendar —
-// interviewers held the slot, the conflict guard treated it as occupied, and the candidate kept an
-// invitation to a meeting nobody meant to hold.
-//
-// The consumer serves both closing paths (company rejects / candidate withdraws) and the reason is
-// the only thing that differs between them, so the reason-independent rules below are asserted once
-// and the per-reason part is the theory at the top.
+// Closing an application (rejected or withdrawn) cancels its upcoming interviews. Only the reason
+// differs between the two paths.
 [Collection("Integration")]
 public sealed class CancelInterviewsOnApplicationClosedTests
 {
@@ -25,10 +20,7 @@ public sealed class CancelInterviewsOnApplicationClosedTests
         _fixture = fixture;
     }
 
-    // Driven through the real message types, not the shared CancelAsync(reason) core: which reason a
-    // message maps to is the only per-path logic in this consumer, and calling the core with an
-    // explicit reason would leave that mapping entirely uncovered — a swap of the two would then be
-    // invisible to the suite while telling the candidate the wrong story in their cancellation email.
+    // Uses the real message types, so the message-to-reason mapping is covered too.
     [Fact]
     public async Task rejection_should_cancel_upcoming_interviews_as_ApplicationRejected()
     {
@@ -98,7 +90,7 @@ public sealed class CancelInterviewsOnApplicationClosedTests
         var cancelled = await CancelAsync(tenant, applicationId);
 
         Assert.Equal(0, cancelled);
-        // The original reason must survive — the system must not overwrite why a human cancelled.
+        // The original reason must survive, the system must not overwrite why a human cancelled.
         var stored = await LoadAsync(tenant, interview.Id);
         Assert.Equal(InterviewCancellationReason.CandidateRequested, stored.CancellationReason);
     }

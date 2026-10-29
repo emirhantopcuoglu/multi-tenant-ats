@@ -5,10 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace Ats.UnitTests.Shared;
 
-// A rejected API key used to travel as a plain HttpRequestException, so the resilience pipeline
-// treated it as a blip: three retries, then the circuit breaker, then a MassTransit redelivery
-// cycle — all guaranteed to fail identically, and the reason buried under the last of them. These
-// tests pin the two halves of the fix: it is not retried, and it says what is wrong.
+// A rejected API key is not retried and says what is wrong.
 public class CvParserAuthFailureTests
 {
     [Theory]
@@ -24,7 +21,7 @@ public class CvParserAuthFailureTests
         var exception = await Assert.ThrowsAsync<LlmAuthenticationException>(
             () => parser.ParseAsync("cv text", "job description"));
 
-        // Assert — one call, not RetryLimit + 1
+        // Assert: one call, not RetryLimit + 1
         Assert.Equal(1, handler.Calls);
         Assert.Contains("Llm:ApiKey", exception.Message);
         Assert.Contains(((int)status).ToString(), exception.Message);
@@ -74,7 +71,7 @@ public class CvParserAuthFailureTests
 
         public StubHttpClientFactory(HttpMessageHandler handler) => _handler = handler;
 
-        // disposeHandler: false — the parser disposes the client it is handed, and the test still
+        // disposeHandler: false, the parser disposes the client it is handed, and the test still
         // needs to read the call count off the handler afterwards.
         public HttpClient CreateClient(string name) => new(_handler, disposeHandler: false);
     }

@@ -37,7 +37,7 @@ public sealed class CandidateAccountLifecycleTests
         // Act
         account.Freeze();
 
-        // Assert — a frozen account keeps its session (it must reach the reactivation screen)
+        // Assert: a frozen account keeps its session (it must reach the reactivation screen)
         Assert.Equal(CandidateAccountStatus.Frozen, account.Status);
         Assert.False(account.IsActive);
         Assert.NotNull(account.FrozenAtUtc);
@@ -84,7 +84,7 @@ public sealed class CandidateAccountLifecycleTests
         // Act
         account.Delete();
 
-        // Assert — right to erasure: nothing personally identifying may survive on the row
+        // Assert: right to erasure: nothing personally identifying may survive on the row
         Assert.Equal(CandidateAccountStatus.Deleted, account.Status);
         Assert.False(account.IsActive);
         Assert.NotNull(account.DeletedAtUtc);
@@ -108,7 +108,7 @@ public sealed class CandidateAccountLifecycleTests
         // Act
         account.Delete();
 
-        // Assert — every live session must die the moment the account is deleted
+        // Assert: every live session must die the moment the account is deleted
         Assert.NotEqual(stampBefore, account.SecurityStamp);
     }
 
@@ -140,7 +140,7 @@ public sealed class CandidateAccountLifecycleTests
         var second = CandidateAccount.BuildAnonymizedEmail(Guid.NewGuid());
 
         Assert.NotEqual(first, second);
-        // ".invalid" is reserved by RFC 2606 — the placeholder can never receive real mail.
+        // ".invalid" is reserved by RFC 2606, the placeholder can never receive real mail.
         Assert.EndsWith("@account.invalid", first);
     }
 }

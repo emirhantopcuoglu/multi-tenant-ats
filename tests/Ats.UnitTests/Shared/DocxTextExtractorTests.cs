@@ -13,7 +13,7 @@ public class DocxTextExtractorTests
     public void Extract_should_return_one_line_per_paragraph_with_runs_joined()
     {
         // Arrange: two paragraphs, the first split across two runs (Word fragments runs freely,
-        // e.g. around formatting changes — the extractor must stitch them back together).
+        // e.g. around formatting changes, the extractor must stitch them back together).
         var docx = BuildDocx($"""
             <w:p><w:r><w:t>John App</w:t></w:r><w:r><w:t>licant</w:t></w:r></w:p>
             <w:p><w:r><w:t>Senior Software Engineer</w:t></w:r></w:p>

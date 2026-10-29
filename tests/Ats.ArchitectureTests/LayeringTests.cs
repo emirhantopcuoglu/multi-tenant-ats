@@ -1,17 +1,12 @@
 namespace Ats.ArchitectureTests;
 
 /// <summary>
-/// Inside a module, dependencies point inwards: Api and Infrastructure know about Application,
-/// Application knows about Domain, and Domain knows about nothing but the kernel. Most of the
-/// backwards edges are already impossible (they would be circular project references), but the
-/// sideways ones — Api reaching straight into Infrastructure, Domain pulling in EF Core — compile
-/// fine and only show up later as a domain you cannot unit test.
+/// Dependencies point inwards inside a module. Backwards edges would be circular references anyway;
+/// these rules catch the sideways ones, like Api using Infrastructure or Domain using EF Core.
 /// </summary>
 public class LayeringTests
 {
-    // Assembly-name prefixes for the things that talk to the outside world: databases, the bus, the
-    // web stack. The domain is where the business rules live; if it needs one of these to run, the
-    // rules can no longer be exercised without infrastructure standing up.
+    // Prefixes of database, bus and web assemblies. The domain must not need them to run.
     private static readonly string[] InfrastructureFrameworks =
     [
         "Microsoft.EntityFrameworkCore",
@@ -61,9 +56,7 @@ public class LayeringTests
     [Fact]
     public void An_application_layer_should_not_depend_on_the_web_stack()
     {
-        // Application handlers are reached through MediatR and know nothing about HTTP: no
-        // HttpContext, no ActionResult, no model binding. That is what lets the same handler be
-        // driven by a controller today and a background consumer tomorrow.
+        // Handlers run through MediatR and know nothing about HTTP, so a consumer can call them too.
         var violations =
             from assembly in ModuleGraph.ModuleAssemblies
             where ModuleGraph.LayerOf(assembly) == Layer.Application
@@ -86,10 +79,7 @@ public class LayeringTests
             Assembly(module, Layer.Domain),
             Assembly(module, Layer.Application),
         ],
-        // Api may read the domain because its request and response records bind domain enums
-        // directly (EmploymentType, InterviewType, NotificationKind). Copying those into the Api
-        // layer would buy a mapping step and nothing else. What it may not do is reach past
-        // Application into Infrastructure and query the database itself.
+        // Api may use the domain (request records bind domain enums) but not Infrastructure.
         Layer.Api =>
         [
             ModuleGraph.Kernel,

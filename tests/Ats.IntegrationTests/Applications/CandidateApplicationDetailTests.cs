@@ -24,7 +24,7 @@ public sealed class CandidateApplicationDetailTests
     [Fact]
     public async Task should_return_full_pipeline_and_candidate_safe_timeline_for_own_application()
     {
-        // Arrange — a pipeline, an application owned by the account, and an activity log that
+        // Arrange: a pipeline, an application owned by the account, and an activity log that
         // contains everything internal: an actor, a duplicate view and a rejection reason.
         var accountId = Guid.NewGuid();
         var jobId = Guid.NewGuid();
@@ -62,7 +62,7 @@ public sealed class CandidateApplicationDetailTests
                 baseTime.AddDays(2)),
         ]);
 
-        // Act — read under an unrelated tenant: the account, not the tenant, is the scope.
+        // Act: read under an unrelated tenant: the account, not the tenant, is the scope.
         await using var readDb = NewDb(new FixedTenant(Guid.NewGuid()));
         var handler = new GetCandidateApplicationDetailHandler(
             readDb,
@@ -73,7 +73,7 @@ public sealed class CandidateApplicationDetailTests
         var result = await handler.Handle(
             new GetCandidateApplicationDetailQuery(accountId, application.Id), CancellationToken.None);
 
-        // Assert — the full funnel in order, and a timeline with exactly one Viewed entry, the
+        // Assert: the full funnel in order, and a timeline with exactly one Viewed entry, the
         // stage move resolved to its name, and the rejection stripped down to type + date.
         Assert.True(result.IsSuccess);
         var detail = result.Value;
@@ -132,18 +132,14 @@ public sealed class CandidateApplicationDetailTests
         Assert.Equal("Technical", scheduledInterview.Type);
         Assert.Equal(scheduledAt, scheduledInterview.ScheduledAtUtc);
         Assert.Equal("Scheduled", scheduledInterview.Status);
-        // The room token has to survive the projection or the card on this screen cannot offer the
-        // join link that the candidate's "My interviews" page already does — the same interview
-        // described two ways was exactly the inconsistency this field closes.
+        // The room token must survive the projection so this card can show the join link.
         Assert.Equal("room-token", scheduledInterview.RoomToken);
     }
 
     [Fact]
     public async Task should_carry_a_null_room_token_for_a_phone_screen()
     {
-        // A phone screen has no room, and the client renders that absence as "the interviewer will
-        // call you" rather than as a missing link. Pinned separately because a projection that hard-
-        // coded a token would still satisfy the test above.
+        // Separate from the test above, which a hard-coded token would also pass.
         var accountId = Guid.NewGuid();
         var jobId = Guid.NewGuid();
         var tenant = new FixedTenant(Guid.NewGuid());
@@ -182,7 +178,7 @@ public sealed class CandidateApplicationDetailTests
     [Fact]
     public async Task hired_activity_should_surface_in_the_candidate_timeline()
     {
-        // Arrange — the happy ending: submitted, then hired.
+        // Arrange: the happy ending: submitted, then hired.
         var accountId = Guid.NewGuid();
         var jobId = Guid.NewGuid();
         var tenant = new FixedTenant(Guid.NewGuid());
@@ -218,7 +214,7 @@ public sealed class CandidateApplicationDetailTests
         var result = await handler.Handle(
             new GetCandidateApplicationDetailQuery(accountId, application.Id), CancellationToken.None);
 
-        // Assert — the hire surfaces as its own entry with just a type and a date
+        // Assert: the hire surfaces as its own entry with just a type and a date
         Assert.True(result.IsSuccess);
         Assert.Equal(
             new[] { "Submitted", "Hired" },
@@ -229,9 +225,8 @@ public sealed class CandidateApplicationDetailTests
     [Fact]
     public async Task withdrawn_activity_should_surface_in_the_candidate_timeline()
     {
-        // Arrange — the candidate's own exit: submitted, then withdrawn. An unmapped activity type is
-        // dropped silently by BuildCandidateTimeline's switch, so without this the candidate would see
-        // their own withdrawal nowhere but the status badge.
+        // Arrange: submitted, then withdrawn. An unmapped type would be dropped silently by
+        // BuildCandidateTimeline.
         var accountId = Guid.NewGuid();
         var jobId = Guid.NewGuid();
         var tenant = new FixedTenant(Guid.NewGuid());
@@ -280,7 +275,7 @@ public sealed class CandidateApplicationDetailTests
     [Fact]
     public async Task should_return_not_found_for_another_candidates_application()
     {
-        // Arrange — an application owned by someone else; probing its id must look identical
+        // Arrange: an application owned by someone else; probing its id must look identical
         // to querying an id that does not exist at all.
         var tenant = new FixedTenant(Guid.NewGuid());
         Application application;
@@ -296,7 +291,7 @@ public sealed class CandidateApplicationDetailTests
             await db.SaveChangesAsync();
         }
 
-        // Act — a different account asks for it.
+        // Act: a different account asks for it.
         await using var readDb = NewDb(tenant);
         var handler = new GetCandidateApplicationDetailHandler(
             readDb, new FakeJobDirectory(null), new FakeTenantDirectory(null),
@@ -350,7 +345,7 @@ public sealed class MarkApplicationViewedHandlerTests
         var activityLog = new InMemoryActivityLog([]);
         var publisher = new CapturingPublisher();
 
-        // Act — two consecutive opens; only the first may stamp, publish and log.
+        // Act: two consecutive opens; only the first may stamp, publish and log.
         await using (var db = NewDb(tenant))
         {
             var handler = new MarkApplicationViewedHandler(
@@ -368,7 +363,7 @@ public sealed class MarkApplicationViewedHandlerTests
             Assert.False(second.Value);
         }
 
-        // Assert — the stamp persisted, exactly one event carrying the routing fields, and
+        // Assert: the stamp persisted, exactly one event carrying the routing fields, and
         // exactly one Viewed activity.
         await using (var db = NewDb(tenant))
         {
@@ -439,7 +434,7 @@ public sealed class MarkCvDownloadedHandlerTests
 
         var publisher = new CapturingPublisher();
 
-        // Act — two consecutive downloads; only the first may stamp and publish.
+        // Act: two consecutive downloads; only the first may stamp and publish.
         await using (var db = NewDb(tenant))
         {
             var handler = new MarkCvDownloadedHandler(
@@ -456,7 +451,7 @@ public sealed class MarkCvDownloadedHandlerTests
             Assert.False(second.Value);
         }
 
-        // Assert — the stamp persisted and exactly one event carries the routing fields.
+        // Assert: the stamp persisted and exactly one event carries the routing fields.
         await using (var db = NewDb(tenant))
         {
             var stored = db.Applications.Single(a => a.Id == application.Id);
@@ -492,19 +487,16 @@ public sealed class MarkCvDownloadedHandlerTests
         new(PostgresContainerFixture.BuildApplicationsOptions(_fixture.ConnectionString, tenant), tenant);
 }
 
-// In-memory stand-in for the MongoDB activity log: reads serve the entries the test seeded,
-// writes are captured for assertion. Tenant scoping is not simulated — these tests exercise the
-// handlers' mapping and ownership logic, not the store's isolation (that lives in the Mongo
-// implementation).
+// In-memory activity log: reads return the seeded entries, writes are captured. Tenant scoping
+// isn't simulated.
 internal sealed class InMemoryActivityLog : IActivityLogRepository
 {
     private readonly IReadOnlyList<ActivityLogEntry> _entries;
 
     public List<ApplicationActivity> Added { get; } = [];
 
-    /* The tenant each write supplied, positionally matching Added. Guid.Empty means the caller used
-       the ambient-tenant overload — which the real Mongo repository refuses without a resolved
-       tenant, so a caller with no request context (a consumer) must not use it. */
+    /* The tenant each write passed, matching Added by position. Guid.Empty means the ambient overload
+       was used, which a consumer must not do. */
     public List<Guid> AddedTenantIds { get; } = [];
 
     public InMemoryActivityLog(IReadOnlyList<ActivityLogEntry> entries) => _entries = entries;

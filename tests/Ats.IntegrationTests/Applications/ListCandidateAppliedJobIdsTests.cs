@@ -18,10 +18,8 @@ public sealed class ListCandidateAppliedJobIdsTests
     [Fact]
     public async Task should_return_only_active_job_ids_for_the_account_across_tenants()
     {
-        // Arrange — one account with: an active application (in), a rejected one (out — the
-        // duplicate rule allows re-applying after rejection), a withdrawn one (out), and an
-        // active application in a second tenant (in — the account is the scope, not the tenant).
-        // A different account's active application must not leak in.
+        // Arrange: one account with an active application (in), a rejected one (out), a withdrawn one
+        // (out) and an active one in another tenant (in). Another account's application must not leak in.
         var accountId = Guid.NewGuid();
         var otherAccountId = Guid.NewGuid();
         var activeJob = Guid.NewGuid();
@@ -58,7 +56,7 @@ public sealed class ListCandidateAppliedJobIdsTests
             await db.SaveChangesAsync();
         }
 
-        // Act — read under an unrelated tenant to prove the handler ignores the tenant filter.
+        // Act: read under an unrelated tenant to prove the handler ignores the tenant filter.
         await using var readDb = NewDb(new FixedTenant(Guid.NewGuid()));
         var result = await new ListCandidateAppliedJobIdsHandler(readDb)
             .Handle(new ListCandidateAppliedJobIdsQuery(accountId), CancellationToken.None);

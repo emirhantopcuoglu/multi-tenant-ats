@@ -2,9 +2,7 @@ using Ats.Modules.Applications.Application.Applications;
 
 namespace Ats.UnitTests.Applications;
 
-// The handler used to re-clamp page/pageSize after the validator had already rejected the same
-// values, so the clamp was unreachable and untestable. With it gone the validator is the only thing
-// standing between a caller and an unbounded query, which is what these tests pin down.
+// The validator is the only paging guard, so these pin its bounds.
 public class SearchCandidatesValidatorTests
 {
     private readonly SearchCandidatesValidator _validator = new();

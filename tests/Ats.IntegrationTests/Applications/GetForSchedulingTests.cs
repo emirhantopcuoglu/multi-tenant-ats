@@ -19,7 +19,7 @@ public sealed class GetForSchedulingTests
     [Fact]
     public async Task should_return_candidate_contact_and_job_title_for_scheduling()
     {
-        // Arrange — one application with a real candidate behind it
+        // Arrange: one application with a real candidate behind it
         var tenant = new FixedTenant(Guid.NewGuid());
         var jobId = Guid.NewGuid();
         var candidateAccountId = Guid.NewGuid();
@@ -42,7 +42,7 @@ public sealed class GetForSchedulingTests
             readDb, new FakeJobDirectory(new JobSummary(jobId, "Platform Engineer", "platform-engineer", tenant.TenantId!.Value)));
         var result = await directory.GetForSchedulingAsync(application.Id);
 
-        // Assert — everything the Interviews module needs to publish a self-contained event
+        // Assert: everything the Interviews module needs to publish a self-contained event
         Assert.NotNull(result);
         Assert.Equal(application.Id, result.Id);
         Assert.True(result.IsActive);
@@ -57,7 +57,7 @@ public sealed class GetForSchedulingTests
     [Fact]
     public async Task should_fall_back_to_empty_job_title_when_job_is_gone()
     {
-        // Arrange — the job directory knows nothing about this job id (deleted role)
+        // Arrange: the job directory knows nothing about this job id (deleted role)
         var tenant = new FixedTenant(Guid.NewGuid());
         Application application;
         await using (var db = NewDb(tenant))
@@ -75,7 +75,7 @@ public sealed class GetForSchedulingTests
         var result = await new ApplicationDirectory(readDb, new FakeJobDirectory(null))
             .GetForSchedulingAsync(application.Id);
 
-        // Assert — empty, not null: consumers render their own "the role you applied for" fallback
+        // Assert: empty, not null: consumers render their own "the role you applied for" fallback
         Assert.NotNull(result);
         Assert.Equal(string.Empty, result.JobTitle);
     }

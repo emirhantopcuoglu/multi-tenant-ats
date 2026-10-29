@@ -1,16 +1,13 @@
 namespace Ats.ArchitectureTests;
 
 /// <summary>
-/// The load-bearing rule of this modular monolith: a module owns its tables and its types, and
-/// reaches other modules only through Ats.Shared.Contracts and the bus. The moment one module
-/// references another's assembly, the seam that makes the modules separately reasonable — and
-/// separately extractable — is gone, and nothing at compile time complains.
+/// A module reaches other modules only through Ats.Shared.Contracts and the bus. Nothing at compile
+/// time stops one module referencing another, so this test does.
 /// </summary>
 public class ModuleBoundaryTests
 {
-    // Hardcoded on purpose. Every other rule in this project is "no assembly does X", which passes
-    // trivially when no assembly was loaded. This test is what makes the rest mean something, and
-    // adding a module has to be a deliberate edit here.
+    // Hardcoded: the other rules pass trivially if no assembly is loaded. Adding a module means editing
+    // this list.
     private static readonly string[] ExpectedModules =
         ["Applications", "CandidateAccounts", "Interviews", "Jobs", "Notifications", "Tenants"];
 
@@ -64,9 +61,8 @@ public class ModuleBoundaryTests
     [Fact]
     public void The_kernel_and_contracts_should_stay_free_of_solution_dependencies()
     {
-        // These two sit at the bottom: the kernel holds primitives every layer may use, and
-        // contracts holds the integration events modules exchange. Both are copied into every
-        // module's dependency graph, so anything they pull in is pulled in everywhere.
+        // The kernel and contracts are in every module's dependency graph, so whatever they reference ends
+        // up everywhere.
         var violations =
             from assembly in ModuleGraph.All
             let name = ModuleGraph.NameOf(assembly)

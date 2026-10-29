@@ -2,9 +2,7 @@ using Ats.Modules.CandidateAccounts.Domain;
 
 namespace Ats.UnitTests.CandidateAccounts;
 
-// The counters behind the candidate login form. The company side gets these from Identity; this side
-// hashes its own passwords, so it owns the arithmetic — and the arithmetic is where the interesting
-// mistakes are, which is why it is a domain method taking its clock rather than reading one.
+// The candidate side does its own lockout counting (the company side uses Identity).
 public class CandidateLockoutTests
 {
     private const int MaxAttempts = 3;
@@ -61,9 +59,7 @@ public class CandidateLockoutTests
     [Fact]
     public void Locking_resets_the_counter_so_the_lock_cannot_become_permanent()
     {
-        // Without this the count stays at the limit, and every single failure afterwards re-locks the
-        // account — a temporary lockout that renews for as long as anyone keeps guessing, which is
-        // exactly the permanent lock the expiry was designed to avoid.
+        // Otherwise every failure after a lockout would lock it again.
         var account = NewAccount();
         for (var attempt = 0; attempt < MaxAttempts; attempt += 1)
             account.RegisterFailedLogin(MaxAttempts, Duration, Now);
@@ -93,9 +89,7 @@ public class CandidateLockoutTests
     [Fact]
     public void Setting_a_new_password_ends_the_lockout()
     {
-        // Login answers a locked account exactly like a wrong password, so a locked-out candidate
-        // cannot tell why they are refused. The reset link is the way out, and it only works if
-        // changing the password clears the lock.
+        // A password reset is how a locked-out candidate gets back in.
         var account = NewAccount();
         for (var attempt = 0; attempt < MaxAttempts; attempt += 1)
             account.RegisterFailedLogin(MaxAttempts, Duration, Now);

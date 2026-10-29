@@ -15,9 +15,7 @@ namespace Ats.IntegrationTests.Tenants;
 [Collection("Integration")]
 public sealed class GetCurrentUserTests : IAsyncLifetime
 {
-    // Generated at runtime rather than hardcoded so secret scanners don't flag a literal credential.
-    // The "Aa1!" prefix guarantees the default Identity password policy (upper, lower, digit,
-    // non-alphanumeric, length 6+); the GUID suffix makes each run's password unique and high-entropy.
+    // Generated so secret scanners don't flag a literal. "Aa1!" satisfies Identity's default policy.
     private static readonly string TestPassword = $"Aa1!{Guid.NewGuid():N}";
 
     private readonly PostgresContainerFixture _fixture;
@@ -44,7 +42,7 @@ public sealed class GetCurrentUserTests : IAsyncLifetime
     [Fact]
     public async Task should_return_current_user_with_tenant()
     {
-        // Arrange — a tenant with one admin user, created the way registration does.
+        // Arrange: a tenant with one admin user, created the way registration does.
         var userId = await SeedTenantWithAdminAsync(
             companyName: "Acme Inc", slug: "acme",
             email: "admin@acme.test", firstName: "Ada", lastName: "Admin");
@@ -69,7 +67,7 @@ public sealed class GetCurrentUserTests : IAsyncLifetime
     [Fact]
     public async Task should_return_failure_when_user_does_not_exist()
     {
-        // Arrange — InitializeAsync cleared the tables, so no user has this id.
+        // Arrange: InitializeAsync cleared the tables, so no user has this id.
         await using var provider = BuildProvider(Guid.NewGuid());
         using var scope = provider.CreateScope();
 
@@ -128,7 +126,7 @@ public sealed class GetCurrentUserTests : IAsyncLifetime
             new JsonEmailTextProvider(),
             NullLogger<AuthService>.Instance);
 
-    // A real UserManager/RoleManager backed by the container database — the role lookup in
+    // A real UserManager/RoleManager backed by the container database, the role lookup in
     // GetCurrentUserAsync depends on the Identity join tables, so a faithful test needs the real thing.
     private ServiceProvider BuildProvider(Guid? tenantId)
     {

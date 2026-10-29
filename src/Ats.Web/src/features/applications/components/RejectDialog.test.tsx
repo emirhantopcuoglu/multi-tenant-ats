@@ -5,24 +5,13 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RejectDialog } from './RejectDialog';
 
-/* The first component test in the codebase, and it exists for a reason rather than for coverage:
-   nine dialogs moved their "clear the form when it opens" from an effect to a render-phase
-   adjustment. The rule they satisfy is a lint rule, but the behaviour they must not lose — a draft
-   from a cancelled attempt never reappearing — is invisible to every pure-logic test.
+/* RejectDialog stands in for the dialogs that reset their form during render: a cancelled draft
+   must not come back.
 
-   RejectDialog stands in for all nine. They share one shape, and a test per dialog would be eight
-   copies asserting the same mechanism.
+   Not covered: focus doesn't return to the trigger on close. That was already the case before and
+   is worth looking into separately.
 
-   jsdom is opted into per file with the docblock above, so the pure-logic suites keep the faster
-   node environment.
-
-   Not asserted here: that closing returns focus to the trigger. It does not — focus lands on
-   <body> — but it behaves identically before and after this change, so a test would guard nothing
-   here. Radix does trap focus correctly on open, so this is worth looking into on its own rather
-   than dismissing as a jsdom artefact.
-
-   i18next is stubbed: the assertions are about state, and a missing-translation warning would be
-   noise. `t` returning the key makes the queries readable. */
+   i18next is stubbed; `t` returns the key. */
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));

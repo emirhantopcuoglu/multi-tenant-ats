@@ -8,9 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Ats.IntegrationTests.Tenants;
 
-// Covers the cross-module read the new-application notification fan-out depends on: given a
-// tenant id, ITenantDirectory.GetTenantUserIdsAsync must return exactly that tenant's members and
-// nobody else's, without relying on ICurrentTenant (a message consumer has no ambient tenant).
+// GetTenantUserIdsAsync returns exactly that tenant's members, without ICurrentTenant.
 [Collection("Integration")]
 public sealed class TenantDirectoryTests : IAsyncLifetime
 {
@@ -39,7 +37,7 @@ public sealed class TenantDirectoryTests : IAsyncLifetime
     [Fact]
     public async Task should_return_only_the_given_tenants_user_ids()
     {
-        // Arrange — two members of the target tenant, one member of another tenant
+        // Arrange: two members of the target tenant, one member of another tenant
         var tenantId = await SeedTenantAsync("Acme Inc", "acme-directory");
         var ownerId = await SeedUserAsync(tenantId, "owner@acme.test", "Owner", "One");
         var recruiterId = await SeedUserAsync(tenantId, "recruiter@acme.test", "Rec", "Ruiter");

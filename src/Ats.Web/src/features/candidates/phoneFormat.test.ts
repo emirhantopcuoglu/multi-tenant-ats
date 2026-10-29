@@ -10,12 +10,7 @@ import {
   placeholderFor,
 } from './phoneFormat';
 
-/* The first tests in this codebase's frontend, and phoneFormat is the reason it is a good place to
-   start: every function here is pure, none of it touches a DOM, and all of it is the kind of
-   index-arithmetic that reads as correct and is not.
-
-   What is deliberately not covered: that the input component wires these up. That needs a DOM and a
-   different kind of test; these pin the logic underneath it. */
+/* Pure functions, so no DOM. The input component's wiring isn't covered here. */
 
 const turkey = PHONE_COUNTRIES.find((c) => c.iso === 'TR')!;
 const unitedStates = PHONE_COUNTRIES.find((c) => c.iso === 'US')!;
@@ -108,10 +103,7 @@ describe('parsePhoneValue', () => {
   });
 
   it('prefers the longest matching dial code', () => {
-    // The sort in parsePhoneValue exists for this: "1" is a prefix of nothing here, but the moment
-    // a two-digit code starting with an existing one-digit code is added, a naive first-match
-    // would route it to the wrong country. Asserting the rule now means that addition cannot
-    // quietly break parsing.
+    // Longest dial code must win once a two-digit code shares a prefix with a one-digit one.
     const byLongestFirst = [...PHONE_COUNTRIES].sort(
       (a, b) => b.dialCode.length - a.dialCode.length,
     );
@@ -126,7 +118,7 @@ describe('parsePhoneValue', () => {
 
 describe('caretIndexAfterDigit', () => {
   it('returns the index just past the nth digit', () => {
-    // "(532) 123 45 67" — the 3rd digit is at index 3, so the caret belongs at 4, before the ")".
+    // "(532) 123 45 67", the 3rd digit is at index 3, so the caret belongs at 4, before the ")".
     expect(caretIndexAfterDigit('(532) 123 45 67', 3)).toBe(4);
   });
 

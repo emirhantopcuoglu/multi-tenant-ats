@@ -2,10 +2,7 @@ using Ats.Modules.Interviews.Domain;
 
 namespace Ats.UnitTests.Interviews;
 
-// The reminder schedule is pure arithmetic over (scheduled time, now), which is exactly the kind of
-// rule that is cheap to pin here and expensive to discover in an inbox. The sweep that reads these
-// columns is covered separately by InterviewReminderJobTests; this file is only about when the
-// interview says a reminder is owed.
+// When a reminder is owed. The sweep itself is covered by InterviewReminderJobTests.
 public class InterviewReminderScheduleTests
 {
     private static readonly Guid[] OneInterviewer = [Guid.NewGuid()];
@@ -100,7 +97,7 @@ public class InterviewReminderScheduleTests
     [Fact]
     public void A_started_interview_should_no_longer_be_worth_reminding()
     {
-        // What stops a sweep that ran late — after a restart, say — from telling a candidate to join
+        // What stops a sweep that ran late, after a restart, say, from telling a candidate to join
         // an interview that already began.
         var interview = ScheduleAt(Now.AddDays(1));
 

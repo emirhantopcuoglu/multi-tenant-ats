@@ -18,7 +18,7 @@ public sealed class DashboardCountsTests
     [Fact]
     public async Task should_count_distinct_active_candidates_scoped_to_tenant()
     {
-        // Arrange — candidate A: two active applications (must count once); candidate B: one active;
+        // Arrange: candidate A: two active applications (must count once); candidate B: one active;
         // candidate C: one rejected (excluded). Another tenant has an active candidate that must not leak.
         var tenant = new FixedTenant(Guid.NewGuid());
         await using (var db = NewDb(tenant))
@@ -51,14 +51,14 @@ public sealed class DashboardCountsTests
         var count = await new ApplicationDirectory(readDb, new FakeJobDirectory(null))
             .CountActiveCandidatesAsync();
 
-        // Assert — candidates A and B; the rejected one and the other tenant are excluded
+        // Assert: candidates A and B; the rejected one and the other tenant are excluded
         Assert.Equal(2, count);
     }
 
     [Fact]
     public async Task should_count_applications_within_the_window()
     {
-        // Arrange — three applications, all submitted "now" (AppliedAtUtc is set at creation).
+        // Arrange: three applications, all submitted "now" (AppliedAtUtc is set at creation).
         var tenant = new FixedTenant(Guid.NewGuid());
         await using (var db = NewDb(tenant))
         {
@@ -72,7 +72,7 @@ public sealed class DashboardCountsTests
         await using var readDb = NewDb(tenant);
         var directory = new ApplicationDirectory(readDb, new FakeJobDirectory(null));
 
-        // Act + Assert — a window opening in the past captures all three; one opening in the future none.
+        // Act + Assert: a window opening in the past captures all three; one opening in the future none.
         Assert.Equal(3, await directory.CountApplicationsSinceAsync(DateTime.UtcNow.AddDays(-1)));
         Assert.Equal(0, await directory.CountApplicationsSinceAsync(DateTime.UtcNow.AddDays(1)));
     }

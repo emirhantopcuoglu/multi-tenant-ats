@@ -18,7 +18,7 @@ public sealed class ListPipelineStagesHandlerTests
     [Fact]
     public async Task should_return_default_stages_in_order()
     {
-        // Arrange — seed a job's default pipeline (6 stages, orders 1..6)
+        // Arrange: seed a job's default pipeline (6 stages, orders 1..6)
         var tenant = new FixedTenant(Guid.NewGuid());
         var jobId = Guid.NewGuid();
         await using var writeDb = new ApplicationsDbContext(
@@ -32,7 +32,7 @@ public sealed class ListPipelineStagesHandlerTests
         var result = await new ListPipelineStagesHandler(readDb)
             .Handle(new ListPipelineStagesQuery(jobId), CancellationToken.None);
 
-        // Assert — the default funnel, in order
+        // Assert: the default funnel, in order
         Assert.True(result.IsSuccess);
         Assert.Equal(
             new[] { "Applied", "Screening", "Interview", "Offer", "Hired", "Rejected" },
@@ -43,7 +43,7 @@ public sealed class ListPipelineStagesHandlerTests
     [Fact]
     public async Task should_return_empty_when_job_has_no_pipeline()
     {
-        // Arrange — a tenant with no pipeline for the requested job
+        // Arrange: a tenant with no pipeline for the requested job
         var tenant = new FixedTenant(Guid.NewGuid());
         await using var readDb = new ApplicationsDbContext(
             PostgresContainerFixture.BuildApplicationsOptions(_fixture.ConnectionString, tenant), tenant);

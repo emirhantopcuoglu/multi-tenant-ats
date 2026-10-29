@@ -46,7 +46,7 @@ public sealed class CandidatePasswordResetServiceTests : IAsyncLifetime
         // Act
         var result = await CreateService(mail).RequestAsync(Email);
 
-        // Assert — one mail, to the account, carrying a link to the SPA reset page
+        // Assert: one mail, to the account, carrying a link to the SPA reset page
         Assert.True(result.IsSuccess);
         var sent = Assert.Single(mail.Sent);
         Assert.Equal(Email, sent.ToEmail);
@@ -84,9 +84,7 @@ public sealed class CandidatePasswordResetServiceTests : IAsyncLifetime
     [Fact]
     public async Task Reset_should_revoke_every_existing_session()
     {
-        // The reason a reset is worth anything: if the password was stolen, the thief's live sessions
-        // have to die with it. Rotating the stamp is what does that — access tokens fail the
-        // per-request stamp check and refresh tokens stop redeeming (see CandidateRefreshToken).
+        // A reset must end a thief's sessions too; rotating the stamp does that.
         await SeedAccountAsync();
         var login = await CreateAuthService().LoginAsync(Email, OriginalPassword);
         var stampBefore = await ReadSecurityStampAsync();
@@ -235,7 +233,7 @@ public sealed class CandidatePasswordResetServiceTests : IAsyncLifetime
     // ---- helpers ----
 
     // Drives the real request path and lifts the raw token back out of the mailed link, so the tests
-    // exercise exactly what a candidate would paste — never the stored hash.
+    // exercise exactly what a candidate would paste, never the stored hash.
     private async Task<string> RequestTokenAsync()
     {
         var mail = new RecordingEmailSender();

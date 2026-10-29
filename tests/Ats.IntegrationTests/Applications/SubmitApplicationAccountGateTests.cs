@@ -11,10 +11,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Ats.IntegrationTests.Applications;
 
-// Applying is the one candidate action that reaches a company: everything else affects only the
-// candidate's own account, while an application hands a recruiter an address to write to and a
-// person to schedule time with. So it is gated on the account itself — a verified address, and an
-// account that is not frozen.
+// Applying is gated on the account: a verified email and an account that isn't frozen.
 [Collection("Integration")]
 public sealed class SubmitApplicationAccountGateTests
 {
@@ -70,9 +67,8 @@ public sealed class SubmitApplicationAccountGateTests
         Assert.True(result.IsFailure);
         Assert.Equal(ApplicationErrors.EmailNotVerified.Code, result.Error.Code);
 
-        // The gate runs BEFORE the upload on purpose: a refused application must not leave a CV — real
-        // personal data — sitting in object storage with no row referencing it and nothing to clean it
-        // up. Asserting on the storage rather than only the error is what pins that ordering.
+        // The gate runs before the upload, so a refusal leaves no CV in storage. Checking the storage pins
+        // that order.
         Assert.Empty(storage.Uploaded);
         Assert.Equal(0, await CountApplicationsAsync(tenantId));
     }
@@ -134,7 +130,7 @@ public sealed class SubmitApplicationAccountGateTests
         new(PostgresContainerFixture.BuildApplicationsOptions(_fixture.ConnectionString, tenant), tenant);
 }
 
-// Unlike FakeJobDirectory, this one actually resolves a published job by slug — that lookup is the
+// Unlike FakeJobDirectory, this one actually resolves a published job by slug, that lookup is the
 // step SubmitApplicationHandler depends on, and the other fake deliberately returns null for it.
 internal sealed class StubPublishedJobDirectory : IJobDirectory
 {

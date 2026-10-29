@@ -20,7 +20,7 @@ public sealed class CorrectApplicationStageTests
     [Fact]
     public async Task should_allow_moving_backward_with_a_reason()
     {
-        // Arrange — an application sitting in Interview, past its initial stage
+        // Arrange: an application sitting in Interview, past its initial stage
         var tenant = new FixedTenant(Guid.NewGuid());
         var jobId = Guid.NewGuid();
 
@@ -43,7 +43,7 @@ public sealed class CorrectApplicationStageTests
         var publisher = new CapturingPublisher();
         var activityLog = new InMemoryActivityLog([]);
 
-        // Act — correct it back to Screening, unlike a plain move-stage this must be allowed
+        // Act: correct it back to Screening, unlike a plain move-stage this must be allowed
         await using var handlerDb = NewDb(tenant);
         var handler = new CorrectApplicationStageHandler(
             handlerDb, new NullCurrentUser(), activityLog,
@@ -52,7 +52,7 @@ public sealed class CorrectApplicationStageTests
             new CorrectApplicationStageCommand(application.Id, screening.Id, "Recruiter misclicked to Interview"),
             CancellationToken.None);
 
-        // Assert — succeeds, the application actually moved, but NO event is published: a
+        // Assert: succeeds, the application actually moved, but NO event is published: a
         // correction must never notify the candidate the way a real stage change does
         Assert.True(result.IsSuccess);
         Assert.Empty(publisher.Published);
@@ -68,7 +68,7 @@ public sealed class CorrectApplicationStageTests
     [Fact]
     public async Task should_refuse_terminal_stages_as_correction_targets()
     {
-        // Arrange — terminal stages are still only reachable through hire/reject, even via a correction
+        // Arrange: terminal stages are still only reachable through hire/reject, even via a correction
         var tenant = new FixedTenant(Guid.NewGuid());
         var jobId = Guid.NewGuid();
 
@@ -127,7 +127,7 @@ public sealed class CorrectApplicationStageTests
 
         var activityLog = new InMemoryActivityLog([]);
 
-        // Act — "correct" to the stage it's already in
+        // Act: "correct" to the stage it's already in
         await using var handlerDb = NewDb(tenant);
         var handler = new CorrectApplicationStageHandler(
             handlerDb, new NullCurrentUser(), activityLog,

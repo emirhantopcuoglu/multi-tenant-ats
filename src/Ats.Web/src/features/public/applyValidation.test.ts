@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { isPlausiblePhone } from './applyValidation';
 
-/* This mirrors SubmitApplicationValidator on the server, which stays authoritative — the client copy
-   only exists to answer before the round trip. That makes drift the real risk, so the cases below
-   are written as the rule rather than as the regex: character set, digit count, length. If the
-   backend rule changes, these should fail. */
+/* Mirrors SubmitApplicationValidator. Cases follow the rule (characters, digit count, length), so
+   a backend change should make them fail. */
 describe('isPlausiblePhone', () => {
   it.each([
     '+90 (532) 123 45 67',

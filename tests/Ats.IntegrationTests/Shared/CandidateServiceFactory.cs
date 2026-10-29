@@ -6,11 +6,8 @@ using Ats.Shared.Infrastructure;
 
 namespace Ats.IntegrationTests.Shared;
 
-// Builds the real CandidateEmailVerificationService rather than a stub. Three suites construct
-// CandidateAuthService, whose registration path now depends on it, and none of them care about
-// verification — a hand-rolled fake in each would be three chances to drift from the real behaviour
-// for no benefit. The default NoOpEmailSender keeps those suites silent; a suite that asserts on the
-// mailed link passes its own RecordingEmailSender.
+// Builds the real CandidateEmailVerificationService instead of a fake per suite. NoOpEmailSender by
+// default; suites that check the link pass a RecordingEmailSender.
 internal static class CandidateServiceFactory
 {
     internal static CandidateEmailVerificationService EmailVerification(

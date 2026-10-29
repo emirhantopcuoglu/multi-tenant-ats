@@ -8,10 +8,8 @@ using Ats.Shared.Kernel;
 
 namespace Ats.IntegrationTests.CandidateAccounts;
 
-// Every test here drives the token out of the actual mailed link rather than reading it from the
-// database. The link is the only place the raw token exists — the row stores a hash — so extracting it
-// from the email is both how a candidate really uses this and the only way to prove the hash on the
-// row matches what was sent. A test that read the row would pass even if the mail carried garbage.
+// Tokens are taken from the mailed link, the only place the raw token exists. Reading the row
+// would pass even if the mail carried garbage.
 [Collection("Integration")]
 public sealed class CandidateEmailVerificationServiceTests
 {
@@ -28,7 +26,7 @@ public sealed class CandidateEmailVerificationServiceTests
         var mail = new RecordingEmailSender();
         var accountId = await RegisterAsync("newcomer@acme.test", mail);
 
-        // Unverified, but a session was still issued — see CandidateAuthService.RegisterAsync for why
+        // Unverified, but a session was still issued, see CandidateAuthService.RegisterAsync for why
         // registration does not gate on this.
         Assert.False(await IsVerifiedAsync(accountId));
 
@@ -53,9 +51,7 @@ public sealed class CandidateEmailVerificationServiceTests
     [Fact]
     public async Task confirming_should_not_end_the_candidates_session()
     {
-        // The candidate is usually verifying from the very tab they registered in. Rotating the
-        // security stamp — as a password or email change does — would log them out at their next
-        // request, for no security gain: no credential changed here.
+        // No stamp rotation: no credential changed, and it would log out the tab they registered in.
         var mail = new RecordingEmailSender();
         var accountId = await RegisterAsync("stayput@acme.test", mail);
         var stampBefore = await SecurityStampOfAsync(accountId);
@@ -137,9 +133,7 @@ public sealed class CandidateEmailVerificationServiceTests
     [Fact]
     public async Task resending_to_an_already_verified_account_should_say_so()
     {
-        // A silent success would leave the UI claiming a link was sent and the candidate waiting for
-        // an email that is never coming. The caller here is the signed-in owner, so unlike
-        // forgot-password there is nothing to hide from them.
+        // A silent success would leave the UI saying a link was sent.
         var mail = new RecordingEmailSender();
         var accountId = await RegisterAsync("done@acme.test", mail);
         await ConfirmAsync(TokenFrom(mail.Sent[0].Body)!);

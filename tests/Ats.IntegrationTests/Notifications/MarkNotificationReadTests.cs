@@ -31,7 +31,7 @@ public sealed class MarkNotificationReadTests
             await db.SaveChangesAsync();
         }
 
-        // Act — mark it twice, as a double-click would
+        // Act: mark it twice, as a double-click would
         await using var handlerDb = NewDb();
         var handler = new MarkNotificationReadHandler(handlerDb);
         var command = new MarkNotificationReadCommand(
@@ -40,7 +40,7 @@ public sealed class MarkNotificationReadTests
         var firstReadAt = await ReadAtOf(notification.Id);
         var second = await handler.Handle(command, CancellationToken.None);
 
-        // Assert — both calls succeed and the original timestamp survives the second one
+        // Assert: both calls succeed and the original timestamp survives the second one
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
         Assert.NotNull(firstReadAt);
@@ -50,7 +50,7 @@ public sealed class MarkNotificationReadTests
     [Fact]
     public async Task should_return_not_found_for_someone_elses_notification()
     {
-        // Arrange — the row exists, but belongs to another candidate
+        // Arrange: the row exists, but belongs to another candidate
         Notification notification;
         await using (var db = NewDb())
         {
@@ -60,14 +60,14 @@ public sealed class MarkNotificationReadTests
             await db.SaveChangesAsync();
         }
 
-        // Act — a different recipient probes the id
+        // Act: a different recipient probes the id
         await using var handlerDb = NewDb();
         var result = await new MarkNotificationReadHandler(handlerDb).Handle(
             new MarkNotificationReadCommand(
                 NotificationRecipientType.Candidate, Guid.NewGuid(), notification.Id),
             CancellationToken.None);
 
-        // Assert — indistinguishable from a nonexistent id, and the row stays unread
+        // Assert: indistinguishable from a nonexistent id, and the row stays unread
         Assert.False(result.IsSuccess);
         Assert.Equal(NotificationErrors.NotFound.Code, result.Error.Code);
         Assert.Null(await ReadAtOf(notification.Id));
@@ -76,7 +76,7 @@ public sealed class MarkNotificationReadTests
     [Fact]
     public async Task should_mark_all_read_only_for_the_caller()
     {
-        // Arrange — two unread for the owner, one unread for a stranger
+        // Arrange: two unread for the owner, one unread for a stranger
         var ownerId = Guid.NewGuid();
         var strangerId = Guid.NewGuid();
         await using (var db = NewDb())
@@ -96,7 +96,7 @@ public sealed class MarkNotificationReadTests
             new MarkAllNotificationsReadCommand(NotificationRecipientType.Candidate, ownerId),
             CancellationToken.None);
 
-        // Assert — both owner rows updated, the stranger's untouched
+        // Assert: both owner rows updated, the stranger's untouched
         Assert.True(result.IsSuccess);
         Assert.Equal(2, result.Value);
         await using var readDb = NewDb();

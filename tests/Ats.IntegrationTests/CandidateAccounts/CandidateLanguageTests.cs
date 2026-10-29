@@ -12,12 +12,8 @@ using Microsoft.Extensions.Options;
 
 namespace Ats.IntegrationTests.CandidateAccounts;
 
-// Covers the path the feature actually exists for: a candidate who registers on a Turkish screen
-// must be written to in Turkish, and must keep being written to in Turkish after the process that
-// registered them is long gone.
-//
-// These assert on the mailed body rather than on the stored column alone. A test that only checked
-// the column would pass with every consumer still hardcoded to English — which was the bug.
+// A candidate who registers in Turkish must get Turkish email later too. Asserts on the mailed body,
+// not just the stored column.
 [Collection("Integration")]
 public sealed class CandidateLanguageTests
 {
@@ -60,9 +56,7 @@ public sealed class CandidateLanguageTests
     [Fact]
     public async Task switching_language_should_change_what_later_emails_are_written_in()
     {
-        // The reason the language is read live rather than frozen onto an integration event: a
-        // candidate who switches to Turkish should get Turkish from the next email onwards, not from
-        // the next registration.
+        // Read live, so a language switch applies to the next email.
         var mail = new RecordingEmailSender();
         var accountId = await RegisterAsync("switcher@acme.test", SupportedLanguages.English, mail);
 
@@ -83,7 +77,7 @@ public sealed class CandidateLanguageTests
     public async Task an_unsupported_language_should_be_refused_by_the_dedicated_endpoint()
     {
         // Unlike registration, this operation exists only to set the language, so a value outside
-        // the catalogue is a client bug — storing English quietly would hide it.
+        // the catalogue is a client bug, storing English quietly would hide it.
         var mail = new RecordingEmailSender();
         var accountId = await RegisterAsync("picky@acme.test", SupportedLanguages.English, mail);
 

@@ -18,7 +18,7 @@ public sealed class CountUpcomingInterviewsTests
     [Fact]
     public async Task should_count_only_scheduled_future_interviews_scoped_to_tenant()
     {
-        // Arrange — target tenant: one upcoming (Scheduled), one Completed, one Cancelled. Another
+        // Arrange: target tenant: one upcoming (Scheduled), one Completed, one Cancelled. Another
         // tenant has an upcoming interview that must not leak. A fresh tenant id isolates each test.
         var scheduledAt = DateTime.UtcNow.AddDays(2);
 
@@ -50,7 +50,7 @@ public sealed class CountUpcomingInterviewsTests
         await using var readDb = NewDb(tenant);
         var directory = new InterviewDirectory(readDb);
 
-        // Act + Assert — only the single scheduled, future interview counts.
+        // Act + Assert: only the single scheduled, future interview counts.
         Assert.Equal(1, await directory.CountUpcomingInterviewsAsync(DateTime.UtcNow));
         // Moving "now" past the scheduled time drops it from the upcoming count.
         Assert.Equal(0, await directory.CountUpcomingInterviewsAsync(scheduledAt.AddHours(1)));
@@ -99,7 +99,7 @@ public sealed class GetInterviewsForApplicationTests
 
         Assert.Equal(2, result.Count);
         // Tolerance: PostgreSQL's timestamp column has microsecond precision, .NET's DateTime has
-        // tick (100ns) precision — a round trip through the DB loses the last digit or two.
+        // tick (100ns) precision, a round trip through the DB loses the last digit or two.
         Assert.Equal(sooner, result[0].ScheduledAtUtc, TimeSpan.FromMilliseconds(1));
         Assert.Equal(later, result[1].ScheduledAtUtc, TimeSpan.FromMilliseconds(1));
         Assert.All(result, i => Assert.Equal("Technical", i.Type));

@@ -13,17 +13,9 @@ using Microsoft.Extensions.Hosting;
 
 namespace Ats.IntegrationTests.Applications;
 
-// AdvanceToInterviewStageConsumerTests exercises AdvanceAsync directly, which is enough for the
-// stage rules but says nothing about the bus. This file runs the consumer through a real MassTransit
-// harness instead, because the defect it covers lived entirely in the wiring:
-//
-// the consumer committed the stage move and then published to the broker as a separate step, so a
-// publish failure lost the announcement for good — the retry re-read an application that was already
-// in the Interview stage, decided there was nothing to do, and returned before publishing.
-//
-// The endpoint now runs behind the transactional outbox, which is a configuration concern nothing
-// else in the suite covers: the API host is never started in CI, so a broken bus registration
-// otherwise reaches production unchallenged.
+// Runs the consumer through a real MassTransit harness to cover the outbox wiring, which nothing
+// else tests (CI never starts the API host). Without the outbox, a publish failure after the save
+// lost the announcement: the retry saw the stage already moved and published nothing.
 [Collection("Integration")]
 public sealed class AdvanceToInterviewStageOutboxTests
 {
@@ -37,7 +29,7 @@ public sealed class AdvanceToInterviewStageOutboxTests
     [Fact]
     public async Task should_announce_the_stage_move_it_just_committed()
     {
-        // Arrange — an application sitting at the pipeline's first stage.
+        // Arrange: an application sitting at the pipeline's first stage.
         var tenantId = Guid.NewGuid();
         var (application, pipeline) = await SeedAsync(tenantId);
         var interviewStage = pipeline.Stages.Single(s => s.Name == "Interview");
@@ -47,12 +39,12 @@ public sealed class AdvanceToInterviewStageOutboxTests
         var harness = host.Services.GetRequiredService<ITestHarness>();
         await harness.Start();
 
-        // Act — the message a recruiter's "schedule interview" click produces.
+        // Act: the message a recruiter's "schedule interview" click produces.
         var messageId = NewId.NextGuid();
         await harness.Bus.Publish(
             EventFor(application.Id, tenantId), context => context.MessageId = messageId);
 
-        // Assert — consumed, moved, and announced. The announcement is the part that used to go
+        // Assert: consumed, moved, and announced. The announcement is the part that used to go
         // missing, so its absence must fail this test rather than show up as a quiet log line.
         Assert.True(await harness.Consumed.Any<InterviewScheduledIntegrationEvent>());
         Assert.True(await harness.Consumed.Any<ApplicationStageChangedIntegrationEvent>());
@@ -74,10 +66,8 @@ public sealed class AdvanceToInterviewStageOutboxTests
 
         Assert.Single(activityLog.Added);
 
-        // The assertions above pass with or without the outbox — on the happy path both wirings end
-        // with the announcement delivered. This one does not: an InboxState row is written only by
-        // the endpoint's outbox filter, so it fails the moment the consumer stops being registered
-        // with AdvanceToInterviewStageConsumerDefinition, which is the whole fix.
+        // The assertions above pass with or without the outbox. This one doesn't: only the outbox filter
+        // writes InboxState.
         await using (var probe = NewDb(tenantId))
         {
             var inboxRows = await probe.Database
@@ -105,13 +95,9 @@ public sealed class AdvanceToInterviewStageOutboxTests
             RoomToken: null,
             TenantId: tenantId);
 
-    // Mirrors the host's registration closely enough to be worth something: same DbContext, same
-    // IApplicationsDbContext aliasing onto it (the outbox and the consumer must share one instance,
-    // or the publish lands outside the consumer's transaction), same consumer definition.
-    //
-    // Built as a real host rather than a bare ServiceProvider because the outbox's delivery service
-    // is an IHostedService. Without it the message stops in the OutboxMessage table and the test
-    // cannot tell "captured then delivered" apart from "never published at all".
+    // Mirrors the host's registration: same DbContext, the same IApplicationsDbContext aliasing (the
+    // outbox and consumer must share one instance), same definition. A real host, because the outbox
+    // delivery service is an IHostedService.
     private IHost BuildHarness(out InMemoryActivityLog activityLog)
     {
         var log = new InMemoryActivityLog([]);
@@ -141,9 +127,7 @@ public sealed class AdvanceToInterviewStageOutboxTests
                 outbox.QueryDelay = TimeSpan.FromMilliseconds(200);
             });
             bus.AddConsumer<AdvanceToInterviewStageConsumer, AdvanceToInterviewStageConsumerDefinition>();
-            // Stands in for the real subscribers (stage-change email, in-app notification). The
-            // property under test is that the announcement reaches a subscriber at all, which is
-            // what stopped happening when a publish failure was retried away.
+            // Stands in for the real subscribers; the point is that the announcement arrives at all.
             bus.AddConsumer<StageChangedProbeConsumer>();
         });
 

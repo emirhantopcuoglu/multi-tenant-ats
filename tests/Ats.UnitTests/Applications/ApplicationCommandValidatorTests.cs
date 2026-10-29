@@ -2,9 +2,7 @@ using Ats.Modules.Applications.Application.Applications;
 
 namespace Ats.UnitTests.Applications;
 
-// The command validators are the infrastructure-free part of the recruiter flow. The handlers'
-// DB orchestration (stage-belongs-to-pipeline, terminal-state guards) is covered by the
-// integration tests added later with Testcontainers.
+// The handlers' database rules are covered by the integration tests.
 public class ApplicationCommandValidatorTests
 {
     [Fact]

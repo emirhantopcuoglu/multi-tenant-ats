@@ -45,7 +45,7 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
         // Act
         var result = await CreateService().FreezeAsync(accountId);
 
-        // Assert — frozen, but the stamp survives: the session must reach the reactivation screen
+        // Assert: frozen, but the stamp survives: the session must reach the reactivation screen
         Assert.True(result.IsSuccess);
         var account = await LoadAccountAsync(accountId);
         Assert.Equal(CandidateAccountStatus.Frozen, account.Status);
@@ -128,7 +128,7 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
         var result = await CreateService().DeleteAsync(
             accountId, new DeleteCandidateAccountCommand(Password));
 
-        // Assert — read past the query filter: the row still exists, but nothing personal survives
+        // Assert: read past the query filter: the row still exists, but nothing personal survives
         Assert.True(result.IsSuccess);
         var account = await LoadDeletedAccountAsync(accountId);
         Assert.Equal(CandidateAccountStatus.Deleted, account.Status);
@@ -148,10 +148,10 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
         var accountId = await SeedAccountAsync();
         await CreateService().DeleteAsync(accountId, new DeleteCandidateAccountCommand(Password));
 
-        // Act — correct credentials, but the query filter hides the row from login
+        // Act: correct credentials, but the query filter hides the row from login
         var login = await CreateAuthService().LoginAsync(Email, Password);
 
-        // Assert — indistinguishable from a typo: deletion must not become an account oracle
+        // Assert: indistinguishable from a typo: deletion must not become an account oracle
         Assert.True(login.IsFailure);
         Assert.Equal(CandidateAuthErrors.InvalidCredentials.Code, login.Error.Code);
     }
@@ -166,7 +166,7 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
         // Act
         await CreateService().DeleteAsync(accountId, new DeleteCandidateAccountCommand(Password));
 
-        // Assert — the filter hides the row from the stamp handler, so any old token dies
+        // Assert: the filter hides the row from the stamp handler, so any old token dies
         Assert.False(await RunStampHandlerAsync(accountId, stampBefore));
     }
 
@@ -177,7 +177,7 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
         var accountId = await SeedAccountAsync();
         await CreateService().DeleteAsync(accountId, new DeleteCandidateAccountCommand(Password));
 
-        // Act — the locked product decision: deletion is final, the address is reusable
+        // Act: the locked product decision: deletion is final, the address is reusable
         var register = await CreateAuthService().RegisterAsync(Email, Password, "John", "Roe", SupportedLanguages.Default);
 
         // Assert
@@ -187,7 +187,7 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
     [Fact]
     public async Task Delete_should_remove_the_accounts_email_change_requests()
     {
-        // Arrange — a pending request holds a real address, which the erasure must also cover
+        // Arrange: a pending request holds a real address, which the erasure must also cover
         var accountId = await SeedAccountAsync();
         var emailSender = new RecordingEmailSender();
         await CreateProfileService(emailSender).RequestEmailChangeAsync(

@@ -18,7 +18,7 @@ public sealed class CandidateAccountEmailChangeTests
         // Act
         account.ChangeEmail("  New@Example.COM ");
 
-        // Assert — email is the login identity, so every issued token must die with the change
+        // Assert: email is the login identity, so every issued token must die with the change
         Assert.Equal("new@example.com", account.Email);
         Assert.NotEqual(stampBefore, account.SecurityStamp);
     }
@@ -58,7 +58,7 @@ public sealed class CandidateAccountEmailChangeTests
         // Act
         request.MarkConsumed();
 
-        // Assert — a confirmation link is single-use; a second consume is a programming error
+        // Assert: a confirmation link is single-use; a second consume is a programming error
         Assert.False(request.IsValid);
         Assert.Throws<InvalidOperationException>(request.MarkConsumed);
     }
