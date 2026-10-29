@@ -5,34 +5,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Jobs.Application.Jobs;
 
-// One card in the cross-tenant marketplace feed. It carries the company name + slug (unlike the
-// tenant-scoped JobDto, which never needs them — the tenant is implied by the URL there). The slug
-// pair lets the frontend link to the existing careers detail page at /{companySlug}/jobs/{slug}.
 public sealed record PublicJobFeedItemDto(
     Guid Id, string Title, string CompanyName, string CompanySlug,
     string City, string? Country, string EmploymentType, string ExperienceLevel, string WorkArrangement,
     string Slug, DateTime? PublishedAtUtc);
 
-// The public marketplace feed: every tenant's Published jobs in one list, newest first, with an
-// optional search over job title OR company name, plus optional narrowing filters. The enum
-// filters travel as strings because they come straight off a public query string: an unknown
-// value must degrade to "no filter", not to a 400 — these URLs are shared and hand-edited, and a
-// broken filter should never break the page.
+// Enum filters arrive as strings; unknown values mean "no filter", not a 400.
 public sealed record ListPublicJobFeedQuery(
     int Page = 1, int PageSize = 20, string? Search = null,
     string? EmploymentType = null, string? ExperienceLevel = null, string? WorkArrangement = null,
     string? Location = null)
     : IQuery<PagedResult<PublicJobFeedItemDto>>;
 
-// Unlike every other query in this module, this one deliberately spans all tenants. The tenant
-// global query filter is the system's default isolation boundary; "a published job is public across
-// the whole marketplace" is the one intentional exception to it, so the handler calls
-// IgnoreQueryFilters() and re-adds by hand the soft-delete predicate that filter also carried.
-//
-// The company name/slug live in the Tenants schema, which this module must not touch directly. It
-// reads them through ITenantDirectory (a cross-module port) in two batched calls — one to translate a
-// company-name search into tenant ids, one to name the companies on the resulting page — so the cost
-// stays constant regardless of page size (no N+1).
+// The only query here that spans all tenants: it ignores the query filter and re-adds the
+// soft-delete check by hand. Company names come from ITenantDirectory in two batched calls.
 public sealed class ListPublicJobFeedHandler
     : IQueryHandler<ListPublicJobFeedQuery, PagedResult<PublicJobFeedItemDto>>
 {
@@ -59,15 +45,13 @@ public sealed class ListPublicJobFeedHandler
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var term = query.Search.Trim().ToLower();
-            // Resolve which companies match by name first, then OR them into the job predicate so a
-            // search for "acme" finds both jobs titled *acme* and jobs at the company *Acme*.
+            // So "acme" matches job titles and the company Acme.
             var companyMatchIds = (await _tenants.SearchIdsByNameAsync(term, ct)).ToList();
             jobs = jobs.Where(j =>
                 j.Title.ToLower().Contains(term) || companyMatchIds.Contains(j.TenantId));
         }
 
-        // IsDefined guards against Enum.TryParse's numeric-string quirk: "99" parses "successfully"
-        // into an undefined value, which would silently filter everything out.
+        // IsDefined because Enum.TryParse accepts numeric strings like "99".
         if (Enum.TryParse<EmploymentType>(query.EmploymentType, ignoreCase: true, out var employmentType)
             && Enum.IsDefined(employmentType))
         {
@@ -88,8 +72,7 @@ public sealed class ListPublicJobFeedHandler
 
         if (!string.IsNullOrWhiteSpace(query.Location))
         {
-            // City/Country are free text, so a substring match ("istanbul" → city "Istanbul",
-            // "turkey" → country "Turkey") is the honest granularity — no location taxonomy exists yet.
+            // Substring match on free-text city/country.
             var location = query.Location.Trim().ToLower();
             jobs = jobs.Where(j =>
                 j.City.ToLower().Contains(location) ||
@@ -108,13 +91,11 @@ public sealed class ListPublicJobFeedHandler
                 j.Slug, j.PublishedAtUtc))
             .ToListAsync(ct);
 
-        // One batched lookup names every company on this page; a per-row lookup would be an N+1.
         var tenantIds = pageRows.Select(r => r.TenantId).Distinct().ToList();
         var companies = await _tenants.GetSummariesAsync(tenantIds, ct);
 
         var items = pageRows
-            // A job whose tenant vanished (no cross-schema FK enforces this) is dropped rather than
-            // rendered nameless — defensive, and in practice never hit.
+            // No FK across schemas, so drop jobs whose tenant no longer exists.
             .Where(r => companies.ContainsKey(r.TenantId))
             .Select(r =>
             {
@@ -130,8 +111,6 @@ public sealed class ListPublicJobFeedHandler
             new PagedResult<PublicJobFeedItemDto>(items, page, pageSize, totalCount));
     }
 
-    // Intermediate projection: the job columns pulled from the database before the company name is
-    // stitched in from the Tenants module. Kept private — it is a step, not part of the contract.
     private sealed record PublicJobRow(
         Guid Id, string Title, Guid TenantId, string City, string? Country,
         string EmploymentType, string ExperienceLevel, string WorkArrangement,

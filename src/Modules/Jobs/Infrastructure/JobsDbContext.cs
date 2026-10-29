@@ -36,17 +36,11 @@ public sealed class JobsDbContext : DbContext, IJobsDbContext
             entity.Property(j => j.WorkArrangement).HasConversion<string>();
             entity.Property(j => j.Status).HasConversion<string>();
             entity.HasIndex(j => new { j.TenantId, j.Slug }).IsUnique();
-            // Serves the hot public listing (ListPublicJobs): filter on (TenantId, Status=Published)
-            // is the index prefix, and PublishedAtUtc DESC is the ORDER BY — both come from this one
-            // index, so the planner needs no separate sort. It supersedes a plain (TenantId, Status)
-            // index, which would be a redundant prefix of this one.
+            // Per-tenant public listing: filter and ORDER BY both come from this index.
             entity.HasIndex(j => new { j.TenantId, j.Status, j.PublishedAtUtc })
                 .IsDescending(false, false, true);
 
-            // Serves the cross-tenant marketplace feed (ListPublicJobFeed): unlike the per-tenant
-            // listing above, it filters on Status=Published across ALL tenants and orders by
-            // PublishedAtUtc DESC, so the leading TenantId of that index cannot be used. This one
-            // starts at Status, matching the feed's filter + sort with no separate sort step.
+            // Cross-tenant feed, which can't use the TenantId-first index above.
             entity.HasIndex(j => new { j.Status, j.PublishedAtUtc })
                 .IsDescending(false, true);
 
@@ -58,9 +52,7 @@ public sealed class JobsDbContext : DbContext, IJobsDbContext
             });
         });
 
-        // Register the filter via an instance method so EF Core treats _currentTenant as a
-        // context accessor (re-evaluated per query) rather than baking the first scope's
-        // value into the cached model. A captured delegate would leak across tenants.
+        // Called through an instance method so EF re-reads _currentTenant on every query.
         var applyFilter = GetType()
             .GetMethod(nameof(SetTenantFilter), BindingFlags.NonPublic | BindingFlags.Instance)!;
 
@@ -71,10 +63,7 @@ public sealed class JobsDbContext : DbContext, IJobsDbContext
         }
     }
 
-    // Combined global filter: hide rows of other tenants AND soft-deleted rows. EF Core
-    // allows only one query filter per entity, so both conditions live in one predicate.
-    // Written as a literal lambda in an instance method so EF re-evaluates _currentTenant
-    // per query (a captured delegate would bake the first scope's tenant into the model).
+    // EF allows one filter per entity, so tenant and soft delete share one predicate.
     private void SetTenantFilter<T>(ModelBuilder builder) where T : class, ITenantScoped, ISoftDeletable
         => builder.Entity<T>().HasQueryFilter(e => !e.IsDeleted && (Guid?)e.TenantId == _currentTenant.TenantId);
 }

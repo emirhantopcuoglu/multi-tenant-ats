@@ -6,9 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ats.Modules.Jobs.Api;
 
-// Public, unauthenticated job board. The tenant comes from the path slug
-// (e.g. /acmecorp/jobs), resolved by TenantResolutionMiddleware before the
-// request reaches here. No api/v{version} prefix: this is a user-facing URL.
+// Public job board. The tenant comes from the path slug via TenantResolutionMiddleware.
 [ApiController]
 [AllowAnonymous]
 [Route("{slug}/jobs")]
@@ -23,14 +21,12 @@ public sealed class PublicJobsController : ControllerBase
         _currentTenant = currentTenant;
     }
 
-    // `slug` is bound only so the route matches; the tenant it identifies has
-    // already been resolved into the tenant context by the middleware.
+    // slug is only bound so the route matches; the middleware already resolved the tenant.
     [HttpGet]
     public async Task<IActionResult> List(
         string slug, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        // An unknown slug leaves the tenant unresolved. Surface that as 404 rather
-        // than a misleading empty 200 — the company page genuinely does not exist.
+        // An unknown slug is a 404, not an empty 200.
         if (!_currentTenant.TenantId.HasValue)
             return NotFound();
 
@@ -38,8 +34,7 @@ public sealed class PublicJobsController : ControllerBase
         return Ok(result.Value);
     }
 
-    // Public job detail by slug (e.g. /acmecorp/jobs/staff-engineer-1a2b3c4d). A draft, closed, or
-    // unknown job — and any slug under an unresolved tenant — all read as 404, so nothing leaks.
+    // Drafts, closed jobs and unknown slugs are all a 404, so nothing leaks.
     [HttpGet("{jobSlug}")]
     public async Task<IActionResult> Detail(string slug, string jobSlug)
     {

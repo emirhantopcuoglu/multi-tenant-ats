@@ -13,7 +13,6 @@ public static class JobErrors
         new("job.invalid_operation", message);
 }
 
-// ---- Publish ----
 public sealed record PublishJobCommand(Guid JobId) : ICommand<bool>;
 
 public sealed class PublishJobValidator : AbstractValidator<PublishJobCommand>
@@ -43,7 +42,6 @@ public sealed class PublishJobHandler : ICommandHandler<PublishJobCommand, bool>
     }
 }
 
-// ---- Close ----
 public sealed record CloseJobCommand(Guid JobId) : ICommand<bool>;
 
 public sealed class CloseJobValidator : AbstractValidator<CloseJobCommand>
@@ -73,7 +71,6 @@ public sealed class CloseJobHandler : ICommandHandler<CloseJobCommand, bool>
     }
 }
 
-// ---- Archive ----
 public sealed record ArchiveJobCommand(Guid JobId) : ICommand<bool>;
 
 public sealed class ArchiveJobValidator : AbstractValidator<ArchiveJobCommand>
@@ -103,7 +100,6 @@ public sealed class ArchiveJobHandler : ICommandHandler<ArchiveJobCommand, bool>
     }
 }
 
-// ---- Update ----
 public sealed record UpdateJobCommand(
     Guid JobId,
     string Title,
