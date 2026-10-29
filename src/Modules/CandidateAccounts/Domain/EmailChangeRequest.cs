@@ -1,28 +1,18 @@
 namespace Ats.Modules.CandidateAccounts.Domain;
 
-// A pending "change my login email" intent, following the Tenants.Invitation shape: the row stores
-// only the SHA-256 HASH of the verification token, never the token itself. The raw token exists in
-// exactly one place — the link mailed to the NEW address — so a leaked database dump cannot be
-// replayed to take over an account. Clicking that link is what proves the requester controls the
-// new mailbox; without proof, a typo'd or hostile address would silently become someone's login.
+// Only the SHA-256 hash of the token is stored. The raw token is in the link sent to the new address.
 public sealed class EmailChangeRequest
 {
     public Guid Id { get; private set; }
     public Guid CandidateAccountId { get; private set; }
 
-    // Already normalised (CandidateAccount.NormalizeEmail) so the uniqueness re-check at confirm
-    // time compares like with like.
     public string NewEmail { get; private set; } = null!;
     public string TokenHash { get; private set; } = null!;
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime ExpiresAtUtc { get; private set; }
 
-    // Set exactly once — a confirmation link is single-use. A consumed request stays in the table
-    // as an audit trail of when the login identity changed.
     public DateTime? ConsumedAtUtc { get; private set; }
 
-    // Short-lived on purpose: the window only needs to cover "open inbox, click link". An hour of
-    // validity bounds how long a mistyped or attacker-chosen address stays claimable.
     public const int ValidMinutes = 60;
 
     private EmailChangeRequest() { }

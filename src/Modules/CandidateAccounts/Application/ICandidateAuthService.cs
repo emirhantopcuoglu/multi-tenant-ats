@@ -3,41 +3,25 @@ using Ats.Shared.Kernel;
 
 namespace Ats.Modules.CandidateAccounts.Application;
 
-// What login/register/refresh hand back. The access token is short-lived (minutes); the refresh token
-// is the long-lived half the client redeems for a new pair, and it rotates on every redemption.
 public sealed record CandidateAuthResult(string AccessToken, string RefreshToken);
 
-// The signed-in candidate's profile for the marketplace UI. The JWT already carries the id and email,
-// but not the display name — this fills that gap, mirroring the company side's CurrentUserDto.
-// Status is how the SPA learns it should show a frozen account the reactivation screen instead of
-// the candidate area; a deleted account can never reach this endpoint (query filter + dead stamp),
-// so the value is only ever Active or Frozen in practice.
-// IsEmailVerified rides along so the portal can show the "verify your address" banner and hide the
-// apply button from the same payload it already fetches on load — without it the SPA would have to
-// discover the rule by being refused a submission it should never have offered.
+// Status and IsEmailVerified let the SPA show the reactivation screen and the verify banner.
 public sealed record CurrentCandidateDto(
     Guid Id, string Email, string FirstName, string LastName, CandidateAccountStatus Status,
     bool IsEmailVerified);
 
-// The candidate side of authentication. A separate service from the company IAuthService on purpose:
-// candidates are a different identity (global, no tenant, no roles), so sharing one service would mean
-// one type juggling two unrelated auth models.
 public interface ICandidateAuthService
 {
-    // preferredLanguage is the UI language at the moment of registration: the verification email
-    // goes out during this call, so there is no later point at which to ask.
+    // The verification email is sent during this call, in this language.
     Task<Result<CandidateAuthResult>> RegisterAsync(
         string email, string password, string firstName, string lastName, string preferredLanguage);
     Task<Result<CandidateAuthResult>> LoginAsync(string email, string password);
 
-    /// <summary>
-    /// Exchanges a refresh token for a fresh pair, revoking the one presented (rotation). Fails if the
-    /// token is unknown, expired, already spent, or was issued before the account's security stamp
-    /// rotated — a password or email change ends outstanding refresh tokens, not just access tokens.
-    /// </summary>
+    /// Exchanges a refresh token for a new pair and revokes the old one. Tokens issued before the last security stamp rotation are rejected.
+   
     Task<Result<CandidateAuthResult>> RefreshAsync(string refreshToken);
 
-    /// <summary>Revokes the presented refresh token. Succeeds even if it was already unusable.</summary>
+    // Revokes the presented refresh token. Succeeds even if it was already unusable.
     Task<Result> LogoutAsync(string refreshToken);
 
     Task<Result<CurrentCandidateDto>> GetCurrentCandidateAsync(Guid candidateAccountId);

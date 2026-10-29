@@ -1,13 +1,6 @@
 namespace Ats.Modules.CandidateAccounts.Domain;
 
-// A pending "prove you can read this mailbox" intent for the address the account already holds. Same
-// shape as PasswordResetRequest and EmailChangeRequest: the row stores only the SHA-256 HASH of the
-// token, never the token itself, so a database dump cannot be replayed into a verified account.
-//
-// Kept as its own entity rather than reusing EmailChangeRequest, despite the near-identical columns.
-// That one carries a NewEmail and swaps the login identity when consumed; this one asserts a fact
-// about the current address. Merging them would mean a nullable NewEmail whose meaning depends on
-// which flow wrote the row — the kind of shared table that makes both flows harder to reason about.
+// Only the SHA-256 hash of the token is stored.
 public sealed class EmailVerificationRequest
 {
     public Guid Id { get; private set; }
@@ -16,14 +9,9 @@ public sealed class EmailVerificationRequest
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime ExpiresAtUtc { get; private set; }
 
-    // Set exactly once — a verification link is single-use. A consumed request stays in the table as
-    // the audit trail of when the address was proven.
     public DateTime? ConsumedAtUtc { get; private set; }
 
-    // Longer than the one-hour password-reset and email-change windows, on purpose. Those two are
-    // account-takeover surfaces where a narrow window is the point. This one only proves a mailbox is
-    // readable, and its realistic failure mode is a candidate who registers, closes the tab and comes
-    // back that evening — locking them out overnight would create support work for no security gain.
+    // Longer than reset/email-change links: this one can't be used to take over an account.
     public const int ValidHours = 24;
 
     private EmailVerificationRequest() { }

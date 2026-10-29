@@ -29,12 +29,9 @@ public sealed class CandidateAccountReader : ICandidateAccountReader
 
     public async Task<string> GetPreferredLanguageByEmailAsync(string email, CancellationToken ct = default)
     {
-        // Normalized before comparing, the same way Register() normalizes before storing: the address
-        // on an integration event came from an apply form and may differ only in case.
+        // Normalized like Register(); an address from an event may differ in case.
         var normalized = CandidateAccount.NormalizeEmail(email);
 
-        // Projects the single column rather than materialising the account: this runs on every
-        // outgoing email and none of the rest of the row is wanted.
         var language = await _db.CandidateAccounts
             .AsNoTracking()
             .Where(a => a.Email == normalized)

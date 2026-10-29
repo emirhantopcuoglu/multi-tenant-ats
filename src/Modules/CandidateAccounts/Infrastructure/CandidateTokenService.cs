@@ -9,10 +9,8 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Ats.Modules.CandidateAccounts.Infrastructure;
 
-// Mints the candidate access token. Structurally the same as the company TokenService, with two
-// deliberate differences that keep the two identities apart: it stamps token_type=candidate, and it
-// adds NO tenant_id and NO role claims. That combination is exactly what the CandidateOnly policy keys
-// on, and why a candidate token cannot satisfy the role-gated company endpoints.
+// Like the company TokenService, but with token_type=candidate and no tenant or role claims,
+// so a candidate token can't pass the role-gated company endpoints.
 public sealed class CandidateTokenService : ICandidateTokenService
 {
     private readonly CandidateJwtOptions _options;
@@ -30,8 +28,6 @@ public sealed class CandidateTokenService : ICandidateTokenService
             new(JwtRegisteredClaimNames.Email, email),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new(TokenTypes.ClaimName, TokenTypes.Candidate),
-            // Compared against the account's current stamp on every authenticated request; when the
-            // stamp rotates (password change), tokens carrying the old value stop working instantly.
             new(CandidateClaims.SecurityStamp, securityStamp.ToString())
         };
 
@@ -48,8 +44,6 @@ public sealed class CandidateTokenService : ICandidateTokenService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    // 64 bytes of CSPRNG randomness, same size as the company TokenService's. Opaque on purpose: the
-    // server stores only its SHA-256 hash, so this string is a bearer secret with no readable content.
     public string GenerateRefreshToken()
     {
         var bytes = RandomNumberGenerator.GetBytes(64);

@@ -10,8 +10,7 @@ public static class CandidateAccountLifecycleErrors
     public static readonly Error InvalidCurrentPassword =
         new("candidate_account.invalid_current_password", "The current password is incorrect.");
 
-    // Wraps a rejected state transition (freezing a frozen account, reactivating an active one) so
-    // the API answers 400 with the rule that failed instead of a generic 500.
+    // A rejected state transition, returned as a 400 with its message.
     public static Error InvalidState(string message) =>
         new("candidate_account.invalid_state", message);
 }
