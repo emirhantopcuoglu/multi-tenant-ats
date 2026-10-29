@@ -2,9 +2,7 @@ using Prometheus;
 
 namespace Ats.Shared.Infrastructure;
 
-// Static, lazily-initialized Prometheus metrics. prometheus-net counters and histograms are
-// thread-safe singletons — creating them multiple times would throw, so they live here as static
-// fields and are referenced directly where needed.
+// Static because prometheus-net throws if the same metric is created twice.
 public static class AppMetrics
 {
     public static readonly Counter ApplicationsSubmittedTotal = Metrics.CreateCounter(
@@ -16,7 +14,6 @@ public static class AppMetrics
         "Elapsed time for one CV parsing LLM call (download → extract text → parse).",
         new HistogramConfiguration
         {
-            // Buckets matched to real latency ranges: fast (<2s), normal (2-8s), slow (>8s).
             Buckets = Histogram.ExponentialBuckets(start: 0.5, factor: 2, count: 8)
         });
 

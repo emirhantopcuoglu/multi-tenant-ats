@@ -3,17 +3,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Shared.Infrastructure;
 
-// Decorates a rate limiter (here, a Redis-backed one) so that a backing-store failure does not take
-// the request down with it. The rate limiter is a protective helper; if Redis is unreachable the
-// right behavior for this project is to fail open — let the request through — exactly as the
-// distributed cache does: "a helper system's failure must not bring down the main
-// operation." Without this, a Redis outage would turn rate limiting into a hard dependency that
-// fails (and hangs, on the Redis command timeout) every request.
-//
-// The trade-off is explicit: while the backing store is down, limits are not enforced. For this
-// project that is the accepted cost of keeping the API available. A normal rejection (limit reached
-// while Redis is healthy) is passed straight through, so its lease — including Retry-After metadata —
-// is preserved; only an actual store failure is swallowed.
+// If Redis is down, let requests through instead of failing or hanging them. Limits aren't
+// enforced during the outage. Normal rejections pass through unchanged, Retry-After included.
 public sealed class FailOpenRateLimiter : RateLimiter
 {
     private static readonly RateLimitLease GrantedLease = new FailOpenLease();
@@ -53,7 +44,6 @@ public sealed class FailOpenRateLimiter : RateLimiter
         {
             return await _inner.AcquireAsync(permitCount, cancellationToken);
         }
-        // A cancelled request is a real cancellation, not a store failure — let it propagate.
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             LogFailOpen(exception);
@@ -75,7 +65,6 @@ public sealed class FailOpenRateLimiter : RateLimiter
             "Rate limiter backing store unavailable; allowing request (fail-open) for partition {Partition}",
             _partitionKey);
 
-    // A lease that always reports success and carries no metadata — returned when we fail open.
     private sealed class FailOpenLease : RateLimitLease
     {
         public override bool IsAcquired => true;

@@ -25,8 +25,7 @@ public sealed class MailKitEmailSender : IEmailSender
 
         using var client = new SmtpClient();
 
-        // MailHog (local) accepts plaintext on None; a real SMTP server upgrades via StartTls.
-        // The only difference between environments is configuration, not code.
+        // MailHog accepts plaintext; a real SMTP server upgrades with StartTls.
         var socketOptions = _options.UseSsl
             ? SecureSocketOptions.StartTls
             : SecureSocketOptions.None;

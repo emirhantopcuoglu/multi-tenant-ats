@@ -4,9 +4,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Ats.Shared.Infrastructure;
 
-// Stamps audit fields and turns hard deletes into soft deletes on save. Kept
-// separate from TenantSaveChangesInterceptor: tenant assignment and auditing are
-// independent concerns, and either can be registered without the other.
+// Fills audit fields and turns deletes into soft deletes.
 public sealed class AuditableSaveChangesInterceptor : SaveChangesInterceptor
 {
     private readonly ICurrentUser _currentUser;
@@ -41,8 +39,7 @@ public sealed class AuditableSaveChangesInterceptor : SaveChangesInterceptor
         var now = DateTime.UtcNow;
         var userId = _currentUser.UserId;
 
-        // Convert deletes to soft deletes first; the row then flows through the
-        // audit pass below as an ordinary modification.
+        // Soft deletes first, so they go through the audit pass below as modifications.
         foreach (var entry in context.ChangeTracker.Entries<ISoftDeletable>())
         {
             if (entry.State != EntityState.Deleted)
@@ -58,8 +55,7 @@ public sealed class AuditableSaveChangesInterceptor : SaveChangesInterceptor
         {
             if (entry.State == EntityState.Added)
             {
-                // Respect values the domain already set (e.g. a factory) and only
-                // fill the gaps, mirroring how the tenant interceptor behaves.
+                // Keep values the domain already set.
                 if (entry.Entity.CreatedAtUtc == default)
                     entry.Property(nameof(IAuditable.CreatedAtUtc)).CurrentValue = now;
                 if (entry.Entity.CreatedBy is null)
