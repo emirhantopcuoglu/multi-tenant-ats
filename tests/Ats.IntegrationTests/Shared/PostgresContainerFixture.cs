@@ -62,7 +62,7 @@ public sealed class PostgresContainerFixture : IAsyncLifetime
         await db.Database.MigrateAsync();
     }
 
-    // The candidate accounts context is tenant-less, so — unlike the others — it needs no tenant stub.
+    // The candidate accounts context is tenant-less, so, unlike the others, it needs no tenant stub.
     private async Task ApplyCandidateAccountsMigrationsAsync()
     {
         await using var db = new CandidateAccountsDbContext(BuildCandidateAccountsOptions(ConnectionString));

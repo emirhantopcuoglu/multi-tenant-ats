@@ -40,7 +40,7 @@ public sealed class ListTenantUsersTests : IAsyncLifetime
     [Fact]
     public async Task should_return_tenant_members_with_roles_ordered_by_name_and_scoped_to_tenant()
     {
-        // Arrange — two members in the target tenant, plus a member of another tenant that must not leak.
+        // Arrange: two members in the target tenant, plus a member of another tenant that must not leak.
         var tenantId = await SeedTenantAsync("Acme Inc", "acme");
         await SeedUserAsync(tenantId, "zoe@acme.test", "Zoe", "Zylker", Roles.Recruiter);
         await SeedUserAsync(tenantId, "ada@acme.test", "Ada", "Admin", Roles.Admin);
@@ -48,12 +48,12 @@ public sealed class ListTenantUsersTests : IAsyncLifetime
         var otherTenantId = await SeedTenantAsync("Globex", "globex");
         await SeedUserAsync(otherTenantId, "eve@globex.test", "Eve", "External", Roles.Admin);
 
-        // Act — list members of the first tenant only.
+        // Act: list members of the first tenant only.
         await using var provider = BuildProvider(tenantId);
         using var scope = provider.CreateScope();
         var users = await CreateAuthService(scope).ListTenantUsersAsync();
 
-        // Assert — both members, ordered by first/last name, with their roles; the other tenant is absent.
+        // Assert: both members, ordered by first/last name, with their roles; the other tenant is absent.
         Assert.Equal(2, users.Count);
         Assert.Equal(new[] { "Ada", "Zoe" }, users.Select(u => u.FirstName).ToArray());
         Assert.Equal(Roles.Admin, users[0].Role);

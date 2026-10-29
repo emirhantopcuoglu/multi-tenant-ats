@@ -18,7 +18,7 @@ public sealed class GetPublicJobBySlugHandlerTests
     [Fact]
     public async Task should_return_published_job_with_description_and_salary_by_slug()
     {
-        // Arrange — a published job carrying a salary range
+        // Arrange: a published job carrying a salary range
         var tenant = new FixedTenant(Guid.NewGuid());
         await using var writeDb = new JobsDbContext(
             PostgresContainerFixture.BuildJobsOptions(_fixture.ConnectionString, tenant), tenant);
@@ -31,13 +31,13 @@ public sealed class GetPublicJobBySlugHandlerTests
         writeDb.Jobs.Add(job);
         await writeDb.SaveChangesAsync();
 
-        // Act — read it back through the public handler by slug
+        // Act: read it back through the public handler by slug
         await using var readDb = new JobsDbContext(
             PostgresContainerFixture.BuildJobsOptions(_fixture.ConnectionString, tenant), tenant);
         var result = await new GetPublicJobBySlugHandler(readDb)
             .Handle(new GetPublicJobBySlugQuery(job.Slug), CancellationToken.None);
 
-        // Assert — the public detail exposes the full content the careers page renders
+        // Assert: the public detail exposes the full content the careers page renders
         Assert.True(result.IsSuccess);
         Assert.Equal(job.Slug, result.Value.Slug);
         Assert.Equal("Lead the platform team", result.Value.Description);
@@ -49,7 +49,7 @@ public sealed class GetPublicJobBySlugHandlerTests
     [Fact]
     public async Task should_return_not_found_for_a_draft_job()
     {
-        // Arrange — a job left in Draft (never published) must stay invisible to the public
+        // Arrange: a job left in Draft (never published) must stay invisible to the public
         var tenant = new FixedTenant(Guid.NewGuid());
         await using var writeDb = new JobsDbContext(
             PostgresContainerFixture.BuildJobsOptions(_fixture.ConnectionString, tenant), tenant);
@@ -66,7 +66,7 @@ public sealed class GetPublicJobBySlugHandlerTests
         var result = await new GetPublicJobBySlugHandler(readDb)
             .Handle(new GetPublicJobBySlugQuery(job.Slug), CancellationToken.None);
 
-        // Assert — a draft reads as not found, never as an empty-but-200 leak
+        // Assert: a draft reads as not found, never as an empty-but-200 leak
         Assert.False(result.IsSuccess);
         Assert.Equal(JobErrors.NotFound.Code, result.Error.Code);
     }

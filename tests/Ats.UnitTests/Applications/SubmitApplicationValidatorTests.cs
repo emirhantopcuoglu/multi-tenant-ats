@@ -2,9 +2,7 @@ using Ats.Modules.Applications.Application.Applications;
 
 namespace Ats.UnitTests.Applications;
 
-// The validator is the one piece of the apply flow with no infrastructure dependency, so it is
-// the natural unit-test target. The handler's DB/storage orchestration is covered by the
-// Testcontainers integration tests.
+// The handler's database and storage work is covered by the integration tests.
 public class SubmitApplicationValidatorTests
 {
     private static SubmitApplicationCommand ValidCommand(

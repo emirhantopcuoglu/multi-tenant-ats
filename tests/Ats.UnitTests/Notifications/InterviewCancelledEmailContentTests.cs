@@ -5,12 +5,8 @@ using Ats.Shared.Kernel;
 
 namespace Ats.UnitTests.Notifications;
 
-// The cancellation email's closing sentence is the only part of the pipeline that answers the
-// question a candidate actually has — "is another invitation coming?" — so it gets its own tests
-// rather than riding along on a consumer integration test.
-//
-// The wording now comes from the resource files, so these run against the real provider: a test
-// against a stub would pass while the shipped JSON said something else entirely.
+// The closing sentence tells the candidate whether another invitation is coming. Uses the real
+// resource files, since a stub would pass whatever the JSON says.
 public class InterviewCancelledEmailContentTests
 {
     private static readonly IEmailTextProvider EmailText = new JsonEmailTextProvider();
@@ -79,9 +75,7 @@ public class InterviewCancelledEmailContentTests
     [Fact]
     public void A_turkish_candidate_should_not_receive_the_english_sentence()
     {
-        // The whole point of the change: the same reason must read differently per language. A
-        // resource file that forgot the Turkish entry would silently fall back to English, which is
-        // exactly the bug this feature exists to fix.
+        // A missing Turkish entry would silently fall back to English.
         var english = ClosingFor(
             nameof(InterviewCancellationReason.PositionClosed), SupportedLanguages.English);
         var turkish = ClosingFor(

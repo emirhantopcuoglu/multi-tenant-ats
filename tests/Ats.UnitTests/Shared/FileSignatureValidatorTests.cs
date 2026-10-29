@@ -31,7 +31,7 @@ public class FileSignatureValidatorTests
     [Fact]
     public void Validate_should_reject_an_executable_renamed_to_pdf()
     {
-        // Arrange: MZ is the DOS/PE header — an .exe disguised with a .pdf name and
+        // Arrange: MZ is the DOS/PE header, an .exe disguised with a .pdf name and
         // a forged "application/pdf" Content-Type.
         byte[] executableHeader = [0x4D, 0x5A, 0x90, 0x00];
 

@@ -2,13 +2,8 @@ using Ats.Modules.Applications.Domain;
 
 namespace Ats.UnitTests.Applications;
 
-// A tenant's candidate record is deduplicated by email, so the second application reuses the first
-// one's row. Until now that row's phone and LinkedIn were written once, at creation, and every later
-// application's form values were dropped — the recruiter kept dialling a number the candidate had
-// already replaced.
-//
-// The rule the update follows is the interesting half: a blank field means "nothing new", never
-// "erase what you have".
+// A returning candidate's phone and LinkedIn are updated; a blank field means "nothing new", not
+// "clear it".
 public class CandidateContactDetailsTests
 {
     [Fact]
@@ -29,9 +24,8 @@ public class CandidateContactDetailsTests
     [InlineData("   ")]
     public void A_blank_field_should_leave_the_stored_value_alone(string? blank)
     {
-        // The form's phone and LinkedIn inputs are optional, so an empty one cannot be told apart
-        // from a deliberate clear. Wiping a working number the recruiter is about to call is the
-        // worse of the two mistakes, so a blank field is treated as "no change".
+        // An empty optional field can't be told apart from a deliberate clear, and wiping a working number
+        // is the worse mistake.
         var candidate = Candidate.Create(
             "ada@acme.test", "Ada", "Applicant", "+90 555 000 0000", "https://linkedin.com/in/ada");
 

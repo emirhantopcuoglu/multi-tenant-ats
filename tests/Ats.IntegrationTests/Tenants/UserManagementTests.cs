@@ -50,14 +50,14 @@ public sealed class UserManagementTests : IAsyncLifetime
     [Fact]
     public async Task ChangeRole_should_replace_the_single_role()
     {
-        // Arrange — an admin acting on a recruiter
+        // Arrange: an admin acting on a recruiter
         var admin = await SeedUserAsync("admin@acme.test", Roles.Admin);
         var target = await SeedUserAsync("rec@acme.test", Roles.Recruiter);
 
         // Act
         var result = await Act(admin, s => s.ChangeRoleAsync(target, Roles.HiringManager));
 
-        // Assert — exactly one role, the new one
+        // Assert: exactly one role, the new one
         Assert.True(result.IsSuccess);
         Assert.Equal([Roles.HiringManager], await RolesOfAsync(target));
     }
@@ -79,7 +79,7 @@ public sealed class UserManagementTests : IAsyncLifetime
     public async Task ChangeRole_should_refuse_to_demote_the_last_admin()
     {
         // The tenant would be left with nobody who can manage users, invite anyone, or edit the
-        // company profile — unrecoverable from inside the product.
+        // company profile, unrecoverable from inside the product.
         var caller = ACallerWhoseRoleClaimIsStale();
         var soleAdmin = await SeedUserAsync("admin@acme.test", Roles.Admin);
         var recruiter = await SeedUserAsync("rec@acme.test", Roles.Recruiter);
@@ -110,7 +110,7 @@ public sealed class UserManagementTests : IAsyncLifetime
     public async Task A_deactivated_admin_should_not_count_towards_the_last_admin_check()
     {
         // A deactivated admin cannot sign in, so leaving one behind locks the tenant out just as
-        // effectively as having none — which is why the check filters on DeactivatedAtUtc.
+        // effectively as having none, which is why the check filters on DeactivatedAtUtc.
         var caller = ACallerWhoseRoleClaimIsStale();
         var remaining = await SeedUserAsync("admin@acme.test", Roles.Admin);
         var spare = await SeedUserAsync("spare@acme.test", Roles.Admin);
@@ -131,7 +131,7 @@ public sealed class UserManagementTests : IAsyncLifetime
         var admin = await SeedUserAsync("admin@acme.test", Roles.Admin);
         await SeedUserAsync("spare@acme.test", Roles.Admin);
 
-        // Not the last-admin rule — there is a spare. An Admin demoting themselves by accident is its
+        // Not the last-admin rule, there is a spare. An Admin demoting themselves by accident is its
         // own footgun, so it is refused regardless.
         var result = await Act(admin, s => s.ChangeRoleAsync(admin, Roles.ReadOnly));
 
@@ -171,10 +171,8 @@ public sealed class UserManagementTests : IAsyncLifetime
     [Fact]
     public async Task Deactivate_should_revoke_the_users_refresh_token_rows()
     {
-        // Asserted on the rows, not on "refresh now fails": AuthService.RefreshAsync also rejects an
-        // inactive user, so a behavioural assertion alone passes even with the revocation removed and
-        // would not notice it disappearing. The revocation is what makes the cutoff immediate rather
-        // than leaving live rows that only the second guard stops.
+        // Asserts on the rows: RefreshAsync also rejects inactive users, so a behavioural check would pass
+        // even without the revocation.
         var admin = await SeedUserAsync("admin@acme.test", Roles.Admin);
         await SeedUserAsync("rec@acme.test", Roles.Recruiter);
         await LoginAsync("rec@acme.test");
@@ -192,7 +190,7 @@ public sealed class UserManagementTests : IAsyncLifetime
     public async Task A_deactivated_user_should_not_be_able_to_refresh()
     {
         // End to end through the real flow. Note this passes on the revocation alone, so it does NOT
-        // cover the RefreshAsync guard — that is what the next test is for.
+        // cover the RefreshAsync guard, that is what the next test is for.
         var admin = await SeedUserAsync("admin@acme.test", Roles.Admin);
         await SeedUserAsync("rec@acme.test", Roles.Recruiter);
         var session = await LoginAsync("rec@acme.test");
@@ -208,14 +206,8 @@ public sealed class UserManagementTests : IAsyncLifetime
     [Fact]
     public async Task An_unrevoked_token_belonging_to_a_deactivated_user_should_still_be_refused()
     {
-        // Isolates AuthService.RefreshAsync's own inactive-user guard, which the test above cannot
-        // reach: deactivation revokes the rows first, so that path fails on the revocation and the
-        // guard is never consulted. Deleting the guard therefore broke nothing — the exact blind spot
-        // that already bit the revocation test, in mirror image.
-        //
-        // The flag is set straight in the database rather than through DeactivateAsync, which is the
-        // whole point: it reproduces a live row that escaped the sweep — a login racing the
-        // deactivation, or a row written before the sweep existed.
+        // Tests RefreshAsync's own inactive-user guard, which the test above can't reach. The flag is set
+        // in the database directly to mimic a token that escaped the revocation.
         await SeedUserAsync("rec@acme.test", Roles.Recruiter);
         var session = await LoginAsync("rec@acme.test");
         var target = await UserIdOfAsync("rec@acme.test");
@@ -229,7 +221,7 @@ public sealed class UserManagementTests : IAsyncLifetime
             await db.SaveChangesAsync();
         }
 
-        // The token is still active — nothing revoked it — so only the guard can refuse this.
+        // The token is still active, nothing revoked it, so only the guard can refuse this.
         Assert.Equal(1, await CountActiveRefreshTokensAsync(target));
 
         var refresh = await RefreshAsync(session.Value.RefreshToken);
@@ -340,12 +332,8 @@ public sealed class UserManagementTests : IAsyncLifetime
             NullLogger<UserManagementService>.Instance));
     }
 
-    // A caller id belonging to nobody. Needed to reach the last-admin guard at all: the endpoint's
-    // Admin policy means the caller is normally an active Admin, and since they cannot target
-    // themselves, excluding the target still leaves them — so the guard never fires through the happy
-    // path. It is still the right guard to have, because a role claim can be stale: an Admin demoted
-    // five minutes ago still carries Admin in their unexpired access token. These tests exercise the
-    // service directly, which is the layer that has to hold when the claim lies.
+    // A caller id that belongs to nobody, so the last-admin guard can be reached. The guard matters
+    // because a role claim can be stale until the token expires.
     private static Guid ACallerWhoseRoleClaimIsStale() => Guid.NewGuid();
 
     private async Task<Result<AuthResult>> LoginAsync(string email)
@@ -377,10 +365,7 @@ public sealed class UserManagementTests : IAsyncLifetime
             FirstName = email.Split('@')[0],
             LastName = "User",
             TenantId = _tenantId,
-            // These suites are about deactivation and password recovery, not email confirmation, so
-            // their users are seeded the way a real one looks after confirming. Without it the login
-            // guard added with company email confirmation refuses them and every assertion below is
-            // about the wrong thing.
+            // Seeded as confirmed, since these tests aren't about email confirmation and login requires it.
             EmailConfirmed = true,
             CreatedAtUtc = DateTime.UtcNow
         };
@@ -408,10 +393,7 @@ public sealed class UserManagementTests : IAsyncLifetime
             FirstName = "Out",
             LastName = "Sider",
             TenantId = otherTenant.Id,
-            // These suites are about deactivation and password recovery, not email confirmation, so
-            // their users are seeded the way a real one looks after confirming. Without it the login
-            // guard added with company email confirmation refuses them and every assertion below is
-            // about the wrong thing.
+            // Seeded as confirmed, since these tests aren't about email confirmation and login requires it.
             EmailConfirmed = true,
             CreatedAtUtc = DateTime.UtcNow
         };

@@ -9,19 +9,9 @@ using Microsoft.Extensions.Options;
 
 namespace Ats.IntegrationTests.CandidateAccounts;
 
-/* The counters are unit-tested in CandidateLockoutTests; what these pin is that the login path uses
-   them, and in the right order.
-
-   Two properties, from two different decisions, easy to conflate:
-
-     - the ANSWER a locked account gives is identical to a wrong password and to an unknown address,
-       so the response never confirms an account exists;
-     - the ORDER — lockout checked before the password — keeps a locked account from re-locking
-       itself on every further guess, which would make the lockout permanent.
-
-   Only Guessing_during_a_lockout_should_not_extend_it fails if the order is swapped. The others hold
-   either way, because both paths return the same error — worth knowing, so nobody reads them as
-   proof the ordering is covered. */
+/* Checks that login uses the lockout counters, and in the right order: a locked account gives the
+   same error as a wrong password, and the lockout is checked before the password. Only
+   Guessing_during_a_lockout_should_not_extend_it fails if that order is swapped. */
 [Collection("Integration")]
 public sealed class CandidateLoginLockoutTests
 {
@@ -58,9 +48,7 @@ public sealed class CandidateLoginLockoutTests
     [Fact]
     public async Task A_locked_account_should_answer_a_right_password_exactly_like_a_wrong_one()
     {
-        // If these two answers ever differ, a locked account becomes an oracle: an attacker learns
-        // which password is correct and comes back when the window closes. This is about the error
-        // value, not the ordering — see Guessing_during_a_lockout_should_not_extend_it for that.
+        // If these answers differed, a locked account would reveal the correct password.
         var email = await SeedAsync();
         for (var attempt = 0; attempt < MaxAttempts; attempt += 1)
             await LoginAsync(email, WrongPassword);
@@ -93,13 +81,8 @@ public sealed class CandidateLoginLockoutTests
     [Fact]
     public async Task Guessing_during_a_lockout_should_not_extend_it()
     {
-        // This is what the check-before-the-password ordering actually buys, and it is the only
-        // assertion here that fails if the two are swapped.
-        //
-        // Verify the password first and a locked account still runs RegisterFailedLogin on every
-        // wrong guess. Each new run that reaches the limit pushes LockoutEndsAtUtc further out, so an
-        // attacker who keeps hammering keeps the real owner locked out indefinitely — the temporary
-        // lockout becomes the permanent denial of service its expiry was designed to prevent.
+        // The only test that fails if the password is checked first: then every guess during a lockout
+        // would extend it, making it permanent.
         var email = await SeedAsync();
         for (var attempt = 0; attempt < MaxAttempts; attempt += 1)
             await LoginAsync(email, WrongPassword);

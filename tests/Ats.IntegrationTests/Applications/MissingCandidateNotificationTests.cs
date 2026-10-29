@@ -7,13 +7,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.IntegrationTests.Applications;
 
-// Move, reject and hire each load the candidate row to address the notification they send, and each
-// skips that notification when the row is gone. Skipping is right: the recruiter's decision stands
-// whether or not anyone can be told, and failing the command would strand the application.
-//
-// Doing it in silence was not. A candidate row can genuinely disappear — Candidate is soft-deletable
-// and an erasure removes it from every query while the application survives as the company's record
-// — and "I never heard back" left nothing in the logs to confirm or deny.
+// Move, reject and hire skip the notification when the candidate row is gone (soft-deleted). The
+// decision still stands; these check that the skip is logged.
 [Collection("Integration")]
 public sealed class MissingCandidateNotificationTests
 {
@@ -41,7 +36,7 @@ public sealed class MissingCandidateNotificationTests
         var result = await handler.Handle(
             new MoveApplicationStageCommand(application.Id, screening.Id), CancellationToken.None);
 
-        // The move succeeds and is committed — only the notification is skipped, and it says so.
+        // The move succeeds and is committed, only the notification is skipped, and it says so.
         Assert.True(result.IsSuccess);
         Assert.Empty(publisher.Published);
         Assert.True(logger.Warned("no longer exists"));
@@ -96,9 +91,7 @@ public sealed class MissingCandidateNotificationTests
     [Fact]
     public async Task The_ordinary_path_should_still_publish_and_stay_quiet()
     {
-        // Guards the obvious regression: a warning that fires when the candidate is present, or an
-        // else-branch wired the wrong way round, would make the three tests above pass for the
-        // wrong reason.
+        // Guards against a warning that also fires when the candidate exists.
         var tenant = new FixedTenant(Guid.NewGuid());
         var (_, application) = await SeedAsync(tenant, eraseCandidate: false);
         var publisher = new CapturingPublisher();

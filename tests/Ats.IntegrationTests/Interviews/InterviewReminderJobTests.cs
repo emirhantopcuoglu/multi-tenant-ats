@@ -8,13 +8,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Ats.IntegrationTests.Interviews;
 
-// The sweep against a real database, because the parts most likely to break are the ones an
-// in-memory fake would not have: the cross-tenant read (a background job has no ambient tenant, so
-// the global query filter matches nothing without an explicit bypass) and the fact that a settled
-// reminder is actually persisted as settled.
-//
-// Every test drives the job twice where it matters — the whole point of the design is that a second
-// run must not email anyone a second time.
+// Against a real database for the cross-tenant read and the persisted settled state. The job runs
+// twice where it matters: a second run must not send again.
 [Collection("Integration")]
 public sealed class InterviewReminderJobTests
 {
@@ -30,7 +25,7 @@ public sealed class InterviewReminderJobTests
     [Fact]
     public async Task should_publish_the_day_before_reminder_once_it_falls_due()
     {
-        // Arrange — an interview two days out whose day-before reminder has just come due. The
+        // Arrange: an interview two days out whose day-before reminder has just come due. The
         // starting-soon one is still a day and a half away.
         var tenant = new FixedTenant(Guid.NewGuid());
         var application = SomeApplication();
@@ -77,9 +72,7 @@ public sealed class InterviewReminderJobTests
     [Fact]
     public async Task should_send_only_the_starting_soon_reminder_when_both_fell_due()
     {
-        // A sweep that has not run for a while — after a restart, say — finds both owed. Only the
-        // later one is still true; "your interview is tomorrow" ten minutes before it starts reads
-        // as a broken system. The day-before one is settled without being sent.
+        // After a long pause both are due; only the starting-soon one is sent.
         var tenant = new FixedTenant(Guid.NewGuid());
         var application = SomeApplication();
         var interviewId = await SeedAsync(
@@ -152,9 +145,7 @@ public sealed class InterviewReminderJobTests
         Assert.NotNull(stored.StartingSoonReminderDueAtUtc);
     }
 
-    // The job resolves its own tenant scope from the interview rows, so it is deliberately run
-    // through a context whose ambient tenant is a different one — if the cross-tenant bypass were
-    // missing, every test above would find nothing and pass for the wrong reason.
+    // Run under a different ambient tenant, so a missing filter bypass would make every test find nothing.
     private async Task RunSweepAsync(
         ApplicationForScheduling? application, CapturingPublisher publisher)
     {
@@ -169,10 +160,7 @@ public sealed class InterviewReminderJobTests
         await job.SendDueRemindersAsync();
     }
 
-    // The flags drag a due instant into the past without moving the interview itself, which is the
-    // only way to observe a due reminder without waiting a day for one. Written straight to the
-    // columns: the domain offers no "pretend this came due", and it should not — that is a test
-    // concern, not a business operation.
+    // Moves the due time into the past directly in the columns; the domain has no such operation.
     private async Task<Guid> SeedAsync(
         FixedTenant tenant, Guid applicationId, DateTime scheduledAtUtc,
         bool dayBeforeIsDue = false, bool startingSoonIsDue = false)

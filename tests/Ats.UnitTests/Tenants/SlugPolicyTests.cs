@@ -42,7 +42,7 @@ public class SlugPolicyTests
     [InlineData("hangfire")]
     [InlineData("public")]
     // Recovery pages. A tenant that claimed one of these would shadow the page its own admins need to
-    // get back into the product — and the mailed link would land on a careers page instead.
+    // get back into the product, and the mailed link would land on a careers page instead.
     [InlineData("forgot-password")]
     [InlineData("reset-password")]
     public void Validate_should_reject_a_reserved_route_prefix(string slug)

@@ -22,7 +22,7 @@ public sealed class MoveApplicationStageTests
     [Fact]
     public async Task should_publish_enriched_stage_changed_event_on_move()
     {
-        // Arrange — a default pipeline with an application sitting at its initial stage
+        // Arrange: a default pipeline with an application sitting at its initial stage
         var tenant = new FixedTenant(Guid.NewGuid());
         var jobId = Guid.NewGuid();
         var candidateAccountId = Guid.NewGuid();
@@ -45,7 +45,7 @@ public sealed class MoveApplicationStageTests
         var screening = pipeline.Stages.Single(s => s.Name == "Screening");
         var publisher = new CapturingPublisher();
 
-        // Act — move Applied -> Screening
+        // Act: move Applied -> Screening
         await using var handlerDb = NewDb(tenant);
         var handler = new MoveApplicationStageHandler(
             handlerDb, publisher,
@@ -55,7 +55,7 @@ public sealed class MoveApplicationStageTests
         var result = await handler.Handle(
             new MoveApplicationStageCommand(application.Id, screening.Id), CancellationToken.None);
 
-        // Assert — one event, carrying everything a notification consumer needs: candidate
+        // Assert: one event, carrying everything a notification consumer needs: candidate
         // contact, job title and both stage names resolved to human-readable text
         Assert.True(result.IsSuccess);
         var published = Assert.Single(publisher.Published);
@@ -96,7 +96,7 @@ public sealed class MoveApplicationStageTests
 
         var publisher = new CapturingPublisher();
 
-        // Act — a stage id from nowhere
+        // Act: a stage id from nowhere
         await using var handlerDb = NewDb(tenant);
         var handler = new MoveApplicationStageHandler(
             handlerDb, publisher, new FakeJobDirectory(null), new NullCurrentUser(),
@@ -104,7 +104,7 @@ public sealed class MoveApplicationStageTests
         var result = await handler.Handle(
             new MoveApplicationStageCommand(application.Id, Guid.NewGuid()), CancellationToken.None);
 
-        // Assert — the command fails and no event leaks out for a move that never happened
+        // Assert: the command fails and no event leaks out for a move that never happened
         Assert.False(result.IsSuccess);
         Assert.Equal(ApplicationErrors.StageNotInPipeline.Code, result.Error.Code);
         Assert.Empty(publisher.Published);
@@ -115,9 +115,8 @@ public sealed class MoveApplicationStageTests
     [InlineData("Rejected")]
     public async Task should_refuse_terminal_stages_as_move_targets(string terminalStageName)
     {
-        // Arrange — terminal stages must be reached through the hire/reject decisions, never a
-        // plain move: a move leaves the status Active, which showed candidates "hired"/"rejected"
-        // timelines for applications that were still fully in play.
+        // Arrange: terminal stages are only reachable through hire/reject; a plain move leaves the status
+        // Active.
         var tenant = new FixedTenant(Guid.NewGuid());
         var jobId = Guid.NewGuid();
 
@@ -138,7 +137,7 @@ public sealed class MoveApplicationStageTests
         var terminalStage = pipeline.Stages.Single(s => s.Name == terminalStageName);
         var publisher = new CapturingPublisher();
 
-        // Act — try to move straight into the terminal stage
+        // Act: try to move straight into the terminal stage
         await using var handlerDb = NewDb(tenant);
         var handler = new MoveApplicationStageHandler(
             handlerDb, publisher, new FakeJobDirectory(null), new NullCurrentUser(),
@@ -146,7 +145,7 @@ public sealed class MoveApplicationStageTests
         var result = await handler.Handle(
             new MoveApplicationStageCommand(application.Id, terminalStage.Id), CancellationToken.None);
 
-        // Assert — refused, nothing published, and the application did not move
+        // Assert: refused, nothing published, and the application did not move
         Assert.False(result.IsSuccess);
         Assert.Equal(ApplicationErrors.TerminalStageRequiresDecision.Code, result.Error.Code);
         Assert.Empty(publisher.Published);
@@ -160,7 +159,7 @@ public sealed class MoveApplicationStageTests
     [Fact]
     public async Task should_refuse_a_backward_move()
     {
-        // Arrange — an application already past Applied, sitting in Interview
+        // Arrange: an application already past Applied, sitting in Interview
         var tenant = new FixedTenant(Guid.NewGuid());
         var jobId = Guid.NewGuid();
 
@@ -182,7 +181,7 @@ public sealed class MoveApplicationStageTests
         var applied = pipeline.Stages.Single(s => s.Name == "Applied");
         var publisher = new CapturingPublisher();
 
-        // Act — try to move it back to Applied
+        // Act: try to move it back to Applied
         await using var handlerDb = NewDb(tenant);
         var handler = new MoveApplicationStageHandler(
             handlerDb, publisher, new FakeJobDirectory(null), new NullCurrentUser(),
@@ -190,7 +189,7 @@ public sealed class MoveApplicationStageTests
         var result = await handler.Handle(
             new MoveApplicationStageCommand(application.Id, applied.Id), CancellationToken.None);
 
-        // Assert — refused, nothing published, and the application stayed at Interview
+        // Assert: refused, nothing published, and the application stayed at Interview
         Assert.False(result.IsSuccess);
         Assert.Equal(ApplicationErrors.CannotMoveBackward.Code, result.Error.Code);
         Assert.Empty(publisher.Published);
@@ -223,7 +222,7 @@ public sealed class MoveApplicationStageTests
 
         var publisher = new CapturingPublisher();
 
-        // Act — "move" to the stage it's already in
+        // Act: "move" to the stage it's already in
         await using var handlerDb = NewDb(tenant);
         var handler = new MoveApplicationStageHandler(
             handlerDb, publisher, new FakeJobDirectory(null), new NullCurrentUser(),
@@ -240,7 +239,7 @@ public sealed class MoveApplicationStageTests
     [Fact]
     public async Task should_allow_skipping_ahead_to_a_later_stage()
     {
-        // Arrange — an application at Applied, its pipeline's very first stage
+        // Arrange: an application at Applied, its pipeline's very first stage
         var tenant = new FixedTenant(Guid.NewGuid());
         var jobId = Guid.NewGuid();
 
@@ -261,7 +260,7 @@ public sealed class MoveApplicationStageTests
         var offer = pipeline.Stages.Single(s => s.Name == "Offer");
         var publisher = new CapturingPublisher();
 
-        // Act — jump straight to Offer, skipping Screening and Interview
+        // Act: jump straight to Offer, skipping Screening and Interview
         await using var handlerDb = NewDb(tenant);
         var handler = new MoveApplicationStageHandler(
             handlerDb, publisher, new FakeJobDirectory(null), new NullCurrentUser(),
@@ -269,7 +268,7 @@ public sealed class MoveApplicationStageTests
         var result = await handler.Handle(
             new MoveApplicationStageCommand(application.Id, offer.Id), CancellationToken.None);
 
-        // Assert — a forward skip is a legitimate business decision, not a mistake, so it succeeds
+        // Assert: a forward skip is a legitimate business decision, not a mistake, so it succeeds
         Assert.True(result.IsSuccess);
         var published = Assert.Single(publisher.Published);
         Assert.IsType<ApplicationStageChangedEvent>(published);

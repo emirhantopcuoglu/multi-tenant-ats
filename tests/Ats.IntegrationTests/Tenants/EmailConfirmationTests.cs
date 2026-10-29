@@ -14,18 +14,13 @@ using Ats.Shared.Infrastructure;
 
 namespace Ats.IntegrationTests.Tenants;
 
-// Anyone could register a company with an address they did not own; the tenant and its slug were
-// created regardless. On this side the session itself waits for the address to be proven, because a
-// company user who can sign in can already invite colleagues and publish jobs — there is no single
-// consequential action to gate the way "apply" gates a candidate.
-//
-// Every test drives the token out of the actual mailed link. Identity's confirmation token is
-// stateless, so the mail is the only place it exists at all.
+// Company login waits for a confirmed email. Tokens come from the mailed link: Identity's token is
+// stateless, so the mail is the only place it exists.
 [Collection("Integration")]
 public sealed class EmailConfirmationTests
 {
     // Identity's default password rules are in force (Program.cs configures none), so this needs a
-    // digit, both cases and a symbol — the candidate side's length-only policy does not apply here.
+    // digit, both cases and a symbol, the candidate side's length-only policy does not apply here.
     private static readonly string Password = $"Aa1!{Guid.NewGuid():N}";
 
     private const string ConfirmBaseUrl = "http://localhost:5173/confirm-email";
@@ -48,7 +43,7 @@ public sealed class EmailConfirmationTests
 
         Assert.True(result.IsSuccess, result.IsFailure ? result.Error.Code + ": " + result.Error.Message : "");
 
-        // The tenant and the founding Admin exist — registration is not deferred, only the session is.
+        // The tenant and the founding Admin exist, registration is not deferred, only the session is.
         Assert.False(await IsConfirmedAsync(provider, email));
 
         var sent = Assert.Single(mail.Sent);
@@ -67,7 +62,7 @@ public sealed class EmailConfirmationTests
         var before = await LoginAsync(provider, email);
 
         // A distinct code from InvalidCredentials, which is safe because the password already verified
-        // — the caller has proved the account is theirs. The UI needs it to offer a resend.
+        // ,  the caller has proved the account is theirs. The UI needs it to offer a resend.
         Assert.True(before.IsFailure);
         Assert.Equal(AuthErrors.EmailNotConfirmed.Code, before.Error.Code);
 
@@ -96,9 +91,7 @@ public sealed class EmailConfirmationTests
     [Fact]
     public async Task confirming_twice_should_still_report_success()
     {
-        // A second click — a duplicate tab, a mail client prefetching links — must not tell someone
-        // their working account is broken. Identity's token is stateless, so "already done" is the only
-        // replay case that can be distinguished, and it is a success.
+        // A second click (duplicate tab, link prefetch) is a success.
         var mail = new RecordingEmailSender();
         await using var provider = BuildProvider();
         await RegisterAsync(provider, mail, NewEmail(), NewSlug());
@@ -148,7 +141,7 @@ public sealed class EmailConfirmationTests
     [Fact]
     public async Task resending_should_stay_silent_about_unknown_addresses()
     {
-        // Anonymous by necessity — whoever needs it cannot sign in — so it must not become a directory
+        // Anonymous by necessity, whoever needs it cannot sign in, so it must not become a directory
         // of who works here. Success and no mail, for both an unknown and an already-confirmed address.
         var mail = new RecordingEmailSender();
         await using var provider = BuildProvider();
@@ -188,14 +181,8 @@ public sealed class EmailConfirmationTests
     [Fact]
     public async Task an_invited_colleague_should_be_able_to_sign_in_without_confirming()
     {
-        // The invitation link was mailed to that exact address, so reaching acceptance already proves
-        // the mailbox is readable. Demanding a second proof would gate someone out of the workspace
-        // they were just invited to.
-        //
-        // Driven end to end through the real InviteAsync -> AcceptAsync -> LoginAsync path. An earlier
-        // version of this test created the user itself with EmailConfirmed = true and then asserted the
-        // login worked — which proved only that the test's own setup was consistent. Removing the flag
-        // from InvitationService broke nothing.
+        // The invite link already proved the address. Goes through the real InviteAsync → AcceptAsync →
+        // LoginAsync path; setting EmailConfirmed in the test would prove nothing.
         var mail = new RecordingEmailSender();
         await using var provider = BuildProvider();
         await EnsureAdminRoleAsync(provider);
@@ -227,9 +214,7 @@ public sealed class EmailConfirmationTests
     [Fact]
     public async Task a_failed_registration_should_not_leave_the_slug_taken()
     {
-        // The tenant used to be committed before the user existed, so a rejected password left an
-        // orphan tenant holding the slug — permanently unregisterable by anyone, including the person
-        // who had just failed.
+        // A rejected password must not leave a tenant holding the slug.
         await using var provider = BuildProvider();
         var mail = new RecordingEmailSender();
         var slug = NewSlug();
@@ -257,9 +242,7 @@ public sealed class EmailConfirmationTests
     // independent of each other's leftovers.
     private static string NewSlug() => $"acme-{Guid.NewGuid():N}"[..20];
 
-    // Every helper below awaits INSIDE the scope. Returning the Task and letting `using` dispose the
-    // scope first tears down the DbContext while the async work is still running — the whole suite
-    // failed with ObjectDisposedException before this was fixed.
+    // Helpers await inside the scope; returning the Task would dispose the DbContext mid-call.
     private static async Task<Result> RegisterAsync(
         ServiceProvider provider, IEmailSender mail, string email, string slug, string? password = null)
     {
@@ -270,9 +253,7 @@ public sealed class EmailConfirmationTests
             "Acme", slug, email, password ?? Password, "Ada", "Founder", SupportedLanguages.Default);
     }
 
-    // The app seeds roles at startup; a bare test ServiceProvider does not, and RegisterAsync assigns
-    // the founder to Admin — without this every registration fails with "Role ADMIN does not exist".
-    // Idempotent, and funnelled through the one helper that needs it.
+    // The app seeds roles at startup; this provider doesn't, and registration assigns Admin.
     private static async Task EnsureAdminRoleAsync(ServiceProvider provider)
     {
         using var scope = provider.CreateScope();
@@ -324,7 +305,7 @@ public sealed class EmailConfirmationTests
         return await db.Users.Where(u => u.Email == email).Select(u => u.EmailConfirmed).SingleAsync();
     }
 
-    // Invitations are tenant-scoped, so this one gets a tenant in scope — unlike the auth service,
+    // Invitations are tenant-scoped, so this one gets a tenant in scope, unlike the auth service,
     // whose endpoints are all anonymous and therefore run with none.
     private static InvitationService CreateInvitationService(
         IServiceScope scope, Guid tenantId, IEmailSender mail) =>
@@ -338,7 +319,7 @@ public sealed class EmailConfirmationTests
             mail,
             new JsonEmailTextProvider(),
             // No signed-in inviter in these tests, so the invitation falls back to the default
-            // language — which is the behaviour being relied on, not a gap in the setup.
+            // language, which is the behaviour being relied on, not a gap in the setup.
             new NullCurrentUser(),
             Options.Create(new InvitationOptions()));
 
@@ -364,9 +345,7 @@ public sealed class EmailConfirmationTests
             new JsonEmailTextProvider(),
             NullLogger<AuthService>.Instance);
 
-    // Mirrors Program.cs, including the dedicated confirmation provider: without registering it and
-    // pointing Tokens.EmailConfirmationTokenProvider at it, these tests would exercise the shared
-    // "Default" provider instead of the one production actually uses.
+    // Mirrors Program.cs, including the dedicated confirmation token provider.
     private ServiceProvider BuildProvider()
     {
         var services = new ServiceCollection();

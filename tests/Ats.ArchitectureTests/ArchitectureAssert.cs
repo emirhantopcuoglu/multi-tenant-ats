@@ -2,10 +2,7 @@ namespace Ats.ArchitectureTests;
 
 internal static class ArchitectureAssert
 {
-    /// <summary>
-    /// Fails with every offender listed at once. A boundary is usually crossed in several places by
-    /// the same change, and fixing them one failure per run is a waste of a build.
-    /// </summary>
+    /// <summary>Lists every offender at once instead of one per run.</summary>
     public static void NoViolations(string rule, IEnumerable<string> violations)
     {
         var offenders = violations.ToList();

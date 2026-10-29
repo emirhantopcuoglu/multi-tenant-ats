@@ -11,10 +11,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Ats.IntegrationTests.Applications;
 
-// An application owns its CV. The candidate may attach a file, or fall back on the one saved to
-// their account — but either way the document ends up as this application's own object, under this
-// tenant's prefix. Pointing at the account's key instead would look identical in the database and
-// break the day the candidate replaces or erases their CV, taking the recruiter's copy with it.
+// Either way the CV becomes this application's own object under this tenant. A pointer to the
+// account's key would break when the candidate replaces or deletes their CV.
 [Collection("Integration")]
 public sealed class SubmitApplicationCvSourceTests
 {
@@ -55,7 +53,7 @@ public sealed class SubmitApplicationCvSourceTests
         var (source, destination) = storage.Copied.Single();
         Assert.Equal(AccountCvKey, source);
 
-        // The destination is this tenant's object, and the stored application points at that copy —
+        // The destination is this tenant's object, and the stored application points at that copy , 
         // not at the account key it came from.
         Assert.StartsWith($"{tenantId}/", destination);
         Assert.Equal(destination, await ReadStoredCvKeyAsync(tenantId));

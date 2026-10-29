@@ -7,10 +7,7 @@ using Ats.Shared.Contracts.Applications;
 
 namespace Ats.IntegrationTests.Interviews;
 
-// Covers the double-booking guard end to end against a real Postgres, exercised through the
-// ScheduleInterviewHandler (the entry point recruiters actually use). The FakeApplicationDirectory
-// supplies the candidate/application mapping the guard needs; the interviews themselves are real
-// rows so the overlap query runs for real.
+// Double-booking guard against real Postgres, through ScheduleInterviewHandler.
 [Collection("Integration")]
 public sealed class InterviewConflictTests
 {
@@ -26,12 +23,12 @@ public sealed class InterviewConflictTests
     [Fact]
     public async Task should_reject_when_an_interviewer_already_has_an_overlapping_interview()
     {
-        // Arrange — X is booked 15:00–15:15
+        // Arrange: X is booked 15:00–15:15
         var tenant = new FixedTenant(Guid.NewGuid());
         var interviewer = Guid.NewGuid();
         await SeedInterviewAsync(tenant, BaseTime, durationMinutes: 15, [interviewer]);
 
-        // Act — try to book X again 14:45–15:15 (overlaps), different application/candidate
+        // Act: try to book X again 14:45–15:15 (overlaps), different application/candidate
         var result = await ScheduleAsync(
             tenant, start: BaseTime.AddMinutes(-15), durationMinutes: 30, interviewers: [interviewer]);
 
@@ -43,13 +40,13 @@ public sealed class InterviewConflictTests
     [Fact]
     public async Task should_reject_when_the_candidate_already_has_an_overlapping_interview()
     {
-        // Arrange — the candidate has one application with an interview at 15:00–15:15
+        // Arrange: the candidate has one application with an interview at 15:00–15:15
         var tenant = new FixedTenant(Guid.NewGuid());
         var candidateId = Guid.NewGuid();
         var existingApplicationId = Guid.NewGuid();
         await SeedInterviewAsync(tenant, BaseTime, durationMinutes: 15, [Guid.NewGuid()], existingApplicationId);
 
-        // Act — a second application for the SAME candidate, a different interviewer, overlapping time
+        // Act: a second application for the SAME candidate, a different interviewer, overlapping time
         var newApplicationId = Guid.NewGuid();
         var directory = new FakeApplicationDirectory(ActiveApplication(newApplicationId, candidateId));
         directory.ApplicationIdsByCandidate[candidateId] = [existingApplicationId, newApplicationId];
@@ -58,7 +55,7 @@ public sealed class InterviewConflictTests
             tenant, start: BaseTime, durationMinutes: 30, interviewers: [Guid.NewGuid()],
             applicationId: newApplicationId, directory: directory);
 
-        // Assert — no interviewer clash, but the candidate can't be in two interviews at once
+        // Assert: no interviewer clash, but the candidate can't be in two interviews at once
         Assert.False(result.IsSuccess);
         Assert.Equal(InterviewErrors.CandidateConflict.Code, result.Error.Code);
     }
@@ -66,12 +63,12 @@ public sealed class InterviewConflictTests
     [Fact]
     public async Task should_allow_a_back_to_back_interview_for_the_same_interviewer()
     {
-        // Arrange — X is booked 15:00–15:15
+        // Arrange: X is booked 15:00–15:15
         var tenant = new FixedTenant(Guid.NewGuid());
         var interviewer = Guid.NewGuid();
         await SeedInterviewAsync(tenant, BaseTime, durationMinutes: 15, [interviewer]);
 
-        // Act — X again starting exactly at 15:15 (touching, not overlapping)
+        // Act: X again starting exactly at 15:15 (touching, not overlapping)
         var result = await ScheduleAsync(
             tenant, start: BaseTime.AddMinutes(15), durationMinutes: 30, interviewers: [interviewer]);
 
@@ -96,7 +93,7 @@ public sealed class InterviewConflictTests
     [Fact]
     public async Task should_ignore_a_cancelled_interview_when_checking_conflicts()
     {
-        // Arrange — X's overlapping interview exists but is cancelled
+        // Arrange: X's overlapping interview exists but is cancelled
         var tenant = new FixedTenant(Guid.NewGuid());
         var interviewer = Guid.NewGuid();
         var existing = await SeedInterviewAsync(tenant, BaseTime, durationMinutes: 60, [interviewer]);
@@ -107,11 +104,11 @@ public sealed class InterviewConflictTests
             await db.SaveChangesAsync();
         }
 
-        // Act — same interviewer, overlapping time
+        // Act: same interviewer, overlapping time
         var result = await ScheduleAsync(
             tenant, start: BaseTime, durationMinutes: 30, interviewers: [interviewer]);
 
-        // Assert — a settled interview frees the slot
+        // Assert: a settled interview frees the slot
         Assert.True(result.IsSuccess);
     }
 

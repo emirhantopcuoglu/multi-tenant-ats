@@ -46,7 +46,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         var updated = await service.UpdateAsync(accountId, new UpdateCandidateProfileCommand(
             "Janet", "Roe", "+90 532 123 45 67", "Turkey", "Istanbul", birthDate));
 
-        // Assert — the write is visible both in the immediate result and on a fresh read
+        // Assert: the write is visible both in the immediate result and on a fresh read
         Assert.True(updated.IsSuccess);
         Assert.Equal("Janet", updated.Value.FirstName);
         Assert.Equal("+905321234567", updated.Value.PhoneNumber);
@@ -81,7 +81,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         var accountId = await SeedAccountAsync();
         var service = CreateService();
 
-        // Act — a real city, but not one belonging to the selected country
+        // Act: a real city, but not one belonging to the selected country
         var result = await service.UpdateAsync(accountId, new UpdateCandidateProfileCommand(
             "Jane", "Doe", null, "Germany", "Istanbul", null));
 
@@ -97,7 +97,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         var accountId = await SeedAccountAsync();
         var service = CreateService();
 
-        // Act — an invalid phone trips the domain guard, which must surface as a result, not a throw
+        // Act: an invalid phone trips the domain guard, which must surface as a result, not a throw
         var result = await service.UpdateAsync(accountId, new UpdateCandidateProfileCommand(
             "Jane", "Doe", "not-a-phone", null, null, null));
 
@@ -117,7 +117,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         var result = await CreateService().ChangePasswordAsync(
             accountId, new ChangeCandidatePasswordCommand("Old!passw0rd", "New!passw0rd"));
 
-        // Assert — the new password verifies, the old one no longer does, and the stamp moved
+        // Assert: the new password verifies, the old one no longer does, and the stamp moved
         Assert.True(result.IsSuccess);
         var account = await LoadAccountAsync(accountId);
         var hasher = CreatePasswordHasher();
@@ -136,7 +136,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         var result = await CreateService().ChangePasswordAsync(
             accountId, new ChangeCandidatePasswordCommand("Old!passw0rd", "New!passw0rd"));
 
-        // Assert — without this the candidate's own session would die with the rotated stamp
+        // Assert: without this the candidate's own session would die with the rotated stamp
         var token = new JwtSecurityTokenHandler().ReadJwtToken(result.Value.AccessToken);
         var tokenStamp = token.Claims.Single(c => c.Type == CandidateClaims.SecurityStamp).Value;
         var account = await LoadAccountAsync(accountId);
@@ -154,7 +154,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         var result = await CreateService().ChangePasswordAsync(
             accountId, new ChangeCandidatePasswordCommand("not-the-password", "New!passw0rd"));
 
-        // Assert — a failed attempt must not log the real owner's sessions out
+        // Assert: a failed attempt must not log the real owner's sessions out
         Assert.True(result.IsFailure);
         Assert.Equal(CandidateProfileErrors.InvalidCurrentPassword.Code, result.Error.Code);
         var account = await LoadAccountAsync(accountId);
@@ -188,7 +188,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         var result = await CreateService(emailSender).ChangePasswordAsync(
             accountId, new ChangeCandidatePasswordCommand("Old!passw0rd", "New!passw0rd"));
 
-        // Assert — the owner must learn about a change they did not make
+        // Assert: the owner must learn about a change they did not make
         Assert.True(result.IsSuccess);
         var sent = Assert.Single(emailSender.Sent);
         Assert.Equal("jane@example.com", sent.ToEmail);
@@ -197,7 +197,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
     [Fact]
     public async Task Security_stamp_handler_should_reject_tokens_issued_before_a_password_change()
     {
-        // Arrange — a principal built from the stamp as it was BEFORE the change, i.e. an old token
+        // Arrange: a principal built from the stamp as it was BEFORE the change, i.e. an old token
         var accountId = await SeedAccountAsync("Old!passw0rd");
         var staleStamp = (await LoadAccountAsync(accountId)).SecurityStamp;
         await CreateService().ChangePasswordAsync(
@@ -208,7 +208,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         var freshStamp = (await LoadAccountAsync(accountId)).SecurityStamp;
         var freshResult = await RunStampHandlerAsync(accountId, freshStamp);
 
-        // Assert — the pre-change token is dead, a token with the current stamp still works
+        // Assert: the pre-change token is dead, a token with the current stamp still works
         Assert.False(staleResult);
         Assert.True(freshResult);
     }
@@ -224,7 +224,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         var result = await CreateService(emailSender).RequestEmailChangeAsync(
             accountId, new RequestCandidateEmailChangeCommand("new@example.com", "Old!passw0rd"));
 
-        // Assert — the mail goes to the address being claimed, and the raw token from the link is
+        // Assert: the mail goes to the address being claimed, and the raw token from the link is
         // nowhere in the database (only its hash is)
         Assert.True(result.IsSuccess);
         var sent = Assert.Single(emailSender.Sent);
@@ -249,7 +249,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         var result = await CreateService(emailSender).RequestEmailChangeAsync(
             accountId, new RequestCandidateEmailChangeCommand("new@example.com", "not-the-password"));
 
-        // Assert — no row, no mail: a stolen token alone must not start the flow
+        // Assert: no row, no mail: a stolen token alone must not start the flow
         Assert.True(result.IsFailure);
         Assert.Equal(CandidateProfileErrors.InvalidCurrentPassword.Code, result.Error.Code);
         Assert.Empty(emailSender.Sent);
@@ -277,7 +277,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
     [Fact]
     public async Task RequestEmailChange_should_reject_an_email_already_registered_to_another_account()
     {
-        // Arrange — a second account already owns the coveted address
+        // Arrange: a second account already owns the coveted address
         var accountId = await SeedAccountAsync("Old!passw0rd");
         await SeedAccountAsync(email: "taken@example.com");
 
@@ -293,7 +293,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
     [Fact]
     public async Task ConfirmEmailChange_should_apply_the_change_and_notify_the_old_address()
     {
-        // Arrange — full round trip: request, then confirm with the token from the mailed link
+        // Arrange: full round trip: request, then confirm with the token from the mailed link
         var accountId = await SeedAccountAsync("Old!passw0rd");
         var stampBefore = (await LoadAccountAsync(accountId)).SecurityStamp;
         var emailSender = new RecordingEmailSender();
@@ -305,7 +305,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         // Act
         var result = await service.ConfirmEmailChangeAsync(rawToken);
 
-        // Assert — email swapped, stamp rotated (all sessions dead), old mailbox tipped off
+        // Assert: email swapped, stamp rotated (all sessions dead), old mailbox tipped off
         Assert.True(result.IsSuccess);
         var account = await LoadAccountAsync(accountId);
         Assert.Equal("new@example.com", account.Email);
@@ -325,7 +325,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         var rawToken = ExtractToken(emailSender.Sent.Single().Body);
         await service.ConfirmEmailChangeAsync(rawToken);
 
-        // Act — the same link clicked a second time
+        // Act: the same link clicked a second time
         var result = await service.ConfirmEmailChangeAsync(rawToken);
 
         // Assert
@@ -347,7 +347,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
     [Fact]
     public async Task ConfirmEmailChange_should_reject_an_expired_token()
     {
-        // Arrange — backdate the expiry directly in the database; the clock cannot be faked here
+        // Arrange: backdate the expiry directly in the database; the clock cannot be faked here
         var accountId = await SeedAccountAsync("Old!passw0rd");
         var emailSender = new RecordingEmailSender();
         var service = CreateService(emailSender);
@@ -360,9 +360,8 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
                 "UPDATE candidate_accounts.\"EmailChangeRequests\" SET \"ExpiresAtUtc\" = now() at time zone 'utc' - interval '1 minute'");
         }
 
-        // Act — a FRESH service, as in production where request and confirm are separate HTTP
-        // requests: the requesting service's change tracker still holds the row with the original
-        // expiry and would mask the SQL backdate above.
+        // Act: a new service, as with separate requests in production. The old change tracker would hide the
+        // backdated expiry.
         var result = await CreateService().ConfirmEmailChangeAsync(rawToken);
 
         // Assert
@@ -373,7 +372,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
     [Fact]
     public async Task ConfirmEmailChange_should_reject_when_the_address_was_registered_meanwhile()
     {
-        // Arrange — someone registers the coveted address inside the one-hour window
+        // Arrange: someone registers the coveted address inside the one-hour window
         var accountId = await SeedAccountAsync("Old!passw0rd");
         var emailSender = new RecordingEmailSender();
         var service = CreateService(emailSender);
@@ -385,7 +384,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         // Act
         var result = await service.ConfirmEmailChangeAsync(rawToken);
 
-        // Assert — the account keeps its old login identity
+        // Assert: the account keeps its old login identity
         Assert.True(result.IsFailure);
         Assert.Equal(CandidateProfileErrors.EmailAlreadyRegistered.Code, result.Error.Code);
         Assert.Equal("jane@example.com", (await LoadAccountAsync(accountId)).Email);
@@ -394,7 +393,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
     [Fact]
     public async Task A_second_request_should_supersede_the_first_one()
     {
-        // Arrange — the candidate typo'd the address, then requested again with the right one
+        // Arrange: the candidate typo'd the address, then requested again with the right one
         var accountId = await SeedAccountAsync("Old!passw0rd");
         var emailSender = new RecordingEmailSender();
         var service = CreateService(emailSender);
@@ -409,14 +408,14 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         var firstResult = await service.ConfirmEmailChangeAsync(firstToken);
         var secondResult = await service.ConfirmEmailChangeAsync(secondToken);
 
-        // Assert — only the latest mailed link may ever work
+        // Assert: only the latest mailed link may ever work
         Assert.True(firstResult.IsFailure);
         Assert.True(secondResult.IsSuccess);
         Assert.Equal("right@example.com", (await LoadAccountAsync(accountId)).Email);
     }
 
     // The raw token exists only inside the mailed link; tests recover it the same way a candidate
-    // would — by reading the mail.
+    // would, by reading the mail.
     private static string ExtractToken(string mailBody)
     {
         var match = System.Text.RegularExpressions.Regex.Match(mailBody, @"token=([A-Za-z0-9_\-]+)");

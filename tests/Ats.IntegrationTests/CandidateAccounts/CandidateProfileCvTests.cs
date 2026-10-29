@@ -12,9 +12,7 @@ using Microsoft.Extensions.Options;
 
 namespace Ats.IntegrationTests.CandidateAccounts;
 
-// The CV lives in two places that have to stay in step: a row in Postgres and an object in storage.
-// Every test here is about the pair, because each half looks fine on its own while the other is
-// wrong — a row pointing at a deleted object, or an object no row will ever name again.
+// The row and the storage object must stay in step; each test checks both.
 [Collection("Integration")]
 public sealed class CandidateProfileCvTests : IAsyncLifetime
 {
@@ -83,7 +81,7 @@ public sealed class CandidateProfileCvTests : IAsyncLifetime
         // Act
         await CreateService(storage).UploadCvAsync(accountId, CvCommand("new.pdf"));
 
-        // Assert — the displaced object is gone, the current one is untouched
+        // Assert: the displaced object is gone, the current one is untouched
         var secondKey = await ReadCvFileKeyAsync(accountId);
         Assert.NotEqual(firstKey, secondKey);
         Assert.Equal(firstKey, storage.Deleted.Single());

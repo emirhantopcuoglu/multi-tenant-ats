@@ -56,7 +56,7 @@ public sealed class PasswordResetTests : IAsyncLifetime
         using var scope = provider.CreateScope();
         var result = await CreateAuthService(scope, mail).RequestPasswordResetAsync(Email);
 
-        // Assert — one mail carrying a link to the SPA reset page
+        // Assert: one mail carrying a link to the SPA reset page
         Assert.True(result.IsSuccess);
         var sent = Assert.Single(mail.Sent);
         Assert.Equal(Email, sent.ToEmail);
@@ -98,10 +98,7 @@ public sealed class PasswordResetTests : IAsyncLifetime
     [Fact]
     public async Task Reset_should_revoke_the_users_refresh_tokens()
     {
-        // The reason this method revokes by hand. Company access tokens carry no security stamp and
-        // nothing validates one, so — unlike the candidate side, where rotating the stamp kills
-        // sessions automatically — a reset would otherwise leave a stolen refresh token good for its
-        // full RefreshTokenDays. Resetting a compromised password has to end the thief's session.
+        // Company tokens have no security stamp, so the reset must revoke refresh tokens explicitly.
         await SeedUserAsync();
         var login = await LoginAsync();
         var (userId, token) = await RequestResetAsync();
@@ -136,7 +133,7 @@ public sealed class PasswordResetTests : IAsyncLifetime
     [Fact]
     public async Task A_reset_token_should_be_single_use()
     {
-        // Identity's token embeds the security stamp, which ResetPasswordAsync rotates — so the first
+        // Identity's token embeds the security stamp, which ResetPasswordAsync rotates, so the first
         // successful use invalidates the token with no consumed-flag of our own.
         await SeedUserAsync();
         var (userId, token) = await RequestResetAsync();
@@ -182,9 +179,7 @@ public sealed class PasswordResetTests : IAsyncLifetime
     [Fact]
     public async Task A_rejected_password_should_be_reported_separately_from_a_bad_token()
     {
-        // These must not answer the same way: a bad link is something the user cannot fix, a password
-        // that breaks the policy is. Collapsing both into "invalid link" would send someone hunting
-        // for a fresh email that cannot help them.
+        // A dead link and a rejected password need different errors: only the second is fixable here.
         await SeedUserAsync();
         var (userId, token) = await RequestResetAsync();
 
@@ -247,10 +242,7 @@ public sealed class PasswordResetTests : IAsyncLifetime
             FirstName = "Ada",
             LastName = "Admin",
             TenantId = tenant.Id,
-            // These suites are about deactivation and password recovery, not email confirmation, so
-            // their users are seeded the way a real one looks after confirming. Without it the login
-            // guard added with company email confirmation refuses them and every assertion below is
-            // about the wrong thing.
+            // Seeded as confirmed, since these tests aren't about email confirmation and login requires it.
             EmailConfirmed = true,
             CreatedAtUtc = DateTime.UtcNow
         };

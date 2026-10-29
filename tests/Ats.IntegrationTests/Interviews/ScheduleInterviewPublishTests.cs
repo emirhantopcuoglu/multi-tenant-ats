@@ -22,7 +22,7 @@ public sealed class ScheduleInterviewPublishTests
     [Fact]
     public async Task should_publish_interview_scheduled_event_without_recruiter_notes()
     {
-        // Arrange — an active application, as the Applications module would report it
+        // Arrange: an active application, as the Applications module would report it
         var tenant = new FixedTenant(Guid.NewGuid());
         var applicationId = Guid.NewGuid();
         var jobId = Guid.NewGuid();
@@ -44,9 +44,7 @@ public sealed class ScheduleInterviewPublishTests
                 [Guid.NewGuid()], Notes: "internal prep notes"),
             CancellationToken.None);
 
-        // Assert — the interview is persisted and exactly one event describes it. The event type
-        // has no Notes field at all, so the internal remark cannot leak by construction; this test
-        // pins the rest of the payload.
+        // Assert: saved, and exactly one event. The event type has no Notes field.
         Assert.True(result.IsSuccess);
         var published = Assert.Single(publisher.Published);
         var scheduled = Assert.IsType<InterviewScheduledEvent>(published);
@@ -71,7 +69,7 @@ public sealed class ScheduleInterviewPublishTests
     [Fact]
     public async Task should_not_publish_when_application_is_not_active()
     {
-        // Arrange — a settled application: scheduling must fail before anything is announced
+        // Arrange: a settled application: scheduling must fail before anything is announced
         var tenant = new FixedTenant(Guid.NewGuid());
         var applicationId = Guid.NewGuid();
         var directory = new FakeApplicationDirectory(new ApplicationForScheduling(

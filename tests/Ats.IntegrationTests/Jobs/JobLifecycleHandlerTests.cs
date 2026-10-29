@@ -44,7 +44,7 @@ public sealed class JobLifecycleHandlerTests
     [Fact]
     public async Task should_fail_to_publish_already_published_job()
     {
-        // Arrange — publish once successfully
+        // Arrange: publish once successfully
         var tenant = new FixedTenant(Guid.NewGuid());
         var jobId = await SeedDraftJobAsync(tenant);
 
@@ -52,12 +52,12 @@ public sealed class JobLifecycleHandlerTests
             PostgresContainerFixture.BuildJobsOptions(_fixture.ConnectionString, tenant), tenant);
         await new PublishJobHandler(db1).Handle(new PublishJobCommand(jobId), CancellationToken.None);
 
-        // Act — try to publish again
+        // Act: try to publish again
         await using var db2 = new JobsDbContext(
             PostgresContainerFixture.BuildJobsOptions(_fixture.ConnectionString, tenant), tenant);
         var result = await new PublishJobHandler(db2).Handle(new PublishJobCommand(jobId), CancellationToken.None);
 
-        // Assert — domain rule: only Draft can be published
+        // Assert: domain rule: only Draft can be published
         Assert.False(result.IsSuccess);
         Assert.Equal("job.invalid_operation", result.Error.Code);
     }
@@ -92,7 +92,7 @@ public sealed class JobLifecycleHandlerTests
     [Fact]
     public async Task should_archive_closed_job()
     {
-        // Arrange — drive the job to Closed state
+        // Arrange: drive the job to Closed state
         var tenant = new FixedTenant(Guid.NewGuid());
         var jobId = await SeedDraftJobAsync(tenant);
 

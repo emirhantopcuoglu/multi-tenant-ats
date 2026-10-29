@@ -59,7 +59,7 @@ public sealed class InterviewStageAdvancementTests
     public void FindTarget_should_do_nothing_when_the_pipeline_has_no_interview_type_stage()
     {
         // A pipeline that predates the Interview type backfill (or a hypothetical custom pipeline
-        // without one) must not throw — it simply has nothing to advance into.
+        // without one) must not throw, it simply has nothing to advance into.
         var pipeline = Pipeline.CreateDefault(Guid.NewGuid());
         var stagesWithoutInterviewType = pipeline.Stages
             .Where(s => s.Type != PipelineStageType.Interview)

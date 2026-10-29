@@ -21,7 +21,7 @@ public sealed class RejectApplicationTests
     [Fact]
     public async Task should_reject_and_park_in_final_rejected_stage()
     {
-        // Arrange — an active application sitting at the initial stage
+        // Arrange: an active application sitting at the initial stage
         var tenant = new FixedTenant(Guid.NewGuid());
         var jobId = Guid.NewGuid();
 
@@ -52,7 +52,7 @@ public sealed class RejectApplicationTests
         var result = await handler.Handle(
             new RejectApplicationCommand(application.Id, "Not a fit."), CancellationToken.None);
 
-        // Assert — the status and the stage tell the same story
+        // Assert: the status and the stage tell the same story
         Assert.True(result.IsSuccess);
 
         await using var assertDb = NewDb(tenant);

@@ -22,7 +22,7 @@ public sealed class ListCandidateInterviewsTests
     [Fact]
     public async Task should_return_only_the_calling_candidates_interviews_across_applications()
     {
-        // Arrange — two applications for the same candidate account, in different tenants, each with
+        // Arrange: two applications for the same candidate account, in different tenants, each with
         // an interview; a third application belonging to a different candidate must never show up.
         var candidateAccountId = Guid.NewGuid();
         var otherCandidateAccountId = Guid.NewGuid();
@@ -66,9 +66,8 @@ public sealed class ListCandidateInterviewsTests
         {
             new(Guid.NewGuid(), applicationA.Id, "Technical", scheduledAt, 60, "Scheduled", "token-a"),
             new(Guid.NewGuid(), applicationB.Id, "Final", scheduledAt.AddDays(1), 30, "Scheduled", "token-b"),
-            // Belongs to a different candidate's application — the handler must never fetch or
-            // surface this one, but the fake returns it unconditionally to prove that filtering
-            // happens before the interview lookup, not after.
+            // Another candidate's application. The fake returns it anyway, to prove the filtering happens
+            // before the interview lookup.
             new(Guid.NewGuid(), applicationOther.Id, "PhoneScreen", scheduledAt, 30, "Scheduled", "token-other"),
         };
 

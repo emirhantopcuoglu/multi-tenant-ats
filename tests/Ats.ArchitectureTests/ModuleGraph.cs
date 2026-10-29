@@ -2,9 +2,7 @@ using System.Reflection;
 
 namespace Ats.ArchitectureTests;
 
-/// <summary>
-/// The layers every module is split into, ordered from the centre outwards.
-/// </summary>
+/// <summary>Layers ordered from the centre outwards.</summary>
 internal enum Layer
 {
     Domain,
@@ -14,15 +12,9 @@ internal enum Layer
 }
 
 /// <summary>
-/// A reflection view over the compiled solution: which assembly belongs to which module and layer,
-/// and what each one actually depends on.
+/// Which assembly belongs to which module and layer, and what it really depends on. Uses compiled
+/// references, so an unused ProjectReference doesn't count.
 /// </summary>
-/// <remarks>
-/// Rules are written against compiled references rather than the .csproj files, so they measure real
-/// coupling: an unused ProjectReference is dropped by the compiler and stays invisible here. The
-/// trade-off is that a reference used only for an inlined constant can also disappear — rare enough
-/// to accept, and it would not be coupling worth failing a build over.
-/// </remarks>
 internal static class ModuleGraph
 {
     public const string Kernel = "Ats.Shared.Kernel";
@@ -35,9 +27,8 @@ internal static class ModuleGraph
     private const int ModuleSegment = 2;
     private const int LayerSegment = 3;
 
-    // Assemblies are read from the test output folder instead of AppDomain.CurrentDomain, because
-    // the runtime loads an assembly only once a type inside it is touched — a module no test happens
-    // to reference would silently escape every rule below.
+    // Read from the output folder: the runtime only loads an assembly once a type in it is used, so a
+    // module no test touches would otherwise escape every rule.
     private static readonly Lazy<IReadOnlyList<Assembly>> LoadedAssemblies = new(LoadFromOutputFolder);
 
     public static IReadOnlyList<Assembly> All => LoadedAssemblies.Value;

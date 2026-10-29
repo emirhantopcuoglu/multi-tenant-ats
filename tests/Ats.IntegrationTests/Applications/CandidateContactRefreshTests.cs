@@ -12,10 +12,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Ats.IntegrationTests.Applications;
 
-// The domain rule is unit-tested in CandidateContactDetailsTests; what these pin is that
-// SubmitApplicationHandler actually calls it. The bug was one of omission — the handler read
-// command.Phone and command.LinkedInUrl only on the branch that creates a candidate — so a test
-// that never goes through the handler would not have caught it.
+// The domain rule has unit tests; these check that SubmitApplicationHandler actually calls it for
+// a returning candidate.
 [Collection("Integration")]
 public sealed class CandidateContactRefreshTests
 {

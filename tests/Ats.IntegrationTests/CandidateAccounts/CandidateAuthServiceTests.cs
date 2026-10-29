@@ -42,11 +42,11 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
         // Arrange
         var service = CreateService();
 
-        // Act — register, then log in with the same credentials
+        // Act: register, then log in with the same credentials
         var register = await service.RegisterAsync("Jane@Example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
         var login = await service.LoginAsync("jane@example.com", "S3cret!pass");
 
-        // Assert — both hand back a token
+        // Assert: both hand back a token
         Assert.True(register.IsSuccess);
         Assert.False(string.IsNullOrWhiteSpace(register.Value.AccessToken));
         Assert.True(login.IsSuccess);
@@ -68,7 +68,7 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
         var service = CreateService();
         await service.RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
 
-        // Act — same email in different casing
+        // Act: same email in different casing
         var second = await service.RegisterAsync("JANE@example.com", "Another1!", "Jane", "Roe", SupportedLanguages.Default);
 
         // Assert
@@ -87,7 +87,7 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
         var wrongPassword = await service.LoginAsync("jane@example.com", "not-the-password");
         var unknownEmail = await service.LoginAsync("nobody@example.com", "S3cret!pass");
 
-        // Assert — same opaque error either way, so registration status never leaks
+        // Assert: same opaque error either way, so registration status never leaks
         Assert.Equal(CandidateAuthErrors.InvalidCredentials.Code, wrongPassword.Error.Code);
         Assert.Equal(CandidateAuthErrors.InvalidCredentials.Code, unknownEmail.Error.Code);
     }
@@ -95,7 +95,7 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
     [Fact]
     public async Task Register_should_reject_a_password_below_the_minimum_length()
     {
-        // The frontend enforces the same minimum via zod, but that is UX only — the server is the
+        // The frontend enforces the same minimum via zod, but that is UX only, the server is the
         // boundary that must hold against a raw HTTP client.
         var service = CreateService();
 
@@ -115,7 +115,7 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
         var register = await service.RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
         var token = new JwtSecurityTokenHandler().ReadJwtToken(register.Value.AccessToken);
 
-        // Assert — the discriminator that keeps the two identities apart is present...
+        // Assert: the discriminator that keeps the two identities apart is present...
         Assert.Equal(TokenTypes.Candidate, token.Claims.Single(c => c.Type == TokenTypes.ClaimName).Value);
         // ...and the company-side claims that role/tenant gating relies on are absent
         Assert.DoesNotContain(token.Claims, c => c.Type == "tenant_id");
@@ -137,13 +137,13 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
     [Fact]
     public async Task Refresh_should_exchange_a_valid_token_for_a_new_pair()
     {
-        // Arrange — a live session
+        // Arrange: a live session
         var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
 
-        // Act — redeem the refresh token on a fresh scope, the way the SPA's retry does
+        // Act: redeem the refresh token on a fresh scope, the way the SPA's retry does
         var refresh = await CreateService().RefreshAsync(register.Value.RefreshToken);
 
-        // Assert — a usable pair, and rotated: the refresh half is not the one presented
+        // Assert: a usable pair, and rotated: the refresh half is not the one presented
         Assert.True(refresh.IsSuccess);
         Assert.False(string.IsNullOrWhiteSpace(refresh.Value.AccessToken));
         Assert.NotEqual(register.Value.RefreshToken, refresh.Value.RefreshToken);
@@ -166,7 +166,7 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
     [Fact]
     public async Task The_rotated_successor_should_itself_be_redeemable()
     {
-        // Guards against a rotation that revokes the old token but stores its replacement wrong —
+        // Guards against a rotation that revokes the old token but stores its replacement wrong , 
         // which would strand the candidate one refresh later instead of at fifteen minutes.
         var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
         var first = await CreateService().RefreshAsync(register.Value.RefreshToken);
@@ -180,10 +180,8 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
     [Fact]
     public async Task Refresh_should_fail_for_a_token_issued_before_a_password_change()
     {
-        // The reason CandidateRefreshToken carries the security stamp at all. A password change
-        // rotates the stamp, which kills live access tokens; if the refresh token survived it, whoever
-        // holds it could mint a fresh access token under the NEW stamp and sail straight through the
-        // change the owner made to lock them out.
+        // Why refresh tokens carry the stamp: otherwise a stolen refresh token would outlive a password
+        // change.
         var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
         var accountId = SubjectOf(register.Value.AccessToken);
 
@@ -249,9 +247,7 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
             AccessTokenMinutes = 15
         }));
 
-        // The issuer shares this exact DbContext, not a second one: the refresh path stages a
-        // revocation and then has the issuer save it alongside the replacement row, so the two must
-        // be in the same change tracker to commit together.
+        // The issuer must share this DbContext so the revocation and the new row save together.
         var sessions = new CandidateSessionIssuer(db, tokenService, CandidateJwtTestOptions);
 
         return new CandidateAuthService(

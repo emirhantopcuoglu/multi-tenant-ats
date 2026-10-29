@@ -60,7 +60,7 @@ public class CandidateAccountPasswordTests
     [InlineData(null)]
     public void ChangePassword_should_keep_the_current_state_when_rejecting(string? newPasswordHash)
     {
-        // A failed guard must leave the aggregate untouched — otherwise a rejected change could
+        // A failed guard must leave the aggregate untouched, otherwise a rejected change could
         // still log every session out by rotating the stamp.
         var account = CreateAccount();
         var stampBeforeChange = account.SecurityStamp;

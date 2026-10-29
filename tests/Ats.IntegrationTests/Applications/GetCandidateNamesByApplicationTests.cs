@@ -18,7 +18,7 @@ public sealed class GetCandidateNamesByApplicationTests
     [Fact]
     public async Task should_resolve_candidate_names_for_known_applications_only()
     {
-        // Arrange — a candidate with one application
+        // Arrange: a candidate with one application
         var tenant = new FixedTenant(Guid.NewGuid());
         await using var writeDb = new ApplicationsDbContext(
             PostgresContainerFixture.BuildApplicationsOptions(_fixture.ConnectionString, tenant), tenant);
@@ -31,14 +31,14 @@ public sealed class GetCandidateNamesByApplicationTests
         writeDb.Applications.Add(application);
         await writeDb.SaveChangesAsync();
 
-        // Act — ask for the known id plus an unknown one
+        // Act: ask for the known id plus an unknown one
         await using var readDb = new ApplicationsDbContext(
             PostgresContainerFixture.BuildApplicationsOptions(_fixture.ConnectionString, tenant), tenant);
         var unknownId = Guid.NewGuid();
         var names = await new ApplicationDirectory(readDb, new FakeJobDirectory(null))
             .GetCandidateNamesByApplicationAsync(new[] { application.Id, unknownId });
 
-        // Assert — the known application resolves to the full name; the unknown id is absent
+        // Assert: the known application resolves to the full name; the unknown id is absent
         Assert.Equal("Jane Doe", names[application.Id]);
         Assert.False(names.ContainsKey(unknownId));
     }

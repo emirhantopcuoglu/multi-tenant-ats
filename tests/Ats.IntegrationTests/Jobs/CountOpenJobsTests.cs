@@ -18,7 +18,7 @@ public sealed class CountOpenJobsTests
     [Fact]
     public async Task should_count_only_published_jobs_scoped_to_tenant()
     {
-        // Arrange — target tenant: two published + one draft; another tenant has a published job that
+        // Arrange: target tenant: two published + one draft; another tenant has a published job that
         // must not be counted. Each test uses a fresh tenant id, so the query filter isolates it.
         var tenant = new FixedTenant(Guid.NewGuid());
         await using (var db = NewDb(tenant))
@@ -42,7 +42,7 @@ public sealed class CountOpenJobsTests
         await using var readDb = NewDb(tenant);
         var count = await new JobDirectory(readDb).CountOpenJobsAsync();
 
-        // Assert — only the two published jobs in the target tenant
+        // Assert: only the two published jobs in the target tenant
         Assert.Equal(2, count);
     }
 

@@ -5,10 +5,7 @@ using Ats.Modules.Jobs.Infrastructure;
 
 namespace Ats.IntegrationTests.Jobs;
 
-// Covers the cross-module read the CV-parsing consumer depends on for job-fit analysis:
-// IJobDirectory.GetJobRequirementsAsync must return the job's title/description for the given
-// (tenantId, jobId) pair, scoped explicitly rather than through the ambient global filter (a
-// message consumer has no resolved ICurrentTenant, the same reasoning as TenantDirectoryTests).
+// GetJobRequirementsAsync for the CV parser, with the tenant passed explicitly.
 [Collection("Integration")]
 public sealed class JobDirectoryRequirementsTests
 {
@@ -62,7 +59,7 @@ public sealed class JobDirectoryRequirementsTests
             jobId = job.Id;
         }
 
-        // Act — a different tenant id entirely, as if a corrupted or malicious message claimed it
+        // Act: a different tenant id entirely, as if a corrupted or malicious message claimed it
         await using var readDb = NewDb(tenant);
         var requirements = await new JobDirectory(readDb).GetJobRequirementsAsync(Guid.NewGuid(), jobId);
 

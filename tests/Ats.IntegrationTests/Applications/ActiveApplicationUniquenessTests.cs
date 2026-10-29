@@ -16,13 +16,8 @@ using ApplicationEntity = Ats.Modules.Applications.Domain.Application;
 
 namespace Ats.IntegrationTests.Applications;
 
-// "One active application per (candidate, job)" used to live only in SubmitApplicationHandler, as a
-// read followed by an insert. Two submits that interleave between those two steps both pass the
-// read and both insert. Candidates already had the same rule enforced at the database for
-// (tenant, email); Applications now does too, through a partial unique index.
-//
-// These must run against real PostgreSQL: a partial index is the whole subject, and no in-memory
-// provider enforces one.
+// The partial unique index behind "one active application per (candidate, job)". Needs real
+// PostgreSQL: no in-memory provider enforces a partial index.
 [Collection("Integration")]
 public sealed class ActiveApplicationUniquenessTests
 {
@@ -52,9 +47,7 @@ public sealed class ActiveApplicationUniquenessTests
     [Fact]
     public async Task A_withdrawn_application_should_not_block_a_new_one()
     {
-        // The reason the index is partial. A candidate who withdrew, or was rejected, is free to
-        // apply again — a plain unique index on the three columns would lock them out for good, and
-        // would have made the withdrawal feature a trap rather than a courtesy.
+        // Why the index is partial: a withdrawn or rejected candidate may apply again.
         var tenant = new FixedTenant(Guid.NewGuid());
         var (jobId, candidateId, stageId) = await SeedAsync(tenant);
 
@@ -94,13 +87,8 @@ public sealed class ActiveApplicationUniquenessTests
     [Fact]
     public async Task A_submit_that_loses_the_race_should_be_refused_rather_than_crash()
     {
-        // The index alone would turn the loser's 200 into a 500 with a constraint name in it. The
-        // handler catches the failure and asks the database the same question its pre-check asked,
-        // so the loser gets the ordinary duplicate error.
-        //
-        // The race is made deterministic with an interceptor: the rival application is inserted on
-        // its own connection at the moment the handler calls SaveChanges — after its pre-check has
-        // already read "no application yet", which is exactly the window that used to be open.
+        // The handler turns the index violation into the ordinary duplicate error instead of a 500. An
+        // interceptor inserts the rival row right when the handler saves, after its pre-check passed.
         var tenantId = Guid.NewGuid();
         var tenant = new FixedTenant(tenantId);
         var email = $"{Guid.NewGuid():N}@acme.test";
@@ -160,7 +148,7 @@ public sealed class ActiveApplicationUniquenessTests
         Assert.Equal(ApplicationErrors.DuplicateApplication.Code, result.Error.Code);
 
         // Only the winner's row survives, and the loser's uploaded CV is cleaned up rather than left
-        // orphaned in the bucket — the same compensation the handler already did for other failures.
+        // orphaned in the bucket, the same compensation the handler already did for other failures.
         await using (var db = NewDb(tenant))
         {
             Assert.Equal(1, await db.Applications.CountAsync(a => a.CandidateId == candidateId));

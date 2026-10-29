@@ -72,7 +72,7 @@ public sealed class CandidateAccountReaderTests : IAsyncLifetime
     [Fact]
     public async Task Returns_null_for_an_unknown_id()
     {
-        // Arrange — no accounts in the table
+        // Arrange: no accounts in the table
         await using var db = CreateDb();
         var reader = new CandidateAccountReader(db);
 
