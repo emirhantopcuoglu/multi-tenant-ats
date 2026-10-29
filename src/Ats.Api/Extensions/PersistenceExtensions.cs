@@ -20,10 +20,7 @@ namespace Ats.Api.Extensions;
 
 public static class PersistenceExtensions
 {
-    // Every module's PostgreSQL DbContext, its module-specific Application DI, and the shared
-    // MongoDB stores. Kept as one method rather than one-per-module because none of these have an
-    // independent reason to change on their own — a new module always brings both a DbContext and
-    // its Add<Module>Application() call together.
+    // One method: a new module always adds a DbContext and its Application DI together.
     public static IHostApplicationBuilder AddPersistence(this IHostApplicationBuilder builder)
     {
         builder.Services.AddHttpContextAccessor();
@@ -85,17 +82,13 @@ public static class PersistenceExtensions
         builder.Services.AddScoped<IInterviewsDbContext>(sp => sp.GetRequiredService<InterviewsDbContext>());
         builder.Services.AddInterviewsApplication();
 
-        // Candidate accounts: the marketplace's global, tenant-less identity. Unlike every other
-        // context, this one takes no tenant/audit interceptors — its only entity is neither ITenantScoped
-        // nor IAuditable, so those interceptors would be inert.
+        // No tenant or audit interceptors: nothing here is ITenantScoped or IAuditable.
         builder.Services.AddDbContext<CandidateAccountsDbContext>(options =>
             options.UseNpgsql(
                 builder.Configuration.GetConnectionString("Postgres"),
                 npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "candidate_accounts")));
 
-        // In-app notifications. Like candidate accounts, no tenant/audit interceptors: a
-        // Notification row is addressed to a recipient — a global candidate account today, a company user
-        // later — and the recipient, not a tenant, is the ownership boundary its queries filter on.
+        // No tenant or audit interceptors: notifications are scoped to their recipient.
         builder.Services.AddDbContext<NotificationsDbContext>(options =>
             options.UseNpgsql(
                 builder.Configuration.GetConnectionString("Postgres"),
@@ -104,9 +97,8 @@ public static class PersistenceExtensions
         builder.Services.AddScoped<INotificationsDbContext>(sp => sp.GetRequiredService<NotificationsDbContext>());
         builder.Services.AddNotificationsApplication();
 
-        // MongoDB holds the append-only activity log. The driver's MongoClient is thread-safe
-        // and pools connections internally, so it is a singleton; the database handle is derived from it.
-        // The repository is scoped because it depends on the per-request ICurrentTenant for isolation.
+        // MongoClient is thread-safe and pooled, so it is a singleton. The repository is scoped because it
+        // uses ICurrentTenant.
         builder.Services.Configure<MongoOptions>(
             builder.Configuration.GetSection(MongoOptions.SectionName));
         builder.Services.AddSingleton<IMongoClient>(sp =>
@@ -121,13 +113,8 @@ public static class PersistenceExtensions
         });
         builder.Services.AddScoped<IActivityLogRepository, MongoActivityLogRepository>();
 
-        // CV parse results also live in MongoDB. Scoped like the activity log because the
-        // read path depends on the per-request ICurrentTenant; the write path (the CV-parsing consumer)
-        // passes the tenant explicitly, since it runs outside a resolved-tenant request.
         builder.Services.AddScoped<ICvParseResultRepository, MongoCvParseResultRepository>();
 
-        // Candidate full-text search. Backed by a PostgreSQL tsvector generated column on
-        // the Candidates table; the repository is scoped because the underlying DbContext is scoped.
         builder.Services.AddScoped<ICandidateSearchRepository, CandidateSearchRepository>();
 
         return builder;

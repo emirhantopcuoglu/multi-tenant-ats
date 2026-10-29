@@ -4,13 +4,8 @@ using Serilog.Events;
 
 namespace Ats.Api;
 
-// Applied when a log message uses the @ destructuring operator, e.g. Log.Information("{@Cmd}", cmd).
-// Any property whose name matches a known sensitive key is replaced with "[REDACTED]" before the
-// event is written to any sink, so passwords and tokens never reach Seq, the console, or files.
-//
-// The convention-based approach (trust named scalar parameters, avoid {@WholeObject} for sensitive
-// types) is the primary defense; this policy is a safety net for cases where someone logs an object
-// that happens to carry sensitive fields.
+// Masks sensitive property names when an object is logged with {@...}. A safety net; the main rule
+// is not to log such objects at all.
 public sealed class SensitiveDataMaskingPolicy : IDestructuringPolicy
 {
     private static readonly HashSet<string> SensitiveNames = new(StringComparer.OrdinalIgnoreCase)

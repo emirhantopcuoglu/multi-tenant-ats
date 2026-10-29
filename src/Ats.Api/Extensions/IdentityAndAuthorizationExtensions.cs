@@ -19,11 +19,8 @@ namespace Ats.Api.Extensions;
 
 public static class IdentityAndAuthorizationExtensions
 {
-    // Everything that decides who a request is and what it may do: ASP.NET Core Identity (company
-    // side), the candidate marketplace's parallel auth stack, the JWT bearer scheme both share, and
-    // the authorization policies/handlers controllers reference. Kept as one method because these
-    // pieces are not independent — the JWT scheme validates tokens both identities issue, and the
-    // CandidateOnly policy below depends on the candidate security-stamp handler registered here.
+    // Identity, the candidate auth stack, the shared JWT scheme and the policies. One method because
+    // they depend on each other.
     public static IHostApplicationBuilder AddIdentityAndAuthorization(this IHostApplicationBuilder builder)
     {
         builder.Services.Configure<JwtOptions>(
@@ -33,21 +30,14 @@ public static class IdentityAndAuthorizationExtensions
             .AddIdentityCore<ApplicationUser>()
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<TenantsDbContext>()
-            // Required for GeneratePasswordResetTokenAsync: without a registered "Default" token provider that
-            // call throws at runtime. The token is data-protection based (nothing stored) and embeds the user's
-            // security stamp, so resetting the password invalidates it — that is what makes it single-use.
+            // Needed by GeneratePasswordResetTokenAsync. The token embeds the security stamp, so it is single-use.
             .AddDefaultTokenProviders()
-            // Email confirmation gets its own provider so it can outlive the password-reset window configured
-            // below. DataProtectionTokenProviderOptions is a single global setting, and 60 minutes — correct for
-            // a token that is a full account takeover while it lives — would make the only route into a
-            // brand-new workspace expire while the founder is in a meeting. See EmailConfirmationTokenProvider.
+            // Own provider so confirmation links outlive the 60-minute reset window.
             .AddTokenProvider<EmailConfirmationTokenProvider<ApplicationUser>>(
                 EmailConfirmationTokenProviderOptions.ProviderName);
 
-        // Brute-force protection for both login forms. The per-IP rate limiter counts requests from an
-        // address, so it cannot see a distributed attack on one account — and FailOpenRateLimiter lets
-        // everything through when Redis is down, which would otherwise leave the login form unguarded. These
-        // counters live on the account instead. Shared with the candidate side so the two cannot drift.
+        // Lockout counters live on the account, so they also stop distributed attacks and still work when
+        // Redis is down.
         builder.Services.Configure<LoginLockoutOptions>(
             builder.Configuration.GetSection(LoginLockoutOptions.SectionName));
         var loginLockoutOptions = builder.Configuration
@@ -57,20 +47,15 @@ public static class IdentityAndAuthorizationExtensions
         {
             options.Tokens.EmailConfirmationTokenProvider = EmailConfirmationTokenProviderOptions.ProviderName;
 
-            // Identity owns the counters (AccessFailedCount/LockoutEnd) but enforces them through
-            // SignInManager, which this codebase does not use — AuthService calls CheckPasswordAsync
-            // directly, so it also calls AccessFailedAsync/IsLockedOutAsync itself. These options are what
-            // those calls read.
+            // Identity enforces these through SignInManager, which isn't used; AuthService calls the lockout
+            // methods itself.
             options.Lockout.MaxFailedAccessAttempts = loginLockoutOptions.MaxFailedAttempts;
             options.Lockout.DefaultLockoutTimeSpan = loginLockoutOptions.LockoutDuration;
-            // Without this a newly created user has LockoutEnabled = false and IsLockedOutAsync always
-            // answers false, so the counters would tick up against nothing.
+            // Otherwise new users have lockout disabled and the counters do nothing.
             options.Lockout.AllowedForNewUsers = true;
         });
 
-        // Tighten Identity's token lifespan from its 24-hour default. A reset token is a full account takeover
-        // for as long as it lives, and an hour covers "open inbox, click link" — the same window the candidate
-        // side's PasswordResetRequest uses. Read from the PasswordReset section so both agree on one number.
+        // Down from Identity's 24-hour default to match the candidate side.
         var passwordResetOptions = builder.Configuration
             .GetSection(PasswordResetOptions.SectionName).Get<PasswordResetOptions>() ?? new PasswordResetOptions();
 
@@ -84,18 +69,11 @@ public static class IdentityAndAuthorizationExtensions
         builder.Services.AddScoped<ITokenService, TokenService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<ITenantProfileService, TenantProfileService>();
-        // Administering people in a tenant, kept off IAuthService: that interface backs the anonymous login
-        // endpoints, and "change someone else's role" does not belong on the same surface.
         builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 
-        // The Tenants module's cross-module read port, consumed (e.g.) by the Jobs public feed to name the
-        // company behind each job without reaching into the Tenants schema.
         builder.Services.AddScoped<ITenantDirectory, TenantDirectory>();
 
-        // Candidate authentication. Binds the same "Jwt" section as the company side, so candidate and
-        // company tokens share one signing key and are validated by the one JWT bearer scheme; they are told
-        // apart only by the token_type claim. The password hasher is Identity's PBKDF2 hasher (stateless, so a
-        // singleton) adapted to a subject-less port.
+        // Same "Jwt" section as the company side, so both token types share one key and scheme.
         builder.Services.Configure<CandidateJwtOptions>(
             builder.Configuration.GetSection(CandidateJwtOptions.SectionName));
         builder.Services.Configure<CandidateEmailChangeOptions>(
@@ -109,16 +87,12 @@ public static class IdentityAndAuthorizationExtensions
         builder.Services.AddSingleton<IPasswordHasher<CandidateAccount>, PasswordHasher<CandidateAccount>>();
         builder.Services.AddScoped<ICandidatePasswordHasher, CandidatePasswordHasher>();
         builder.Services.AddScoped<ICandidateTokenService, CandidateTokenService>();
-        // Single owner of candidate session minting/storage, shared by the auth and profile services so a
-        // password change re-issues a session exactly the way login does.
+        // Shared by auth and profile so a password change issues a session the same way login does.
         builder.Services.AddScoped<ICandidateSessionIssuer, CandidateSessionIssuer>();
         builder.Services.AddScoped<ICandidateAuthService, CandidateAuthService>();
         builder.Services.AddScoped<ICandidateProfileService, CandidateProfileService>();
-        // Kept apart from the profile service: that one serves a signed-in candidate re-proving ownership with
-        // their current password, this one serves someone who cannot sign in and proves it via their mailbox.
         builder.Services.AddScoped<ICandidatePasswordResetService, CandidatePasswordResetService>();
-        // Proving the address on the account, as opposed to the two services above which change credentials.
-        // Registration calls it, so it must be registered before ICandidateAuthService can resolve.
+        // Registration uses it, so it is registered before ICandidateAuthService.
         builder.Services.AddScoped<ICandidateEmailVerificationService, CandidateEmailVerificationService>();
         builder.Services.AddScoped<ICandidateAccountLifecycleService, CandidateAccountLifecycleService>();
         builder.Services.AddScoped<ICandidateAccountReader, CandidateAccountReader>();
@@ -141,10 +115,7 @@ public static class IdentityAndAuthorizationExtensions
                 };
             });
 
-        // Policies map a capability to the roles that satisfy it. Controllers reference
-        // only the policy name (Policies.*); this composition root is the single place
-        // that knows which concrete roles (Roles.*) each capability requires. Management
-        // roles are a subset of the viewing roles by design.
+        // Controllers only know policy names; this is the one place that maps them to roles.
         builder.Services.AddAuthorization(options =>
         {
             options.AddPolicy(Policies.CanManageJobs, policy =>
@@ -156,8 +127,6 @@ public static class IdentityAndAuthorizationExtensions
             options.AddPolicy(Policies.CanManageUsers, policy =>
                 policy.RequireRole(Roles.Admin));
 
-            // Company-wide presentation (the public profile). Same trust level as managing users today,
-            // but a distinct policy: the two capabilities have no inherent reason to stay coupled.
             options.AddPolicy(Policies.CanManageTenant, policy =>
                 policy.RequireRole(Roles.Admin));
 
@@ -167,34 +136,27 @@ public static class IdentityAndAuthorizationExtensions
             options.AddPolicy(Policies.CanManageApplications, policy =>
                 policy.RequireRole(Roles.Admin, Roles.Recruiter));
 
-            // Hiring managers run interviews, so they can both view and schedule them — unlike applications,
-            // where managing is limited to Admin and Recruiter.
+            // Hiring managers run interviews, so they can manage them; applications are Admin and Recruiter only.
             options.AddPolicy(Policies.CanViewInterviews, policy =>
                 policy.RequireRole(Roles.Admin, Roles.Recruiter, Roles.HiringManager, Roles.ReadOnly));
 
             options.AddPolicy(Policies.CanManageInterviews, policy =>
                 policy.RequireRole(Roles.Admin, Roles.Recruiter, Roles.HiringManager));
 
-            // Resource-based: checked imperatively via IAuthorizationService against a loaded InterviewDetailDto.
+            // Resource-based: checked through IAuthorizationService.
             options.AddPolicy(Policies.IsInterviewParticipant, policy =>
                 policy.AddRequirements(new InterviewerRequirement()));
 
-            // Candidate-only endpoints. Requires a candidate (marketplace) token: a company token is signed by
-            // the same key and passes JWT validation, but carries no token_type=candidate claim, so it fails
-            // here. The reverse — a candidate token on a company endpoint — is already blocked by those
-            // endpoints' role requirements, which a role-less candidate token cannot meet.
-            // The security-stamp requirement additionally rejects tokens issued before the account's last
-            // password change (the stamp rotates on change), revoking stolen or stale sessions immediately.
+            // Company tokens pass JWT validation but have no token_type=candidate claim, so they fail here.
+            // The stamp requirement rejects tokens issued before the last password or email change.
             options.AddPolicy(Policies.CandidateOnly, policy =>
                 policy.RequireClaim(TokenTypes.ClaimName, TokenTypes.Candidate)
                     .AddRequirements(new CandidateSecurityStampRequirement()));
         });
 
-        // Stateless handler — singleton is safe and avoids allocating per-request.
         builder.Services.AddSingleton<IAuthorizationHandler, InterviewerAuthorizationHandler>();
 
-        // Scoped, unlike the handler above: it reads the account's current security stamp through the
-        // scoped CandidateAccountsDbContext on every authenticated candidate request.
+        // Scoped: it reads the stamp through the scoped DbContext.
         builder.Services.AddScoped<IAuthorizationHandler, CandidateSecurityStampHandler>();
 
         return builder;
