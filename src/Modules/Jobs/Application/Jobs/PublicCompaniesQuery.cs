@@ -5,20 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Jobs.Application.Jobs;
 
-// A company as the public marketplace sees it: a name to show, a slug to link to its careers page
-// (/{slug}), and how many roles it is currently hiring for. "Company" here is defined by having
-// Published jobs — this is the public hiring directory, not the tenant admin list.
+// A company with at least one published job.
 public sealed record PublicCompanyDto(string CompanyName, string Slug, int OpenJobCount);
 
-// ---- ListPublicCompanies ----
-// The marketplace "browse companies" view: every company with at least one Published job, most-hiring
-// first, with an optional search over company name. Like the job feed, this deliberately spans all
-// tenants (IgnoreQueryFilters) — a company that is hiring is public across the whole marketplace.
-//
-// Why this lives in the Jobs module: the set of "companies hiring" and their open-role counts are
-// derived entirely from Published jobs, which only this module can see. The company name/slug are the
-// Tenants module's data, read through the ITenantDirectory port (batched, no N+1) rather than by
-// touching its schema — the same split as the cross-tenant job feed.
+// Companies with published jobs, most open roles first, across all tenants.
 public sealed record ListPublicCompaniesQuery(int Page = 1, int PageSize = 20, string? Search = null)
     : IQuery<PagedResult<PublicCompanyDto>>;
 
@@ -47,16 +37,13 @@ public sealed class ListPublicCompaniesHandler
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            // Company-name search happens in the Tenants module; restrict the grouping to the matching
-            // tenants so a company with no name match never appears, even if it has published jobs.
+            // Name search runs in the Tenants module; only matching tenants are grouped.
             var term = query.Search.Trim().ToLower();
             var nameMatchIds = (await _tenants.SearchIdsByNameAsync(term, ct)).ToList();
             published = published.Where(j => nameMatchIds.Contains(j.TenantId));
         }
 
-        // One row per company: the tenant id and its open-role count. Ordered most-hiring first; the
-        // tenant id is a stable tiebreaker so paging is deterministic (name would order nicer, but it
-        // lives in the other module — a per-page name sort is applied after enrichment below).
+        // Tenant id is the tiebreaker so paging is stable; names live in the other module.
         var grouped = published
             .GroupBy(j => j.TenantId)
             .Select(g => new { TenantId = g.Key, OpenJobCount = g.Count() });
@@ -83,15 +70,7 @@ public sealed class ListPublicCompaniesHandler
     }
 }
 
-// ---- GetPublicCompanyBySlug ----
-// A single company's public profile, backing the careers page header at /{slug}. The company is
-// identified by slug through the Tenants port, then this module counts its published jobs. Returns a
-// failure (→ 404) when no tenant owns the slug; a real company with zero open roles still resolves,
-// matching the careers page, which renders an empty-but-valid listing.
-//
-// A separate DTO from PublicCompanyDto: the directory list stays lean (name, slug, count) while the
-// profile page carries the tenant-editable fields. Null profile fields mean "never filled in" — the
-// page hides those sections rather than rendering empty blocks.
+// Resolves for any existing tenant, even one with no open roles, to match the careers page.
 public sealed record PublicCompanyProfileDto(
     string CompanyName,
     string Slug,

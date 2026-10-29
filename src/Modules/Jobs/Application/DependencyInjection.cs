@@ -16,7 +16,6 @@ public static class DependencyInjection
         services.AddTransient(
             typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
-        // The module's public read port, consumed by other modules through the contract only.
         services.AddScoped<IJobDirectory, JobDirectory>();
 
         return services;

@@ -9,18 +9,13 @@ public sealed record JobDto(
     string EmploymentType, string ExperienceLevel, string WorkArrangement, string Status,
     string Slug, DateTime CreatedAtUtc);
 
-// Detail shape for GetById: adds the fields the edit form must prefill (Description + salary), which
-// the list DTO deliberately omits. Kept separate so list/public projections stay lean (the table
-// never needs the description), while the edit screen gets everything it writes back.
-// PublishedAtUtc is nullable because drafts have never been published; the public page shows it
-// as the posting date (CreatedAtUtc is the draft's birth date and would mislead the public).
+// Adds the fields the edit form needs. PublishedAtUtc is the public posting date; null for drafts.
 public sealed record JobDetailDto(
     Guid Id, string Title, string Description, string Department, string City, string? Country,
     string EmploymentType, string ExperienceLevel, string WorkArrangement, string Status, string Slug,
     decimal? SalaryMin, decimal? SalaryMax, string? SalaryCurrency, DateTime CreatedAtUtc,
     DateTime? PublishedAtUtc);
 
-// ---- GetJobById ----
 public sealed record GetJobByIdQuery(Guid JobId) : IQuery<JobDetailDto>;
 
 public sealed class GetJobByIdHandler : IQueryHandler<GetJobByIdQuery, JobDetailDto>
@@ -30,8 +25,7 @@ public sealed class GetJobByIdHandler : IQueryHandler<GetJobByIdQuery, JobDetail
 
     public async Task<Result<JobDetailDto>> Handle(GetJobByIdQuery query, CancellationToken ct)
     {
-        // SalaryRange is an optional owned type, so all three columns are null together; the
-        // null check projects them as null rather than dereferencing a missing dependent.
+        // SalaryRange is an optional owned type, so its columns are null together.
         var job = await _db.Jobs
             .AsNoTracking()
             .Where(j => j.Id == query.JobId)
@@ -51,7 +45,6 @@ public sealed class GetJobByIdHandler : IQueryHandler<GetJobByIdQuery, JobDetail
     }
 }
 
-// ---- ListJobsForRecruiter ----
 public sealed record ListJobsQuery(
     int Page = 1, int PageSize = 20, string? Status = null, string? Search = null)
     : IQuery<PagedResult<JobDto>>;
@@ -74,8 +67,7 @@ public sealed class ListJobsHandler : IQueryHandler<ListJobsQuery, PagedResult<J
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            // Provider-agnostic case-insensitive match; EF translates this to lower(Title) LIKE '%term%'.
-            // Avoids depending on the Npgsql-specific EF.Functions.ILike from the Application layer.
+            // Translates to lower(Title) LIKE without depending on Npgsql's ILike.
             var term = query.Search.Trim().ToLower();
             jobs = jobs.Where(j => j.Title.ToLower().Contains(term));
         }
@@ -96,10 +88,7 @@ public sealed class ListJobsHandler : IQueryHandler<ListJobsQuery, PagedResult<J
     }
 }
 
-// ---- ListPublicJobs (no auth, only Published) ----
-// Unlike the recruiter query, status is fixed to Published — the public never sees
-// drafts. Tenant scoping is still automatic via the global query filter (no explicit
-// WHERE TenantId here); EF appends it from the resolved tenant context.
+// Only published jobs. The tenant comes from the global query filter.
 public sealed record ListPublicJobsQuery(int Page = 1, int PageSize = 20)
     : IQuery<PagedResult<JobDto>>;
 
@@ -133,11 +122,7 @@ public sealed class ListPublicJobsHandler : IQueryHandler<ListPublicJobsQuery, P
     }
 }
 
-// ---- GetPublicJobBySlug (no auth, only Published) ----
-// The public job-detail page looks a job up by its slug, not its Guid — the slug is what appears in
-// the URL (/{tenant}/jobs/{jobSlug}). Only Published jobs are visible: a draft or closed job must
-// read as "not found" to the public, never leak. Tenant scoping is automatic via the global query
-// filter, so a slug from another tenant can't match.
+// Drafts and closed jobs read as not found.
 public sealed record GetPublicJobBySlugQuery(string Slug) : IQuery<JobDetailDto>;
 
 public sealed class GetPublicJobBySlugHandler : IQueryHandler<GetPublicJobBySlugQuery, JobDetailDto>

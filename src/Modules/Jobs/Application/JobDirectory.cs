@@ -4,10 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Jobs.Application;
 
-// The Jobs module's implementation of the cross-module read port. It answers a single
-// question for other modules — "is there a published job at this slug?" — and returns a flat
-// read model, never the Job entity. Tenant scoping is automatic: IJobsDbContext applies the
-// global query filter, so this only ever sees the current tenant's jobs.
+// Read port for other modules. Returns flat read models, never the Job entity.
 public sealed class JobDirectory : IJobDirectory
 {
     private readonly IJobsDbContext _db;
@@ -27,8 +24,7 @@ public sealed class JobDirectory : IJobDirectory
     public async Task<string?> GetJobTitleByIdAsync(
         Guid jobId, CancellationToken cancellationToken = default)
     {
-        // No status filter: a rejected application's job may be Closed or Archived, but we still
-        // want its title for the email. The global query filter keeps this scoped to the tenant.
+        // No status filter: the job of a rejected application may already be closed or archived.
         return await _db.Jobs
             .AsNoTracking()
             .Where(j => j.Id == jobId)
@@ -38,7 +34,6 @@ public sealed class JobDirectory : IJobDirectory
 
     public async Task<int> CountOpenJobsAsync(CancellationToken cancellationToken = default)
     {
-        // A single tenant-scoped COUNT — "open" means Published. No N+1: one aggregate query.
         return await _db.Jobs
             .AsNoTracking()
             .CountAsync(j => j.Status == JobStatus.Published, cancellationToken);
@@ -50,8 +45,7 @@ public sealed class JobDirectory : IJobDirectory
         if (jobIds.Count == 0)
             return new Dictionary<Guid, JobSummary>();
 
-        // IgnoreQueryFilters bypasses the tenant global filter — intentional, because a
-        // candidate's applications can span multiple companies.
+        // Ignores the tenant filter: a candidate's applications span companies.
         return await _db.Jobs
             .AsNoTracking()
             .IgnoreQueryFilters()
@@ -63,8 +57,7 @@ public sealed class JobDirectory : IJobDirectory
     public async Task<JobRequirements?> GetJobRequirementsAsync(
         Guid tenantId, Guid jobId, CancellationToken cancellationToken = default)
     {
-        // IgnoreQueryFilters + an explicit tenantId match, same reasoning as GetSummariesAsync: the
-        // caller here is a message consumer with no resolved ICurrentTenant to drive the global filter.
+        // Called from a consumer with no current tenant, so the tenant id is matched explicitly.
         return await _db.Jobs
             .AsNoTracking()
             .IgnoreQueryFilters()
