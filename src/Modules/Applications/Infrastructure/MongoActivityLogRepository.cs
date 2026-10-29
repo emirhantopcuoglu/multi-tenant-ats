@@ -6,20 +6,11 @@ using MongoDB.Driver;
 
 namespace Ats.Modules.Applications.Infrastructure;
 
-// MongoDB-backed activity log. Uses the native MongoDB.Driver (no EF Core provider): the log is
-// schema-flexible, append-only and write-heavy, which is what a document store is good at.
-//
-// Two responsibilities that EF used to handle for free are now explicit here:
-//  1. Tenant stamping — the TenantSaveChangesInterceptor set TenantId on insert; here the
-//     repository does it from ICurrentTenant.
-//  2. Tenant filtering — the global query filter added "WHERE TenantId = current" to every read;
-//     here every query pairs applicationId with tenantId by hand. Forgetting it is a data leak,
-//     so it is funnelled through this single type.
+// Mongo has no tenant filter or interceptor, so this type stamps the tenant on writes and
+// filters by it on every read.
 public sealed class MongoActivityLogRepository : IActivityLogRepository
 {
-    // Snake-case to match MongoDB collection-naming convention; lower-case keeps it shell-friendly.
-    // Internal (not private) so MongoActivityLogInitializer indexes the same collection — one source
-    // of truth for the name shared by the writer/reader and the index setup.
+    // Internal so MongoActivityLogInitializer uses the same name.
     internal const string CollectionName = "application_activities";
 
     private readonly IMongoCollection<ActivityDocument> _collection;
@@ -33,8 +24,7 @@ public sealed class MongoActivityLogRepository : IActivityLogRepository
 
     public Task AddAsync(ApplicationActivity activity, CancellationToken cancellationToken = default)
     {
-        // A log entry with no tenant could never be read back safely (every read is tenant-scoped),
-        // so refuse to write one. The caller only reaches here inside a resolved-tenant request.
+        // A document without a tenant could never be read back safely.
         var tenantId = _currentTenant.TenantId
             ?? throw new InvalidOperationException(
                 "Cannot write an activity log entry without a resolved tenant.");
@@ -55,8 +45,7 @@ public sealed class MongoActivityLogRepository : IActivityLogRepository
             ApplicationId = activity.ApplicationId,
             ActivityType = activity.ActivityType.ToString(),
             ActorUserId = activity.ActorUserId,
-            // The domain holds the payload as a JSON string; parse it into a real sub-document so
-            // it is stored (and later queryable) as structured BSON rather than an opaque string.
+            // Stored as a real sub-document, not a string.
             Payload = BsonDocument.Parse(activity.Payload),
             OccurredAtUtc = activity.OccurredAtUtc
         };
@@ -67,7 +56,7 @@ public sealed class MongoActivityLogRepository : IActivityLogRepository
     public async Task<IReadOnlyList<ActivityLogEntry>> GetByApplicationAsync(
         Guid applicationId, CancellationToken cancellationToken = default)
     {
-        // No tenant means no safe scope to read in — return nothing rather than leak across tenants.
+        // No tenant, no results.
         if (_currentTenant.TenantId is not { } tenantId)
             return [];
 

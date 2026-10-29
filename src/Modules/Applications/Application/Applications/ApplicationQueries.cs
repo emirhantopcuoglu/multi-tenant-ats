@@ -16,7 +16,6 @@ public sealed record ApplicationDetailDto(
 
 public sealed record CvDownloadUrlDto(string Url, int ExpiresInSeconds);
 
-// ---- ListApplications (filtered, paginated) ----
 public sealed record ListApplicationsQuery(
     Guid? JobId = null, Guid? StageId = null, string? Status = null, string? Search = null,
     int Page = 1, int PageSize = 20) : IQuery<PagedResult<ApplicationListItemDto>>;
@@ -33,7 +32,6 @@ public sealed class ListApplicationsHandler
         var page = query.Page < 1 ? 1 : query.Page;
         var pageSize = query.PageSize is < 1 or > 100 ? 20 : query.PageSize;
 
-        // Scalar filters applied before the join keep the SQL narrow.
         var applications = _db.Applications.AsNoTracking();
         if (query.JobId.HasValue)
             applications = applications.Where(a => a.JobId == query.JobId.Value);
@@ -43,8 +41,7 @@ public sealed class ListApplicationsHandler
             && Enum.TryParse<ApplicationStatus>(query.Status, true, out var status))
             applications = applications.Where(a => a.Status == status);
 
-        // Join in the candidate (for name/email) and the current stage (for its name). These are
-        // separate aggregates referenced by id, so there is no navigation — an explicit join.
+        // Candidate and stage are separate aggregates referenced by id, so this is an explicit join.
         var joined =
             from a in applications
             join c in _db.Candidates.AsNoTracking() on a.CandidateId equals c.Id
@@ -75,7 +72,6 @@ public sealed class ListApplicationsHandler
     }
 }
 
-// ---- GetApplicationById (detail + candidate) ----
 public sealed record GetApplicationByIdQuery(Guid Id) : IQuery<ApplicationDetailDto>;
 
 public sealed class GetApplicationByIdHandler
@@ -103,13 +99,10 @@ public sealed class GetApplicationByIdHandler
     }
 }
 
-// ---- GetCvDownloadUrl (short-lived presigned URL) ----
 public sealed record GetCvDownloadUrlQuery(Guid Id) : IQuery<CvDownloadUrlDto>;
 
 public sealed class GetCvDownloadUrlHandler : IQueryHandler<GetCvDownloadUrlQuery, CvDownloadUrlDto>
 {
-    // The bucket is private, so the only way out is a signed, expiring link. Five minutes is
-    // long enough to click through, short enough to limit a leaked URL's blast radius.
     private static readonly TimeSpan Expiry = TimeSpan.FromMinutes(5);
 
     private readonly IApplicationsDbContext _db;
@@ -136,9 +129,7 @@ public sealed class GetCvDownloadUrlHandler : IQueryHandler<GetCvDownloadUrlQuer
     }
 }
 
-// ---- GetApplicationActivity (the application's timeline, from MongoDB) ----
-// Payload is a JsonElement, not a string: the repository hands back raw JSON which we parse here
-// so the HTTP response embeds it as a real object rather than an escaped string.
+// Payload is parsed so the response embeds a real JSON object, not an escaped string.
 public sealed record ApplicationActivityDto(
     Guid Id, string ActivityType, Guid? ActorUserId, JsonElement Payload, DateTime OccurredAtUtc);
 
@@ -160,9 +151,7 @@ public sealed class GetApplicationActivityHandler
     public async Task<Result<IReadOnlyList<ApplicationActivityDto>>> Handle(
         GetApplicationActivityQuery query, CancellationToken ct)
     {
-        // Confirm the application exists in this tenant first (the EF global filter scopes this
-        // read), so an unknown id yields a clean 404 rather than an empty 200 — and we never
-        // hand back a timeline for an application the caller's tenant cannot see.
+        // Check the application exists in this tenant first, so an unknown id is a 404.
         var exists = await _db.Applications.AsNoTracking()
             .AnyAsync(a => a.Id == query.ApplicationId, ct);
         if (!exists)

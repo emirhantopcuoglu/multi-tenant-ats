@@ -8,14 +8,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Applications.Application.Applications;
 
-// The candidate closes their own application. The counterpart of RejectApplicationCommand, but owned
-// by the other side of the marketplace: the acting identity is a CandidateAccount, not a company
-// user, so the id travels in the command rather than coming from ICurrentUser — the controller reads
-// it from the candidate token and this handler treats it as the authorization scope.
-//
-// Deliberately no reason field. A rejection needs one because the recruiter's own colleagues read the
-// pipeline later; a withdrawal is the candidate's decision about their own time, and asking them to
-// justify it would be the product asking for something it has no use for.
+// The candidate closes their own application. The account id comes from the candidate token.
+// No reason field: unlike a rejection, nobody needs to read one later.
 public sealed record WithdrawApplicationCommand(Guid CandidateAccountId, Guid ApplicationId)
     : ICommand<bool>;
 
@@ -49,11 +43,8 @@ public sealed class WithdrawApplicationHandler : ICommandHandler<WithdrawApplica
 
     public async Task<Result<bool>> Handle(WithdrawApplicationCommand command, CancellationToken ct)
     {
-        // Ownership is part of the WHERE, exactly as in GetCandidateApplicationDetailQuery: an
-        // application that exists but belongs to someone else is indistinguishable from one that does
-        // not exist, so ids reveal nothing when probed. The tenant filter is bypassed on purpose —
-        // the global candidate account is the scope root here, and a candidate request carries no
-        // ambient tenant at all. No AsNoTracking: this row is about to be mutated.
+        // Ownership is part of the WHERE, so someone else's id looks like a missing one. The tenant
+        // filter is bypassed: a candidate request has no tenant. Tracked because the row is updated.
         var application = await _db.Applications
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(
@@ -65,32 +56,21 @@ public sealed class WithdrawApplicationHandler : ICommandHandler<WithdrawApplica
         if (application is null)
             return Result.Failure<bool>(ApplicationErrors.NotFound);
 
-        // Status is checked here rather than folded into the query above so "already closed" stays
-        // distinguishable from "not yours". Withdrawing twice is a stale tab, not a probe, and the
-        // portal should say so instead of claiming the application vanished.
+        // Checked separately so "already closed" (409) stays distinct from "not yours" (404).
         if (application.Status != ApplicationStatus.Active)
             return Result.Failure<bool>(ApplicationErrors.NotWithdrawable);
 
-        // No stage move, unlike Reject and Hire: there is no FinalWithdrawn stage type, and none is
-        // needed. The board query filters to Active applications, so a withdrawn one leaves the
-        // columns on its own — the status and the board still agree without parking it anywhere.
+        // No stage move: the board only shows Active applications, so it drops off on its own.
         application.Withdraw();
 
-        // Published before SaveChanges so the transactional outbox writes the message in the same
-        // transaction as the status change; the Interviews module then releases the booked slots.
-        // TenantId comes off the row we just verified, never from the caller.
+        // Published before SaveChanges so the outbox message commits with the status change.
         await _publisher.Publish(
             new ApplicationWithdrawnEvent(application.Id, application.TenantId), ct);
 
         await _db.SaveChangesAsync(ct);
 
-        // Best-effort after commit, as everywhere in this module: the activity log lives in MongoDB,
-        // outside this transaction, and a failed log write must not undo the withdrawal.
-        //
-        // The explicit-tenant overload is mandatory here. The ambient one reads ICurrentTenant and
-        // throws when nothing is resolved — which is always, on a candidate request — and TryAddAsync
-        // would swallow that into a warning, leaving the withdrawal permanently missing from both
-        // timelines with a green response.
+        // After the save. Use the explicit-tenant overload: the ambient one throws on a candidate request,
+        // and TryAddAsync would hide that.
         await _activityLog.TryAddAsync(
             ApplicationActivity.Withdrawn(application.Id), application.TenantId, _logger, ct);
 

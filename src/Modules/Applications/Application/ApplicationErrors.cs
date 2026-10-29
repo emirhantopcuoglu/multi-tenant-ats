@@ -2,8 +2,6 @@ using Ats.Shared.Kernel;
 
 namespace Ats.Modules.Applications.Application;
 
-// Typed, structured failures returned via Result instead of thrown. The controller maps each
-// code to an HTTP status, so the transport concern (404 vs 409) stays out of the handler.
 public static class ApplicationErrors
 {
     public static readonly Error TenantNotResolved =
@@ -21,21 +19,17 @@ public static class ApplicationErrors
     public static readonly Error CandidateAccountNotFound =
         new("application.candidate_account_not_found", "The candidate account could not be found.");
 
-    // A frozen account is one the candidate has paused, and the promise of pausing is that no company
-    // hears from them until they come back. The message names the way out, like the one below.
+    // Pausing an account means companies don't hear from the candidate until they come back.
     public static readonly Error AccountFrozen =
         new("application.account_frozen",
             "Your account is frozen. Reactivate it before applying.");
 
-    // The one gate on an unverified account. Applying is where an unreachable address stops being the
-    // candidate's own problem and starts costing a recruiter real time, so this is the action that
-    // waits for proof — not signing in, and not filling in a profile.
+    // Applying is the only action that needs a verified email.
     public static readonly Error EmailNotVerified =
         new("application.email_not_verified",
             "Verify your email address before applying. Check your inbox for the confirmation link.");
 
-    // The apply form's CV field is optional because the account may already hold one. When neither
-    // is there, this is the answer — and it names the way out.
+    // No CV on the form and none on the account.
     public static readonly Error CvRequired =
         new("application.cv_required",
             "Attach a CV, or upload one to your profile so it can be reused.");
@@ -54,9 +48,7 @@ public static class ApplicationErrors
         new("application.terminal_stage_requires_decision",
             "Hired and Rejected are outcomes, not stages to move into. Use the hire or reject action instead.");
 
-    // Withdrawal gets its own code rather than reusing InvalidOperation: this is the one lifecycle
-    // failure a candidate can trigger themselves, so the message is written for them and the code is
-    // stable enough for the portal to key a translated string on.
+    // Its own code so the portal can show a translated message.
     public static readonly Error NotWithdrawable =
         new("application.not_withdrawable",
             "This application is already closed and cannot be withdrawn.");

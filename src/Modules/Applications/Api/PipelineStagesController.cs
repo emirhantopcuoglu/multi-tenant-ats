@@ -7,10 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ats.Modules.Applications.Api;
 
-// Pipelines live in the Applications module (a job's stages are an Applications concern), but the
-// resource reads naturally as "the stages of a job", so the route is nested under jobs. The route is
-// just a string — there is no code dependency on the Jobs module. Same view policy as the rest of
-// the recruiter application views.
+// Pipelines belong to this module; the route is under jobs only because that's how it reads.
 [ApiController]
 [Authorize]
 [Route("api/v{version:apiVersion}/jobs/{jobId:guid}/stages")]

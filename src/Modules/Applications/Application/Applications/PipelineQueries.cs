@@ -3,14 +3,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Applications.Application.Applications;
 
-// Type travels with each stage so clients can tell working stages from terminal ones
-// (FinalHired/FinalRejected) — the move-stage UI must not offer terminal stages as targets.
+// Type lets the UI leave terminal stages out of the move targets.
 public sealed record PipelineStageDto(Guid Id, string Name, int Order, string Type);
 
-// Stages of a job's pipeline, ordered for display. Pipelines are per-job (one default pipeline per
-// job), so the job id selects exactly one pipeline. An unknown or not-yet-created pipeline yields an
-// empty list rather than a 404 — the caller (stage filter / Kanban columns) treats "no stages" the
-// same as "no pipeline". Tenant isolation is automatic via the global query filter.
+// No pipeline yet means an empty list, not a 404.
 public sealed record ListPipelineStagesQuery(Guid JobId) : IQuery<IReadOnlyList<PipelineStageDto>>;
 
 public sealed class ListPipelineStagesHandler

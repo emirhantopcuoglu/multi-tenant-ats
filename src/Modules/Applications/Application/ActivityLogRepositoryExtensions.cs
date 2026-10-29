@@ -5,13 +5,8 @@ namespace Ats.Modules.Applications.Application;
 
 public static class ActivityLogRepositoryExtensions
 {
-    // The activity log lives in MongoDB, a separate system, so it can no longer share the
-    // operation's PostgreSQL transaction. The business state is the source of truth and is
-    // committed first; the log entry is a best-effort write afterwards. If it fails we log a
-    // warning (with context, never a silent swallow) and let the operation stand — losing one
-    // append-only history line must not fail or roll back a stage move that already happened.
-    // Guaranteed delivery would mean routing this write through the outbox; it deliberately
-    // does not today.
+    // The activity log is in MongoDB, outside the Postgres transaction. It is written after the
+    // change is saved, and a failure is logged as a warning without undoing the change.
     public static Task TryAddAsync(
         this IActivityLogRepository repository,
         ApplicationActivity activity,
@@ -19,7 +14,7 @@ public static class ActivityLogRepositoryExtensions
         CancellationToken cancellationToken) =>
         TryAsync(() => repository.AddAsync(activity, cancellationToken), activity, logger);
 
-    // For callers with no ambient tenant (message consumers), which the overload above cannot serve.
+    // For callers with no ambient tenant, such as message consumers.
     public static Task TryAddAsync(
         this IActivityLogRepository repository,
         ApplicationActivity activity,

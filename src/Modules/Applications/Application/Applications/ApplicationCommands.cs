@@ -9,7 +9,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Applications.Application.Applications;
 
-// ---- MoveStage ----
 public sealed record MoveApplicationStageCommand(Guid ApplicationId, Guid TargetStageId)
     : ICommand<bool>;
 
@@ -54,8 +53,7 @@ public sealed class MoveApplicationStageHandler : ICommandHandler<MoveApplicatio
         if (application is null)
             return Result.Failure<bool>(ApplicationErrors.NotFound);
 
-        // Cross-aggregate rule: the target stage must belong to this job's pipeline. The entity
-        // can't check this (it doesn't hold the pipeline), so the handler does it here.
+        // The target stage must belong to this job's pipeline; the entity can't check that.
         var pipeline = await _db.Pipelines
             .Include(p => p.Stages)
             .FirstOrDefaultAsync(p => p.JobId == application.JobId, ct);
@@ -66,18 +64,12 @@ public sealed class MoveApplicationStageHandler : ICommandHandler<MoveApplicatio
         if (targetStage is null)
             return Result.Failure<bool>(ApplicationErrors.StageNotInPipeline);
 
-        // Terminal stages are outcomes, not positions: reaching them must also flip the
-        // application's status, which only the hire/reject commands do. Allowing them here let a
-        // recruiter show a candidate "hired" (or park them in Rejected) while the application
-        // stayed Active and fully movable.
+        // Terminal stages also change the status, which only hire and reject do.
         if (targetStage.Type is PipelineStageType.FinalHired or PipelineStageType.FinalRejected)
             return Result.Failure<bool>(ApplicationErrors.TerminalStageRequiresDecision);
 
-        // A plain move is forward-only: it is the everyday "the candidate progressed" action, so
-        // a same-or-earlier target is refused outright rather than silently accepted. Undoing a
-        // wrong move is a deliberate correction (CorrectApplicationStageCommand), not a drag on
-        // the board — that keeps a misclick from ever reading as real progress, and from firing
-        // the candidate-facing stage-changed notification a second time to walk it back.
+        // Forward only. Moving back is CorrectApplicationStageCommand, so a misclick never looks like
+        // progress or sends the candidate a second notification.
         var currentStage = pipeline.Stages.FirstOrDefault(s => s.Id == application.CurrentStageId);
         if (currentStage is not null && targetStage.Order <= currentStage.Order)
             return Result.Failure<bool>(ApplicationErrors.CannotMoveBackward);
@@ -86,7 +78,6 @@ public sealed class MoveApplicationStageHandler : ICommandHandler<MoveApplicatio
 
         try
         {
-            // The entity guards the invariant that a terminal application can't be moved.
             application.MoveToStage(command.TargetStageId);
         }
         catch (InvalidOperationException ex)
@@ -94,11 +85,7 @@ public sealed class MoveApplicationStageHandler : ICommandHandler<MoveApplicatio
             return Result.Failure<bool>(ApplicationErrors.InvalidOperation(ex.Message));
         }
 
-        // Gather what the stage-changed integration event needs: the stage names come free from the
-        // pipeline already loaded above, the candidate's contact from this module, the job title
-        // from the Jobs read port. Mirrors RejectApplicationHandler — and like there, publish goes
-        // BEFORE SaveChanges so the transactional outbox writes the message in the same transaction
-        // as the stage move (atomic: both commit or neither).
+        // Published before SaveChanges so the outbox message commits with the stage move.
         var candidate = await _db.Candidates.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == application.CandidateId, ct);
         if (candidate is not null)
@@ -124,8 +111,7 @@ public sealed class MoveApplicationStageHandler : ICommandHandler<MoveApplicatio
 
         await _db.SaveChangesAsync(ct);
 
-        // Log the move after the state change is committed — the activity log is in MongoDB now,
-        // outside this transaction. A failed log write is warned and swallowed, not propagated.
+        // After the save; the activity log is in MongoDB, outside the transaction.
         await _activityLog.TryAddAsync(
             ApplicationActivity.StageChanged(
                 application.Id, _currentUser.UserId, fromStageId, command.TargetStageId),
@@ -135,12 +121,7 @@ public sealed class MoveApplicationStageHandler : ICommandHandler<MoveApplicatio
     }
 }
 
-// ---- CorrectStage ----
-// The escape hatch for MoveApplicationStageCommand's forward-only rule: the one way to move an
-// application to an earlier (or, in principle, any other) stage, for when a recruiter's earlier
-// move was a mistake. Deliberately a separate command rather than a flag on MoveStage — a
-// correction is a rarer, more consequential action, so it gets its own surface (a reason,
-// mandatory) instead of hiding behind the same everyday "move" button.
+// The only way to move an application backward. Separate from MoveStage and needs a reason.
 public sealed record CorrectApplicationStageCommand(Guid ApplicationId, Guid TargetStageId, string Reason)
     : ICommand<bool>;
 
@@ -180,9 +161,7 @@ public sealed class CorrectApplicationStageHandler : ICommandHandler<CorrectAppl
         if (application is null)
             return Result.Failure<bool>(ApplicationErrors.NotFound);
 
-        // Same cross-aggregate checks as MoveApplicationStageCommand: the target must belong to
-        // this job's pipeline, and terminal stages are still only reachable through hire/reject.
-        // Unlike Move, there is no Order comparison — a correction may go in either direction.
+        // Same checks as MoveStage, except a correction may go in either direction.
         var pipeline = await _db.Pipelines
             .Include(p => p.Stages)
             .FirstOrDefaultAsync(p => p.JobId == application.JobId, ct);
@@ -209,13 +188,10 @@ public sealed class CorrectApplicationStageHandler : ICommandHandler<CorrectAppl
             return Result.Failure<bool>(ApplicationErrors.InvalidOperation(ex.Message));
         }
 
-        // No ApplicationStageChangedEvent here — a correction is not real progress, so the
-        // candidate must not receive a second, contradictory "your stage changed" email for a
-        // move that only undoes a recruiter's mistake.
+        // No stage-changed event: a correction isn't progress, so the candidate isn't notified.
         await _db.SaveChangesAsync(ct);
 
-        // Logged with the reason attached so the audit trail explains why an application moved
-        // backward, unlike an ordinary StageChanged entry.
+        // Logged with the reason so the history explains the backward move.
         await _activityLog.TryAddAsync(
             ApplicationActivity.StageCorrected(
                 application.Id, _currentUser.UserId, fromStageId, command.TargetStageId, command.Reason),
@@ -225,12 +201,9 @@ public sealed class CorrectApplicationStageHandler : ICommandHandler<CorrectAppl
     }
 }
 
-// ---- MarkViewed (read receipt) ----
-// Fired by the API layer when a company user opens the application detail. Deliberately a
-// server-side effect of the trusted read path — there is no client-callable "mark viewed"
-// endpoint, so a forged receipt cannot be produced. Idempotent: only the first view is
-// recorded. Two simultaneous first views can race and both log an activity; the candidate
-// projection reads only the earliest, so the race is harmless and left unguarded.
+// Sent by the API when a company user opens the application; there is no client endpoint for it,
+// so it can't be faked. Only the first view counts. A concurrent double view may log twice; the
+// candidate view reads only the earliest.
 public sealed record MarkApplicationViewedCommand(Guid ApplicationId) : ICommand<bool>;
 
 public sealed class MarkApplicationViewedHandler : ICommandHandler<MarkApplicationViewedCommand, bool>
@@ -268,9 +241,7 @@ public sealed class MarkApplicationViewedHandler : ICommandHandler<MarkApplicati
         if (!application.MarkViewed())
             return Result.Success(false);
 
-        // Publish before SaveChanges, matching MoveApplicationStageHandler: the transactional
-        // outbox writes the message in the same transaction as the view stamp, so both commit or
-        // neither does.
+        // Published before SaveChanges so the outbox message commits with the view stamp.
         var jobTitle = await _jobs.GetJobTitleByIdAsync(application.JobId, ct);
         await _publisher.Publish(
             new ApplicationViewedEvent(
@@ -280,7 +251,6 @@ public sealed class MarkApplicationViewedHandler : ICommandHandler<MarkApplicati
 
         await _db.SaveChangesAsync(ct);
 
-        // Logged best-effort after commit; see MoveApplicationStageHandler for the rationale.
         await _activityLog.TryAddAsync(
             ApplicationActivity.Viewed(application.Id, _currentUser.UserId), _logger, ct);
 
@@ -288,11 +258,8 @@ public sealed class MarkApplicationViewedHandler : ICommandHandler<MarkApplicati
     }
 }
 
-// ---- MarkCvDownloaded (read receipt for the CV specifically) ----
-// Fired by the API layer when a company user requests a CV download URL. Same trust model as
-// MarkViewed: no client-callable "mark downloaded" endpoint, so a forged receipt cannot be
-// produced. Deliberately no activity-log entry — unlike Viewed/StageChanged/Rejected this signal
-// has no recruiter-facing audit surface today, only the candidate notification.
+// Sent by the API when a company user requests the CV link. No activity log entry, only the
+// candidate notification.
 public sealed record MarkCvDownloadedCommand(Guid ApplicationId) : ICommand<bool>;
 
 public sealed class MarkCvDownloadedHandler : ICommandHandler<MarkCvDownloadedCommand, bool>
@@ -318,8 +285,7 @@ public sealed class MarkCvDownloadedHandler : ICommandHandler<MarkCvDownloadedCo
         if (!application.MarkCvDownloaded())
             return Result.Success(false);
 
-        // Publish before SaveChanges, matching MarkApplicationViewedHandler: the transactional
-        // outbox writes the message in the same transaction as the download stamp.
+        // Published before SaveChanges so the outbox message commits with the download stamp.
         var jobTitle = await _jobs.GetJobTitleByIdAsync(application.JobId, ct);
         await _publisher.Publish(
             new ApplicationCvDownloadedEvent(
@@ -333,7 +299,6 @@ public sealed class MarkCvDownloadedHandler : ICommandHandler<MarkCvDownloadedCo
     }
 }
 
-// ---- Reject ----
 public sealed record RejectApplicationCommand(Guid ApplicationId, string Reason) : ICommand<bool>;
 
 public sealed class RejectApplicationValidator : AbstractValidator<RejectApplicationCommand>
@@ -377,10 +342,8 @@ public sealed class RejectApplicationHandler : ICommandHandler<RejectApplication
         if (application is null)
             return Result.Failure<bool>(ApplicationErrors.NotFound);
 
-        // Rejecting also parks the application in the pipeline's FinalRejected stage, so the
-        // board and the status always tell the same story. A pipeline missing that stage is a
-        // data bug we tolerate by leaving the application where it is rather than blocking the
-        // recruiter's decision.
+        // Also moves the application to FinalRejected. If the pipeline has no such stage, it stays put
+        // rather than blocking the decision.
         var rejectedStageId = await TerminalStageLookup.FindAsync(
             _db, application.JobId, PipelineStageType.FinalRejected, ct)
             ?? application.CurrentStageId;
@@ -394,17 +357,13 @@ public sealed class RejectApplicationHandler : ICommandHandler<RejectApplication
             return Result.Failure<bool>(ApplicationErrors.InvalidOperation(ex.Message));
         }
 
-        // Gather the data the candidate's rejection email needs before saving — the candidate's
-        // name/email (this module) and the job title (the Jobs module, via the read port). The
-        // internal reason is never passed on. The candidate is loaded fresh rather than carried on
-        // the entity because Application references it by id only.
+        // The internal reason is never passed on.
         var candidate = await _db.Candidates.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == application.CandidateId, ct);
         if (candidate is not null)
         {
             var jobTitle = await _jobs.GetJobTitleByIdAsync(application.JobId, ct);
-            // Publish before saving so the transactional outbox writes the integration event in the
-            // same transaction as the rejected status — atomic, and never lost to a broker outage.
+            // Published before saving so the outbox message commits with the status change.
             await _publisher.Publish(
                 new ApplicationRejectedEvent(
                     application.Id, application.JobId, jobTitle ?? string.Empty,
@@ -418,7 +377,6 @@ public sealed class RejectApplicationHandler : ICommandHandler<RejectApplication
 
         await _db.SaveChangesAsync(ct);
 
-        // Logged best-effort after commit; see MoveApplicationStageHandler for the rationale.
         await _activityLog.TryAddAsync(
             ApplicationActivity.Rejected(application.Id, _currentUser.UserId, command.Reason),
             _logger, ct);
@@ -427,14 +385,8 @@ public sealed class RejectApplicationHandler : ICommandHandler<RejectApplication
     }
 }
 
-// Every candidate-facing command loads the candidate row to address its notification, and every one
-// of them skips the notification when that row is gone. The skip is right — the recruiter's decision
-// stands whether or not anyone can be told about it, and failing the command would strand the
-// application instead. What was wrong is that it happened in silence: a candidate reporting "I never
-// heard back" left nothing in the logs to confirm or deny it.
-//
-// The row can genuinely be missing. Candidate is soft-deletable, so an erasure removes it from every
-// query while the application survives as the company's own record of the hire.
+// Logs when a notification is skipped because the candidate row is gone (Candidate is
+// soft-deletable). The decision still stands; this makes "I never heard back" traceable.
 internal static class MissingCandidateLog
 {
     internal static void Warn(ILogger logger, string action, Guid applicationId, Guid candidateId) =>
@@ -444,9 +396,7 @@ internal static class MissingCandidateLog
             applicationId, action, candidateId);
 }
 
-// Resolves the id of a job pipeline's terminal stage of the given type. Shared by the reject and
-// hire handlers, which both park the application in the matching terminal stage. Returns null
-// when the job has no pipeline or the pipeline lacks that stage.
+// Null when the job has no pipeline or the stage is missing.
 internal static class TerminalStageLookup
 {
     internal static async Task<Guid?> FindAsync(
@@ -461,11 +411,7 @@ internal static class TerminalStageLookup
     }
 }
 
-// ---- Hire ----
-// The positive counterpart of Reject: flips the application to its terminal success status and
-// parks it in the pipeline's FinalHired stage in one operation. This is the ONLY way into that
-// stage — MoveStage refuses terminal targets — so "the candidate saw 'hired'" always implies the
-// application really is Hired and immutable from here on.
+// The only way into FinalHired, since MoveStage refuses terminal stages.
 public sealed record HireApplicationCommand(Guid ApplicationId) : ICommand<bool>;
 
 public sealed class HireApplicationValidator : AbstractValidator<HireApplicationCommand>
@@ -508,8 +454,7 @@ public sealed class HireApplicationHandler : ICommandHandler<HireApplicationComm
         if (application is null)
             return Result.Failure<bool>(ApplicationErrors.NotFound);
 
-        // Same fallback rule as Reject: a pipeline without a FinalHired stage is a data bug we
-        // tolerate by leaving the application in place rather than blocking the decision.
+        // Same fallback as Reject when the stage is missing.
         var hiredStageId = await TerminalStageLookup.FindAsync(
             _db, application.JobId, PipelineStageType.FinalHired, ct)
             ?? application.CurrentStageId;
@@ -523,9 +468,7 @@ public sealed class HireApplicationHandler : ICommandHandler<HireApplicationComm
             return Result.Failure<bool>(ApplicationErrors.InvalidOperation(ex.Message));
         }
 
-        // Mirrors RejectApplicationHandler: gather what the candidate's congratulation email
-        // needs, publish BEFORE SaveChanges so the transactional outbox commits the message
-        // atomically with the hired status.
+        // Published before SaveChanges so the outbox message commits with the hired status.
         var candidate = await _db.Candidates.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == application.CandidateId, ct);
         if (candidate is not null)
@@ -544,7 +487,6 @@ public sealed class HireApplicationHandler : ICommandHandler<HireApplicationComm
 
         await _db.SaveChangesAsync(ct);
 
-        // Logged best-effort after commit; see MoveApplicationStageHandler for the rationale.
         await _activityLog.TryAddAsync(
             ApplicationActivity.Hired(application.Id, _currentUser.UserId), _logger, ct);
 

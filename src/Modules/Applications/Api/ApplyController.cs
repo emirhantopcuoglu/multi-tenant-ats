@@ -9,16 +9,12 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace Ats.Modules.Applications.Api;
 
-// Candidate-facing apply endpoint. The tenant comes from the path slug, resolved by
-// TenantResolutionMiddleware. No api/v{version} prefix: the URL is candidate-facing
-// (/{slug}/jobs/{jobSlug}/apply). Requires a CandidateOnly token — identity fields
-// (email, name) are taken from the account rather than the form.
+// The tenant comes from the path slug. Email and name come from the candidate account, not the form.
 [ApiController]
 [Authorize(Policy = Policies.CandidateOnly)]
 [Route("{slug}/jobs/{jobSlug}/apply")]
 public sealed class ApplyController : ControllerBase
 {
-    // The CV ceiling is enforced here at the boundary, before the file is streamed anywhere.
     private const long MaxCvSizeBytes = 10 * 1024 * 1024;
 
     private readonly ISender _sender;
@@ -38,20 +34,14 @@ public sealed class ApplyController : ControllerBase
     public async Task<IActionResult> Apply(
         string slug, string jobSlug, [FromForm] ApplyForm form, CancellationToken ct)
     {
-        // An unknown company slug leaves the tenant unresolved. Surface 404 rather than a
-        // misleading validation error — the company page genuinely does not exist.
+        // An unknown company slug is a 404.
         if (!_currentTenant.TenantId.HasValue)
             return NotFound();
 
-        // CandidateOnly policy guarantees authentication, so UserId is present.
         var candidateAccountId = _currentUser.UserId!.Value;
 
-        // No file attached means "use the CV on my account"; the handler resolves that and fails
-        // with application.cv_required if there is none. An attached but empty file is a different
-        // thing — that is a broken upload, and saying so beats silently applying with a CV the
-        // candidate did not mean to send.
-        // Opened unconditionally so the stream has a single owner and a single disposal point;
-        // Stream.Null stands in when nothing was attached and is safe to dispose.
+        // No file means "use the CV on my account". An attached but empty file is a broken upload and
+        // is rejected. Stream.Null keeps a single disposal point.
         await using var cvStream = form.Cv?.OpenReadStream() ?? Stream.Null;
 
         CvUpload? cv = null;
@@ -61,8 +51,7 @@ public sealed class ApplyController : ControllerBase
             if (form.Cv.Length == 0)
                 return BadRequest(ToProblem(FileSignatureValidator.Empty));
 
-            // Validate the real file at the boundary: the leading bytes decide the format. Never
-            // trust the extension or the client's declared content type.
+            // The file's leading bytes decide the format, not the extension or content type.
             var validation = await FileSignatureValidator.ValidateAsync(
                 cvStream, form.Cv.ContentType, form.Cv.Length, MaxCvSizeBytes, ct);
             if (validation.IsFailure)
@@ -81,17 +70,13 @@ public sealed class ApplyController : ControllerBase
             : MapFailure(result.Error);
     }
 
-    // Translates a domain error code into the right HTTP status. Keeping this mapping in the
-    // controller leaves the handler free of transport concerns.
     private IActionResult MapFailure(Error error) => error.Code switch
     {
         "application.job_not_available" => NotFound(ToProblem(error)),
         "application.tenant_not_resolved" => NotFound(ToProblem(error)),
         "application.candidate_account_not_found" => NotFound(ToProblem(error)),
         "application.duplicate" => Conflict(ToProblem(error)),
-        // 403, not 400: the request is well-formed and the caller is authenticated — they are simply
-        // not yet permitted to do this. A 400 would read as "you sent something wrong", which would
-        // send the candidate looking for a mistake in the form instead of at their inbox or account.
+        // 403, not 400: nothing is wrong with the form; the account isn't allowed to apply yet.
         "application.email_not_verified" or "application.account_frozen" =>
             StatusCode(StatusCodes.Status403Forbidden, ToProblem(error)),
         _ => BadRequest(ToProblem(error))
@@ -99,9 +84,7 @@ public sealed class ApplyController : ControllerBase
 
     private static object ToProblem(Error error) => new { error.Code, error.Message };
 
-    // Bound from multipart/form-data. Identity fields (email, name) come from the authenticated
-    // CandidateAccount; only supplementary profile data is submitted at apply time. Cv is optional:
-    // leaving it out reuses the CV stored on the account.
+    // Cv is optional: without it the account's CV is used.
     public sealed class ApplyForm
     {
         public string? Phone { get; init; }

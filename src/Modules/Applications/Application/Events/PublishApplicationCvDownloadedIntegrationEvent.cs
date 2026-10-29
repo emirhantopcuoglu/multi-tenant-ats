@@ -4,10 +4,7 @@ using MediatR;
 
 namespace Ats.Modules.Applications.Application.Events;
 
-// Bridges the in-process domain event onto the message bus, mirroring
-// PublishApplicationViewedIntegrationEvent. Publish happens before SaveChanges in the command
-// handler, so the message and the download stamp commit atomically through the transactional
-// outbox — hence no try/catch: a failure must propagate, not be swallowed.
+// Goes through the outbox, so a failure must propagate and roll back the save.
 public sealed class PublishApplicationCvDownloadedIntegrationEvent
     : INotificationHandler<ApplicationCvDownloadedEvent>
 {
