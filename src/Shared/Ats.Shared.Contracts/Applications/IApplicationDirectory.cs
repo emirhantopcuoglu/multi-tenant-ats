@@ -1,69 +1,40 @@
 namespace Ats.Shared.Contracts.Applications;
 
-// The Applications module's public read surface for other modules, mirroring IJobDirectory. The
-// Interviews module uses it to confirm an application exists and is still open before scheduling an
-// interview against it — without ever referencing the Applications module or touching its schema.
-//
-// Tenant scoping is implicit: the implementation runs inside the resolved tenant's context, so the
-// global query filter already restricts the lookup to the current tenant. An application from
-// another tenant simply looks like it does not exist.
+// Read port into the Applications module. Runs in the current tenant, so another tenant's
+// application looks missing.
 public interface IApplicationDirectory
 {
     Task<ApplicationForScheduling?> GetForSchedulingAsync(
         Guid applicationId, CancellationToken cancellationToken = default);
 
-    // Same read, but for a caller with no ambient tenant of its own (e.g. resolving an interview
-    // room by its token, where the tenant comes from the interview row, not from the current
-    // request). Bypasses the global query filter and matches the given tenant explicitly instead —
-    // the same reasoning as IInterviewDirectory.GetForApplicationAsync.
+    // For callers with no ambient tenant; matches the given tenant explicitly.
     Task<ApplicationForScheduling?> GetForSchedulingAsync(
         Guid tenantId, Guid applicationId, CancellationToken cancellationToken = default);
 
-    // The batched counterpart, for a caller holding many application ids at once and no ambient
-    // tenant — the interview reminder sweep, which spans every tenant by design. Resolving them one
-    // by one would be an N+1: one round trip per row processed, so the cost of a sweep would grow
-    // with the schedule rather than with the work actually owed.
-    //
-    // Takes no tenant parameter and bypasses the global filter, the same trust boundary
-    // IInterviewDirectory.GetForApplicationsAsync relies on: the caller obtained these ids from rows
-    // it already owns, so it is not a place a user-supplied id can reach. Ids with no match are
-    // simply absent from the map.
+    // Batched, for the reminder sweep across all tenants. No tenant parameter: the ids come from rows
+    // the caller already owns. Unknown ids are left out.
     Task<IReadOnlyDictionary<Guid, ApplicationForScheduling>> GetForSchedulingAsync(
         IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default);
 
-    // Resolves candidate display names for a set of applications. The interview list holds only
-    // application ids; this lets it show the candidate without the Interviews module knowing the
-    // Applications schema. Ids with no match (e.g. another tenant's) are simply absent from the map.
+    // Candidate names by application id. Unknown ids are left out.
     Task<IReadOnlyDictionary<Guid, string>> GetCandidateNamesByApplicationAsync(
         IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default);
 
-    // Every application the given candidate holds in the current tenant. The Interviews module uses
-    // it to detect a candidate double-booked across two different applications (each interview
-    // stores only its own application id). In-tenant: the ambient global filter scopes the result,
-    // so a candidate's applications at other companies are neither seen nor relevant here.
+    // The candidate's applications in the current tenant, for the double-booking check.
     Task<IReadOnlyList<Guid>> GetApplicationIdsForCandidateAsync(
         Guid candidateId, CancellationToken cancellationToken = default);
 
-    // Number of applications submitted at or after the given instant — feeds the dashboard "New
-    // applications this week" stat. The caller decides the window (e.g. the last 7 days) and passes
-    // the boundary, so this stays a simple, reusable count.
+    // The caller passes the window start.
     Task<int> CountApplicationsSinceAsync(
         DateTime sinceUtc, CancellationToken cancellationToken = default);
 
-    // Number of distinct candidates with at least one Active application — the dashboard "Active
-    // candidates" stat. Distinct because one candidate may have several open applications.
+    // Distinct candidates with at least one active application.
     Task<int> CountActiveCandidatesAsync(CancellationToken cancellationToken = default);
 }
 
-// The read model scheduling needs. IsActive collapses the Applications module's ApplicationStatus
-// into a single question — "can this application still have interviews scheduled?" — so the status
-// enum never leaks across the module boundary. The candidate contact and job title are here so the
-// Interviews module can publish a self-contained InterviewScheduledIntegrationEvent without ever
-// touching the Applications or Jobs schemas. JobTitle falls back to an empty string when the job
-// is gone; consumers already treat that as "the role you applied for". CandidateAccountId is the
-// global marketplace account behind the application — where an in-app notification is routed —
-// and is null for applications submitted before candidate accounts existed. Returns null when no
-// such application exists in the current tenant.
+// IsActive answers "can interviews still be scheduled?" so ApplicationStatus stays inside its module.
+// Candidate contact and job title let Interviews publish self-contained events. JobTitle is empty if
+// the job is gone; CandidateAccountId is null for applications made before candidate accounts.
 public sealed record ApplicationForScheduling(
     Guid Id,
     bool IsActive,

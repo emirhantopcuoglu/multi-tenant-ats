@@ -6,15 +6,11 @@ using Ats.Shared.Kernel;
 
 namespace Ats.Shared.Infrastructure;
 
-// IDocxTextExtractor backed by the BCL alone. A DOCX is a ZIP package whose visible text lives in
-// word/document.xml as <w:t> runs, so System.IO.Compression + XDocument cover the whole job — a
-// dedicated OOXML library would add a dependency for no extra capability here (we only ever need
-// plain text for the LLM, never styling or layout).
+// A DOCX is a ZIP with the text in word/document.xml, so the BCL is enough; only plain text is needed.
 public sealed class DocxTextExtractor : IDocxTextExtractor
 {
     private const string DocumentPartPath = "word/document.xml";
 
-    // WordprocessingML main namespace — every text-bearing element in document.xml lives in it.
     private static readonly XNamespace W =
         "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 
@@ -25,9 +21,7 @@ public sealed class DocxTextExtractor : IDocxTextExtractor
             using var stream = new MemoryStream(docxBytes);
             using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
 
-            // A ZIP that is not a Word package (no document part) yields no text rather than an
-            // exception: the upload boundary only checks the ZIP signature, so this input is
-            // reachable and simply has nothing for us to extract.
+            // A ZIP that isn't a Word document yields no text instead of an exception.
             var documentPart = archive.GetEntry(DocumentPartPath);
             if (documentPart is null)
                 return string.Empty;
@@ -37,8 +31,7 @@ public sealed class DocxTextExtractor : IDocxTextExtractor
 
             return ExtractParagraphText(document);
         }
-        // A truncated archive or a corrupted document part. Permanent, like the PDF cases: reported
-        // as TextExtractionException so the caller can skip the file instead of retrying it.
+        // A broken archive can't be fixed by a retry, so report it as TextExtractionException.
         catch (InvalidDataException exception)
         {
             throw new TextExtractionException("The DOCX archive is corrupted.", exception);
@@ -53,9 +46,7 @@ public sealed class DocxTextExtractor : IDocxTextExtractor
     {
         var builder = new StringBuilder();
 
-        // One output line per <w:p> keeps the paragraph structure the author saw, which is the
-        // only layout signal worth preserving for the LLM. Table cells contain their own <w:p>
-        // elements, so tables flatten to lines without special handling.
+        // One line per paragraph. Table cells contain paragraphs, so tables need no special handling.
         foreach (var paragraph in document.Descendants(W + "p"))
         {
             foreach (var node in paragraph.Descendants())

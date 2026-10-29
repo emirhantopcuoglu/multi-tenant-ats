@@ -1,8 +1,6 @@
 namespace Ats.Shared.Infrastructure;
 
-// SMTP settings for the shared email sender. Bound from the "Email" configuration section in
-// Program.cs. Dev points at MailHog (no auth); a real SMTP server sets Username/Password, which
-// belong in User Secrets / environment variables rather than appsettings.json.
+// Username and Password go in User Secrets or environment variables.
 public sealed class EmailOptions
 {
     public const string SectionName = "Email";

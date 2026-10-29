@@ -1,38 +1,22 @@
 namespace Ats.Shared.Contracts.Interviews;
 
-// The Interviews module's public read surface for other parts of the system, mirroring IJobDirectory
-// and IApplicationDirectory. This is the first time the Interviews module is read from the outside:
-// the dashboard needs an upcoming-interview count, so the port is born with exactly that one method
-// and will grow as further needs arise.
-//
-// Tenant scoping is implicit: the implementation runs inside the resolved tenant's context, so the
-// global query filter already restricts the count to the current tenant.
+// Read port into the Interviews module. Runs in the current tenant.
 public interface IInterviewDirectory
 {
-    // Number of still-scheduled interviews at or after the given instant — feeds the dashboard
-    // "Upcoming interviews" stat. The caller passes "now" so the boundary stays explicit and testable.
+    // The caller passes "now" so it can be tested.
     Task<int> CountUpcomingInterviewsAsync(DateTime nowUtc, CancellationToken cancellationToken = default);
 
-    // The candidate's own transparent view of interviews scheduled against one of their
-    // applications. Called from the Applications module's candidate-detail query, which runs
-    // cross-tenant (the candidate account is the scope root, not a tenant) and has no ambient
-    // tenant to rely on — tenantId is passed explicitly and the lookup bypasses the global filter,
-    // the same reasoning as IJobDirectory.GetJobRequirementsAsync.
+    // For the candidate's application detail, which spans tenants; the tenant is passed explicitly.
     Task<IReadOnlyList<CandidateInterviewInfo>> GetForApplicationAsync(
         Guid tenantId, Guid applicationId, CancellationToken cancellationToken = default);
 
-    // The batched counterpart, for the candidate's own "My interviews" view across every
-    // application they hold (possibly spanning several tenants). No tenant parameter — the caller
-    // has already verified these application ids belong to the requesting candidate account, the
-    // same trust boundary IApplicationDirectory.GetCandidateNamesByApplicationAsync relies on.
+    // Batched, for "My interviews". No tenant parameter: the caller already verified the ids belong
+    // to the candidate.
     Task<IReadOnlyList<CandidateInterviewInfo>> GetForApplicationsAsync(
         IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default);
 }
 
-// Candidate-safe by shape: no interviewer ids, no recruiter notes. A mapping bug can't leak either
-// one because there is no field here to carry them. RoomToken is safe to include — see
-// Interview.RoomToken — it is a locator, not a bearer secret, and the candidate portal needs it to
-// link into the (future) room. Null for a phone screen, which has no room.
+// Candidate-safe by shape: no interviewer ids or recruiter notes. RoomToken is null for phone screens.
 public sealed record CandidateInterviewInfo(
     Guid Id,
     Guid ApplicationId,

@@ -13,8 +13,7 @@ public sealed class CurrentUser : ICurrentUser
         _httpContextAccessor = httpContextAccessor;
     }
 
-    // The JWT 'sub' claim is mapped to NameIdentifier by the default inbound claim
-    // mapping, the same source JobsController reads the author from.
+    // 'sub' is mapped to NameIdentifier by the default inbound claim mapping.
     public Guid? UserId =>
         Guid.TryParse(
             _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier),
@@ -22,7 +21,6 @@ public sealed class CurrentUser : ICurrentUser
             ? id
             : null;
 
-    // The JWT 'email' claim; null for anonymous/background requests.
     public string? Email =>
         _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.Email);
 }

@@ -3,10 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace Ats.Shared.Infrastructure;
 
-// BsonRepresentation(String) on Guid fields avoids the driver-v3 GuidRepresentation pitfall
-// ("GuidSerializer cannot serialize a Guid when GuidRepresentation is Unspecified"). Storing
-// Guids as strings makes them human-readable in Compass, matches ActivityDocument and
-// CvParseResultDocument, and costs nothing at the scale of an audit log.
+// Guids as strings, avoiding the driver's GuidRepresentation error and matching the other documents.
 internal sealed class AuditLogDocument
 {
     [BsonId]

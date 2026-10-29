@@ -31,9 +31,8 @@ public sealed class AuditLogInterceptor : SaveChangesInterceptor
         _database = database;
     }
 
-    // Capture before/after state here, while OriginalValues still holds the pre-save data.
-    // AuditableSaveChangesInterceptor runs first (registration order) and has already converted
-    // EntityState.Deleted → EntityState.Modified + set IsDeleted = true on soft-deletable entities.
+    // Captured here while OriginalValues still has the old data. AuditableSaveChangesInterceptor runs
+    // first and has already turned deletes into soft deletes.
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
         InterceptionResult<int> result,
@@ -43,9 +42,7 @@ public sealed class AuditLogInterceptor : SaveChangesInterceptor
         return base.SavingChangesAsync(eventData, result, ct);
     }
 
-    // Write to MongoDB after the DB commit so a DB failure leaves no orphan audit entries.
-    // Best-effort: if MongoDB is unreachable the audit write fails silently — the DB change
-    // has already committed. Acceptable for an internal audit trail; add alerting if needed.
+    // Written after the commit, so a failed save leaves no audit entry. Best-effort.
     public override async ValueTask<int> SavedChangesAsync(
         SaveChangesCompletedEventData eventData,
         int result,
@@ -60,7 +57,7 @@ public sealed class AuditLogInterceptor : SaveChangesInterceptor
             }
             catch
             {
-                // Best-effort: do not let an audit failure roll back a committed DB change.
+                // An audit failure must not undo a saved change.
             }
             finally
             {
@@ -75,7 +72,6 @@ public sealed class AuditLogInterceptor : SaveChangesInterceptor
         DbContextErrorEventData eventData,
         CancellationToken ct = default)
     {
-        // DB save failed — discard captured entries so they are not written on a retry.
         _pendingDocuments = null;
         return base.SaveChangesFailedAsync(eventData, ct);
     }
@@ -118,7 +114,6 @@ public sealed class AuditLogInterceptor : SaveChangesInterceptor
             }
             else // Modified — includes soft deletes (AuditableSaveChangesInterceptor converted them)
             {
-                // Detect soft delete: IsDeleted just became true.
                 var isSoftDelete = entry.Entity is ISoftDeletable
                     && entry.Property(nameof(ISoftDeletable.IsDeleted)).IsModified
                     && entry.Property(nameof(ISoftDeletable.IsDeleted)).CurrentValue is true;

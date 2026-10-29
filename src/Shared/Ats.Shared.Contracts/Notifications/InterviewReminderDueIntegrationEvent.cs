@@ -1,13 +1,7 @@
 namespace Ats.Shared.Contracts.Notifications;
 
-// Published by the interview reminder sweep when a scheduled nudge falls due. Unlike its siblings
-// this one is not caused by a user action — nobody clicked anything, the clock simply moved — which
-// is why it is produced by a background job rather than by a command handler.
-//
-// Shaped like InterviewScheduledIntegrationEvent on purpose: a reminder repeats the invitation's
-// facts, so consuming it must not need any field the invitation did not already carry. Kind is the
-// only addition, and it decides the wording ("tomorrow" versus "starting now"), not the recipient
-// or the routing.
+// Published by the reminder sweep. Same facts as InterviewScheduledIntegrationEvent plus Kind,
+// which only changes the wording.
 public sealed record InterviewReminderDueIntegrationEvent(
     Guid InterviewId,
     Guid ApplicationId,
@@ -21,15 +15,11 @@ public sealed record InterviewReminderDueIntegrationEvent(
     DateTime ScheduledAtUtc,
     int DurationMinutes,
     string? RoomToken,
-    // One of InterviewReminderKinds. A string, not the Interviews module's enum, for the same reason
-    // InterviewType is a string here: a contract must not drag a module's domain types across the
-    // boundary.
+    // A string, so the contract doesn't carry the Interviews enum.
     string Kind,
     Guid TenantId);
 
-// The values Kind may take, restated on the contract side so a consumer can branch on them without
-// referencing the Interviews module. Kept next to the event rather than in the kernel because
-// nothing outside this message has any use for them.
+// The allowed Kind values, so consumers don't reference the Interviews module.
 public static class InterviewReminderKinds
 {
     public const string DayBefore = "DayBefore";
