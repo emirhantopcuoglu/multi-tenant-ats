@@ -6,11 +6,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// Writes an in-app notification row the first time a company user opens an application, so the
-// candidate can see their application is being looked at. Own queue, same shape
-// as ApplicationStageChangedNotificationConsumer: skip messages with no candidate account behind
-// them, and guard the write with the message-id idempotency key so an at-least-once redelivery
-// can't double the row.
+// In-app row the first time a company user opens the application. Skips applications without a
+// candidate account; the message id guards against duplicates.
 public sealed class ApplicationViewedNotificationConsumer
     : IConsumer<ApplicationViewedIntegrationEvent>
 {
@@ -64,8 +61,7 @@ public sealed class ApplicationViewedNotificationConsumer
             message.CandidateAccountId);
     }
 
-    // The message-to-row mapping, kept static and side-effect free so tests can pin the payload
-    // contents and the no-account skip without standing up a ConsumeContext.
+    // Static so tests can check the mapping without a ConsumeContext.
     public static Notification? TryBuildNotification(ApplicationViewedIntegrationEvent message)
     {
         if (message.CandidateAccountId is not { } candidateAccountId)

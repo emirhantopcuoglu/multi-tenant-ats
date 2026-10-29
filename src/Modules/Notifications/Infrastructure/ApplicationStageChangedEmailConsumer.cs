@@ -7,16 +7,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// Consumes ApplicationStageChangedIntegrationEvent off RabbitMQ and emails the candidate that
-// their application moved forward — the email counterpart to
-// ApplicationStageChangedNotificationConsumer's in-app row. Own queue, so a slow or
-// failing SMTP send never blocks the bell from updating, and vice versa.
-//
-// The send is wrapped in the idempotency guard keyed on the message id, matching the other email
-// consumers: an at-least-once redelivery must not email the candidate twice.
-//
-// Wording comes from IEmailTextProvider in the language the candidate's account carries; see
-// ApplicationRejectedConsumer for why the language is read here rather than carried on the event.
+// Emails the candidate when their application moves stage. Own queue, separate from the in-app
+// consumer. Idempotent on the message id.
 public sealed class ApplicationStageChangedEmailConsumer
     : IConsumer<ApplicationStageChangedIntegrationEvent>
 {
@@ -66,8 +58,7 @@ public sealed class ApplicationStageChangedEmailConsumer
     {
         var language = await _candidateAccounts.GetPreferredLanguageByEmailAsync(message.CandidateEmail, ct);
 
-        // Job title and stage name are recruiter/company-controlled strings, untrusted in an HTML
-        // email, so HTML-encode them to prevent content injection — same rule as the other emails.
+        // Job title and stage name come from the company, so they are encoded.
         var body = _emailText.Get(
             EmailTextKeys.Application.StageChangedBody,
             language,

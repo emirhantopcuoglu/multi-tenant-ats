@@ -6,9 +6,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// Writes an in-app notification when an interview is moved. Same shape as the interview-scheduled
-// consumer: skip when the application has no candidate account, idempotency guard keyed on the
-// message id so an at-least-once redelivery cannot double up the feed.
 public sealed class InterviewRescheduledNotificationConsumer
     : IConsumer<InterviewRescheduledIntegrationEvent>
 {
@@ -62,8 +59,7 @@ public sealed class InterviewRescheduledNotificationConsumer
             message.CandidateAccountId);
     }
 
-    // Static so the payload contract and the no-account skip are unit-testable without a
-    // ConsumeContext, matching the other consumers in this module.
+    // Static so tests can check the mapping without a ConsumeContext.
     public static Notification? TryBuildNotification(InterviewRescheduledIntegrationEvent message)
     {
         if (message.CandidateAccountId is not { } candidateAccountId)

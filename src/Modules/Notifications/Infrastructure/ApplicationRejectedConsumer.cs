@@ -7,20 +7,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// Consumes ApplicationRejectedIntegrationEvent off RabbitMQ and emails the candidate a polite
-// rejection. The out-of-process counterpart to the recruiter's reject action, which has already
-// returned 204. If it throws, MassTransit retries the message and, once retries are exhausted,
-// dead-letters it — so a transient SMTP failure does not silently drop the email.
-//
-// The send is wrapped in the idempotency guard keyed on the message id, so an at-least-once
-// redelivery of the same message does not email the candidate twice.
-//
-// The email is deliberately generic: it never includes the recruiter's internal rejection reason.
-//
-// Wording comes from IEmailTextProvider in the language the candidate's account carries, which is
-// why this consumer reads ICandidateAccountReader: the event identifies the recipient by address,
-// and the language belongs to the account behind it. The lookup sits inside the idempotency guard,
-// so a duplicate delivery costs no query.
+// Emails the candidate a generic rejection; the recruiter's reason is never included.
+// Idempotent on the message id. The language comes from the candidate's account, so it is looked
+// up here inside the guard.
 public sealed class ApplicationRejectedConsumer : IConsumer<ApplicationRejectedIntegrationEvent>
 {
     private readonly IEmailSender _emailSender;
@@ -69,8 +58,7 @@ public sealed class ApplicationRejectedConsumer : IConsumer<ApplicationRejectedI
     {
         var language = await _candidateAccounts.GetPreferredLanguageByEmailAsync(message.CandidateEmail, ct);
 
-        // The candidate's name comes from the public apply form, so it is untrusted in an HTML email
-        // and is encoded here; the job title is encoded inside RolePhrase for the same reason.
+        // The name is user input going into HTML; RolePhrase encodes the job title.
         var body = _emailText.Get(
             EmailTextKeys.Application.RejectedBody,
             language,

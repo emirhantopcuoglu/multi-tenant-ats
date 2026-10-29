@@ -2,17 +2,10 @@ using System.Text.Json;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// The JSON shapes stored in Notification.Payload, one record per NotificationType. These are the
-// module's contract with the web client: structured facts only, never pre-rendered sentences —
-// the client picks the localized template by notification type and fills it from these fields, so
-// the feed's language is a client concern. ApplicationId is in every shape because the click-through
-// target is the candidate's application tracking page.
-//
-// Candidate-safety is structural, same principle as the integration events: there is no field for
-// recruiter notes, internal rejection reasons or acting users, so they cannot leak by mapping bug.
+// Payload shapes, one per NotificationType. Facts only, no rendered text. There is no field for
+// recruiter notes or rejection reasons, so they can't leak.
 public static class NotificationPayloads
 {
-    // camelCase on the wire so the client reads payload.jobTitle, matching the API's JSON style.
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     public sealed record ApplicationStageChanged(
@@ -27,14 +20,10 @@ public static class NotificationPayloads
         string InterviewType,
         DateTime ScheduledAtUtc,
         int DurationMinutes,
-        // Kept as a bare token, not a full URL: the in-app feed is rendered by the same SPA that
-        // owns the /interview-room route, so it builds the link itself rather than duplicating the
-        // absolute-URL config the email consumer needs for an external inbox. Null for a phone
-        // screen, which has no room.
+        // Just the token: the SPA builds the room link itself. Null for phone screens.
         string? RoomToken);
 
-    // Carries both times so the client can render "moved from X to Y". Stating only the new time
-    // would leave the candidate to diff it against the invitation they already have.
+    // Both times, so the client can show what changed.
     public sealed record InterviewRescheduled(
         Guid ApplicationId,
         string JobTitle,
@@ -44,9 +33,7 @@ public static class NotificationPayloads
         int DurationMinutes,
         string? RoomToken);
 
-    // Reason is one of a closed set (the Interviews module's InterviewCancellationReason) so the
-    // client can pick a localized sentence per case — notably whether to promise a new invitation.
-    // The recruiter's free-text note has no field here and never crosses the module boundary.
+    // A closed set, so the client can say whether a new invitation is coming.
     public sealed record InterviewCancelled(
         Guid ApplicationId,
         string JobTitle,
@@ -54,10 +41,7 @@ public static class NotificationPayloads
         DateTime ScheduledAtUtc,
         string Reason);
 
-    // Deliberately the same fields as InterviewScheduled plus the kind: a reminder restates the
-    // invitation, so the client renders it from the same facts and only swaps the sentence.
-    // ReminderKind is one of InterviewReminderKinds — a closed set, so an unknown value renders the
-    // generic row rather than a broken one.
+    // Same fields as InterviewScheduled plus the kind; unknown kinds render the generic row.
     public sealed record InterviewReminder(
         Guid ApplicationId,
         string JobTitle,
@@ -71,8 +55,6 @@ public static class NotificationPayloads
 
     public sealed record ApplicationCvDownloaded(Guid ApplicationId, string JobTitle);
 
-    // Company-side payload: raw name facts, not a pre-joined "Jane Doe" string, matching the
-    // "structured facts only" rule above.
     public sealed record NewApplication(
         Guid ApplicationId, string JobTitle, string CandidateFirstName, string CandidateLastName);
 

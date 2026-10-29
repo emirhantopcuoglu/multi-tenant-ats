@@ -6,8 +6,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// Writes an in-app notification when an interview is called off. Same shape as its sibling
-// consumers: skip without a candidate account, idempotency guard on the message id.
 public sealed class InterviewCancelledNotificationConsumer
     : IConsumer<InterviewCancelledIntegrationEvent>
 {

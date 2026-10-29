@@ -8,14 +8,8 @@ using Microsoft.Extensions.Options;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// Emails the candidate their upcoming interview when a scheduled reminder falls due.
-//
-// The idempotency key is (interview, kind), not the message id every other email consumer uses. The
-// producer is a sweep, not a command handler: if it publishes and then fails to record the reminder
-// as settled, the next run republishes the same reminder under a fresh message id. Keying on the
-// reminder's own identity is what makes that retry free — and it costs nothing for the ordinary
-// broker redelivery the message-id key was there to catch, because the identity is stable across
-// both.
+// Keyed on (interview, kind), not the message id: the sweep can republish the same reminder
+// under a new message id after a failed save.
 public sealed class InterviewReminderEmailConsumer
     : IConsumer<InterviewReminderDueIntegrationEvent>
 {
@@ -74,9 +68,7 @@ public sealed class InterviewReminderEmailConsumer
         var interviewType = InterviewEmailFormatting.TypeName(message.InterviewType, _emailText, language);
         var scheduledAt = InterviewEmailFormatting.FormatUtc(message.ScheduledAtUtc, _emailText, language);
 
-        // The starting-soon reminder is scheduled for the exact moment the room opens, so it invites
-        // the candidate straight in; the day-before one still has to say "when it opens". A phone
-        // screen has no room at all and gets the matching phone sentence instead.
+        // Starting-soon goes out when the room opens, so it says "join now". Phone screens have no room.
         var joinLine = message.RoomToken is { } roomToken
             ? InterviewEmailFormatting.JoinLine(
                 _roomOptions.BaseUrl,
@@ -90,8 +82,6 @@ public sealed class InterviewReminderEmailConsumer
                     : EmailTextKeys.Interview.PhoneLineScheduled,
                 language);
 
-        // Both bodies take the same arguments in the same order, so only the key differs — the
-        // reason EmailTextKeys documents them as interchangeable.
         var body = _emailText.Get(
             isStartingSoon
                 ? EmailTextKeys.Interview.ReminderStartingSoonBody

@@ -6,13 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// The in-app half of the interview reminder, so a candidate who has the product open sees the nudge
-// without going to their inbox. Same shape as InterviewScheduledNotificationConsumer: skip when the
-// application has no candidate account behind it, guard against duplicates.
-//
-// The guard is keyed on (interview, kind) rather than the message id, for the reason spelled out in
-// InterviewReminderEmailConsumer: the producer is a sweep that may legitimately republish the same
-// reminder under a new message id.
+// In-app reminder. Keyed on (interview, kind) for the same reason as InterviewReminderEmailConsumer.
 public sealed class InterviewReminderNotificationConsumer
     : IConsumer<InterviewReminderDueIntegrationEvent>
 {
@@ -68,8 +62,7 @@ public sealed class InterviewReminderNotificationConsumer
             message.CandidateAccountId);
     }
 
-    // Static for the same reason as its siblings: the payload mapping and the no-account skip are
-    // unit-testable without standing up a ConsumeContext.
+    // Static so tests can check the mapping without a ConsumeContext.
     public static Notification? TryBuildNotification(InterviewReminderDueIntegrationEvent message)
     {
         if (message.CandidateAccountId is not { } candidateAccountId)
