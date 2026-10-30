@@ -141,6 +141,7 @@ builder.Services.AddSingleton<IMinioClient>(sp =>
 builder.Services.AddSingleton<IFileStorage, MinioFileStorage>();
 
 builder.AddIdentityAndAuthorization();
+builder.AddDataProtectionKeys();
 
 builder.AddObservability(redisConnection);
 

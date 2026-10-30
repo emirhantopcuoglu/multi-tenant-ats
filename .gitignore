@@ -492,3 +492,6 @@ $RECYCLE.BIN/
 
 # Local Claude Code agent/IDE settings — never commit
 .claude/
+
+# Local certificates and keys (scripts/new-dataprotection-cert.sh)
+secrets/
