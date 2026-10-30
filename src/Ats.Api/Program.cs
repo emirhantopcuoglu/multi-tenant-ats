@@ -146,6 +146,12 @@ builder.AddObservability(redisConnection);
 
 var app = builder.Build();
 
+if (args.Contains(DatabaseMigrator.Command))
+{
+    await DatabaseMigrator.MigrateAsync(app.Services);
+    return;
+}
+
 using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
