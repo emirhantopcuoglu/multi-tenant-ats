@@ -81,8 +81,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Generate a JWT secret
-        run: echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Generate a JWT secret and a DataProtection certificate
+        run: |
+          echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          export DATA_PROTECTION_CERT_PASSWORD="$(openssl rand -hex 16)"
+          echo "DATA_PROTECTION_CERT_PASSWORD=$DATA_PROTECTION_CERT_PASSWORD" >> "$GITHUB_ENV"
+          bash scripts/new-dataprotection-cert.sh
 
       - name: Start the API and its dependencies
         run: docker compose --profile app up -d --build api

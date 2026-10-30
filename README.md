@@ -28,11 +28,19 @@ Start the infrastructure:
 docker compose up -d
 ```
 
+Create the certificate the API encrypts its DataProtection keys with (once, pick any password):
+
+```bash
+DATA_PROTECTION_CERT_PASSWORD=<password> bash scripts/new-dataprotection-cert.sh
+```
+
 Set the API secrets once:
 
 ```bash
 cd src/Ats.Api
 dotnet user-secrets set "Jwt:Secret" "<at least 32 random characters>"
+dotnet user-secrets set "DataProtection:CertificatePath" "../../secrets/dataprotection.pfx"
+dotnet user-secrets set "DataProtection:CertificatePassword" "<password>"
 dotnet user-secrets set "FileStorage:AccessKey" "minioadmin"
 dotnet user-secrets set "FileStorage:SecretKey" "minioadmin"
 dotnet user-secrets set "Llm:ApiKey" "<GitHub token with Models access>"  # optional, for CV parsing
@@ -55,7 +63,8 @@ Emails go to MailHog at http://localhost:8025.
 
 ### Everything in Docker
 
-Copy `.env.example` to `.env`, set `JWT_SECRET`, then:
+Create the certificate as above, copy `.env.example` to `.env`, set `JWT_SECRET` and
+`DATA_PROTECTION_CERT_PASSWORD`, then:
 
 ```bash
 docker compose --profile app up -d --build

@@ -1,13 +1,15 @@
 using System.Reflection;
 using Ats.Modules.Tenants.Domain;
 using Ats.Shared.Kernel;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Tenants.Infrastructure;
 
-public sealed class TenantsDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
+public sealed class TenantsDbContext
+    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>, IDataProtectionKeyContext
 {
     private readonly ICurrentTenant _currentTenant;
 
@@ -22,6 +24,9 @@ public sealed class TenantsDbContext : IdentityDbContext<ApplicationUser, Identi
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public DbSet<Invitation> Invitations => Set<Invitation>();
+
+    // Key ring for Identity's confirmation and reset tokens. See DataProtectionSetup.
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

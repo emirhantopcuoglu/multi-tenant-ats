@@ -19,6 +19,9 @@ x-api-environment: &api-environment
   # No default on purpose: the API refuses to start without a 32+ byte secret.
   Jwt__Secret: ${JWT_SECRET:-}
   Llm__ApiKey: ${LLM_API_KEY:-}
+  # Created by scripts/new-dataprotection-cert.sh.
+  DataProtection__CertificatePath: /run/secrets/dataprotection.pfx
+  DataProtection__CertificatePassword: ${DATA_PROTECTION_CERT_PASSWORD:-}
   Cors__AllowedOrigins__0: ${WEB_URL:-http://localhost:8080}
   Invitation__AcceptBaseUrl: ${WEB_URL:-http://localhost:8080}/accept-invitation
   PasswordReset__ResetBaseUrl: ${WEB_URL:-http://localhost:8080}/reset-password
@@ -35,6 +38,8 @@ services:
     image: ats-api
     command: ["migrate"]
     environment: *api-environment
+    volumes:
+      - ./secrets:/run/secrets:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,6 +50,8 @@ services:
     image: ats-api
     container_name: ats-api
     environment: *api-environment
+    volumes:
+      - ./secrets:/run/secrets:ro
     ports:
       - "5236:8080"
     depends_on:
