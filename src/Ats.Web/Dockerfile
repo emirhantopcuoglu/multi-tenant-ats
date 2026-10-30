@@ -1,7 +1,7 @@
 # Multi-stage: build the SPA with Node, then serve the static output with nginx. The final image
 # carries only the compiled assets + nginx — no Node, no source, no node_modules.
 
-FROM node:22-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /app
 
 # Copy the lockfile first so `npm ci` is cached until dependencies actually change.
