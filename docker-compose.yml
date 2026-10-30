@@ -1,9 +1,69 @@
+# `docker compose up -d` starts the infrastructure only. `docker compose --profile app up -d --build`
+# also runs migrations, the API (http://localhost:5236) and the web app (http://localhost:8080).
+
+x-api-environment: &api-environment
+  ASPNETCORE_ENVIRONMENT: Production
+  ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=ats;Username=ats;Password=ats_dev_password
+  Mongo__ConnectionString: mongodb://mongo:27017
+  Redis__ConnectionString: redis:6379
+  RabbitMq__Host: rabbitmq
+  RabbitMq__Username: ${RABBITMQ_USER:-ats}
+  RabbitMq__Password: ${RABBITMQ_PASSWORD:-ats_dev_password}
+  Email__Host: mailhog
+  FileStorage__Endpoint: minio:9000
+  FileStorage__PublicEndpoint: localhost:9000
+  FileStorage__AccessKey: ${MINIO_ROOT_USER:-minioadmin}
+  FileStorage__SecretKey: ${MINIO_ROOT_PASSWORD:-minioadmin}
+  OpenTelemetry__OtlpEndpoint: http://jaeger:4317
+  Serilog__WriteTo__1__Args__serverUrl: http://seq:5341
+  # No default on purpose: the API refuses to start without a 32+ byte secret.
+  Jwt__Secret: ${JWT_SECRET:-}
+  Llm__ApiKey: ${LLM_API_KEY:-}
+  Cors__AllowedOrigins__0: ${WEB_URL:-http://localhost:8080}
+  Invitation__AcceptBaseUrl: ${WEB_URL:-http://localhost:8080}/accept-invitation
+  PasswordReset__ResetBaseUrl: ${WEB_URL:-http://localhost:8080}/reset-password
+  CandidateEmailChange__ConfirmBaseUrl: ${WEB_URL:-http://localhost:8080}/candidate/confirm-email
+  CandidatePasswordReset__ResetBaseUrl: ${WEB_URL:-http://localhost:8080}/candidate/reset-password
+  CandidateEmailVerification__ConfirmBaseUrl: ${WEB_URL:-http://localhost:8080}/candidate/verify-email
+  EmailConfirmation__ConfirmBaseUrl: ${WEB_URL:-http://localhost:8080}/confirm-email
+  InterviewRoom__BaseUrl: ${WEB_URL:-http://localhost:8080}/interview-room
+
 services:
-  # The built SPA served by nginx. The API base URL is baked in at build time
-  # (Vite inlines VITE_-prefixed vars), so it's a build arg. The default targets the API running on the
-  # host's dev port; override VITE_API_BASE_URL for a real deployment. Note: the API's CORS
-  # AllowedOrigins must include this origin (http://localhost:8080) for the browser calls to succeed.
+  migrate:
+    profiles: [app]
+    build: .
+    image: ats-api
+    command: ["migrate"]
+    environment: *api-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    profiles: [app]
+    build: .
+    image: ats-api
+    container_name: ats-api
+    environment: *api-environment
+    ports:
+      - "5236:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mailhog:
+        condition: service_started
+
+  # The API URL is baked in at build time (Vite inlines VITE_ vars), so it's a build arg.
   web:
+    profiles: [app]
     build:
       context: ./src/Ats.Web
       args:
@@ -11,6 +71,8 @@ services:
     container_name: ats-web
     ports:
       - "8080:80"
+    depends_on:
+      - api
 
   postgres:
     image: postgres:16
@@ -23,6 +85,11 @@ services:
       - "5434:5432"
     volumes:
       - ats-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ats -d ats"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   mailhog:
     image: mailhog/mailhog
@@ -45,6 +112,11 @@ services:
       - "9001:9001"  # web console
     volumes:
       - ats-minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   mongo:
     image: mongo:7
@@ -56,6 +128,11 @@ services:
       - "27017:27017"
     volumes:
       - ats-mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   redis:
     image: redis:7
@@ -83,6 +160,11 @@ services:
       # Unlike Redis, the broker is a store: it must not drop messages that are in flight or waiting in
       # durable queues across a restart. The outbox relies on this durability.
       - ats-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
 
   jaeger:
     image: jaegertracing/all-in-one:latest

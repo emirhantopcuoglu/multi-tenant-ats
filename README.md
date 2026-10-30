@@ -20,7 +20,7 @@ on the bus.
 
 ## Running locally
 
-You need the .NET 9 SDK, Node 20.19+, Docker and the `dotnet-ef` tool.
+You need the .NET 9 SDK, Node 20.19+ and Docker.
 
 Start the infrastructure:
 
@@ -38,12 +38,10 @@ dotnet user-secrets set "FileStorage:SecretKey" "minioadmin"
 dotnet user-secrets set "Llm:ApiKey" "<GitHub token with Models access>"  # optional, for CV parsing
 ```
 
-The API doesn't migrate on startup, so apply each module's migrations:
+The API doesn't migrate on startup, so apply the migrations first:
 
 ```bash
-for m in Tenants Jobs Applications Interviews CandidateAccounts Notifications; do
-  dotnet ef database update -p src/Modules/$m/Infrastructure -s src/Modules/$m/Infrastructure
-done
+dotnet run --project src/Ats.Api -- migrate
 ```
 
 Run the API (http://localhost:5236) and the web app (http://localhost:5173):
@@ -54,6 +52,17 @@ cd src/Ats.Web && npm install && npm run dev
 ```
 
 Emails go to MailHog at http://localhost:8025.
+
+### Everything in Docker
+
+Copy `.env.example` to `.env`, set `JWT_SECRET`, then:
+
+```bash
+docker compose --profile app up -d --build
+```
+
+This runs the migrations, then the API on http://localhost:5236 and the web app on
+http://localhost:8080.
 
 ## Tests
 

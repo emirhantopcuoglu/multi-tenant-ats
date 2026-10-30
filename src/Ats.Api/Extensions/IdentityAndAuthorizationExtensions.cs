@@ -19,12 +19,20 @@ namespace Ats.Api.Extensions;
 
 public static class IdentityAndAuthorizationExtensions
 {
+    private const int MinJwtSecretBytes = 32;
+
     // Identity, the candidate auth stack, the shared JWT scheme and the policies. One method because
     // they depend on each other.
     public static IHostApplicationBuilder AddIdentityAndAuthorization(this IHostApplicationBuilder builder)
     {
-        builder.Services.Configure<JwtOptions>(
-            builder.Configuration.GetSection(JwtOptions.SectionName));
+        // HS256 needs a 256-bit key. Checked at startup so a missing secret doesn't surface as a
+        // failed login.
+        builder.Services.AddOptions<JwtOptions>()
+            .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
+            .Validate(
+                options => Encoding.UTF8.GetByteCount(options.Secret) >= MinJwtSecretBytes,
+                $"Jwt:Secret must be at least {MinJwtSecretBytes} bytes.")
+            .ValidateOnStart();
 
         builder.Services
             .AddIdentityCore<ApplicationUser>()
