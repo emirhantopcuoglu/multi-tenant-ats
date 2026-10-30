@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.12.0...v0.12.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* **applications:** refuse applications from a frozen candidate account ([#192](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/192)) ([3b2fc75](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/3b2fc7504aa85afcce25e27d3e60a4a1d8191150))
+
 ## [0.12.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.11.0...v0.12.0) (2026-10-08)
 
 
