@@ -73,16 +73,31 @@ jobs:
           dotnet test tests/Ats.IntegrationTests/Ats.IntegrationTests.csproj \
             --no-build --configuration Release
 
-  # Validates the Dockerfile builds a runnable image.
-  # Runs in parallel with integration after the fast gate passes.
+  # Builds the API image and boots it with its dependencies. Bus, DI and config errors only show up
+  # at runtime, so no other job catches them.
   docker-build:
     needs: unit-and-arch
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
-      - name: Build Docker image
-        run: docker build -t ats-api:ci .
+      - name: Generate a JWT secret
+        run: echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+
+      - name: Start the API and its dependencies
+        run: docker compose --profile app up -d --build api
+
+      - name: Wait for /health/ready
+        run: |
+          for attempt in $(seq 1 60); do
+            curl -fsS http://localhost:5236/health/ready && exit 0
+            sleep 5
+          done
+          exit 1
+
+      - name: Show logs
+        if: failure()
+        run: docker compose --profile app logs migrate api
 
   # Lints, tests, type-checks and builds the React SPA. Independent of the .NET jobs (no `needs`), so
   # it runs in parallel and gives the frontend its own pass/fail signal.
