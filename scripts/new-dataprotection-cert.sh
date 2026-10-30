@@ -3,7 +3,10 @@
 # The PFX password is read from DATA_PROTECTION_CERT_PASSWORD (the same variable compose passes on).
 set -euo pipefail
 
-: "${DATA_PROTECTION_CERT_PASSWORD:?set DATA_PROTECTION_CERT_PASSWORD first}"
+if [[ -z "${DATA_PROTECTION_CERT_PASSWORD:-}" ]]; then
+  echo "Set DATA_PROTECTION_CERT_PASSWORD first." >&2
+  exit 1
+fi
 
 # Git Bash would otherwise turn "/CN=..." into a Windows path.
 export MSYS2_ARG_CONV_EXCL="/CN"
