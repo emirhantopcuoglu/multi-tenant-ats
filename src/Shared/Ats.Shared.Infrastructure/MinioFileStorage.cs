@@ -8,14 +8,30 @@ namespace Ats.Shared.Infrastructure;
 // MinIO speaks the S3 API, so switching to AWS S3 is a config change.
 public sealed class MinioFileStorage : IFileStorage
 {
+    // MinIO's default. Set on the presign client so signing never asks the server for the region,
+    // which it couldn't reach at the public host.
+    private const string Region = "us-east-1";
+
     private readonly IMinioClient _client;
+    private readonly IMinioClient _presignClient;
     private readonly FileStorageOptions _options;
 
     public MinioFileStorage(IMinioClient client, IOptions<FileStorageOptions> options)
     {
         _client = client;
         _options = options.Value;
+        _presignClient = string.IsNullOrWhiteSpace(_options.PublicEndpoint)
+            ? client
+            : CreatePresignClient(_options);
     }
+
+    private static IMinioClient CreatePresignClient(FileStorageOptions options) =>
+        new MinioClient()
+            .WithEndpoint(options.PublicEndpoint)
+            .WithCredentials(options.AccessKey, options.SecretKey)
+            .WithSSL(options.PublicUseSsl)
+            .WithRegion(Region)
+            .Build();
 
     public async Task UploadAsync(
         string key, Stream content, long size, string contentType,
@@ -40,7 +56,7 @@ public sealed class MinioFileStorage : IFileStorage
             .WithExpiry((int)expiry.TotalSeconds);
 
         // Presigning happens locally, so there is no CancellationToken to pass.
-        return await _client.PresignedGetObjectAsync(args);
+        return await _presignClient.PresignedGetObjectAsync(args);
     }
 
     public async Task<byte[]> DownloadAsync(string key, CancellationToken cancellationToken = default)

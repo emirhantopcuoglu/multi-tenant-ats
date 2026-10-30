@@ -14,5 +14,10 @@ public sealed class FileStorageOptions
     public string BucketName { get; init; } = "cv-uploads";
     public bool UseSsl { get; init; }
 
+    // Where the browser reaches MinIO, if not at Endpoint (e.g. the API runs in Docker). Download
+    // links are signed for this host.
+    public string? PublicEndpoint { get; init; }
+    public bool PublicUseSsl { get; init; }
+
     public int MaxFileSizeBytes { get; init; } = 10 * 1024 * 1024;
 }
