@@ -99,7 +99,8 @@ services:
       - "8025:8025"
 
   minio:
-    image: minio/minio
+    # minio/minio is no longer published on Docker Hub; Chainguard builds the same server.
+    image: cgr.dev/chainguard/minio:latest
     container_name: ats-minio
     command: server /data --console-address ":9001"
     environment:
