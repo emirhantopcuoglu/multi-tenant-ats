@@ -5,9 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Notifications.Application.Notifications;
 
-// The payload goes out as a JSON object (JsonElement), not a string-encoded blob: the client reads
-// notification.payload.jobTitle directly instead of parsing a string field. The Type string tells
-// it which shape (and which localized template) to expect.
+// Payload goes out as a JSON object; Type tells the client which shape and template to use.
 public sealed record NotificationDto(
     Guid Id,
     string Type,
@@ -15,10 +13,7 @@ public sealed record NotificationDto(
     DateTime CreatedAtUtc,
     DateTime? ReadAtUtc);
 
-// ---- List ----
-// The recipient is always taken from the authenticated caller by the API layer, never from client
-// input — which is the whole ownership model: every query in this module filters on
-// (RecipientType, RecipientId), so one recipient can never see another's rows.
+// Every query filters on (RecipientType, RecipientId), set from the caller by the API.
 public sealed record ListNotificationsQuery(
     NotificationRecipientType RecipientType,
     Guid RecipientId,
@@ -59,8 +54,7 @@ public sealed class ListNotificationsHandler
         return Result.Success(new PagedResult<NotificationDto>(items, page, pageSize, total));
     }
 
-    // The payload is written by this module's own consumers, so a malformed document should be
-    // impossible — but one bad row must degrade to an empty object, not 500 the whole feed.
+    // A malformed payload becomes an empty object instead of failing the whole feed.
     private static JsonElement ParsePayload(string payload)
     {
         try
@@ -76,9 +70,6 @@ public sealed class ListNotificationsHandler
     }
 }
 
-// ---- Unread count ----
-// The number behind the bell badge. Split from the list query because the client polls this far
-// more often than it opens the list, and it must stay a cheap COUNT instead of a page load.
 public sealed record GetUnreadNotificationCountQuery(
     NotificationRecipientType RecipientType,
     Guid RecipientId) : IQuery<int>;

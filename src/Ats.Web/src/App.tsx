@@ -42,43 +42,33 @@ import { CandidateAccountSettingsTab } from '@/features/candidates/pages/Candida
 import { CandidateReactivatePage } from '@/features/candidates/pages/CandidateReactivatePage';
 import { CompanyNotificationsPage } from '@/features/notifications/pages/CompanyNotificationsPage';
 
-/* Public auth routes sit at the top. Everything else is nested under RequireAuth → AppShell, so the
-   shell (sidebar + topbar) wraps every authenticated screen and the routed page renders through its
-   <Outlet/>. Role-restricted areas nest again under RequireRole. Real feature screens replace the
-   placeholders from Phase 3 onward; /playground stays a public dev gallery for now. */
+/* Authenticated screens nest under RequireAuth → AppShell; role-restricted ones nest again under
+   RequireRole. /playground is a public dev gallery. */
 export default function App() {
   return (
     <Routes>
-      {/* The root is the public marketplace — visible to everyone, auth or not. */}
       <Route path="/" element={<MarketplacePage />} />
 
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
-      {/* Recovery, necessarily anonymous. Both paths are reserved in SlugPolicy so a company slug
-          can never shadow them. */}
+      {/* Both paths are reserved in SlugPolicy so a company slug can't shadow them. */}
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/candidate/login" element={<CandidateLoginPage />} />
       <Route path="/candidate/register" element={<CandidateRegisterPage />} />
-      {/* Public like /accept-invitation: the mailed link may be opened without a session. */}
       <Route path="/candidate/confirm-email" element={<ConfirmEmailChangePage />} />
-      {/* Recovery, necessarily anonymous — whoever needs these cannot sign in. */}
-      {/* Anonymous like the reset-password route below: opened from an email client, which carries no
-          session. The token in the query string is the credential. */}
+      {/* Anonymous: opened from an email client with no session; the token is the credential. */}
       <Route path="/candidate/verify-email" element={<CandidateVerifyEmailPage />} />
-      {/* Company counterpart, same reasoning: opened from an email client with no session — and here
-          nobody can sign in until it succeeds. */}
       <Route path="/confirm-email" element={<ConfirmEmailPage />} />
       <Route path="/candidate/forgot-password" element={<CandidateForgotPasswordPage />} />
       <Route path="/candidate/reset-password" element={<CandidateResetPasswordPage />} />
       <Route path="/playground" element={<PlaygroundPage />} />
-      {/* Reachable by either a candidate or a company interviewer session — the page itself checks
-          which, since neither RequireAuth nor RequireCandidateAuth alone would fit both. */}
+      {/* Either a candidate or a company interviewer may open it; the page checks which. */}
       <Route path="/interview-room/:roomToken" element={<InterviewRoomPage />} />
 
       <Route element={<RequireCandidateAuth />}>
-        {/* Outside RequireActiveCandidate on purpose: it is the one screen a frozen account may see. */}
+        {/* Outside RequireActiveCandidate: the one screen a frozen account may see. */}
         <Route path="/candidate/reactivate" element={<CandidateReactivatePage />} />
         <Route element={<RequireActiveCandidate />}>
           <Route path="/candidate/applications" element={<CandidateApplicationsPage />} />
@@ -94,8 +84,7 @@ export default function App() {
         </Route>
       </Route>
 
-      {/* Anonymous careers pages. Static routes above (e.g. /login, /jobs) outrank these dynamic
-          single-segment patterns, so they only match a tenant slug, never an app path. */}
+      {/* Careers pages. Static routes outrank these dynamic patterns, so they only match a tenant slug. */}
       <Route path="/:slug" element={<PublicCareersPage />} />
       <Route path="/:slug/jobs/:jobSlug" element={<PublicJobDetailPage />} />
       <Route path="/:slug/jobs/:jobSlug/apply" element={<PublicApplyPage />} />
@@ -118,7 +107,6 @@ export default function App() {
         </Route>
       </Route>
 
-      {/* Unknown paths fall back to the protected root, which itself redirects to /login when anonymous. */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

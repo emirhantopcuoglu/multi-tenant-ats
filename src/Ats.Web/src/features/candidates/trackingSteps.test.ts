@@ -6,11 +6,7 @@ import type {
 } from './candidateApplicationsApi';
 import { buildTrackingSteps, isHiredStage } from './trackingSteps';
 
-/* The candidate's tracking page is a dumb renderer over this function, so every rule the page
-   appears to have actually lives here — and each one exists because the naive version read badly to
-   a candidate: a stage announced twice, a roadmap shown to someone who withdrew, "Rejected" listed
-   ahead of an active application as if it were coming.
- */
+/* The tracking page only renders what this function returns, so its rules are tested here. */
 
 const stages: CandidatePipelineStage[] = [
   { id: 'applied', name: 'Applied', type: 'Initial', order: 1 },
@@ -104,7 +100,7 @@ describe('buildTrackingSteps — the current stage', () => {
     const current = steps.find((s) => s.isCurrent)!;
     expect(current.occurredAtUtc).toBe('2026-07-12T08:00:00Z');
 
-    // The earlier arrival stays in the history as an ordinary event — only the latest is folded.
+    // The earlier arrival stays in the history as an ordinary event, only the latest is folded.
     expect(steps.filter((s) => s.label === 'movedTo')).toHaveLength(2);
   });
 });

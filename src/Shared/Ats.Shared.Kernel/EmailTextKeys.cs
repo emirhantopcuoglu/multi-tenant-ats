@@ -1,13 +1,7 @@
 namespace Ats.Shared.Kernel;
 
-// Every key the email resource files are expected to hold. Constants rather than literals at the
-// call sites so a typo is a build error instead of an email that silently ships the key name — and
-// so EmailTextResourceTests can walk this class by reflection and assert that both languages define
-// all of them. That test is the reason this file is worth its length.
-//
-// Naming mirrors the JSON: "<area>.<email>.<part>". Each email owns a subject and a body; the body
-// is a whole HTML fragment rather than a set of sentence fragments, because a paragraph reads and
-// translates as a unit and Turkish frequently needs to reorder across sentence boundaries.
+// Constants so a typo is a build error. EmailTextResourceTests checks both languages define all
+// of them. Each body is a whole HTML fragment so it translates as one unit.
 public static class EmailTextKeys
 {
     public static class Candidate
@@ -80,8 +74,7 @@ public static class EmailTextKeys
         // {0} first name, {1} job title, {2} new stage name.
         public const string StageChangedBody = "application.stageChanged.body";
 
-        // Used in place of the job title when it is unavailable, so the sentence still reads
-        // naturally without announcing that something is missing.
+        // Used when the job title is missing.
         public const string FallbackRole = "application.fallbackRole";
     }
 
@@ -103,9 +96,6 @@ public static class EmailTextKeys
         // {0} first name, {1} interview type, {2} job title, {3} when, {4} closing sentence.
         public const string CancelledBody = "interview.cancelled.body";
 
-        // The two reminders a still-upcoming interview produces. Separate wording rather than one
-        // reused template: a day out the useful message is "prepare, or tell us if you cannot make
-        // it", and at the door it is "join now" — the same sentence cannot serve both.
         public const string ReminderDayBeforeSubject = "interview.reminder.dayBefore.subject";
 
         // {0} first name, {1} interview type, {2} job title, {3} when, {4} duration, {5} join line.
@@ -113,38 +103,31 @@ public static class EmailTextKeys
 
         public const string ReminderStartingSoonSubject = "interview.reminder.startingSoon.subject";
 
-        // Same arguments as the day-before body, so the two stay interchangeable at the call site.
+        // Same arguments as the day-before body.
         public const string ReminderStartingSoonBody = "interview.reminder.startingSoon.body";
 
-        // A .NET custom date/time pattern, not a sentence: it belongs with the wording because the
-        // field order and the 12/24-hour clock are language decisions, not code decisions.
+        // A .NET date pattern; field order and the clock format are language choices.
         public const string DateFormat = "interview.dateFormat";
 
         // {0} room URL, used twice (href and link text).
         public const string JoinLine = "interview.joinLine";
         public const string JoinLineUnchanged = "interview.joinLineUnchanged";
 
-        // The room is open at the moment this one is sent — the starting-soon reminder is scheduled
-        // for exactly Interview.RoomOpensAtUtc — so it invites the candidate in rather than telling
-        // them to wait.
+        // Sent when the room opens, so it says "join now".
         public const string JoinLineNow = "interview.joinLineNow";
 
         public const string PhoneLineScheduled = "interview.phoneLine.scheduled";
         public const string PhoneLineRescheduled = "interview.phoneLine.rescheduled";
         public const string PhoneLineStartingSoon = "interview.phoneLine.startingSoon";
 
-        // Completed with an InterviewType name, e.g. "interview.type.PhoneScreen". Composed rather
-        // than constant because the enum is the source of truth for which values exist.
+        // Followed by an InterviewType name, e.g. "interview.type.PhoneScreen".
         public const string TypePrefix = "interview.type.";
 
-        // Completed with an InterviewCancellationReason name. UnknownCancelReason covers a value
-        // this build does not recognise — possible when an older consumer meets a newer producer.
+        // Followed by an InterviewCancellationReason name. UnknownCancelReason covers unrecognized values.
         public const string CancelReasonPrefix = "interview.cancelReason.";
         public const string UnknownCancelReason = "interview.cancelReason.unknown";
 
-        // The values that complete the two prefixes above. Listed here, rather than reached for via
-        // the Interviews module's enums, because the kernel must not depend on a module — and the
-        // resource-parity test needs the full key set from one place.
+        // Listed here because the kernel can't reference a module's enums.
         public static readonly IReadOnlyList<string> Types =
             ["PhoneScreen", "Technical", "Cultural", "Final"];
 

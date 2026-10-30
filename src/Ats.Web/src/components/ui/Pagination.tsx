@@ -1,7 +1,7 @@
 import { cn, focusRing } from '@/lib/cn';
 
 interface PaginationProps {
-  /** Current page, 1-based. */
+  /* 1-based. */
   page: number;
   pageCount: number;
   onPageChange: (page: number) => void;
@@ -9,8 +9,7 @@ interface PaginationProps {
 
 type PageItem = number | 'ellipsis';
 
-/* Build a compact page list: always the first and last page, a window around the current page, and
-   ellipses for the gaps. Keeps the control short even with hundreds of pages. */
+/* First and last page, a window around the current one, and ellipses for the gaps. */
 function getPageItems(page: number, pageCount: number): PageItem[] {
   const SIBLINGS = 1;
   const pages = new Set<number>([1, pageCount]);

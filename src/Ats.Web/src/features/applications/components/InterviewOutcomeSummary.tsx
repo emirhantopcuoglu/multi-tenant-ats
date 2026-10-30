@@ -8,11 +8,7 @@ interface InterviewOutcomeSummaryProps {
   outcome: ApplicationInterviewOutcome | undefined;
 }
 
-/* What the interviews concluded, on the application itself. Feedback existed only per interview
-   before this, so deciding what to do next meant opening each one and remembering the scores.
-
-   Renders nothing when there are no interviews — an empty summary on every pre-interview
-   application would be noise. */
+/* Feedback summary across the application's interviews. Renders nothing when there are none. */
 export function InterviewOutcomeSummary({ outcome }: InterviewOutcomeSummaryProps) {
   const { t } = useTranslation();
 
@@ -32,7 +28,7 @@ export function InterviewOutcomeSummary({ outcome }: InterviewOutcomeSummaryProp
         )}
       </div>
 
-      {/* The one thing that should stop a decision: a slot that passed with nothing recorded. */}
+      {/* A slot that passed with nothing recorded. */}
       {outcome.awaitingOutcomeCount > 0 && (
         <p className="text-sm text-warning">
           {t('applicationDetail.outcome.awaiting', { count: outcome.awaitingOutcomeCount })}
@@ -46,7 +42,7 @@ export function InterviewOutcomeSummary({ outcome }: InterviewOutcomeSummaryProp
         })}
       </p>
 
-      {/* Ordered by the enum, most negative first, so a split panel reads consistently. */}
+      {/* Enum order, most negative first. */}
       {outcome.feedbackCount > 0 && (
         <div className="flex flex-wrap gap-2">
           {FEEDBACK_RECOMMENDATIONS.map((recommendation) => {

@@ -2,9 +2,7 @@ using Ats.Shared.Kernel;
 
 namespace Ats.Modules.Applications.Domain;
 
-// A single stage within a Pipeline. Part of the Pipeline aggregate: a stage is only ever
-// created by its Pipeline, which is why the constructor is internal. Applications point at
-// a stage by CurrentStageId (a cross-aggregate reference by id).
+// Only created by its Pipeline, hence the internal constructor.
 public sealed class PipelineStage : ITenantScoped, IAuditable, ISoftDeletable
 {
     public Guid Id { get; private set; }

@@ -6,9 +6,7 @@ public class InterviewLifecycleTests
 {
     private static readonly Guid[] OneInterviewer = [Guid.NewGuid()];
 
-    // A fixed clock rather than DateTime.UtcNow. Every rule under test is a statement about where
-    // "now" sits relative to the interview, so pinning both ends is what makes assertions like
-    // "cancelling after the start time is refused" expressible without actually waiting.
+    // A fixed clock, so rules about "now" can be tested without waiting.
     private static readonly DateTime Now = new(2026, 7, 25, 12, 0, 0, DateTimeKind.Utc);
 
     private const int Duration = 60;
@@ -221,7 +219,7 @@ public class InterviewLifecycleTests
     [Fact]
     public void Reschedule_should_throw_once_the_start_time_has_passed()
     {
-        // Moving an elapsed interview would erase the fact that the original slot was missed —
+        // Moving an elapsed interview would erase the fact that the original slot was missed , 
         // mark it NoShow and book a new one instead.
         var interview = ScheduleValid();
 
@@ -440,7 +438,7 @@ public class InterviewLifecycleTests
 
         Assert.Equal(originalTime, interview.ScheduledAtUtc);
         Assert.Equal(Duration, interview.DurationMinutes);
-        // The room belongs to the interview, not to whoever is staffing it — swapping the panel
+        // The room belongs to the interview, not to whoever is staffing it, swapping the panel
         // must not invalidate a link the candidate already has.
         Assert.Equal(originalToken, interview.RoomToken);
     }
@@ -577,9 +575,7 @@ public class InterviewLifecycleTests
         Assert.False(interview.CanReceiveFeedback(AfterEnd(interview)));
     }
 
-    // ---- Room window ----
-    // The room stays keyed to the clock, not to the outcome, so an interview that has elapsed
-    // without being resolved still closes its room on schedule.
+    // Room window: tied to the clock, so an unresolved interview's room still closes on time.
 
     [Fact]
     public void IsRoomOpen_should_be_false_before_the_lead_window()

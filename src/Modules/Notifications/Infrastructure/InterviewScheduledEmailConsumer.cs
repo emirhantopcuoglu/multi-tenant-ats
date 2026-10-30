@@ -8,15 +8,7 @@ using Microsoft.Extensions.Options;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// Consumes InterviewScheduledIntegrationEvent off RabbitMQ and emails the candidate their
-// interview details — the email counterpart to InterviewScheduledNotificationConsumer's in-app row.
-// Own queue, so a slow or failing SMTP send never blocks the bell from updating.
-//
-// The send is wrapped in the idempotency guard keyed on the message id, matching the other email
-// consumers: an at-least-once redelivery must not email the candidate twice.
-//
-// Wording comes from IEmailTextProvider in the language the candidate's account carries; see
-// ApplicationRejectedConsumer for why the language is read here rather than carried on the event.
+// Emails the candidate the interview details. Idempotent on the message id.
 public sealed class InterviewScheduledEmailConsumer
     : IConsumer<InterviewScheduledIntegrationEvent>
 {
@@ -69,15 +61,11 @@ public sealed class InterviewScheduledEmailConsumer
     {
         var language = await _candidateAccounts.GetPreferredLanguageByEmailAsync(message.CandidateEmail, ct);
 
-        // Job title is a recruiter/company-controlled string, untrusted in an HTML email, so
-        // HTML-encode it — same rule as the other emails. The date format and the type name are
-        // shared with the reschedule/cancel emails so one interview never reads differently across
-        // the three messages.
+        // Job title comes from the company, so it is encoded.
         var interviewType = InterviewEmailFormatting.TypeName(message.InterviewType, _emailText, language);
         var scheduledAt = InterviewEmailFormatting.FormatUtc(message.ScheduledAtUtc, _emailText, language);
 
-        // A phone screen has no room token, so there is no link to send — the candidate is called
-        // instead. Every other type gets a join link.
+        // Phone screens have no room link.
         var joinLine = message.RoomToken is { } roomToken
             ? InterviewEmailFormatting.JoinLine(
                 _roomOptions.BaseUrl, roomToken, EmailTextKeys.Interview.JoinLine,

@@ -5,13 +5,12 @@ import type { NotificationItem } from './notificationsApi';
 
 export interface RenderedNotification {
   text: string;
-  /** Deep-link target for the row click; null when the payload names no application. */
+  /* Null when the payload has no application. */
   applicationId: string | null;
 }
 
-/* Single place that turns a structured payload into localized text, so the bell dropdown and the
-   notifications page can never drift apart. Payload fields are read defensively: the shape is a
-   cross-module contract (NotificationPayloads.cs), not something this client controls. */
+/* The one place payloads become text. Fields are read defensively: the shape is set by
+   NotificationPayloads.cs. */
 export function renderNotification(
   item: NotificationItem,
   t: TFunction,
@@ -47,8 +46,7 @@ export function renderNotification(
       };
     case 'ApplicationStageChanged':
       return {
-        // The payload carries the raw backend stage name ("Interview"); stageLabel localizes the
-        // known default names so the bell doesn't speak English in a Turkish UI.
+        // stageLabel translates the default stage names.
         text: t('notifications.stageChanged', {
           jobTitle: readString(item.payload, 'jobTitle'),
           stage: stageLabel(readString(item.payload, 'toStageName'), t),
@@ -66,8 +64,7 @@ export function renderNotification(
       };
     case 'InterviewRescheduled':
       return {
-        // Both times, not just the new one: the recipient is holding the old date and needs to see
-        // the change, which is the same reason the payload carries the previous instant at all.
+        // Both times, so the change is visible.
         text: t('notifications.interviewRescheduled', {
           jobTitle: readString(item.payload, 'jobTitle'),
           type: interviewTypeLabel(readString(item.payload, 'interviewType'), t),
@@ -87,9 +84,7 @@ export function renderNotification(
       };
     case 'InterviewReminder':
       return {
-        // One notification type, two sentences: the payload's reminderKind decides which. An
-        // unrecognised kind falls back to the day-before wording, which is the safer half — it
-        // states the date instead of implying the interview is starting right now.
+        // Unknown kinds fall back to the day-before wording, which states the date.
         text: t(
           readString(item.payload, 'reminderKind') === 'StartingSoon'
             ? 'notifications.interviewReminderStartingSoon'
@@ -103,13 +98,12 @@ export function renderNotification(
         applicationId: readString(item.payload, 'applicationId') || null,
       };
     default:
-      // A type this bundle predates: still show something clickable rather than a broken row.
+      // Unknown type: still show a clickable row.
       return { text: t('notifications.generic'), applicationId: null };
   }
 }
 
-/* "5 minutes ago" style timestamps for recent notifications; older ones switch to a plain date
-   because "3 weeks ago" stops being useful. Intl covers both locales without a date library. */
+/* Relative time for recent items, a plain date after that. */
 export function formatNotificationTime(isoUtc: string, locale: string): string {
   const MS_PER_MINUTE = 60_000;
   const MINUTES_PER_HOUR = 60;

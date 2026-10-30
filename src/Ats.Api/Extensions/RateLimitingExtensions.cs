@@ -10,11 +10,8 @@ namespace Ats.Api.Extensions;
 
 public static class RateLimitingExtensions
 {
-    // Distributed rate limiting. Counters live in Redis (via the shared multiplexer), so the
-    // limits hold across every app instance rather than per-process. Three fixed-window limits:
-    //   - per-IP   (named policy) on login/register/public apply — unauthenticated abuse vectors
-    //   - per-tenant + per-user (global, chained) on every authenticated request
-    // The native middleware's default rejection is 503; OnRejected corrects it to 429 + Retry-After.
+    // Counters in Redis, so limits hold across instances. Per-IP on anonymous endpoints, per-tenant and
+    // per-user on authenticated ones. Rejections are 429 with Retry-After instead of the default 503.
     public static IHostApplicationBuilder AddRateLimiting(this IHostApplicationBuilder builder)
     {
         var rateLimitingOptions = builder.Configuration
@@ -25,8 +22,7 @@ public static class RateLimitingExtensions
         {
             options.OnRejected = async (context, cancellationToken) =>
             {
-                // The Redis limiter reports retry-after in seconds under its own metadata name, not the
-                // framework's MetadataName.RetryAfter (which the built-in in-memory limiters use).
+                // The Redis limiter uses its own metadata name for retry-after.
                 if (context.Lease.TryGetMetadata(RateLimitMetadataName.RetryAfter, out var retryAfterSeconds))
                     context.HttpContext.Response.Headers.RetryAfter =
                         retryAfterSeconds.ToString(NumberFormatInfo.InvariantInfo);
@@ -42,8 +38,6 @@ public static class RateLimitingExtensions
                     "Too many requests. Please try again later.", cancellationToken);
             };
 
-            // Behind a reverse proxy the real client IP arrives in X-Forwarded-For, which requires
-            // ForwardedHeaders middleware to populate RemoteIpAddress. In dev it is correct as-is.
             options.AddPolicy(RateLimitPolicies.PerIp, httpContext =>
                 FailOpenRedisFixedWindow(
                     httpContext,
@@ -51,9 +45,8 @@ public static class RateLimitingExtensions
                     rateLimitingOptions.PerIpPermitLimit,
                     rateLimitWindow));
 
-            // CreateChained runs both limiters in sequence, so an authenticated request must satisfy its
-            // tenant's shared budget and its own per-user budget. Unauthenticated requests carry neither
-            // claim and fall through to NoLimiter here, relying on the per-IP policy instead.
+            // Authenticated requests must fit both the tenant and the user budget. Anonymous ones get NoLimiter
+            // here and rely on the per-IP policy.
             options.GlobalLimiter = PartitionedRateLimiter.CreateChained(
                 PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
                 {
@@ -76,11 +69,7 @@ public static class RateLimitingExtensions
         return builder;
     }
 
-    // Builds a Redis-backed fixed-window partition wrapped in FailOpenRateLimiter, so a Redis outage lets
-    // the request through instead of failing it. The limiter for each key is created once and then cached
-    // by the partition, so resolving the logger per call here is cheap. The connection multiplexer is
-    // resolved from DI rather than captured, since AddCaching already registers it as a singleton — the
-    // same instance either way, but this keeps the method free of shared local state from Program.cs.
+    // Redis fixed window wrapped in FailOpenRateLimiter, so a Redis outage lets requests through.
     private static RateLimitPartition<string> FailOpenRedisFixedWindow(
         HttpContext httpContext, string key, int permitLimit, TimeSpan window)
     {

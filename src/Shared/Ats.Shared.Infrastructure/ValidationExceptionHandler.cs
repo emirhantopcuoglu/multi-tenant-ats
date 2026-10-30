@@ -5,11 +5,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ats.Shared.Infrastructure;
 
-// Translates FluentValidation failures (thrown by the MediatR ValidationBehavior)
-// into an RFC 7807 validation problem (400) with per-field messages, instead of
-// letting them fall through to the catch-all 500 handler. Registered before
-// GlobalExceptionHandler; returns false for any other exception so the chain
-// continues. Validation failures are client errors, so they are not logged.
+// Turns FluentValidation failures into a 400 with per-field messages. Runs before
+// GlobalExceptionHandler. Not logged: these are client errors.
 public sealed class ValidationExceptionHandler : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(

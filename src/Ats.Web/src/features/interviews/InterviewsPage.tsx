@@ -11,9 +11,8 @@ import { InterviewsTable, InterviewsTableSkeleton } from './components/Interview
 
 const PAGE_SIZE = 20;
 
-/* Interviews list (Step 3.6). A date-range preset and an interviewer filter (both mirrored to the
-   URL) drive the query. Read-only: interviews are scheduled from a candidate's application, not from
-   here. The calendar view is deferred to a later slice. */
+/* Date range and interviewer filter live in the URL. Interviews are scheduled from an application,
+   not here. */
 export function InterviewsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -59,7 +58,6 @@ export function InterviewsPage() {
       params.delete('page');
     });
 
-  // Recompute bounds whenever the preset changes (and pin "now" per render via useMemo on range).
   const bounds = useMemo(() => resolveDateRange(range), [range]);
 
   const { data, isLoading, isError, refetch } = useInterviews({

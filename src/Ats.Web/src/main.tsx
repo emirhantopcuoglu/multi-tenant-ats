@@ -10,10 +10,8 @@ import { queryClient } from '@/lib/queryClient';
 import '@/i18n';
 import '@/styles/index.css';
 
-// Entry point: mount the React tree into #root. StrictMode surfaces unsafe lifecycles and
-// double-invokes effects in development to flush out side-effect bugs early.
-// Provider order: ThemeProvider (UI) → QueryClientProvider (data) → ToastProvider → BrowserRouter
-// → AuthProvider (needs both the query client and the router) → App.
+// Provider order: theme → query client → toasts → router → AuthProvider (needs the query client
+// and the router).
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>

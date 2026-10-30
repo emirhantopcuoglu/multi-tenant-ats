@@ -2,16 +2,11 @@ using Ats.Modules.Applications.Domain;
 
 namespace Ats.Modules.Applications.Application.Applications;
 
-// The decision behind AdvanceToInterviewStageConsumer (Infrastructure): given an application's
-// current status/stage and its job's pipeline, which stage (if any) should it be moved to because
-// an interview was just scheduled against it? Kept pure and separate from the consumer so the rule
-// — forward-only, Active-only, and dependent on the pipeline having an Interview-type stage at all
-// — is unit-testable without a database or a message bus.
+// Which stage an application should move to when an interview is scheduled. Pure, so it can be
+// tested without a database or bus.
 public static class InterviewStageAdvancement
 {
-    // Null means "do nothing": either the application is no longer Active, its pipeline has no
-    // stage of type Interview, or it is already at or past that stage (e.g. already in Offer) —
-    // scheduling a follow-up interview must never pull an application backwards.
+    // Null means do nothing: not Active, no Interview stage, or already at or past it.
     public static PipelineStage? FindTarget(
         ApplicationStatus status, Guid currentStageId, IReadOnlyCollection<PipelineStage> stages)
     {

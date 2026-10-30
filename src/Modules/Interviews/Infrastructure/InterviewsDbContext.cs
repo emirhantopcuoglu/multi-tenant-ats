@@ -29,36 +29,24 @@ public sealed class InterviewsDbContext : DbContext, IInterviewsDbContext
             entity.Property(i => i.Type).HasConversion<string>().HasMaxLength(20);
             entity.Property(i => i.Status).HasConversion<string>().HasMaxLength(20);
             entity.Property(i => i.Notes).HasMaxLength(5000);
-            // Stored as text like Type and Status: an interview's history outlives any one release,
-            // and a string keeps a dump readable without the enum's ordinals to hand.
             entity.Property(i => i.CancellationReason).HasConversion<string>().HasMaxLength(30);
             entity.Property(i => i.CancellationNote).HasMaxLength(500);
             entity.Property(i => i.NoShowParty).HasConversion<string>().HasMaxLength(20);
-            // Nullable: a phone screen has no live room, so no token. A PostgreSQL unique index
-            // treats NULLs as distinct, so many phone screens coexist while real tokens stay unique.
+            // Null for phone screens. Postgres treats NULLs as distinct in a unique index.
             entity.Property(i => i.RoomToken).HasMaxLength(64);
 
-            // Looked up directly by token (the join endpoint has no tenant context yet — the token
-            // itself is what identifies the interview), so it must be globally unique, not just
-            // unique within a tenant.
+            // Globally unique: the join endpoint looks it up without a tenant.
             entity.HasIndex(i => i.RoomToken).IsUnique();
 
-            // The interviewers live in a native uuid[] column, read/written through the backing field.
             entity.PrimitiveCollection(i => i.InterviewerUserIds)
                 .HasField("_interviewerUserIds")
                 .UsePropertyAccessMode(PropertyAccessMode.Field);
 
-            // The schedule view filters by date range and orders by time; this serves both from the index.
             entity.HasIndex(i => new { i.TenantId, i.ScheduledAtUtc });
-            // "Interviews for this interviewer" is an array-membership test (= ANY); a GIN index on the
-            // uuid[] column is what makes that lookup fast.
+            // GIN index for the "= ANY" interviewer lookup.
             entity.HasIndex(i => i.InterviewerUserIds).HasMethod("gin");
 
-            // The reminder sweep asks "which reminders are owed right now" across every tenant, so
-            // these are indexed on the due column alone — a TenantId-prefixed index could not serve
-            // that query. Partial, because the column is nulled once the reminder is settled: the
-            // index then holds only pending reminders (a handful at any instant) instead of a row per
-            // interview ever scheduled.
+            // The sweep runs across tenants, so these aren't tenant-prefixed. Partial: only pending reminders.
             entity.HasIndex(i => i.DayBeforeReminderDueAtUtc)
                 .HasFilter("\"DayBeforeReminderDueAtUtc\" IS NOT NULL");
             entity.HasIndex(i => i.StartingSoonReminderDueAtUtc)
@@ -73,13 +61,10 @@ public sealed class InterviewsDbContext : DbContext, IInterviewsDbContext
             entity.Property(f => f.Comments).HasMaxLength(5000);
 
             entity.HasIndex(f => f.InterviewId);
-            // One feedback per interviewer per interview; the DB index is the authoritative guard.
             entity.HasIndex(f => new { f.InterviewId, f.InterviewerUserId }).IsUnique();
         });
 
-        // Two filter helpers: one for entities that are both tenant-scoped and soft-deletable, one for
-        // entities that are tenant-scoped only. Both are applied via instance methods so EF re-evaluates
-        // _currentTenant on every query rather than baking the first scope's value into the model.
+        // Called through instance methods so EF re-reads _currentTenant on every query.
         var withSoftDelete = GetType()
             .GetMethod(nameof(SetTenantAndSoftDeleteFilter), BindingFlags.NonPublic | BindingFlags.Instance)!;
         var tenantOnly = GetType()

@@ -4,16 +4,8 @@ using MediatR;
 
 namespace Ats.Modules.Interviews.Application.Events;
 
-// Bridges the reminder onto the message bus. The mapping is the same shape as its siblings — domain
-// enums become strings so the contract carries none of this module's types.
-//
-// What differs is the failure policy, and deliberately so: this one does NOT go through
-// IntegrationEventBridge. That helper swallows broker failures because its callers run inside a
-// recruiter's request, where the change is already committed and failing the call would only invite
-// a retry of something that already took effect. Here there is no request and no committed change to
-// protect — delivering the reminder IS the whole job. So a broker failure propagates, the sweep
-// aborts before clearing anything, and Hangfire retries the run. The consumers deduplicate on
-// (interview, kind), so the reminders that did go out are not sent twice.
+// Doesn't use IntegrationEventBridge: delivering the reminder is the whole job, so a broker
+// failure should fail the sweep and let Hangfire retry. Consumers dedupe on (interview, kind).
 public sealed class PublishInterviewReminderDueIntegrationEvent
     : INotificationHandler<InterviewReminderDueEvent>
 {

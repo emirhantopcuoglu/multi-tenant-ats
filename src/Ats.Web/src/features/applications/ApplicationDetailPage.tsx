@@ -17,7 +17,7 @@ import { CvAnalysisTab } from './components/CvAnalysisTab';
 import { ActivityTimeline } from './components/ActivityTimeline';
 import { ApplicationInterviewsTab } from './components/ApplicationInterviewsTab';
 
-/* Thin wrapper so the inner view can take a guaranteed-present id and keep its hooks unconditional. */
+/* Wrapper so the inner view always gets an id and its hooks stay unconditional. */
 export function ApplicationDetailPage() {
   const { id } = useParams();
   if (!id) return <Navigate to="/applications" replace />;
@@ -66,9 +66,8 @@ function ApplicationDetailView({ id }: { id: string }) {
   const busy = move.isPending || correctStage.isPending || reject.isPending || hire.isPending;
 
   const handleMove = (stageId: string) => {
-    // Moving into the Interview stage doesn't move the application directly — it opens the same
-    // scheduling dialog as the standalone "Schedule interview" button. The move itself happens
-    // server-side once an interview is actually scheduled (AdvanceToInterviewStageConsumer).
+    // Choosing the Interview stage opens the scheduling dialog; the server moves the stage once an
+    // interview is scheduled.
     const targetStage = stagesQuery.data?.find((stage) => stage.id === stageId);
     if (targetStage?.type === 'Interview') {
       setScheduleOpen(true);
@@ -123,10 +122,8 @@ function ApplicationDetailView({ id }: { id: string }) {
     }
   };
 
-  // A follow-up interview can be scheduled only once the application has actually reached the
-  // Interview stage: the first interview comes from moving it there (which opens this same modal),
-  // and additional rounds come from the Interviews tab below. Before that stage there's nothing to
-  // schedule against, so the button stays hidden.
+  // Only shown once the application is in the Interview stage; before that there's nothing to
+  // schedule against.
   const stages = stagesQuery.data ?? [];
   const interviewStageOrder = stages.find((stage) => stage.type === 'Interview')?.order;
   const currentStageOrder = stages.find((stage) => stage.id === application.stageId)?.order;
@@ -242,8 +239,7 @@ function ApplicationDetailView({ id }: { id: string }) {
         onOpenChange={setScheduleOpen}
         applicationId={id}
         candidateName={application.candidateName}
-        // Stay on the application and surface the new interview in its tab; the schedule mutation
-        // invalidates the interviews cache, so the tab's list refetches on its own.
+        // The mutation invalidates the interviews cache, so the tab refetches.
         onScheduled={() => setTab('interviews')}
       />
     </div>

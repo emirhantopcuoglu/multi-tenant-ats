@@ -7,12 +7,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.IntegrationTests.Applications;
 
-// The candidate search shipped with a stored tsvector column, a GIN index and
-// websearch_to_tsquery — and no tests at all, because nothing called it. It is now reachable from
-// /candidates, so the properties it silently depended on get pinned here.
-//
-// These have to run against real PostgreSQL: SearchVector is a STORED generated column and
-// websearch_to_tsquery is a server function, so neither exists in an in-memory provider.
+// Needs real PostgreSQL: SearchVector is a stored generated column and websearch_to_tsquery is a
+// server function.
 [Collection("Integration")]
 public sealed class CandidateSearchTests
 {
@@ -30,7 +26,7 @@ public sealed class CandidateSearchTests
     [InlineData("nadia.okonkwo@acme.test")]
     public async Task should_find_a_candidate_by_any_indexed_field(string term)
     {
-        // The generated column covers first name, last name and email — the search box promises
+        // The generated column covers first name, last name and email, the search box promises
         // exactly those three, so each one is asserted rather than assumed.
         var tenant = new FixedTenant(Guid.NewGuid());
         await SeedAsync(tenant, ("Nadia", "Okonkwo", "nadia.okonkwo@acme.test"));
@@ -44,9 +40,8 @@ public sealed class CandidateSearchTests
     [Fact]
     public async Task should_not_return_another_tenants_candidates()
     {
-        // The repository writes no tenant predicate of its own — it leans entirely on the global query
-        // filter. That makes this the highest-stakes property in the file: if the filter is ever lost,
-        // one company starts searching another company's candidate pool.
+        // The repository has no tenant predicate and relies on the global query filter. Losing the filter
+        // would let one company search another's candidates.
         var owner = new FixedTenant(Guid.NewGuid());
         var stranger = new FixedTenant(Guid.NewGuid());
         await SeedAsync(owner, ("Nadia", "Okonkwo", "nadia@acme.test"));
@@ -83,9 +78,8 @@ public sealed class CandidateSearchTests
     [InlineData("-")]
     public async Task should_survive_punctuation_a_user_types(string term)
     {
-        // websearch_to_tsquery is used precisely because it treats operator characters as text instead
-        // of syntax. plainto_/to_tsquery would raise a syntax error here and the search box would 500
-        // on a stray quote. Asserting "does not throw" is the whole point; the row count is incidental.
+        // websearch_to_tsquery treats operators as text; to_tsquery would throw on a stray quote. The point
+        // is that it doesn't throw.
         var tenant = new FixedTenant(Guid.NewGuid());
         await SeedAsync(tenant, ("Nadia", "Okonkwo", "nadia@acme.test"));
 
@@ -97,11 +91,8 @@ public sealed class CandidateSearchTests
     [Fact]
     public async Task should_rank_a_candidate_matching_both_terms_above_one_matching_only_one()
     {
-        // Deliberately an OR query. websearch_to_tsquery ANDs bare words, so "Zeynep Kaya" would filter
-        // Ahmet out entirely and the ordering would never be exercised — the first version of this test
-        // asserted rank while only ever returning one row, and passed with the rank removed.
-        //
-        // With OR both rows match, at different ranks, so this now fails if the rank ordering goes.
+        // An OR query on purpose: websearch_to_tsquery ANDs bare words, so "Zeynep Kaya" would return one
+        // row and never exercise the ordering.
         var tenant = new FixedTenant(Guid.NewGuid());
         await SeedAsync(
             tenant,
@@ -137,7 +128,7 @@ public sealed class CandidateSearchTests
     [Fact]
     public async Task should_page_without_losing_or_repeating_rows()
     {
-        // TotalCount must count every match, not just the page — the UI derives its page count from it,
+        // TotalCount must count every match, not just the page, the UI derives its page count from it,
         // so a windowed count would strand the later pages behind a "1 of 1".
         var tenant = new FixedTenant(Guid.NewGuid());
         await SeedAsync(

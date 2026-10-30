@@ -4,9 +4,7 @@ using Microsoft.EntityFrameworkCore.Design;
 
 namespace Ats.Modules.Applications.Infrastructure;
 
-// Used only by the EF Core CLI (migrations add / database update) at design time. The runtime
-// builds the context from DI in Program.cs instead. The tenant is null here because design-time
-// tooling never executes tenant-scoped queries.
+// Used by dotnet ef at design time.
 public sealed class ApplicationsDbContextFactory : IDesignTimeDbContextFactory<ApplicationsDbContext>
 {
     public ApplicationsDbContext CreateDbContext(string[] args)

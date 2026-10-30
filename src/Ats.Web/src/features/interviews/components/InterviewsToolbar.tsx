@@ -15,10 +15,6 @@ interface InterviewsToolbarProps {
   users: TenantUser[];
 }
 
-/* Filter bar for the interviews list: a date-range preset and an interviewer filter. Fully
-   controlled — the page owns the values and mirrors them to the URL. Scheduling lives on the
-   application, not here: interviews are created from a candidate's pipeline, so this screen only
-   reads and filters. */
 export function InterviewsToolbar({
   range,
   onRangeChange,
@@ -45,8 +41,6 @@ export function InterviewsToolbar({
         ))}
       </Select>
 
-      {/* Lifecycle bucket. "AwaitingOutcome" is the one this screen was missing: without it there
-          was no way to ask which interviews have happened but never got a decision. */}
       <Select
         aria-label={t('interviews.filterState')}
         value={filter}

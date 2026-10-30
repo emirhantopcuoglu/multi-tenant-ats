@@ -10,19 +10,13 @@ interface NoShowModalProps {
   onConfirm: (body: MarkNoShowRequest) => void;
 }
 
-/* Marking a no-show now asks which side failed to appear. It is a short dialog for a reason that is
-   not cosmetic: "the candidate did not turn up" is a signal about that candidate, while "the
-   interviewer did not" is our own failure and must never end up counting against the person who did
-   show up. One button recording both would make the field useless for either purpose. */
+/* Asks which side didn't show: an interviewer no-show must not count against the candidate. */
 export function NoShowModal({ open, onOpenChange, submitting, onConfirm }: NoShowModalProps) {
   const { t } = useTranslation();
   const [party, setParty] = useState<NoShowParty | ''>('');
   const [error, setError] = useState<string | null>(null);
 
-  // Reset when the dialog opens, so a previous draft never lingers. Adjusted during render rather
-  // than in an effect: React discards the in-progress output and re-renders before committing, so
-  // the cleared form is what reaches the DOM. An effect would paint the stale draft first and clear
-  // it afterwards, which is the cascading render the linter flags.
+  // Reset when the dialog opens. Done during render, not in an effect, so the old draft is never painted.
   const [prevOpen, setPrevOpen] = useState(open);
   if (prevOpen !== open) {
     setPrevOpen(open);

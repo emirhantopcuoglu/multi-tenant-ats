@@ -5,9 +5,7 @@ using Ats.Shared.Contracts.Notifications;
 
 namespace Ats.UnitTests.Notifications;
 
-// Pins the message-to-row mapping of the in-app notification consumers: which account the row is
-// addressed to, which payload fields the frontend can rely on, and that account-less messages
-// (applications older than candidate accounts) produce no row at all.
+// Message-to-row mapping for the in-app consumers, including skipping messages without an account.
 public sealed class NotificationConsumerMappingTests
 {
     [Fact]
@@ -38,7 +36,7 @@ public sealed class NotificationConsumerMappingTests
     [Fact]
     public void should_skip_stage_changed_notification_without_candidate_account()
     {
-        // Arrange — a legacy application: no marketplace account to deliver to
+        // Arrange: a legacy application: no marketplace account to deliver to
         var message = StageChangedMessage(candidateAccountId: null, Guid.NewGuid());
 
         // Act & Assert
@@ -151,7 +149,7 @@ public sealed class NotificationConsumerMappingTests
     [Fact]
     public void should_fan_out_one_new_application_notification_per_tenant_user()
     {
-        // Arrange — three members of the tenant
+        // Arrange: three members of the tenant
         var tenantId = Guid.NewGuid();
         var applicationId = Guid.NewGuid();
         var userIds = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
@@ -160,7 +158,7 @@ public sealed class NotificationConsumerMappingTests
         // Act
         var notifications = NewApplicationNotificationConsumer.BuildNotifications(message, userIds);
 
-        // Assert — one row per user, each addressed to that user and tagged with the tenant
+        // Assert: one row per user, each addressed to that user and tagged with the tenant
         Assert.Equal(userIds.Length, notifications.Count);
         Assert.Equal(userIds.ToHashSet(), notifications.Select(n => n.RecipientId).ToHashSet());
         Assert.All(notifications, n =>
@@ -181,7 +179,7 @@ public sealed class NotificationConsumerMappingTests
     [Fact]
     public void should_produce_no_notifications_when_tenant_has_no_users()
     {
-        // Arrange — a tenant with (somehow) no members yet
+        // Arrange: a tenant with (somehow) no members yet
         var message = NewApplicationMessage(Guid.NewGuid(), Guid.NewGuid());
 
         // Act & Assert

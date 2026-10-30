@@ -42,9 +42,7 @@ public sealed class TenantsDbContext : IdentityDbContext<ApplicationUser, Identi
 
         builder.Entity<ApplicationUser>(entity =>
         {
-            // Two-letter code ("en", "tr"); the boundary normalizes anything longer down to it. The
-            // DB default backfills users who predate the column — they signed up when the app only
-            // wrote English, so English is the honest value for them.
+            // Older users signed up when all mail was English, hence the default.
             entity.Property(u => u.PreferredLanguage)
                 .IsRequired()
                 .HasMaxLength(2)
@@ -67,8 +65,7 @@ public sealed class TenantsDbContext : IdentityDbContext<ApplicationUser, Identi
             entity.HasIndex(i => i.TokenHash);
         });
 
-        // Register filter via instance method so EF Core 9 treats _currentTenant as a
-        // context accessor (re-evaluated per execution) rather than a compile-time constant.
+        // Called through an instance method so EF re-reads _currentTenant on every query.
         var applyFilter = GetType()
             .GetMethod(nameof(SetTenantFilter), BindingFlags.NonPublic | BindingFlags.Instance)!;
 
@@ -79,10 +76,7 @@ public sealed class TenantsDbContext : IdentityDbContext<ApplicationUser, Identi
         }
     }
 
-    // Combined global filter: hide rows of other tenants AND soft-deleted rows. EF Core
-    // allows only one query filter per entity, so both conditions live in one predicate.
-    // Written as a literal lambda in an instance method so EF re-evaluates _currentTenant
-    // per query (a captured delegate would bake the first scope's tenant into the model).
+    // EF allows one filter per entity, so tenant and soft delete share one predicate.
     private void SetTenantFilter<T>(ModelBuilder builder) where T : class, ITenantScoped, ISoftDeletable
         => builder.Entity<T>().HasQueryFilter(e => !e.IsDeleted && (Guid?)e.TenantId == _currentTenant.TenantId);
 }

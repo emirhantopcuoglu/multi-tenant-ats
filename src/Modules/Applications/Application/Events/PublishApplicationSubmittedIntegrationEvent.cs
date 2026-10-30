@@ -4,14 +4,8 @@ using MediatR;
 
 namespace Ats.Modules.Applications.Application.Events;
 
-// Bridges the in-process domain event onto the message bus. MediatR delivers ApplicationSubmittedEvent
-// synchronously inside the apply request; this handler republishes it as an integration event, which
-// the Notifications module consumes out-of-process.
-//
-// With the transactional outbox enabled, IPublishEndpoint.Publish does not reach the broker here — it
-// writes the message to the outbox tables in the same DbContext. The command handler publishes before
-// its SaveChanges, so the message and the business rows commit atomically (or roll back together).
-// That is why there is no try/catch: a failure must propagate and roll back, not be swallowed.
+// IPublishEndpoint writes to the outbox tables in the same DbContext here, not to the broker.
+// The handler publishes before SaveChanges, so a failure must propagate and roll back.
 public sealed class PublishApplicationSubmittedIntegrationEvent
     : INotificationHandler<ApplicationSubmittedEvent>
 {

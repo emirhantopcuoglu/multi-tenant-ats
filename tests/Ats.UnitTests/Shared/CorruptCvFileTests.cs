@@ -5,16 +5,14 @@ using Ats.Shared.Kernel;
 
 namespace Ats.UnitTests.Shared;
 
-// The upload boundary checks a file's leading bytes, not whether the rest of it is readable, so a
-// truncated or corrupted CV reaches the extractors intact-looking and fails there. It has to fail
-// as TextExtractionException: that is what tells the consumer to skip the file instead of throwing
-// something generic that looks transient and gets redelivered five times.
+// A corrupted CV passes the signature check and fails in the extractor. It must fail as
+// TextExtractionException so the consumer skips it instead of retrying.
 public class CorruptCvFileTests
 {
     [Fact]
     public void A_truncated_pdf_should_report_a_text_extraction_failure()
     {
-        // Real "%PDF" magic bytes, nothing valid behind them — exactly what got through the
+        // Real "%PDF" magic bytes, nothing valid behind them, exactly what got through the
         // boundary and filled the error queue.
         var truncated = Encoding.ASCII.GetBytes("%PDF-1.4 this is not actually a pdf");
 

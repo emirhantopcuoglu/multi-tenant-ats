@@ -6,9 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ats.Modules.Tenants.Api;
 
-// The tenant's own public-profile settings (description, website, location) — the data behind the
-// public careers page header. Editing is Admin-only: this is company-wide presentation, the same
-// trust level as managing members, not something an individual recruiter should change.
+// Admin-only: this is the company's public profile.
 [ApiController]
 [ApiVersion("1.0")]
 [Authorize(Policy = Policies.CanManageTenant)]
@@ -27,7 +25,6 @@ public sealed class TenantProfileController : ControllerBase
     {
         var result = await _profileService.GetAsync(HttpContext.RequestAborted);
 
-        // A valid token whose tenant no longer exists is an inconsistent state, mirroring /auth/me.
         return result.IsSuccess
             ? Ok(result.Value)
             : NotFound(new { result.Error.Code, result.Error.Message });
@@ -40,7 +37,6 @@ public sealed class TenantProfileController : ControllerBase
         if (result.IsSuccess)
             return Ok(result.Value);
 
-        // Not-found is the token/tenant mismatch case; everything else is input validation.
         return result.Error == TenantProfileErrors.TenantNotFound
             ? NotFound(new { result.Error.Code, result.Error.Message })
             : BadRequest(new { result.Error.Code, result.Error.Message });

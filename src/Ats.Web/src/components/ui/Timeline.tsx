@@ -20,13 +20,9 @@ interface TimelineItemProps {
   meta?: ReactNode;
   tone?: TimelineDotTone;
   children?: ReactNode;
-  /** Set on the final item to drop the connecting line below its dot. */
   last?: boolean;
 }
 
-/* One activity entry: a coloured dot with a connecting line, then the title/body/meta. Used by the
-   application activity timeline (Step 3.5). The dot's ring uses the card colour so it reads as a
-   node sitting on the line. */
 export function TimelineItem({ title, meta, tone = 'neutral', children, last = false }: TimelineItemProps) {
   return (
     <li className="relative flex gap-3 pb-5 last:pb-0">

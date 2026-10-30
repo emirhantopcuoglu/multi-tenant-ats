@@ -4,13 +4,10 @@ import { Card } from './Card';
 interface StatCardProps {
   label: ReactNode;
   value: ReactNode;
-  /** Optional secondary line under the value (e.g. a trend or context). */
   hint?: ReactNode;
   icon?: ReactNode;
 }
 
-/* Dashboard metric tile: a muted label, a large value, and an optional hint — used by the Overview
-   stat row (Step 4.1). */
 export function StatCard({ label, value, hint, icon }: StatCardProps) {
   return (
     <Card className="flex flex-col gap-2">

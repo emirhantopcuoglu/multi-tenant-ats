@@ -18,7 +18,7 @@ public sealed class CandidateNotificationQueriesTests
     [Fact]
     public async Task should_list_only_own_notifications_newest_first()
     {
-        // Arrange — two recipients; only one is queried
+        // Arrange: two recipients; only one is queried
         var ownerId = Guid.NewGuid();
         var strangerId = Guid.NewGuid();
         await using (var db = NewDb())
@@ -41,7 +41,7 @@ public sealed class CandidateNotificationQueriesTests
             new ListNotificationsQuery(NotificationRecipientType.Candidate, ownerId),
             CancellationToken.None);
 
-        // Assert — the stranger's row is absent and the payload comes back as a JSON object
+        // Assert: the stranger's row is absent and the payload comes back as a JSON object
         Assert.True(result.IsSuccess);
         Assert.Equal(2, result.Value.TotalCount);
         Assert.All(result.Value.Items, n => Assert.NotEqual("NotYours", GetJobTitle(n)));
@@ -64,7 +64,7 @@ public sealed class CandidateNotificationQueriesTests
             await db.SaveChangesAsync();
         }
 
-        // Act — page 2 of size 2 holds the single remaining row
+        // Act: page 2 of size 2 holds the single remaining row
         await using var queryDb = NewDb();
         var result = await new ListNotificationsHandler(queryDb).Handle(
             new ListNotificationsQuery(NotificationRecipientType.Candidate, recipientId, Page: 2, PageSize: 2),
@@ -80,7 +80,7 @@ public sealed class CandidateNotificationQueriesTests
     [Fact]
     public async Task should_count_only_own_unread_notifications()
     {
-        // Arrange — two unread + one read for the owner, one unread for a stranger
+        // Arrange: two unread + one read for the owner, one unread for a stranger
         var ownerId = Guid.NewGuid();
         await using (var db = NewDb())
         {

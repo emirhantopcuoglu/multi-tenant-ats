@@ -10,53 +10,37 @@ namespace Ats.Api.Extensions;
 
 public static class MessagingExtensions
 {
-    // RabbitMQ message bus. MassTransit is the abstraction over the broker: it owns the connection,
-    // retries, and the outbox, and lets consumer code stay transport-agnostic. Unlike the Mongo/MinIO
-    // initializers, MassTransit's hosted service connects in the background and retries on its own, so
-    // a broker that is briefly unreachable does not crash startup.
+    // MassTransit connects in the background and retries, so an unreachable broker doesn't stop startup.
     public static IHostApplicationBuilder AddMessaging(this IHostApplicationBuilder builder)
     {
         builder.Services.Configure<RabbitMqOptions>(
             builder.Configuration.GetSection(RabbitMqOptions.SectionName));
         builder.Services.AddMassTransit(bus =>
         {
-            // Consumer endpoints get readable, kebab-cased queue names instead of namespaced defaults.
             bus.SetKebabCaseEndpointNameFormatter();
 
-            // Transactional outbox. Publishing an integration event no longer hits the broker inline;
-            // instead the message is written to the outbox tables in the applications schema as part of the
-            // same SaveChanges as the business change. A background delivery service then forwards it to
-            // RabbitMQ and marks it delivered. The result is atomicity (both the row and the message commit,
-            // or neither) and durability (a broker outage delays delivery, never loses or blocks the request).
-            // CONSTRAINT: exactly one bus outbox per container in MassTransit 8.x. UseBusOutbox routes
-            // every scoped IPublishEndpoint into this DbContext; registering a second one (e.g. for
-            // InterviewsDbContext) silently replaces this registration, and every Applications publish
-            // then lands in a context that request never saves — messages vanish without an error.
-            // Verified empirically before the Interviews module's outbox was rolled back. Modules other
-            // than Applications must publish via IBus (direct, after their own SaveChanges) until the
-            // stack supports multiple bus outboxes (MassTransit v9.1+, commercial).
+            // Transactional outbox: messages are written to the applications schema in the same SaveChanges
+            // and delivered afterwards. MassTransit 8.x allows only one bus outbox per container; a second
+            // UseBusOutbox silently replaces this one and Applications messages are lost. Other modules
+            // publish through IBus after their own save.
             bus.AddEntityFrameworkOutbox<ApplicationsDbContext>(outbox =>
             {
                 outbox.UsePostgres();
                 outbox.UseBusOutbox();
             });
 
-            // Notifications consumers: email the candidate when an application is submitted, rejected,
-            // hired, moved to a new stage, or gets an interview scheduled. ConfigureEndpoints below
-            // creates and binds each consumer's queue automatically.
+            // Email consumers. ConfigureEndpoints below creates their queues.
             bus.AddConsumer<ApplicationSubmittedConsumer>();
             bus.AddConsumer<ApplicationRejectedConsumer>();
             bus.AddConsumer<ApplicationHiredConsumer>();
             bus.AddConsumer<ApplicationStageChangedEmailConsumer>();
             bus.AddConsumer<InterviewScheduledEmailConsumer>();
-            // An interview the candidate already has in their calendar must never move or vanish silently.
             bus.AddConsumer<InterviewRescheduledEmailConsumer>();
             bus.AddConsumer<InterviewCancelledEmailConsumer>();
-            // Driven by the reminder sweep rather than by a recruiter action; see InterviewReminderJob.
+            // Driven by the reminder sweep; see InterviewReminderJob.
             bus.AddConsumer<InterviewReminderEmailConsumer>();
 
-            // In-app notification writers: each event lands in its own queue, independent of the email
-            // consumers above, and becomes a row behind the candidate's bell icon.
+            // In-app notification writers, each on its own queue.
             bus.AddConsumer<ApplicationStageChangedNotificationConsumer>();
             bus.AddConsumer<InterviewScheduledNotificationConsumer>();
             bus.AddConsumer<InterviewRescheduledNotificationConsumer>();
@@ -66,20 +50,11 @@ public static class MessagingExtensions
             bus.AddConsumer<ApplicationCvDownloadedNotificationConsumer>();
             bus.AddConsumer<NewApplicationNotificationConsumer>();
 
-            // CV-parsing consumer: downloads the CV, extracts text, asks an LLM for structured data, and
-            // stores it in MongoDB. The provider is OpenAI-compatible and selected entirely
-            // through the Llm configuration section — naming a vendor here is what made this comment wrong
-            // for months after the provider changed. Inherits the retry/dead-letter policy configured below.
+            // Provider is set by the Llm config section.
             bus.AddConsumer<CvParsingConsumer>();
 
-            // Pipeline/interview consistency: advances an application into its pipeline's Interview stage
-            // when a recruiter schedules an interview against it, and calls off upcoming interviews when the
-            // application behind them closes — whether the company rejected it or the candidate withdrew.
-            // Own queues, independent of the notifications above; the closed-application consumer handles
-            // two message types and so gets one queue per type.
-            // The stage-advance consumer carries a definition: it publishes a follow-up event, so it runs
-            // behind the transactional outbox to keep the move and the announcement atomic. See
-            // AdvanceToInterviewStageConsumerDefinition.
+            // Keeps pipelines in step with interviews. The stage-advance consumer publishes a follow-up event,
+            // so it runs behind the outbox (see its definition).
             bus.AddConsumer<AdvanceToInterviewStageConsumer, AdvanceToInterviewStageConsumerDefinition>();
             bus.AddConsumer<CancelInterviewsOnApplicationClosedConsumer>();
 
@@ -92,11 +67,8 @@ public static class MessagingExtensions
                     host.Password(rabbitMqOptions.Password);
                 });
 
-                // Consumer retry policy. Applied here, before ConfigureEndpoints, so every consumer
-                // endpoint inherits it: a throwing consumer is retried with an exponential back-off instead of
-                // failing once or looping forever. intervalDelta is set to the initial interval so the back-off
-                // grows from there. When all attempts are exhausted, MassTransit moves the message to the
-                // endpoint's "<queue>_error" dead-letter queue automatically — no extra wiring needed.
+                // Before ConfigureEndpoints so every consumer gets it. After the last attempt the message goes to
+                // the "<queue>_error" queue.
                 configurator.UseMessageRetry(retry =>
                 {
                     retry.Exponential(
@@ -105,22 +77,15 @@ public static class MessagingExtensions
                         maxInterval: TimeSpan.FromSeconds(rabbitMqOptions.RetryMaxIntervalSeconds),
                         intervalDelta: TimeSpan.FromSeconds(rabbitMqOptions.RetryInitialIntervalSeconds));
 
-                    // A rejected LLM key is a configuration fault, not a transient one: no number of
-                    // redeliveries fixes it, and the back-off only delays the dead-letter that makes it
-                    // visible. Straight to the error queue, where the message waits to be replayed once the
-                    // key is reissued.
+                    // A rejected LLM key won't fix itself; send it straight to the error queue.
                     retry.Ignore<LlmAuthenticationException>();
                 });
 
-                // Auto-wires every registered consumer to its endpoint and binds the retry policy above.
                 configurator.ConfigureEndpoints(context);
             });
         });
 
-        // Message idempotency guard. RabbitMQ delivers at-least-once, so a consumer can see the same
-        // message twice (a lost ack, a retry, or an error-queue replay). The guard marks a processed
-        // message in Redis so a duplicate delivery does not send a duplicate email. It reuses the shared
-        // Redis multiplexer registered as a singleton at startup; it is stateless, so a singleton is fine.
+        // Delivery is at-least-once; the guard keeps a duplicate from sending a duplicate email.
         builder.Services.Configure<IdempotencyOptions>(
             builder.Configuration.GetSection(IdempotencyOptions.SectionName));
         builder.Services.AddSingleton<IIdempotencyGuard, RedisIdempotencyGuard>();

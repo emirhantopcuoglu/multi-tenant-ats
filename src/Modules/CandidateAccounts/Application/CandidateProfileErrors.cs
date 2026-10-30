@@ -15,8 +15,6 @@ public static class CandidateProfileErrors
         new("candidate_profile.unsupported_language",
             "Language must be one of the supported languages.");
 
-    // Deliberately does not distinguish "wrong password" from anything subtler: the caller is already
-    // authenticated, so unlike login there is nothing to hide — but there is also nothing more to say.
     public static readonly Error InvalidCurrentPassword =
         new("candidate_profile.invalid_current_password", "The current password is incorrect.");
 
@@ -33,8 +31,7 @@ public static class CandidateProfileErrors
     public static readonly Error InvalidEmail =
         new("candidate_profile.invalid_email", "The new email address is not valid.");
 
-    // One error for "unknown", "expired" and "already used" alike: the caller only holds a token, so
-    // distinguishing the cases would tell an attacker which guesses were once real.
+    // One error for unknown, expired and used tokens, so guesses reveal nothing.
     public static readonly Error InvalidEmailChangeToken =
         new("candidate_profile.invalid_email_change_token",
             "This email change link is invalid, expired or already used.");
@@ -42,8 +39,7 @@ public static class CandidateProfileErrors
     public static readonly Error CvNotFound =
         new("candidate_profile.cv_not_found", "No CV is attached to this account.");
 
-    // Wraps a domain invariant violation (phone format, birth date range, half-filled location) so
-    // the API can answer 400 with the exact rule that failed instead of a generic 500.
+    // A domain rule violation, returned as a 400 with the rule's message.
     public static Error InvalidData(string message) =>
         new("candidate_profile.invalid_data", message);
 }

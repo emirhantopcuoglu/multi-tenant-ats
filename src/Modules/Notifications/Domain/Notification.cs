@@ -1,22 +1,15 @@
 namespace Ats.Modules.Notifications.Domain;
 
-// Who a notification is addressed to. The recipient model covers both sides of the marketplace up
-// front — the schema is the expensive thing to change later, the enum value is free today.
 public enum NotificationRecipientType
 {
-    // A global marketplace candidate account (the CandidateAccounts module's identity). Not
-    // tenant-scoped: the same account applies across every tenant's jobs, so its notifications
-    // form one cross-tenant feed.
+    // A global candidate account; its feed spans all tenants.
     Candidate = 1,
 
-    // A company user inside a tenant. Rows for these recipients carry the TenantId they belong
-    // to. Nothing creates them yet — they arrive with the company-side "new application"
-    // notification step of the backbone.
+    // A company user. These rows also carry their TenantId.
     CompanyUser = 2,
 }
 
-// What happened. One value per event the backbone consumes; the type tells the frontend which
-// payload shape to expect and which localized template to render.
+// Tells the client which payload shape and template to use.
 public enum NotificationType
 {
     ApplicationStageChanged = 1,
@@ -27,32 +20,25 @@ public enum NotificationType
     InterviewRescheduled = 6,
     InterviewCancelled = 7,
 
-    // One value for both nudges rather than two: the client renders the same row and the payload's
-    // reminderKind picks the sentence, so a second enum value would only duplicate the branch.
+    // One value for both reminders; the payload's reminderKind picks the sentence.
     InterviewReminder = 8,
 }
 
-// A single in-app notification: an addressed, timestamped fact with a read marker. The payload is
-// a JSON document of structured facts (job title, stage names, interview time — see
-// NotificationPayloads in Infrastructure), never pre-rendered text: rendering, and therefore
-// language, belongs to the client. The entity itself has no navigation anywhere — notifications
-// reference nothing and nothing references them, so writes and deletes stay trivially cheap.
+// Payload is structured data, never pre-rendered text: the client renders it in its own language.
 public sealed class Notification
 {
     public Guid Id { get; private set; }
     public NotificationRecipientType RecipientType { get; private set; }
     public Guid RecipientId { get; private set; }
 
-    // The tenant a CompanyUser recipient belongs to; null for Candidate recipients, whose feed is
-    // global by design. Data, not a scope: this context has no tenant query filter.
+    // Null for candidates. Plain data, not a filter: this context has no tenant filter.
     public Guid? TenantId { get; private set; }
 
     public NotificationType Type { get; private set; }
     public string Payload { get; private set; } = null!;
     public DateTime CreatedAtUtc { get; private set; }
 
-    // Null means unread. The timestamp (rather than a bool) preserves when the recipient saw it,
-    // which the read-state queries get for free.
+    // Null means unread.
     public DateTime? ReadAtUtc { get; private set; }
 
     private Notification() { }
@@ -87,8 +73,6 @@ public sealed class Notification
             tenantId: null, type, payload, DateTime.UtcNow);
     }
 
-    // Unlike a candidate row, a company-user row carries its tenant: the recipient is a member of
-    // one specific organization, and the row is data, not a query-filter scope (this context has none).
     public static Notification ForCompanyUser(
         Guid tenantId, Guid userId, NotificationType type, string payload)
     {
@@ -104,8 +88,7 @@ public sealed class Notification
             tenantId, type, payload, DateTime.UtcNow);
     }
 
-    // Idempotent: a second mark keeps the original timestamp, so a double-click or a replayed
-    // request never rewrites when the notification was actually seen.
+    // A second call keeps the original timestamp.
     public void MarkRead()
     {
         ReadAtUtc ??= DateTime.UtcNow;

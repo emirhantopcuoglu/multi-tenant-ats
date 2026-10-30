@@ -1,12 +1,7 @@
 namespace Ats.Shared.Kernel;
 
-// Lives in the shared kernel because two modules consume it: Jobs validates posting locations and
-// CandidateAccounts validates the candidate's residence. Same reasoning as SupportedCurrencies:
-// Country/City stay plain strings (no enum, no migration) because this only tightens the input
-// boundary, not the stored data shape. A curated list rather than a full world dataset -- a
-// well-maintained, permissively-licensed country+city package does not exist (the common one,
-// country-state-city, is GPL-3.0, which a private codebase should not depend on), so this list is
-// hand-maintained here and grown deliberately over time.
+// Used by Jobs and CandidateAccounts. Plain strings: only input is restricted, not stored data.
+// Hand-maintained because the common country/city package is GPL-3.0.
 public static class SupportedCountries
 {
     public const string Turkey = "Turkey";
@@ -20,15 +15,11 @@ public static class SupportedCountries
     public static readonly IReadOnlyList<string> All =
         [Turkey, UnitedStates, UnitedKingdom, Germany, France, Netherlands, Spain];
 
-    // Turkey's list is the full, official 81 provinces (a genuinely closed set). The other
-    // countries list their most common major cities rather than an exhaustive set.
+    // Turkey has all 81 provinces; other countries list major cities only.
     public static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> CitiesByCountry =
         new Dictionary<string, IReadOnlyList<string>>
         {
-            // ASCII spellings throughout (Istanbul, not İstanbul) -- matches how these names are
-            // already written elsewhere in the codebase (tests, prior seed data) and avoids exact-match
-            // bugs from Turkish-specific characters (dotted/dotless I is the classic trap: "İstanbul"
-            // and "Istanbul" are different strings to an ordinal Contains() check).
+            // ASCII spellings (Istanbul, not İstanbul) to avoid dotted/dotless I mismatches.
             [Turkey] =
             [
                 "Adana", "Adiyaman", "Afyonkarahisar", "Agri", "Amasya", "Ankara", "Antalya", "Artvin",

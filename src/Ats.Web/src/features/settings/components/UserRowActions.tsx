@@ -7,8 +7,7 @@ export type UserAction = { kind: 'role'; role: TenantUser['role'] } | { kind: 'd
 
 interface UserRowActionsProps {
   user: TenantUser;
-  /** The signed-in admin's own id. They may not change their own role or deactivate themselves — the
-   *  backend refuses both, so offering them would only produce an error the UI has to explain. */
+  /* The backend refuses self-changes, so they aren't offered. */
   currentUserId: string | undefined;
   onAction: (user: TenantUser, action: UserAction) => void;
 }
@@ -23,14 +22,8 @@ function KebabIcon() {
   );
 }
 
-/* Per-row menu for a team member. Items mirror the backend's rules so the UI never offers an action
-   that is certain to fail: no self-targeting, no role change on a deactivated member (reactivate them
-   first), and the member's current role is shown disabled rather than hidden so the menu reads as a
-   set of choices with one already taken.
-
-   The last-admin rule is NOT mirrored here. It depends on how many other active admins exist, which
-   this row does not know, and duplicating that count client-side is exactly how a UI drifts out of
-   sync with the rule it is copying. That one surfaces as a toast from the server's answer. */
+/* Mirrors the backend rules: no self-targeting, no role change on a deactivated member. The
+   last-admin rule isn't mirrored (the row doesn't know the count); the server's error shows as a toast. */
 export function UserRowActions({ user, currentUserId, onAction }: UserRowActionsProps) {
   const { t } = useTranslation();
   const isSelf = user.id === currentUserId;

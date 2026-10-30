@@ -2,93 +2,51 @@ using System.Text.RegularExpressions;
 
 namespace Ats.Modules.CandidateAccounts.Domain;
 
-// A person's account on the public job marketplace. This is deliberately NOT Applications.Candidate:
-// that one is the per-tenant applicant record created when someone applies to a job, scoped to a
-// single tenant and deduplicated by (TenantId, Email). This one is a tenant-less, GLOBAL identity —
-// one account, one email, one password, usable across every tenant's public jobs. It is the login
-// subject for the candidate side of the marketplace (register/login/me arrive in a later step); an
-// application created later will reference the account it was submitted from.
+// Global marketplace account, not tied to any tenant.
+// Applications.Candidate is the separate per-tenant applicant record.
 public sealed class CandidateAccount
 {
     public Guid Id { get; private set; }
     public string Email { get; private set; } = null!;
     public string PasswordHash { get; private set; } = null!;
 
-    // Versions the account's security state. It is minted into every access token as a claim and
-    // compared against this column on each authenticated request; rotating it (password change now,
-    // email change later) instantly invalidates every previously issued token. Chosen over a token
-    // blacklist (per-request cache lookups, eviction to reason about) and over building refresh-token
-    // rotation for candidates (a much larger piece of work than this sprint warrants).
+    // Every token carries the stamp, so rotating it ends all sessions.
     public Guid SecurityStamp { get; private set; }
     public string FirstName { get; private set; } = null!;
     public string LastName { get; private set; } = null!;
 
-    // Optional profile data, all nullable: existing accounts predate these fields and the candidate
-    // fills them in from the profile page at their own pace. Country/City are constrained to the
-    // SupportedCountries catalogue at the application boundary (same split as Jobs: the domain owns
-    // self-contained invariants, the boundary owns catalogue membership).
+    // Country/City are checked against SupportedCountries in the application layer.
     public string? PhoneNumber { get; private set; }
     public string? Country { get; private set; }
     public string? City { get; private set; }
     public DateOnly? BirthDate { get; private set; }
 
-    // A CV uploaded once to the account and reused across applications, stored by its object-storage
-    // key. Null until the candidate uploads one from their profile area, and null again after they
-    // remove it — most accounts will sit at null for a while, so every read has to cope with it.
-    //
-    // The three fields move together and only through AttachCv/RemoveCv: a key with no name would
-    // leave the profile page with nothing to render, and a name with no key would promise a file
-    // that cannot be fetched.
+    // The three CV fields only change together, through AttachCv/RemoveCv.
     public string? CvFileKey { get; private set; }
 
-    // The candidate's own file name, kept for display only. Recruiters never see it — an
-    // application stores its own copy of the document — but "cv-2026-final.pdf" is how the owner
-    // recognises which version is currently attached.
     public string? CvFileName { get; private set; }
 
     public DateTime? CvUploadedAtUtc { get; private set; }
 
     public bool HasCv => CvFileKey is not null;
 
-    // Which language this person is written to in. Set from the UI language at registration and
-    // changed whenever they switch it while signed in, so the mail follows the app rather than
-    // freezing at whatever the browser happened to say on the day they signed up.
-    //
-    // Not nullable and not validated here: membership of the supported-language catalogue is checked
-    // at the application boundary, the same split already used for Country/City. The domain's own
-    // invariant is only that a candidate always has a language to be written to.
     public string PreferredLanguage { get; private set; } = null!;
 
     public DateTime CreatedAtUtc { get; private set; }
 
-    // When the candidate proved they can read the address they registered with, by clicking a link
-    // mailed to it. Null means unproven — which is how every account is born.
-    //
-    // A timestamp rather than a bool: "verified on the 3rd" answers a support question that "true"
-    // cannot, and it costs the same column. Verification is deliberately NOT a lifecycle Status: an
-    // unverified account is a normal, fully usable account that simply may not apply to a job yet.
-    // Folding it into Status would have made every status check answer two questions at once.
     public DateTime? EmailVerifiedAtUtc { get; private set; }
 
     public bool IsEmailVerified => EmailVerifiedAtUtc is not null;
 
-    // Lifecycle state. New accounts are born Active; the timestamps record when the current state
-    // was entered and are cleared/kept accordingly by the transition methods below.
     public CandidateAccountStatus Status { get; private set; }
+    public bool IsActive => Status == CandidateAccountStatus.Active;
     public DateTime? FrozenAtUtc { get; private set; }
     public DateTime? DeletedAtUtc { get; private set; }
 
-    // Brute-force counters. The company side gets these from Identity (AccessFailedCount/LockoutEnd);
-    // this side hashes passwords itself, so it carries its own. Same numbers either way — see
-    // LoginLockoutOptions.
-    //
-    // Consecutive failures, not total: a correct password clears it. Cumulative counting would lock
-    // out a candidate who mistypes twice a month.
+    // Consecutive failures. A successful login resets it.
     public int FailedLoginCount { get; private set; }
 
-    // When the lockout lifts. Null means not locked. A timestamp rather than a bool because the
-    // lockout has to expire on its own — a permanent one would hand anyone who knows a candidate's
-    // email a way to keep them out of their own applications indefinitely.
+    // Always expires. A permanent lock would let anyone who knows the email keep the owner out.
     public DateTime? LockoutEndsAtUtc { get; private set; }
 
     public bool IsLockedOut(DateTime nowUtc) => LockoutEndsAtUtc > nowUtc;
@@ -109,8 +67,6 @@ public sealed class CandidateAccount
         SecurityStamp = Guid.NewGuid();
     }
 
-    // Hashing (algorithm, work factor, salt) is an infrastructure concern, so the caller passes an
-    // already-computed hash — the domain never sees or stores the plaintext password.
     public static CandidateAccount Register(
         string email, string passwordHash, string firstName, string lastName, string preferredLanguage)
     {
@@ -130,9 +86,6 @@ public sealed class CandidateAccount
             preferredLanguage, DateTime.UtcNow);
     }
 
-    // Separate from UpdateProfile: the language switch is a one-field write the SPA makes the moment
-    // the toggle is clicked, on a screen that is not the profile form. Folding it into UpdateProfile
-    // would force that call to resend the whole profile just to change two characters.
     public void SetPreferredLanguage(string language)
     {
         if (string.IsNullOrWhiteSpace(language))
@@ -141,25 +94,17 @@ public sealed class CandidateAccount
         PreferredLanguage = language;
     }
 
-    // Stored normalised so the global unique-email constraint is case-insensitive without relying on
-    // database collation: "Jane@x.com" and "jane@x.com" are the same account.
+    // Lowercased so the unique index is case-insensitive without relying on DB collation.
     public static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 
-    // Employment-law floor for most supported countries; anyone younger cannot legally be hired, so a
-    // younger birth date is a data-entry error, not an edge case to support.
     public const int MinimumAgeYears = 15;
 
-    // Nobody above this age is realistically job hunting; a birth date beyond it is a typo (1925 for
-    // 1995) and rejecting it early beats storing silently wrong data.
     public const int MaximumAgeYears = 100;
 
-    // E.164 caps phone numbers at 15 digits; 7 is a pragmatic floor below which no real number exists.
-    // Matched AFTER formatting characters are stripped, so it only sees '+' and digits.
+    // E.164 allows at most 15 digits. Matched after formatting characters are stripped.
     private const string NormalizedPhonePattern = @"^\+?\d{7,15}$";
 
-    // Email is deliberately not editable here: it is the login identity and the deduplication key for
-    // Applications.Candidate records across tenants, so changing it is a bigger operation (verification,
-    // re-linking) than a profile edit — it gets its own dedicated flow instead.
+    // Email is not editable here; it changes only through the verified email-change flow.
     public void UpdateProfile(
         string firstName,
         string lastName,
@@ -181,8 +126,6 @@ public sealed class CandidateAccount
         var normalizedCountry = NullIfWhiteSpace(country);
         var normalizedCity = NullIfWhiteSpace(city);
 
-        // Residence is stored as a validated (country, city) pair; a half-filled location can never be
-        // rendered or filtered on meaningfully, so it is rejected rather than stored.
         if (normalizedCountry is null != normalizedCity is null)
             throw new ArgumentException("Country and city must be provided together.", nameof(city));
 
@@ -196,10 +139,7 @@ public sealed class CandidateAccount
         BirthDate = birthDate;
     }
 
-    // Both CV methods return the key they displaced, if any, so the caller can delete that object
-    // from storage. The domain cannot do it itself — it has no storage dependency, and the deletion
-    // must not happen until the new state is committed. Returning the key instead of firing an event
-    // keeps that ordering in the caller's hands, where the transaction already is.
+    // Returns the replaced key so the caller can delete that object once the save succeeds.
     public string? AttachCv(string fileKey, string fileName)
     {
         if (string.IsNullOrWhiteSpace(fileKey))
@@ -213,14 +153,9 @@ public sealed class CandidateAccount
         CvFileName = fileName;
         CvUploadedAtUtc = DateTime.UtcNow;
 
-        // Replacing a CV with itself would orphan the object that is still in use. Nothing in the
-        // upload path generates a repeated key (each carries a fresh guid), so this only guards
-        // against a future caller that reuses one.
         return replacedKey == fileKey ? null : replacedKey;
     }
 
-    // Idempotent: removing a CV that is not there is not an error, it is the state the caller asked
-    // for. Returns null in that case, so the caller deletes nothing.
     public string? RemoveCv()
     {
         var removedKey = CvFileKey;
@@ -232,9 +167,6 @@ public sealed class CandidateAccount
         return removedKey;
     }
 
-    // Verifying the CURRENT password is the application layer's job (it owns the hasher); by the time
-    // this runs the caller has proven ownership and hashed the new secret. The guard runs before any
-    // mutation so a rejected change can never rotate the stamp and log the candidate out for nothing.
     public void ChangePassword(string newPasswordHash)
     {
         if (string.IsNullOrWhiteSpace(newPasswordHash))
@@ -243,16 +175,10 @@ public sealed class CandidateAccount
         PasswordHash = newPasswordHash;
         SecurityStamp = Guid.NewGuid();
 
-        // Setting a new password ends any lockout. Login answers a locked account with the same
-        // "invalid credentials" as a wrong password, so a locked-out candidate cannot tell the two
-        // apart — the reset link is their way out, and it proves mailbox ownership, which is a
-        // stronger signal than waiting out the window.
+        // A password reset is how a locked-out candidate gets back in.
         ClearLockout();
     }
 
-    /* Records a failed sign-in and locks the account once the limit is reached. The caller supplies
-       the clock and the policy rather than the entity reading either: the domain has no ambient time
-       and no configuration, and passing them keeps this testable without either. */
     public void RegisterFailedLogin(int maxFailedAttempts, TimeSpan lockoutDuration, DateTime nowUtc)
     {
         FailedLoginCount += 1;
@@ -260,9 +186,7 @@ public sealed class CandidateAccount
         if (FailedLoginCount >= maxFailedAttempts)
         {
             LockoutEndsAtUtc = nowUtc + lockoutDuration;
-            // Reset alongside the lock so the next window starts from zero. Left as-is, every single
-            // failure after the first lockout would re-lock the account, turning a temporary lock
-            // into a permanent one for as long as anyone kept guessing.
+            // Otherwise every failure after the first lockout would lock the account again.
             FailedLoginCount = 0;
         }
     }
@@ -273,11 +197,8 @@ public sealed class CandidateAccount
         LockoutEndsAtUtc = null;
     }
 
-    // Runs only after the two-phase verification flow proved the caller controls the new mailbox
-    // (EmailChangeRequest); nothing else may rename the login identity. Rotating the stamp here is
-    // deliberate and stricter than the password case: email IS the login handle, so a takeover via
-    // email change must drop every session — including the attacker's — forcing a fresh login that
-    // now requires the new address.
+    // Only called after the new address is verified. Rotating the stamp logs out every session,
+    // including a hijacked one.
     public void ChangeEmail(string newEmail)
     {
         if (string.IsNullOrWhiteSpace(newEmail))
@@ -286,15 +207,11 @@ public sealed class CandidateAccount
         Email = NormalizeEmail(newEmail);
         SecurityStamp = Guid.NewGuid();
 
-        // The new address arrives already proven: this method only runs after the candidate clicked a
-        // link that was mailed to it. Re-verifying would be asking twice for the same proof — and it
-        // makes the email-change flow the recovery path for someone who mistyped at registration.
+        // The candidate clicked a link sent to this address, so it is already verified.
         EmailVerifiedAtUtc = DateTime.UtcNow;
     }
 
-    // Idempotent: a double-clicked link must not move the timestamp, so the first proof is the one
-    // that gets recorded. Returns whether this call is what verified the account, so the caller can
-    // tell "just confirmed" from "already confirmed" without re-reading the row.
+    // Returns false if the account was already verified; the first timestamp is kept.
     public bool MarkEmailVerified()
     {
         if (IsEmailVerified)
@@ -304,23 +221,17 @@ public sealed class CandidateAccount
         return true;
     }
 
-    // What anonymized name fields hold after deletion. A recognizable constant, not an empty
-    // string: anywhere the name still renders (old application lists), "Deleted user" reads as an
-    // explanation instead of a blank.
     public const string AnonymizedFirstName = "Deleted";
     public const string AnonymizedLastName = "user";
 
-    // ".invalid" is reserved by RFC 2606 and can never resolve, so the placeholder is undeliverable
-    // by construction. Keyed by account id so it stays unique under the email index.
+    // .invalid never resolves (RFC 2606). The id keeps it unique under the email index.
     public static string BuildAnonymizedEmail(Guid accountId) =>
         $"deleted-{accountId:N}@account.invalid";
 
-    // The stamp is NOT rotated here on purpose: a frozen account may keep its session — the locked
-    // product decision is that it can log in and is shown a reactivation screen, so killing the
-    // session that just clicked "freeze" would only force a pointless re-login.
+    // The stamp is not rotated: a frozen account stays signed in so it can reactivate itself.
     public void Freeze()
     {
-        if (Status != CandidateAccountStatus.Active)
+        if (!IsActive)
             throw new InvalidOperationException("Only an active account can be frozen.");
 
         Status = CandidateAccountStatus.Frozen;
@@ -336,12 +247,8 @@ public sealed class CandidateAccount
         FrozenAtUtc = null;
     }
 
-    // Soft delete: the row must survive because applications reference this account, but the
-    // person has the right to erasure — so every personal field is anonymized in place. The email
-    // becomes a per-account placeholder, which both satisfies the unique index and frees the real
-    // address for a future registration (deletion is final; there is no recovery to preserve it
-    // for). Rotating the stamp kills every live session immediately; the global query filter then
-    // keeps the account out of login and all other reads.
+    // The row stays because applications reference it; personal data is anonymized in place.
+    // The placeholder email frees the real address for a new registration.
     public void Delete()
     {
         if (Status == CandidateAccountStatus.Deleted)
@@ -351,9 +258,7 @@ public sealed class CandidateAccount
         DeletedAtUtc = DateTime.UtcNow;
         FrozenAtUtc = null;
 
-        // PasswordHash is intentionally kept: a salted PBKDF2 hash is not recoverable personal
-        // data, and overwriting it with a non-hash would make any accidental Verify() call throw
-        // instead of fail. The query filter already keeps the row out of every login path.
+        // PasswordHash is kept: overwriting it with a non-hash would make Verify() throw.
         Email = BuildAnonymizedEmail(Id);
         FirstName = AnonymizedFirstName;
         LastName = AnonymizedLastName;
@@ -363,10 +268,6 @@ public sealed class CandidateAccount
         BirthDate = null;
         SecurityStamp = Guid.NewGuid();
 
-        // Through RemoveCv rather than clearing the key inline, so a CV field added later cannot be
-        // forgotten here — erasure has to reach all of them. The returned key is discarded because
-        // the caller already read it: the object itself is deleted from storage by the lifecycle
-        // service, which is the only place that can do it after this commit succeeds.
         _ = RemoveCv();
     }
 
@@ -386,10 +287,7 @@ public sealed class CandidateAccount
                 $"Birth date implies an age above {MaximumAgeYears} years.", nameof(birthDate));
     }
 
-    // People type phone numbers with local formatting ("+90 (532) 123-45-67"); storage keeps one
-    // canonical shape so the same number never exists as three different strings. Only known
-    // formatting characters are stripped — anything else (letters, symbols) survives into the regex
-    // check and fails there, instead of being silently discarded.
+    // Only formatting characters are stripped; anything else is left to fail the pattern check.
     private static readonly char[] PhoneFormattingCharacters = [' ', '-', '(', ')', '.'];
 
     private static string? NormalizePhoneNumber(string? phoneNumber)

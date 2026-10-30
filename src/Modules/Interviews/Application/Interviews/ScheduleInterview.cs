@@ -56,21 +56,17 @@ public sealed class ScheduleInterviewHandler : ICommandHandler<ScheduleInterview
 
     public async Task<Result<Guid>> Handle(ScheduleInterviewCommand command, CancellationToken ct)
     {
-        // Cross-module read: confirm the application exists in this tenant and is still open. The
-        // Interviews module never references Applications directly — it asks through the contract,
-        // and the global query filter on the other side keeps the lookup tenant-scoped.
+        // Application must exist in this tenant and still be active.
         var application = await _applications.GetForSchedulingAsync(command.ApplicationId, ct);
         if (application is null)
             return Result.Failure<Guid>(InterviewErrors.ApplicationNotFound);
         if (!application.IsActive)
             return Result.Failure<Guid>(InterviewErrors.ApplicationNotActive);
 
-        // Every application the same candidate holds in this tenant, so the overlap check below can
-        // catch a candidate double-booked across two different job applications, not just this one.
+        // All of the candidate's applications here, so double-booking across jobs is caught.
         var candidateApplicationIds = await _applications.GetApplicationIdsForCandidateAsync(
             application.CandidateId, ct);
 
-        // Reject a schedule that would put an interviewer (or the candidate) in two places at once.
         var conflict = await InterviewConflictGuard.CheckAsync(
             _db, command.ScheduledAtUtc, command.DurationMinutes, command.InterviewerUserIds,
             candidateApplicationIds, excludeInterviewId: null, ct);
@@ -80,8 +76,7 @@ public sealed class ScheduleInterviewHandler : ICommandHandler<ScheduleInterview
         Interview interview;
         try
         {
-            // The entity owns the scheduling invariants (future time, preset duration, at least one
-            // interviewer). The validator already reported these as 400s; this guards them regardless.
+            // The validator already reports these as 400s; the entity guards them anyway.
             interview = Interview.Schedule(
                 command.ApplicationId, command.Type, command.ScheduledAtUtc, command.DurationMinutes,
                 command.InterviewerUserIds, DateTime.UtcNow, command.Notes);
@@ -94,14 +89,8 @@ public sealed class ScheduleInterviewHandler : ICommandHandler<ScheduleInterview
         _db.Interviews.Add(interview);
         await _db.SaveChangesAsync(ct);
 
-        // Published AFTER SaveChanges: this module has no transactional outbox (MassTransit 8.x
-        // allows only one per container and Applications holds it — see Program.cs), so the bridge
-        // sends directly to the broker. Announcing before the commit could notify the candidate of
-        // an interview that then fails to save; announcing after means a broker outage can lose the
-        // notification, which the bridge logs — the lesser failure. The tenant id comes from the
-        // ambient tenant because the save-changes interceptor stamps interview.TenantId from that
-        // same source. The application read model supplies the candidate contact and job title;
-        // the recruiter's notes stay out of the event on purpose.
+        // Published after the save: this module has no outbox, so the bridge sends straight to the broker
+        // and logs a failure. No recruiter notes in the event.
         await _publisher.Publish(
             new InterviewScheduledEvent(
                 interview.Id, application.Id, application.JobId, application.JobTitle,

@@ -14,10 +14,7 @@ function CalendarIcon() {
   );
 }
 
-/* The candidate's own interviews across every application they hold, regardless of company — the
-   counterpart to CandidateInterviewsCard, which only shows one application's interviews. Each row
-   links into the (future) live room; the room page itself decides whether it's actually reachable
-   yet, so this list never needs to know the current time. */
+/* The room page decides whether the room is open, so this list doesn't need the clock. */
 export function CandidateInterviewsPage() {
   const { t, i18n } = useTranslation();
   const query = useCandidateInterviews();

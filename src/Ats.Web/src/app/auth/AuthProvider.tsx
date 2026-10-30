@@ -28,22 +28,17 @@ import i18n, { type Language } from '@/i18n';
 import { AuthContext, type AuthContextValue } from './auth-context';
 import { useLanguageSync } from './useLanguageSync';
 
-/* The language the interface is in right now, which is the language every email to this account
-   should be written in from here on. resolvedLanguage rather than i18n.language: the latter can
-   still hold a region-qualified value ("tr-TR") that the API does not accept. */
+/* resolvedLanguage, not i18n.language, which may hold a region value ("tr-TR") the API rejects. */
 function currentLanguage(): Language {
   return i18n.resolvedLanguage as Language;
 }
 
-/* Manages authentication state for both company users and candidate accounts. At most one session
-   type is active at a time — each login flow clears the other before setting itself. On cold start
-   we detect which session (if any) is stored and resolve only the matching /me endpoint. */
+/* Session state for company users and candidates. Only one is active; each login clears the other. */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [hasCompanySession, setHasCompanySession] = useState(
     () => tokenStore.getRefreshToken() !== null,
   );
-  // Both checks read the persisted refresh token, not the in-memory access token: on a cold start
-  // neither access token exists yet, and the interceptor re-mints one on the first /me call.
+  // Checks the stored refresh token; on a cold start there is no access token yet.
   const [hasCandidateSession, setHasCandidateSession] = useState(
     () => tokenStore.getCandidateRefreshToken() !== null,
   );
@@ -56,8 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const user = companyUserQuery.data ?? candidateUserQuery.data ?? null;
 
-  // Mounted here because this is the one place that knows which identity is signed in; the toggle
-  // itself lives in the header and has no business knowing there are two kinds of account.
+  // Mounted here because only this component knows which identity is signed in.
   useLanguageSync(user);
 
   const clearCompanySession = useCallback(() => {
@@ -73,8 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     async (credentials: LoginRequest) => {
       if (hasCandidateSession) {
-        // Revoke before forgetting, the same way candidateLogin revokes the company session it
-        // replaces — an abandoned refresh token must not stay redeemable for a week.
+        // Revoke before forgetting, so the old refresh token can't be redeemed later.
         await candidateLogoutRequest();
         tokenStore.clearCandidateToken();
         clearCandidateSession();
@@ -89,15 +82,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(
     async (request: Omit<RegisterRequest, 'preferredLanguage'>) => {
       if (hasCandidateSession) {
-        // Revoke before forgetting, the same way candidateLogin revokes the company session it
-        // replaces — an abandoned refresh token must not stay redeemable for a week.
+        // Revoke before forgetting, so the old refresh token can't be redeemed later.
         await candidateLogoutRequest();
         tokenStore.clearCandidateToken();
         clearCandidateSession();
       }
-      // No session is established, unlike login: registration mails a confirmation link and the caller
-      // shows a "check your inbox" screen. Setting hasCompanySession here would put the app in a
-      // signed-in state with no tokens, and every request would 401.
+      // No session yet: registration mails a confirmation link first.
       await registerRequest({ ...request, preferredLanguage: currentLanguage() });
     },
     [hasCandidateSession, clearCandidateSession],
@@ -131,8 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     if (user?.kind === 'candidate') {
-      // Revoke server-side first so the refresh token cannot outlive the click, then forget it
-      // locally. Mirrors what logoutRequest already does for a company session.
+      // Revoke on the server first, then forget it locally.
       await candidateLogoutRequest();
       tokenStore.clearCandidateToken();
       clearCandidateSession();

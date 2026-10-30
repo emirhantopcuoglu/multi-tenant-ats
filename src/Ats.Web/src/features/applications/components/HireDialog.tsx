@@ -8,9 +8,7 @@ interface HireDialogProps {
   submitting: boolean;
 }
 
-/* Hire confirmation: the decision is terminal (the application can never be moved again) and the
-   candidate is congratulated immediately, so a plain confirm gate prevents a misclick from
-   sending someone a hire message by accident. */
+/* Hiring is final and emails the candidate right away, so it needs a confirmation. */
 export function HireDialog({ open, onOpenChange, onConfirm, submitting }: HireDialogProps) {
   const { t } = useTranslation();
 

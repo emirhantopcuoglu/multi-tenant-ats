@@ -5,9 +5,7 @@ using UglyToad.PdfPig.Core;
 
 namespace Ats.Shared.Infrastructure;
 
-// PdfPig-backed IPdfTextExtractor. PdfPig is a pure-managed, MIT-licensed PDF reader — no native
-// dependencies and no commercial license to track (the reason it was chosen over iText for the
-// MVP). Extraction is fully in-memory and CPU-bound, so the interface is synchronous.
+// PdfPig: managed, MIT-licensed, no native dependencies. CPU-bound, so synchronous.
 public sealed class PdfPigTextExtractor : IPdfTextExtractor
 {
     public string Extract(byte[] pdfBytes)
@@ -24,10 +22,8 @@ public sealed class PdfPigTextExtractor : IPdfTextExtractor
 
             return builder.ToString();
         }
-        // The upload boundary only checks the leading "%PDF" bytes, so a truncated or malformed file
-        // reaches this far and fails here — this is the exception that actually filled the CV
-        // parsing error queue. Translating it tells the caller the failure is permanent, and keeps
-        // PdfPig's own exception types from leaking past this class.
+        // A malformed PDF fails here. Translated so the caller knows it is permanent and PdfPig types
+        // don't leak out.
         catch (PdfDocumentFormatException exception)
         {
             throw new TextExtractionException("The PDF is malformed and cannot be read.", exception);

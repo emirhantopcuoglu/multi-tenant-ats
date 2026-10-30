@@ -10,13 +10,7 @@ interface FeedbackListProps {
   isLoading: boolean;
 }
 
-/* Reads back what the panel actually said — the half of this feature that did not exist: evaluations
-   were written and no query ever returned them, so a rating vanished into the database the moment it
-   was submitted.
-
-   Every state here comes from the server's answer rather than being re-derived: `isWithheld` is the
-   backend's decision that this caller must file their own evaluation first, and reproducing that
-   rule on the client would only create a second place for it to drift. */
+/* isWithheld comes from the server; the rule isn't repeated on the client. */
 export function FeedbackList({ summary, isLoading }: FeedbackListProps) {
   const { t, i18n } = useTranslation();
   const lookup = useUserLookup();

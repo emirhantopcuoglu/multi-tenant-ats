@@ -8,7 +8,6 @@ const sizeClasses: Record<AvatarSize, string> = {
   lg: 'h-9 w-9 text-sm',
 };
 
-/* Derive up to two uppercase initials from a full name ("Elif Yılmaz" → "EY"). */
 export function initialsOf(name: string): string {
   return name
     .trim()
@@ -25,8 +24,7 @@ interface AvatarProps {
   className?: string;
 }
 
-/* Initials-only avatar (no image source in the API yet). Uses the accent-subtle surface so it reads
-   as a person token without competing with primary accent actions. */
+/* Initials only; the API has no images. */
 export function Avatar({ name, size = 'md', className }: AvatarProps) {
   return (
     <span

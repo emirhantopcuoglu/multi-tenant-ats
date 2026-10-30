@@ -25,9 +25,7 @@ public sealed class JobsController : ControllerBase
     [Authorize(Policy = Policies.CanManageJobs)]
     public async Task<IActionResult> Create(CreateJobBody body)
     {
-        // The author is the authenticated caller, never a client-supplied value.
-        // The JWT 'sub' claim is mapped to NameIdentifier by the default inbound
-        // claim mapping, so we read it from there.
+        // The author comes from the token ('sub' is mapped to NameIdentifier), never from the client.
         if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var createdBy))
             return Unauthorized();
 
@@ -107,8 +105,7 @@ public sealed class JobsController : ControllerBase
             : BadRequest(new { result.Error.Code, result.Error.Message });
     }
 
-    // Request shape for creation: deliberately omits CreatedBy so the client
-    // cannot spoof authorship. The controller fills it from the JWT.
+    // No CreatedBy here, so the client can't set the author.
     public sealed record CreateJobBody(
         string Title, string Description, string Department, string City, string? Country,
         Ats.Modules.Jobs.Domain.EmploymentType EmploymentType,

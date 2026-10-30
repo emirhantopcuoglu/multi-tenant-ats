@@ -4,10 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Notifications.Application.Notifications;
 
-// ---- Mark one read ----
-// Ownership is folded into the WHERE, same as the candidate application detail: a notification
-// that exists but is addressed to someone else is indistinguishable from one that does not exist,
-// so ids cannot be probed.
+// Ownership is part of the WHERE, so someone else's id looks like a missing one.
 public sealed record MarkNotificationReadCommand(
     NotificationRecipientType RecipientType,
     Guid RecipientId,
@@ -31,8 +28,6 @@ public sealed class MarkNotificationReadHandler : ICommandHandler<MarkNotificati
         if (notification is null)
             return Result.Failure<bool>(NotificationErrors.NotFound);
 
-        // MarkRead is idempotent, so re-marking an already-read row is a harmless no-op — the
-        // command never fails for being repeated.
         notification.MarkRead();
         await _db.SaveChangesAsync(ct);
 
@@ -40,11 +35,7 @@ public sealed class MarkNotificationReadHandler : ICommandHandler<MarkNotificati
     }
 }
 
-// ---- Mark all read ----
-// One set-based UPDATE instead of load-modify-save per row: the whole point of the "mark all"
-// button is that the feed may hold many unread rows, and O(1) statements beat O(n) round trips.
-// ExecuteUpdate bypasses the change tracker, which is fine here — the entity has no interceptors
-// or domain events to fire on read-marking.
+// One set-based UPDATE instead of loading every unread row.
 public sealed record MarkAllNotificationsReadCommand(
     NotificationRecipientType RecipientType,
     Guid RecipientId) : ICommand<int>;

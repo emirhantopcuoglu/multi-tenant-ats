@@ -41,10 +41,8 @@ public class CandidateRefreshTokenTests
     [Fact]
     public void A_token_issued_before_the_stamp_rotated_is_not_redeemable()
     {
-        // The case the whole design exists for: the account's password changed (or its email, or it
-        // was deleted), rotating the stamp. An unexpired, unrevoked refresh token from before that
-        // must not be able to mint a new access token — otherwise changing the password would fail
-        // to lock out whoever holds the old refresh token.
+        // After a stamp rotation (password or email change, deletion) an old refresh token must not work,
+        // even if unexpired.
         var token = Issue(Guid.NewGuid());
 
         Assert.False(token.CanBeRedeemedWith(Guid.NewGuid()));

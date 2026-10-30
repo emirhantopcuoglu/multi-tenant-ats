@@ -5,12 +5,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ats.Modules.Jobs.Api;
 
-// The cross-tenant public marketplace feed. Unlike PublicJobsController (/{slug}/jobs), this is NOT
-// scoped to one company: it lists every tenant's Published jobs. So its route is the literal prefix
-// "public/jobs" with no {slug} segment and no tenant to resolve — a literal route segment outranks
-// the {slug} parameter of PublicJobsController, so the two never collide. No api/v{version} prefix:
-// like the careers pages, this is a user-facing URL, and "public" is a reserved slug so no company
-// can ever shadow it.
+// Published jobs from every tenant. The literal "public" segment outranks the {slug} route, and
+// "public" is a reserved slug.
 [ApiController]
 [AllowAnonymous]
 [Route("public/jobs")]
@@ -20,9 +16,7 @@ public sealed class PublicJobFeedController : ControllerBase
 
     public PublicJobFeedController(ISender sender) => _sender = sender;
 
-    // The filters arrive as raw strings and stay strings all the way to the handler, which treats
-    // anything unparseable as "no filter" — a shared marketplace URL with a stale or mistyped value
-    // should render the unfiltered list, not a 400.
+    // Unparseable filter values are ignored rather than rejected, so a stale shared URL still works.
     [HttpGet]
     public async Task<IActionResult> List(
         [FromQuery] string? search = null,

@@ -14,10 +14,8 @@ public sealed class CandidateSearchRepository : ICandidateSearchRepository
     public async Task<PagedResult<CandidateSearchResultDto>> SearchAsync(
         string q, int page, int pageSize, CancellationToken ct = default)
     {
-        // The global query filter on Candidates already scopes to the current tenant
-        // and excludes soft-deleted records — no manual WHERE needed for those.
-        // websearch_to_tsquery handles arbitrary user text safely: special characters
-        // are ignored rather than causing an exception, and the result is a valid tsquery.
+        // No tenant WHERE: the global query filter handles it. websearch_to_tsquery accepts any user
+        // text without throwing.
         var candidates = _db.Candidates
             .AsNoTracking()
             .Where(c => EF.Property<NpgsqlTsVector>(c, "SearchVector")

@@ -7,13 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// Consumes ApplicationHiredIntegrationEvent off RabbitMQ and emails the candidate the good news —
-// the positive counterpart of ApplicationRejectedConsumer, with the same retry/dead-letter policy
-// and the same idempotency guard keyed on the message id, so an at-least-once redelivery does not
-// email the candidate twice.
-//
-// Wording comes from IEmailTextProvider in the language the candidate's account carries; see
-// ApplicationRejectedConsumer for why the language is read here rather than carried on the event.
+// Emails the candidate when they are hired. Idempotent on the message id.
 public sealed class ApplicationHiredConsumer : IConsumer<ApplicationHiredIntegrationEvent>
 {
     private readonly IEmailSender _emailSender;

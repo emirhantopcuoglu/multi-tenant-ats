@@ -3,9 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Applications.Application.Applications;
 
-// Read side of CV parsing: exposes the structured result a recruiter can view on the
-// application. The result is produced asynchronously by the CV-parsing consumer and stored in
-// MongoDB, so it may not exist yet for a freshly submitted application.
+// Produced asynchronously, so it may not exist yet for a new application.
 public sealed record CvParseResultDto(
     Guid ApplicationId,
     IReadOnlyList<string> Skills,
@@ -33,9 +31,7 @@ public sealed class GetCvParseResultHandler : IQueryHandler<GetCvParseResultQuer
 
     public async Task<Result<CvParseResultDto>> Handle(GetCvParseResultQuery query, CancellationToken ct)
     {
-        // Confirm the application exists in this tenant first (the EF global filter scopes this), so
-        // an unknown id yields a clean 404 rather than leaking whether some other tenant's
-        // application has a parse result.
+        // Check the application exists in this tenant first, so an unknown id is a 404.
         var exists = await _db.Applications.AsNoTracking()
             .AnyAsync(a => a.Id == query.ApplicationId, ct);
         if (!exists)

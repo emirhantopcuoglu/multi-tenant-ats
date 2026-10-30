@@ -22,7 +22,7 @@ public sealed class HireApplicationTests
     [Fact]
     public async Task should_hire_park_in_final_hired_stage_and_publish_enriched_event()
     {
-        // Arrange — an active application sitting mid-funnel
+        // Arrange: an active application sitting mid-funnel
         var tenant = new FixedTenant(Guid.NewGuid());
         var jobId = Guid.NewGuid();
         var candidateAccountId = Guid.NewGuid();
@@ -56,7 +56,7 @@ public sealed class HireApplicationTests
         var result = await handler.Handle(
             new HireApplicationCommand(application.Id), CancellationToken.None);
 
-        // Assert — status and stage flip together, and the event carries what the email needs
+        // Assert: status and stage flip together, and the event carries what the email needs
         Assert.True(result.IsSuccess);
 
         await using var assertDb = NewDb(tenant);
@@ -79,7 +79,7 @@ public sealed class HireApplicationTests
     [Fact]
     public async Task should_fail_when_application_is_already_terminal()
     {
-        // Arrange — a rejected application cannot be hired afterwards
+        // Arrange: a rejected application cannot be hired afterwards
         var tenant = new FixedTenant(Guid.NewGuid());
         var jobId = Guid.NewGuid();
 
@@ -107,7 +107,7 @@ public sealed class HireApplicationTests
         var result = await handler.Handle(
             new HireApplicationCommand(application.Id), CancellationToken.None);
 
-        // Assert — the entity's terminal guard surfaces as a typed failure, nothing leaks out
+        // Assert: the entity's terminal guard surfaces as a typed failure, nothing leaks out
         Assert.False(result.IsSuccess);
         Assert.Equal("application.invalid_operation", result.Error.Code);
         Assert.Empty(publisher.Published);

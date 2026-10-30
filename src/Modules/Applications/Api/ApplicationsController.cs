@@ -7,8 +7,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ats.Modules.Applications.Api;
 
-// Authenticated recruiter view over applications. Tenant isolation is automatic: every query
-// runs through the global query filter, so a recruiter only ever sees their own tenant's data.
 [ApiController]
 [Authorize]
 [Route("api/v{version:apiVersion}/applications")]
@@ -42,9 +40,7 @@ public sealed class ApplicationsController : ControllerBase
         if (!result.IsSuccess)
             return NotFound(new { result.Error.Code, result.Error.Message });
 
-        // Read receipt for candidate transparency: opening the detail stamps the first view.
-        // Best-effort by design — the detail the recruiter asked for never fails on it, and the
-        // handler itself logs any activity-write problem.
+        // Records the first view for the candidate. Best-effort; it never fails the request.
         await _sender.Send(new MarkApplicationViewedCommand(id));
 
         return Ok(result.Value);
@@ -58,9 +54,7 @@ public sealed class ApplicationsController : ControllerBase
         if (!result.IsSuccess)
             return NotFound(new { result.Error.Code, result.Error.Message });
 
-        // Read receipt for candidate transparency: requesting the URL stamps the first download.
-        // Best-effort by design, same as MarkApplicationViewedCommand above — the link the
-        // recruiter asked for never fails on it.
+        // Records the first CV download for the candidate. Best-effort, like the view above.
         await _sender.Send(new MarkCvDownloadedCommand(id));
 
         return Ok(result.Value);
@@ -80,8 +74,7 @@ public sealed class ApplicationsController : ControllerBase
     [Authorize(Policy = Policies.CanViewApplications)]
     public async Task<IActionResult> GetCvParseResult(Guid id)
     {
-        // Both failures are 404: the application does not exist in this tenant, or it exists but its
-        // CV has not been parsed yet (parsing is asynchronous). The error code distinguishes them.
+        // 404 for both a missing application and a CV not parsed yet; the error code tells them apart.
         var result = await _sender.Send(new GetCvParseResultQuery(id));
         return result.IsSuccess
             ? Ok(result.Value)

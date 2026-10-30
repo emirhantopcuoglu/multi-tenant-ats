@@ -4,14 +4,8 @@ using MongoDB.Driver;
 
 namespace Ats.Modules.Applications.Infrastructure;
 
-// MongoDB-backed CV parse result store. Like MongoActivityLogRepository it uses the
-// native driver and handles tenant isolation by hand: the write stamps the tenant from the message,
-// the read filters on the current tenant.
-//
-// We deliberately add no custom index: the only read is by application id, which is the document _id
-// (already uniquely indexed), and the tenant equality is a cheap check on that single document. An
-// extra index would only slow writes with no query to serve (the same YAGNI reasoning as the
-// activity log's single-index choice).
+// Tenant isolation is done by hand: writes take the tenant from the message, reads filter on the
+// current one. No extra index; reads are by _id.
 public sealed class MongoCvParseResultRepository : ICvParseResultRepository
 {
     internal const string CollectionName = "cv_parse_results";
@@ -54,8 +48,7 @@ public sealed class MongoCvParseResultRepository : ICvParseResultRepository
             ParsedAtUtc = parsedAtUtc
         };
 
-        // Upsert keyed on the application id (the _id) so a redelivered message overwrites the prior
-        // result rather than creating a duplicate — the parse is naturally idempotent.
+        // Upsert, so a redelivered message overwrites instead of duplicating.
         var filter = Builders<CvParseResultDocument>.Filter.Eq(d => d.ApplicationId, applicationId);
         await _collection.ReplaceOneAsync(
             filter, document, new ReplaceOptions { IsUpsert = true }, cancellationToken);
@@ -64,7 +57,7 @@ public sealed class MongoCvParseResultRepository : ICvParseResultRepository
     public async Task<StoredCvParseResult?> GetByApplicationAsync(
         Guid applicationId, CancellationToken cancellationToken = default)
     {
-        // No tenant means no safe scope to read in — return nothing rather than leak across tenants.
+        // No tenant, no results.
         if (_currentTenant.TenantId is not { } tenantId)
             return null;
 

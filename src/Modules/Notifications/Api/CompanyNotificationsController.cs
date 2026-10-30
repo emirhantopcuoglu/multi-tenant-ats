@@ -8,12 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ats.Modules.Notifications.Api;
 
-// The company user's notification feed: what powers their bell icon (the fan-out counterpart to
-// CandidateNotificationsController). Any authenticated tenant member can reach it — same access
-// level as UsersController — and the recipient is always the token's subject, so ownership cannot
-// be forged at the API. The application layer's read/write model already keys on
-// (RecipientType, RecipientId) alone, so a CompanyUser row is found without also checking the
-// caller's tenant: a user id belongs to exactly one tenant.
+// The recipient is always the token's subject. No tenant check needed: a user id belongs to one tenant.
 [ApiController]
 [Authorize]
 [Route("api/v{version:apiVersion}/notifications")]

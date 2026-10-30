@@ -1,11 +1,8 @@
-/* Normalized error the UI works with, regardless of which backend error shape produced it.
-   The backend speaks two dialects (see lib/problemDetails.ts):
-     1. Structured domain errors: { code, message }   (e.g. invalid credentials, slug taken)
-     2. RFC 7807 ProblemDetails:  { title, status, errors: { field: [msgs] } }  (validation)
-   We collapse both into this single shape so callers never branch on the source. */
+/* One error shape for the UI, covering both backend formats: { code, message } and RFC 7807
+   validation problems. */
 export interface ApiError {
   code: string;
   message: string;
-  /** Field-level validation messages, present only for validation (RFC 7807) failures. */
+  /* Only for validation failures. */
   fieldErrors?: Record<string, string[]>;
 }

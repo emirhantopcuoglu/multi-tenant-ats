@@ -2,14 +2,12 @@ import { useId, type ReactNode } from 'react';
 
 interface FieldRenderProps {
   id: string;
-  /** Pass to the control's aria-describedby; undefined when there's no error to point at. */
   describedById: string | undefined;
   invalid: boolean;
 }
 
-/* Labelled form field with accessible error wiring. The control is a render prop so the caller can
-   spread react-hook-form's register() onto our Input/Select while we own the id ↔ label ↔ error
-   relationships (htmlFor, aria-describedby, aria-invalid). Shared across the auth and jobs forms. */
+/* The control is a render prop so callers can spread register() onto it while this component wires
+   the label, error and aria attributes. */
 export function Field({
   label,
   error,

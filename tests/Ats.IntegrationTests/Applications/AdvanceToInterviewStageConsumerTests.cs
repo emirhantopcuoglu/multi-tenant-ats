@@ -18,7 +18,7 @@ public sealed class AdvanceToInterviewStageConsumerTests
     [Fact]
     public async Task should_advance_an_applied_application_to_the_interview_stage_and_log_it_once()
     {
-        // Arrange — a default pipeline, an application sitting at "Applied".
+        // Arrange: a default pipeline, an application sitting at "Applied".
         var tenant = new FixedTenant(Guid.NewGuid());
         var jobId = Guid.NewGuid();
         Pipeline pipeline;
@@ -39,7 +39,7 @@ public sealed class AdvanceToInterviewStageConsumerTests
         var activityLog = new InMemoryActivityLog([]);
         AdvanceToInterviewStageConsumer.StageMove? move;
 
-        // Act — simulate an interview being scheduled against the application.
+        // Act: simulate an interview being scheduled against the application.
         await using (var db = NewDb(tenant))
         {
             var consumer = new AdvanceToInterviewStageConsumer(
@@ -48,7 +48,7 @@ public sealed class AdvanceToInterviewStageConsumerTests
                 application.Id, tenant.TenantId!.Value, CancellationToken.None);
         }
 
-        // Assert — the application moved, and exactly one honest StageChanged entry was logged.
+        // Assert: the application moved, and exactly one honest StageChanged entry was logged.
         await using (var readDb = NewDb(tenant))
         {
             var stored = readDb.Applications.Single(a => a.Id == application.Id);
@@ -59,9 +59,8 @@ public sealed class AdvanceToInterviewStageConsumerTests
         Assert.Equal(ApplicationActivityType.StageChanged, logged.ActivityType);
         Assert.Null(logged.ActorUserId);
 
-        // The write must name its tenant. A consumer has no ambient one, so the request-scoped
-        // overload throws there — silently, since log writes are best-effort, which is how this
-        // entry went missing from the candidate's timeline in the first place.
+        // Must pass the tenant explicitly: a consumer has none, and the ambient overload would throw
+        // silently inside a best-effort write.
         Assert.Equal(tenant.TenantId!.Value, Assert.Single(activityLog.AddedTenantIds));
 
         // The move is returned so Consume can announce it; a null here means no notification.
@@ -75,7 +74,7 @@ public sealed class AdvanceToInterviewStageConsumerTests
     [Fact]
     public async Task should_not_pull_an_application_backwards_when_a_follow_up_interview_is_scheduled()
     {
-        // Arrange — an application already moved past Interview, into Offer.
+        // Arrange: an application already moved past Interview, into Offer.
         var tenant = new FixedTenant(Guid.NewGuid());
         var jobId = Guid.NewGuid();
         Pipeline pipeline;
@@ -102,7 +101,7 @@ public sealed class AdvanceToInterviewStageConsumerTests
 
         var activityLog = new InMemoryActivityLog([]);
 
-        // Act — a follow-up interview is scheduled while the application is already at Offer.
+        // Act: a follow-up interview is scheduled while the application is already at Offer.
         await using (var db = NewDb(tenant))
         {
             var consumer = new AdvanceToInterviewStageConsumer(
@@ -110,7 +109,7 @@ public sealed class AdvanceToInterviewStageConsumerTests
             await consumer.AdvanceAsync(application.Id, tenant.TenantId!.Value, CancellationToken.None);
         }
 
-        // Assert — still at Offer, nothing logged.
+        // Assert: still at Offer, nothing logged.
         await using (var readDb = NewDb(tenant))
         {
             var stored = readDb.Applications.Single(a => a.Id == application.Id);

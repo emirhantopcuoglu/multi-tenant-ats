@@ -1,7 +1,6 @@
 import { AxiosError } from 'axios';
 import type { ApiError } from '@/types/api';
 
-/* Shape of an RFC 7807 ProblemDetails body as emitted by ASP.NET's validation pipeline. */
 interface ProblemDetailsBody {
   title?: string;
   detail?: string;
@@ -9,7 +8,6 @@ interface ProblemDetailsBody {
   errors?: Record<string, string[]>;
 }
 
-/* Shape of the backend's structured domain error body: { code, message }. */
 interface StructuredErrorBody {
   code?: string;
   message?: string;
@@ -24,19 +22,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-/* Normalize any thrown error into a single ApiError shape (see types/api.ts for why).
-   Handles: structured { code, message }, RFC 7807 validation problems, network errors with no
-   response, and non-Axios errors — so callers can render `error.message` without branching. */
+/* Turns any thrown error into one ApiError shape, so callers can just render `error.message`. */
 export function toApiError(error: unknown): ApiError {
   if (error instanceof AxiosError) {
-    // No response at all: the request never reached the server (offline, CORS, DNS).
+    // No response: offline, CORS or DNS.
     if (!error.response) {
       return { code: 'network_error', message: error.message || UNKNOWN_ERROR.message };
     }
 
     const data = error.response.data;
     if (isRecord(data)) {
-      // Validation problem: surface both a summary message and the per-field messages.
       const problem = data as ProblemDetailsBody;
       if (problem.errors && isRecord(problem.errors)) {
         return {
@@ -46,7 +41,6 @@ export function toApiError(error: unknown): ApiError {
         };
       }
 
-      // Structured domain error: { code, message }.
       const structured = data as StructuredErrorBody;
       if (structured.code || structured.message) {
         return {
@@ -56,7 +50,7 @@ export function toApiError(error: unknown): ApiError {
       }
     }
 
-    // Responded, but in a shape we don't recognise — fall back to the HTTP status text.
+    // Unknown shape: fall back to the HTTP status text.
     return { code: `http_${error.response.status}`, message: error.response.statusText || UNKNOWN_ERROR.message };
   }
 

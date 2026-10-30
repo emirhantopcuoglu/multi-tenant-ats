@@ -4,10 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ats.ArchitectureTests;
 
-/// <summary>
-/// Where a type lives is the fastest thing a reader uses to guess what it may do. These rules pin
-/// the three placements the codebase already relies on, so the guess stays correct.
-/// </summary>
+/// <summary>Pins where controllers, consumers and handlers may live.</summary>
 public class ConventionTests
 {
     [Fact]
@@ -37,7 +34,7 @@ public class ConventionTests
     public void A_message_consumer_should_live_in_the_infrastructure_layer()
     {
         // Consumers are the bus's entry point into a module and write through its DbContext, which
-        // makes them infrastructure — the same reason a controller is not application code.
+        // makes them infrastructure, the same reason a controller is not application code.
         var violations = ConcreteTypesOutside(
             Layer.Infrastructure,
             type => ImplementsOpenInterface(type, typeof(IConsumer<>)));

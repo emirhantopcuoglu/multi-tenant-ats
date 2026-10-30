@@ -70,10 +70,7 @@ public sealed class JoinInterviewRoomTests
     [Fact]
     public async Task should_refuse_a_company_user_who_is_not_on_the_panel()
     {
-        // The rule the interview detail screen's "Join room" button is gated on. A recruiter or admin
-        // in the owning tenant can read this interview and manage it, but the room is for the people
-        // actually in it — so the UI must offer the link on panel membership, not on manage rights,
-        // or it hands them a button that lands on "not found".
+        // Managers in the tenant can see the interview but not join the room; only panel members can.
         var tenant = new FixedTenant(Guid.NewGuid());
         var (interview, applications) = await SeedAsync(
             tenant, DateTime.UtcNow.AddMinutes(5), interviewerUserIds: [Guid.NewGuid()]);
@@ -167,9 +164,7 @@ public sealed class JoinInterviewRoomTests
         IReadOnlyCollection<Guid>? interviewerUserIds = null)
     {
         var applicationId = Guid.NewGuid();
-        // Booked a day before it starts. These tests deliberately place interviews minutes away to
-        // exercise the room window, which the minimum-lead-time rule would otherwise reject — so the
-        // seed states when the booking was made rather than pretending it happened just now.
+        // Booked a day earlier, so the minimum lead time allows an interview minutes away.
         var interview = Interview.Schedule(
             applicationId, InterviewType.Technical, scheduledAtUtc, 30,
             interviewerUserIds ?? [Guid.NewGuid()], nowUtc: scheduledAtUtc.AddDays(-1));

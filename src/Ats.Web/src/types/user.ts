@@ -1,16 +1,12 @@
 import type { Role } from './enums';
 
-/* A member of the caller's tenant (Tenants.Application.TenantUserDto), from GET /api/v1/users.
-   Used to resolve interviewer ids to names (list avatars, detail panel) and to populate the
-   interviewer multi-select when scheduling an interview. The endpoint returns a plain array — it is
-   small (one tenant's members) and not paginated. */
+/* A plain array, not paged. */
 export interface TenantUser {
   id: string;
   firstName: string;
   lastName: string;
   email: string;
   role: Role;
-  /** False once an admin deactivates them: they keep appearing here (so they can be reactivated) but
-   *  can no longer sign in. The backend orders active members first. */
+  /* Deactivated users stay listed so they can be reactivated. Active users come first. */
   isActive: boolean;
 }

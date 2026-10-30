@@ -3,9 +3,7 @@ import { useAuth } from './auth-context';
 import { EmptyState } from '@/components/ui';
 import type { Role } from '@/types/enums';
 
-/* Role gate, nested inside RequireAuth (so a user is guaranteed present). When the user's role isn't
-   in `roles`, we render an inline forbidden state rather than redirecting — the route exists, the
-   user simply lacks permission, and a silent redirect would be more confusing than an explanation. */
+/* Shows an inline forbidden state instead of redirecting, which would be more confusing. */
 export function RequireRole({ roles }: { roles: Role[] }) {
   const { role } = useAuth();
 

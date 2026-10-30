@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MINIMUM_LEAD_MINUTES, isSlotTooSoon, toScheduledAt } from './scheduleValidation';
 
-/* Both functions take their clock as an argument, which is what makes them testable at all — a
+/* Both functions take their clock as an argument, which is what makes them testable at all, a
    `Date.now()` read inside would leave these asserting against whenever the suite happens to run. */
 
 describe('toScheduledAt', () => {
@@ -17,7 +17,7 @@ describe('toScheduledAt', () => {
   });
 
   it('reads the inputs as local time, not UTC', () => {
-    // `new Date('2026-08-03T14:30')` — no trailing Z — is local by specification. The recruiter
+    // `new Date('2026-08-03T14:30')`, no trailing Z, is local by specification. The recruiter
     // picked 14:30 in their own day; parsing it as UTC would shift every interview by the offset.
     const result = toScheduledAt('2026-08-03', '14:30')!;
 
@@ -29,7 +29,7 @@ describe('toScheduledAt', () => {
     ['2026-08-03', '', 'no time'],
     ['', '', 'neither'],
   ])('returns null with %s / %s (%s)', (date, time) => {
-    // A half-filled form is not an error to show yet — the caller distinguishes "not ready" from
+    // A half-filled form is not an error to show yet, the caller distinguishes "not ready" from
     // "wrong", which is why this is null rather than an invalid Date.
     expect(toScheduledAt(date, time)).toBeNull();
   });

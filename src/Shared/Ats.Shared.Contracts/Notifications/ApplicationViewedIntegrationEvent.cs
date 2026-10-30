@@ -1,12 +1,7 @@
 namespace Ats.Shared.Contracts.Notifications;
 
-// Published onto the message bus the first time a company user opens an application. Only the
-// in-app notification backbone consumes it today — there is no email planned for this signal, so
-// unlike ApplicationRejectedIntegrationEvent/ApplicationStageChangedIntegrationEvent it carries no
-// candidate contact fields; adding them now would be dead data with no consumer to read them.
-//
-// CandidateAccountId is the global marketplace account the notification is addressed to (nullable:
-// applications submitted before candidate accounts existed have none, and consumers skip those).
+// Only the in-app notification consumes it, so it has no contact fields. CandidateAccountId is
+// null for applications made before candidate accounts.
 public sealed record ApplicationViewedIntegrationEvent(
     Guid ApplicationId,
     Guid JobId,

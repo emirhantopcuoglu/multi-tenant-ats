@@ -5,12 +5,8 @@ using Ats.Modules.Interviews.Infrastructure;
 
 namespace Ats.IntegrationTests.Interviews;
 
-// The read path for interview feedback, which until now did not exist: evaluations were written and
-// nothing ever queried them back.
-//
-// The withholding rule gets the most coverage because it is the part that can quietly do harm. The
-// entity is immutable so a score cannot be softened after the fact; letting an evaluator read the
-// panel before filing their own would move that anchoring earlier rather than prevent it.
+// Most tests cover withholding: a panel member must not see others' feedback before submitting
+// their own.
 [Collection("Integration")]
 public sealed class GetInterviewFeedbackTests
 {
@@ -74,7 +70,7 @@ public sealed class GetInterviewFeedbackTests
         Assert.Empty(summary.Items);
         Assert.True(summary.IsWithheld);
         Assert.False(summary.HasCallerSubmitted);
-        // The rating must not leak through the aggregate either — an average over one submission
+        // The rating must not leak through the aggregate either, an average over one submission
         // would hand over the exact score the items were hidden to protect.
         Assert.Null(summary.AverageRating);
     }

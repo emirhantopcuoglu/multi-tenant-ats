@@ -5,15 +5,9 @@ using StackExchange.Redis;
 
 namespace Ats.Shared.Infrastructure;
 
-// Redis-backed implementation of IIdempotencyGuard. It claims a key atomically with
-// SET NX (set-if-not-exists) and a TTL, so two concurrent deliveries of the same message cannot both
-// pass the check — only the delivery that wins the SET runs the operation. The shared
-// ConnectionMultiplexer is reused (same instance as the cache and rate limiter), and the database
-// handle is cheap to obtain and reuse.
+// Claims the key with SET NX and a TTL, so only one of two concurrent deliveries runs.
 public sealed class RedisIdempotencyGuard : IIdempotencyGuard
 {
-    // The value stored under the key is irrelevant — only its presence matters — but a readable marker
-    // helps when inspecting Redis during debugging.
     private const string ClaimMarker = "processed";
 
     private readonly IDatabase _database;
@@ -35,15 +29,12 @@ public sealed class RedisIdempotencyGuard : IIdempotencyGuard
         bool claimed;
         try
         {
-            // Atomic claim: succeeds only if the key does not already exist. A false result means a
-            // prior delivery already processed this message, so we skip.
+            // False means a previous delivery already handled it.
             claimed = await _database.StringSetAsync(key, ClaimMarker, _retention, When.NotExists);
         }
         catch (Exception exception)
         {
-            // Fail-open, consistent with the cache and rate limiter: if Redis is unreachable we cannot
-            // dedup, but dropping the side effect (e.g. the email) is worse than risking a duplicate, so
-            // we run the operation without the guard.
+            // Fail open: a possible duplicate is better than dropping the email.
             _logger.LogWarning(
                 exception, "Idempotency store unavailable; processing without dedup for key {Key}", key);
             await operation();
@@ -60,9 +51,7 @@ public sealed class RedisIdempotencyGuard : IIdempotencyGuard
         }
         catch
         {
-            // The operation failed, so release the claim to let MassTransit's retry (and, after retries
-            // are exhausted, an error-queue replay) attempt it again. Best-effort: if the release itself
-            // fails the marker simply expires after the retention window.
+            // Release the claim so a retry can run. If this fails too, the key expires.
             try
             {
                 await _database.KeyDeleteAsync(key);

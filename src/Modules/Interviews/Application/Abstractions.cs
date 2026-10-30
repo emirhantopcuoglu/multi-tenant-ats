@@ -3,9 +3,7 @@ using MediatR;
 
 namespace Ats.Modules.Interviews.Application;
 
-// These marker interfaces mirror the other modules on purpose. Each module owns its own MediatR
-// pipeline and registers handlers from its own assembly, so the abstractions are kept per-module
-// rather than centralised in the Kernel (which would force a MediatR dependency on every project).
+// Kept per module, like the other modules, so the Kernel doesn't depend on MediatR.
 public interface ICommand<TResponse> : IRequest<Result<TResponse>>;
 
 public interface ICommandHandler<TCommand, TResponse> : IRequestHandler<TCommand, Result<TResponse>>

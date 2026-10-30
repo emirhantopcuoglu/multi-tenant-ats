@@ -1,9 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
-/* Link to the tenant's public careers page (/{slug}). That page lives outside the authenticated SPA
-   — its own layout, no AppShell — so a plain anchor with target=_blank is the right tool, not a
-   client-side <Link> that would try to render it inside the shell. Shown wherever a signed-in user
-   needs to reach or preview their public listing (Jobs toolbar, Settings → Company). */
+/* The careers page lives outside the app shell, so this is a plain anchor with target=_blank, not
+   a router <Link>. */
 export function CareersPageLink({ slug }: { slug: string }) {
   const { t } = useTranslation();
   return (

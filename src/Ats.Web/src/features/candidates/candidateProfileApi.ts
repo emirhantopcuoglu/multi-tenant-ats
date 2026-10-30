@@ -1,13 +1,8 @@
 import { apiClient, API_V1 } from '@/lib/apiClient';
 
-/* GET/PUT /api/v1/candidate/profile — the dedicated profile resource, richer than GET .../me
-   (which stays a minimal "who am I" for the auth context). Email is read-only here (login
-   identity; changing it gets its own verified flow later). birthDate travels as a "yyyy-MM-dd"
-   string: the backend stores a DateOnly, so there is no time zone to reason about. Errors come
-   back as { code, message }. */
+/* Email is read-only here; it has its own verified change flow. birthDate is "yyyy-MM-dd". */
 
-/* Null when no CV is attached. One object rather than two nullable fields, so a caller cannot
-   render half of it: either there is a CV with a name and a date, or there is nothing. */
+/* Null when no CV is attached. */
 export interface CandidateCv {
   fileName: string;
   uploadedAtUtc: string;
@@ -51,9 +46,7 @@ export interface ChangeCandidatePasswordRequest {
   newPassword: string;
 }
 
-/* The change rotates the account's security stamp, which kills every issued token — including the
-   access token this request was made with AND the refresh token behind it. The fresh pair in the
-   response is what keeps the candidate's own session alive; the caller must store it immediately. */
+/* The stamp rotation kills the current tokens; the caller must store the new pair right away. */
 export interface ChangeCandidatePasswordResult {
   accessToken: string;
   refreshToken: string;
@@ -69,10 +62,7 @@ export async function changeCandidatePassword(
   return data;
 }
 
-/* Two-phase email change. Phase one (authenticated) mails a verification link to the NEW address;
-   nothing changes until that link is used. Phase two (anonymous — the link may be opened on a
-   device with no session) posts the token back. A successful confirm rotates the security stamp,
-   so every session dies and the candidate logs in again with the new address. */
+/* Request mails a link to the new address; confirm (anonymous) applies it and ends every session. */
 export interface RequestCandidateEmailChangeRequest {
   newEmail: string;
   currentPassword: string;
@@ -88,15 +78,12 @@ export async function confirmCandidateEmailChange(token: string): Promise<void> 
   await apiClient.post(`${API_V1}/candidate/profile/email/confirm`, { token });
 }
 
-/* The CV saved to the account, reused on every application so the file only has to be found once.
-   Uploading replaces whatever was there; the server deletes the displaced object. */
+/* Uploading replaces the current CV. */
 export async function uploadCandidateCv(file: File): Promise<CandidateCv> {
   const form = new FormData();
   form.append('file', file);
 
-  /* No explicit Content-Type header: the browser has to set it itself so the multipart boundary
-     token is included. Writing 'multipart/form-data' by hand omits the boundary and the request
-     fails to parse server-side. */
+  /* No Content-Type: the browser must set it so the multipart boundary is included. */
   const { data } = await apiClient.post<CandidateCv>(`${API_V1}/candidate/profile/cv`, form);
   return data;
 }
@@ -105,8 +92,7 @@ export async function removeCandidateCv(): Promise<void> {
   await apiClient.delete(`${API_V1}/candidate/profile/cv`);
 }
 
-/* A short-lived signed URL straight to object storage: the file never streams through the API, so
-   the link is fetched at click time rather than held in component state until it expires. */
+/* Fetch at click time; the signed URL expires quickly. */
 export interface CandidateCvDownload {
   url: string;
   expiresInSeconds: number;

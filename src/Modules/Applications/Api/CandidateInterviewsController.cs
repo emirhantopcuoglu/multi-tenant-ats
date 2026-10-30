@@ -7,9 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ats.Modules.Applications.Api;
 
-// Candidate-facing "My interviews" view: every interview scheduled against any of the candidate's
-// applications, across every company. A sibling of CandidateApplicationsController rather than a
-// nested route under it — this is calendar data, not a property of one application.
+// Every interview across the candidate's applications, at every company.
 [ApiController]
 [Authorize(Policy = Policies.CandidateOnly)]
 [Route("api/v{version:apiVersion}/candidate/interviews")]

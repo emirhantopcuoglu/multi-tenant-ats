@@ -5,10 +5,8 @@ interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'typ
   label?: ReactNode;
 }
 
-/* A native checkbox kept for accessibility (visually hidden via `peer sr-only`) with a styled box
-   driven by `peer-checked`. The check icon lives inside the box and is revealed with the arbitrary
-   variant `peer-checked:[&_svg]:opacity-100` — needed because the icon is a descendant of the box,
-   not a following sibling, so a plain `peer-checked:` on the icon wouldn't match. */
+/* Hidden native checkbox for accessibility. The icon is inside the box, not a sibling, hence
+   peer-checked:[&_svg]:opacity-100. */
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Checkbox(
   { label, className, ...rest },
   ref,

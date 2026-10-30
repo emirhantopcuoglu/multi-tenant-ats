@@ -2,8 +2,6 @@ namespace Ats.Modules.Tenants.Domain;
 
 public sealed class Tenant
 {
-    // The public profile fields are free-form text; the caps exist to bound storage and rendering,
-    // not to encode format rules (the URL shape of Website is validated at the API boundary).
     public const int DescriptionMaxLength = 2000;
     public const int WebsiteMaxLength = 300;
     public const int LocationMaxLength = 200;
@@ -14,8 +12,6 @@ public sealed class Tenant
     public TenantStatus Status { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
 
-    // Public company profile, shown on the careers page. All optional: a tenant is fully
-    // functional without them, and existing rows predate these columns.
     public string? Description { get; private set; }
     public string? Website { get; private set; }
     public string? Location { get; private set; }
@@ -41,8 +37,7 @@ public sealed class Tenant
         return new Tenant(Guid.NewGuid(), name, slug.ToLowerInvariant(), TenantStatus.Trial, DateTime.UtcNow);
     }
 
-    // Whitespace-only input collapses to null so "cleared" and "never set" are the same state —
-    // the careers page hides a section on null, and a blank string would render an empty block.
+    // Blank input becomes null, so the careers page hides the section instead of rendering it empty.
     public void UpdateProfile(string? description, string? website, string? location)
     {
         Description = Normalize(description, DescriptionMaxLength, nameof(description));

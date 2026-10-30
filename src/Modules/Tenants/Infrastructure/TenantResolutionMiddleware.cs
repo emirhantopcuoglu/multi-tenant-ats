@@ -6,22 +6,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Tenants.Infrastructure;
 
-// Resolves "which tenant does this request belong to?" from the leading path slug
-// (e.g. /acmecorp/jobs) for public, pre-auth requests.
-//
-// The slug -> tenantId mapping is read on every public request but is effectively immutable
-// (a tenant's slug is set at creation and never changes, and tenants are not deleted), so it is
-// an ideal cache target. It is cached in Redis (IDistributedCache) — shared across all app
-// instances, unlike an in-memory cache — to avoid hitting PostgreSQL on every request.
-//
-// The cache is best-effort / fail-open: this runs on every public request, so a Redis outage must
-// degrade to a database read, never fail the request. Cache errors are logged (never silently
-// swallowed) and the lookup falls back to the source of truth — the same stance as the activity
-// log's best-effort write.
+// Resolves the tenant from the leading path slug (/acmecorp/jobs) for public requests.
+// The slug never changes, so the lookup is cached in Redis. Cache errors fall back to the database.
 public sealed class TenantResolutionMiddleware
 {
-    // The mapping never changes, so the TTL is only a memory bound + safety net, not a correctness
-    // mechanism. A newly created tenant is picked up on its first (cache-miss) request regardless.
+    // The mapping never changes; the TTL only bounds memory.
     private static readonly TimeSpan CacheLifetime = TimeSpan.FromHours(1);
 
     private readonly RequestDelegate _next;
@@ -64,8 +53,7 @@ public sealed class TenantResolutionMiddleware
             .Select(t => (Guid?)t.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
-        // Only positive lookups are cached. Skipping misses means a tenant registered just after a
-        // failed lookup resolves immediately — there is no negative-cache window to go stale.
+        // Only hits are cached, so a newly registered tenant resolves immediately.
         if (tenantId is not null)
             await CacheTenantIdAsync(slug, tenantId.Value, cancellationToken);
 
@@ -81,7 +69,6 @@ public sealed class TenantResolutionMiddleware
         }
         catch (Exception ex)
         {
-            // Fail open: a cache read failure must not break tenant resolution.
             _logger.LogWarning(ex, "Tenant cache read failed for slug {Slug}; falling back to database.", slug);
             return null;
         }
@@ -103,7 +90,6 @@ public sealed class TenantResolutionMiddleware
         }
     }
 
-    // Namespaced so cache keys from other features cannot collide with tenant lookups.
     private static string CacheKey(string slug) => $"tenant:slug:{slug}";
 
     private static string? ExtractSlug(PathString path)

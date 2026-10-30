@@ -8,8 +8,7 @@ import type {
   RegisterRequest,
 } from '@/types/auth';
 
-/* Thin typed wrappers over the auth endpoints. Token persistence is a side effect of the calls
-   that mint tokens, so callers (and the future AuthContext) don't have to remember to store them. */
+/* Calls that mint tokens also store them, so callers don't have to. */
 
 const AUTH_BASE = `${API_V1}/auth`;
 
@@ -19,8 +18,7 @@ export async function login(request: LoginRequest): Promise<AuthResult> {
   return data;
 }
 
-/* Returns nothing and stores no tokens: registration creates the workspace but the session waits for
-   the mailed confirmation link. The caller shows a "check your inbox" screen instead of signing in. */
+/* Stores no tokens: login waits for the confirmation link. */
 export async function register(request: RegisterRequest): Promise<void> {
   await apiClient.post(`${AUTH_BASE}/register`, request);
 }
@@ -29,8 +27,7 @@ export async function confirmEmail(userId: string, token: string): Promise<void>
   await apiClient.post(`${AUTH_BASE}/confirm-email`, { userId, token });
 }
 
-/* Anonymous — whoever needs this cannot sign in. Always succeeds, whether or not the address is
-   registered, so it cannot be used to discover who works here. */
+/* Always succeeds, so it can't reveal which emails are registered. */
 export async function resendEmailConfirmation(email: string): Promise<void> {
   await apiClient.post(`${AUTH_BASE}/resend-confirmation`, { email });
 }
@@ -40,8 +37,7 @@ export async function getCurrentUser(): Promise<CompanyUser> {
   return { ...data, kind: 'company' };
 }
 
-/* Accept a team invitation. Returns nothing on success (the endpoint mints no tokens), so the caller
-   redirects to the login screen afterwards. */
+/* Returns no tokens; the caller sends the user to login. */
 export async function acceptInvitation(request: AcceptInvitationRequest): Promise<void> {
   await apiClient.post(`${API_V1}/invitations/accept`, request);
 }
@@ -49,7 +45,7 @@ export async function acceptInvitation(request: AcceptInvitationRequest): Promis
 export async function logout(): Promise<void> {
   const refreshToken = tokenStore.getRefreshToken();
   if (refreshToken) {
-    // Best-effort server-side revocation; clear locally regardless of the result.
+    // Best-effort; local credentials are cleared either way.
     await apiClient.post(`${AUTH_BASE}/logout`, { refreshToken }).catch(() => undefined);
   }
   tokenStore.clear();

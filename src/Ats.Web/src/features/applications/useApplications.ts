@@ -9,13 +9,11 @@ export function useApplications(params: ListApplicationsParams) {
   return useQuery({
     queryKey: applicationsListKey(params),
     queryFn: () => listApplications(params),
-    // Keep the current page visible while the next loads (no empty flash on paging/filtering).
     placeholderData: keepPreviousData,
   });
 }
 
-/* Stages of the selected job, for the stage filter. Disabled until a job is chosen — stages are
-   per-job, so "stage" only has meaning within one pipeline. */
+/* Disabled until a job is chosen; stages are per job. */
 export function useJobStages(jobId: string | undefined) {
   return useQuery({
     queryKey: ['jobs', 'stages', jobId ?? 'none'],
@@ -24,8 +22,7 @@ export function useJobStages(jobId: string | undefined) {
   });
 }
 
-// 100 is the backend's max page size; enough to populate the job filter for an MVP tenant. The list
-// also resolves each row's job title from this set (the application list DTO carries only the job id).
+// 100 is the backend's max page size. The table also uses this list for job titles.
 const JOB_OPTIONS_PAGE_SIZE = 100;
 
 export function useJobOptions() {

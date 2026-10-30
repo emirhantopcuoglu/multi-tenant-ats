@@ -2,8 +2,7 @@ import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import type { BadgeTone } from '@/lib/statusColors';
 
-/* Tone → classes, ported from the prototype's `pill(kind)` function. Screens map a status enum to a
-   tone via the maps in lib/statusColors, then pass it here — keeping colour decisions in one place. */
+/* Screens pick a tone through lib/statusColors, so colour decisions stay in one place. */
 const toneClasses: Record<BadgeTone, string> = {
   neutral: 'bg-divider text-text-muted ring-1 ring-inset ring-border',
   gray: 'bg-divider text-text-disabled',
@@ -16,7 +15,6 @@ const toneClasses: Record<BadgeTone, string> = {
   solidSuccess: 'bg-success text-white',
 };
 
-/* Dot colour for tones where the prototype shows a leading status dot (e.g. Published). */
 const dotColor: Partial<Record<BadgeTone, string>> = {
   success: 'bg-success',
   accent: 'bg-accent',
@@ -27,7 +25,6 @@ const dotColor: Partial<Record<BadgeTone, string>> = {
 
 interface BadgeProps {
   tone?: BadgeTone;
-  /** Show a small leading status dot. */
   dot?: boolean;
   children: ReactNode;
   className?: string;

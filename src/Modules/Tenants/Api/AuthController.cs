@@ -21,9 +21,7 @@ public sealed class AuthController : ControllerBase
         _currentUser = currentUser;
     }
 
-    // PreferredLanguage is optional: an omitted or unrecognised value settles on English rather than
-    // failing the registration, because a client that never asked for a language has not made a
-    // mistake worth refusing a workspace over.
+    // A missing or unknown PreferredLanguage falls back to English.
     public sealed record RegisterRequest(
         string CompanyName, string Slug, string Email, string Password, string FirstName, string LastName,
         string? PreferredLanguage);
@@ -42,15 +40,13 @@ public sealed class AuthController : ControllerBase
             request.CompanyName, request.Slug, request.Email, request.Password, request.FirstName,
             request.LastName, request.PreferredLanguage ?? SupportedLanguages.Default);
 
-        // 204, not the token pair it used to return: the workspace exists but the session waits for the
-        // mailed confirmation link. The SPA shows a "check your inbox" screen instead of signing in.
+        // No session yet: login waits for the confirmation link.
         return result.IsSuccess
             ? NoContent()
             : BadRequest(new { result.Error.Code, result.Error.Message });
     }
 
-    // Anonymous: the link is opened from an email client, which carries no session, and possibly on a
-    // different device than the one that registered. The token is the credential.
+    // Anonymous: the link may be opened on a device with no session.
     [HttpPost("confirm-email")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.PerIp)]
@@ -59,16 +55,12 @@ public sealed class AuthController : ControllerBase
         var result = await _authService.ConfirmEmailAsync(
             request.UserId, request.Token, HttpContext.RequestAborted);
 
-        // No tokens in the response, matching reset-password: confirming must not hand a session to
-        // whoever presented a token, only mark the address proven.
         return result.IsSuccess
             ? NoContent()
             : BadRequest(new { result.Error.Code, result.Error.Message });
     }
 
-    // Always 204, whether or not the address is registered or already confirmed — a distinguishable
-    // response would turn this into a directory of who works here. Rate-limited per IP: it sends mail
-    // on demand to an address the caller chooses.
+    // Always 204, so it can't be used to check which emails are registered.
     [HttpPost("resend-confirmation")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.PerIp)]
@@ -106,8 +98,7 @@ public sealed class AuthController : ControllerBase
         return NoContent();
     }
 
-    // Always 204, whether or not the address is registered: a distinguishable response would let
-    // anyone enumerate who works at a company on this platform. Rate-limited because it sends mail.
+    // Always 204, so it can't be used to check which emails are registered.
     [HttpPost("forgot-password")]
     [EnableRateLimiting(RateLimitPolicies.PerIp)]
     public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
@@ -116,7 +107,6 @@ public sealed class AuthController : ControllerBase
         return NoContent();
     }
 
-    // Anonymous by necessity: whoever needs this cannot sign in. The mailed token is the credential.
     [HttpPost("reset-password")]
     [EnableRateLimiting(RateLimitPolicies.PerIp)]
     public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
@@ -124,8 +114,7 @@ public sealed class AuthController : ControllerBase
         var result = await _authService.ResetPasswordAsync(
             request.UserId, request.Token, request.NewPassword, HttpContext.RequestAborted);
 
-        // No tokens in the response: whoever set the password signs in with it, so guessing a token
-        // cannot hand out a session.
+        // No session is returned; the user signs in with the new password.
         return result.IsSuccess
             ? NoContent()
             : BadRequest(new { result.Error.Code, result.Error.Message });
@@ -135,15 +124,11 @@ public sealed class AuthController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Me()
     {
-        // [Authorize] guarantees an authenticated principal, so UserId is present; the guard only
-        // covers the impossible case of a token without a 'sub' claim, mapping it to 401.
         if (_currentUser.UserId is not { } userId)
             return Unauthorized();
 
         var result = await _authService.GetCurrentUserAsync(userId);
 
-        // A valid token whose user/tenant no longer exists is an inconsistent state, not a client
-        // error in the request — 404 communicates "this authenticated identity has no profile".
         return result.IsSuccess
             ? Ok(result.Value)
             : NotFound(new { result.Error.Code, result.Error.Message });
@@ -151,8 +136,6 @@ public sealed class AuthController : ControllerBase
 
     public sealed record SetPreferredLanguageRequest(string Language);
 
-    // Under /auth/me because it writes to the caller's own identity, the same subject Me() reads.
-    // Anyone signed in may set their own language, so no policy beyond [Authorize].
     [HttpPut("me/language")]
     [Authorize]
     public async Task<IActionResult> SetPreferredLanguage(SetPreferredLanguageRequest request)

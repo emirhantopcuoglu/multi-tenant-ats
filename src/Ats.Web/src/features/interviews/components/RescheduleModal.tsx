@@ -11,15 +11,13 @@ import { MINIMUM_LEAD_MINUTES, isSlotTooSoon, toScheduledAt } from '../scheduleV
 interface RescheduleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Current values, used to pre-fill the form. */
   scheduledAtUtc: string;
   durationMinutes: number;
   submitting: boolean;
   onConfirm: (body: RescheduleRequest) => void;
 }
 
-/* Split a UTC ISO instant into the local YYYY-MM-DD and HH:mm a native date/time input expects.
-   Shifting by the timezone offset turns the UTC clock into local wall-clock before formatting. */
+/* UTC ISO to local YYYY-MM-DD and HH:mm for the native inputs. */
 function toLocalParts(iso: string): { date: string; time: string } {
   const local = new Date(new Date(iso).getTime() - new Date(iso).getTimezoneOffset() * 60_000);
   const [date, clock] = local.toISOString().split('T');
@@ -34,8 +32,7 @@ function localDateInputValue(date: Date): string {
 const isPreset = (minutes: number): boolean =>
   (INTERVIEW_DURATION_OPTIONS as readonly number[]).includes(minutes);
 
-/* Reschedule form: a new date + time and a preset duration. Controlled-confirm like the reject
-   dialog — the page owns the mutation and toast; this component only collects and validates input. */
+/* The page owns the mutation and toast; this only collects and validates input. */
 export function RescheduleModal({
   open,
   onOpenChange,
@@ -50,10 +47,8 @@ export function RescheduleModal({
   const [duration, setDuration] = useState<number>(DEFAULT_INTERVIEW_DURATION);
   const [errors, setErrors] = useState<{ date?: string; time?: string }>({});
 
-  // Re-seed from the current interview when the modal opens. A legacy off-preset duration falls
-  // back to the default so the form can only ever submit an allowed value. Adjusted during render
-  // rather than in an effect, which also narrows the trigger: the effect depended on the interview's
-  // own fields, so a background refetch re-seeded the form mid-edit. Only the open transition does.
+  // Re-seed only when the modal opens (during render), so a refetch doesn't reset the form mid-edit.
+  // An old off-preset duration falls back to the default.
   const [prevOpen, setPrevOpen] = useState(open);
   if (prevOpen !== open) {
     setPrevOpen(open);

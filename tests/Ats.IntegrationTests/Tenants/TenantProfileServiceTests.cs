@@ -6,9 +6,8 @@ using Ats.Shared.Kernel;
 
 namespace Ats.IntegrationTests.Tenants;
 
-// Exercises the settings-side profile service against real Postgres: the tenant row is resolved
-// from the caller's tenant context (no global filter on Tenant), values persist trimmed, and the
-// boundary validation returns typed errors instead of letting the entity guard throw.
+// Against real Postgres: the tenant comes from the context, values are trimmed, and bad input
+// returns typed errors.
 [Collection("Integration")]
 public sealed class TenantProfileServiceTests
 {
@@ -25,12 +24,12 @@ public sealed class TenantProfileServiceTests
         // Arrange
         var tenantId = await SeedTenantAsync("Acme Inc", $"acme-{Guid.NewGuid():N}");
 
-        // Act — values arrive untrimmed, as a form would send them
+        // Act: values arrive untrimmed, as a form would send them
         var update = await UpdateAsync(tenantId, new UpdateTenantProfileRequest(
             "  We build rockets.  ", " https://acme.example.com ", " Istanbul, TR "));
         var read = await GetAsync(tenantId);
 
-        // Assert — persisted trimmed, and the same values come back on a fresh read
+        // Assert: persisted trimmed, and the same values come back on a fresh read
         Assert.True(update.IsSuccess);
         Assert.True(read.IsSuccess);
         Assert.Equal("We build rockets.", read.Value.Description);
@@ -42,15 +41,15 @@ public sealed class TenantProfileServiceTests
     [Fact]
     public async Task should_clear_fields_when_the_update_sends_blank_values()
     {
-        // Arrange — a profile that already has values
+        // Arrange: a profile that already has values
         var tenantId = await SeedTenantAsync("Acme Inc", $"acme-{Guid.NewGuid():N}");
         await UpdateAsync(tenantId, new UpdateTenantProfileRequest(
             "Old description", "https://old.example.com", "Old Town"));
 
-        // Act — blank/whitespace input means "clear this field"
+        // Act: blank/whitespace input means "clear this field"
         var result = await UpdateAsync(tenantId, new UpdateTenantProfileRequest("", "   ", null));
 
-        // Assert — cleared fields read back as null, not empty strings
+        // Assert: cleared fields read back as null, not empty strings
         Assert.True(result.IsSuccess);
         var read = await GetAsync(tenantId);
         Assert.Null(read.Value.Description);
@@ -93,7 +92,7 @@ public sealed class TenantProfileServiceTests
     [Fact]
     public async Task should_return_not_found_when_the_callers_tenant_does_not_exist()
     {
-        // Act — a tenant id that has no row (e.g. deleted after the token was minted)
+        // Act: a tenant id that has no row (e.g. deleted after the token was minted)
         var result = await GetAsync(Guid.NewGuid());
 
         // Assert
@@ -104,14 +103,14 @@ public sealed class TenantProfileServiceTests
     [Fact]
     public async Task should_update_only_the_callers_tenant()
     {
-        // Arrange — two tenants; only Acme's admin updates its profile
+        // Arrange: two tenants; only Acme's admin updates its profile
         var acmeId = await SeedTenantAsync("Acme Inc", $"acme-{Guid.NewGuid():N}");
         var globexId = await SeedTenantAsync("Globex", $"globex-{Guid.NewGuid():N}");
 
         // Act
         await UpdateAsync(acmeId, new UpdateTenantProfileRequest("Acme only", null, null));
 
-        // Assert — Globex is untouched
+        // Assert: Globex is untouched
         var globex = await GetAsync(globexId);
         Assert.True(globex.IsSuccess);
         Assert.Null(globex.Value.Description);

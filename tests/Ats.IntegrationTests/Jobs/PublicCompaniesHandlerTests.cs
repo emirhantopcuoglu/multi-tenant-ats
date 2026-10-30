@@ -10,9 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.IntegrationTests.Jobs;
 
-// The public companies directory spans all tenants (IgnoreQueryFilters), so — like the job feed — it
-// sees rows other tests leave in the shared container. These tests start from an empty Jobs + Tenants
-// state so the counts and ordering are deterministic.
+// Spans all tenants, so tests start from empty Jobs and Tenants tables.
 [Collection("Integration")]
 public sealed class PublicCompaniesHandlerTests : IAsyncLifetime
 {
@@ -40,7 +38,7 @@ public sealed class PublicCompaniesHandlerTests : IAsyncLifetime
     [Fact]
     public async Task should_list_only_companies_with_published_jobs_ordered_by_open_count()
     {
-        // Arrange — Acme has two published roles, Globex one; Umbrella exists but only as a draft, so
+        // Arrange: Acme has two published roles, Globex one; Umbrella exists but only as a draft, so
         // it is not "hiring" and must not appear in the directory.
         var acmeId = await SeedTenantAsync("Acme Inc", "acme");
         var globexId = await SeedTenantAsync("Globex", "globex");
@@ -54,7 +52,7 @@ public sealed class PublicCompaniesHandlerTests : IAsyncLifetime
         // Act
         var result = await ListAsync(new ListPublicCompaniesQuery());
 
-        // Assert — two hiring companies, most-hiring first, each with the right open-role count
+        // Assert: two hiring companies, most-hiring first, each with the right open-role count
         Assert.True(result.IsSuccess);
         Assert.Equal(2, result.Value.TotalCount);
 
@@ -77,7 +75,7 @@ public sealed class PublicCompaniesHandlerTests : IAsyncLifetime
         await SeedPublishedJobAsync(acmeId, "Backend Engineer");
         await SeedPublishedJobAsync(globexId, "Product Designer");
 
-        // Act — search matches one company name
+        // Act: search matches one company name
         var result = await ListAsync(new ListPublicCompaniesQuery(Search: "globex"));
 
         // Assert
@@ -97,7 +95,7 @@ public sealed class PublicCompaniesHandlerTests : IAsyncLifetime
         // Act
         var result = await GetBySlugAsync("acme");
 
-        // Assert — the profile counts only published roles, not the draft; profile fields were
+        // Assert: the profile counts only published roles, not the draft; profile fields were
         // never filled in, so they read as null (the page hides those sections).
         Assert.True(result.IsSuccess);
         Assert.Equal("Acme Inc", result.Value.CompanyName);
@@ -111,7 +109,7 @@ public sealed class PublicCompaniesHandlerTests : IAsyncLifetime
     [Fact]
     public async Task should_include_the_tenant_profile_fields_in_the_company_profile()
     {
-        // Arrange — a tenant that has filled in its public profile
+        // Arrange: a tenant that has filled in its public profile
         var acmeId = await SeedTenantAsync("Acme Inc", "acme");
         await UpdateTenantProfileAsync(
             acmeId, "We build rockets.", "https://acme.example.com", "Istanbul, TR");
@@ -120,7 +118,7 @@ public sealed class PublicCompaniesHandlerTests : IAsyncLifetime
         // Act
         var result = await GetBySlugAsync("acme");
 
-        // Assert — the edited fields flow through the port into the public profile
+        // Assert: the edited fields flow through the port into the public profile
         Assert.True(result.IsSuccess);
         Assert.Equal("We build rockets.", result.Value.Description);
         Assert.Equal("https://acme.example.com", result.Value.Website);
@@ -130,7 +128,7 @@ public sealed class PublicCompaniesHandlerTests : IAsyncLifetime
     [Fact]
     public async Task should_return_not_found_for_an_unknown_company_slug()
     {
-        // Act — no tenant owns this slug
+        // Act: no tenant owns this slug
         var result = await GetBySlugAsync("nonexistent");
 
         // Assert

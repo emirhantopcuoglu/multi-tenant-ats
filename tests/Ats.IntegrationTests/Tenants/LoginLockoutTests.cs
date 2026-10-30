@@ -12,18 +12,8 @@ using Microsoft.Extensions.Options;
 
 namespace Ats.IntegrationTests.Tenants;
 
-/* The company login form had no account-level guard. The per-IP rate limiter counts requests from an
-   address, so it reads a distributed attack on one account as many well-behaved clients — and
-   FailOpenRateLimiter deliberately lets everything through when Redis is down, which left the form
-   unguarded during an outage.
-
-   Identity has owned the counters all along (AccessFailedCount/LockoutEnd) but enforces them through
-   SignInManager, which this codebase does not use: AuthService calls CheckPasswordAsync directly. So
-   it now calls AccessFailedAsync/IsLockedOutAsync directly too, and these pin that it does.
-
-   The candidate-side file carries the same argument and the extra assertion that the ordering is
-   what stops a locked account re-locking itself; the counters there are ours, here they are
-   Identity's, so that behaviour is covered once rather than twice. */
+/* AuthService calls CheckPasswordAsync directly instead of SignInManager, so it has to call the
+   lockout methods itself. These check that it does. */
 [Collection("Integration")]
 public sealed class LoginLockoutTests
 {
@@ -47,7 +37,7 @@ public sealed class LoginLockoutTests
         for (var attempt = 0; attempt < MaxAttempts; attempt += 1)
             Assert.True((await LoginAsync(provider, email, WrongPassword)).IsFailure);
 
-        // The correct password is refused too — the guard is on the account, not on the guess.
+        // The correct password is refused too, the guard is on the account, not on the guess.
         var locked = await LoginAsync(provider, email, Password);
 
         Assert.True(locked.IsFailure);
@@ -57,9 +47,7 @@ public sealed class LoginLockoutTests
     [Fact]
     public async Task A_locked_account_should_answer_a_right_password_exactly_like_a_wrong_one()
     {
-        // If these ever differ, a locked account becomes an oracle: an attacker learns which password
-        // is correct and simply comes back when the window closes. This is about the error value the
-        // locked branch returns, not about where the check sits.
+        // If these differed, a locked account would reveal the correct password.
         await using var provider = BuildProvider();
         var email = await SeedUserAsync(provider);
         for (var attempt = 0; attempt < MaxAttempts; attempt += 1)
@@ -187,7 +175,7 @@ public sealed class LoginLockoutTests
         Assert.True(created.Succeeded, string.Join("; ", created.Errors.Select(e => e.Description)));
 
         // Identity sets this from Lockout.AllowedForNewUsers, and a false here would make
-        // IsLockedOutAsync answer false forever — the counters would tick up against nothing.
+        // IsLockedOutAsync answer false forever, the counters would tick up against nothing.
         Assert.True(user.LockoutEnabled);
 
         return email;

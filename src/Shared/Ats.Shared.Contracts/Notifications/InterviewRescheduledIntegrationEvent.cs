@@ -1,13 +1,6 @@
 namespace Ats.Shared.Contracts.Notifications;
 
-// Published when a scheduled interview is moved to a new slot. Same self-contained shape as
-// InterviewScheduledIntegrationEvent — everything a candidate-facing notification needs travels in
-// the message, and the interview type is a string so the contract does not drag the Interviews
-// module's enum across the boundary.
-//
-// PreviousScheduledAtUtc exists so consumers can say what changed rather than only what is now
-// true: the candidate is holding the old time, and "your interview moved from X to Y" is the only
-// version of this message that is actually actionable.
+// Self-contained. PreviousScheduledAtUtc lets consumers say what changed.
 public sealed record InterviewRescheduledIntegrationEvent(
     Guid InterviewId,
     Guid ApplicationId,

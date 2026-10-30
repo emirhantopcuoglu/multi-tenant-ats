@@ -6,10 +6,7 @@ using Ats.Modules.Interviews.Infrastructure;
 
 namespace Ats.IntegrationTests.Interviews;
 
-// Covers swapping an interview's panel against a real Postgres. An integration test rather than a
-// unit one because the interesting behaviour is the conflict query: the handler reuses the same
-// guard as scheduling, but with the interview's *existing* slot and with itself excluded — get the
-// exclusion wrong and every reassignment conflicts with the interview being reassigned.
+// Integration, because of the conflict query: it must exclude the interview being reassigned.
 [Collection("Integration")]
 public sealed class ReassignInterviewersTests
 {

@@ -38,24 +38,17 @@ public sealed class CandidatePasswordResetService : ICandidatePasswordResetServi
     {
         var normalizedEmail = CandidateAccount.NormalizeEmail(email ?? string.Empty);
 
-        // The filtered DbSet keeps deleted accounts out, so their anonymized addresses are unreachable.
         var account = await _db.CandidateAccounts
             .FirstOrDefaultAsync(c => c.Email == normalizedEmail, ct);
 
         if (account is null)
         {
-            // Success, not a 404. The whole point of this endpoint is that it is callable by someone
-            // who is not signed in, so a distinguishable answer would turn it into a directory of who
-            // has an account here. Logged so the absence is still visible to an operator.
+            // Same answer as for a registered email.
             _logger.LogInformation("Password reset requested for an unregistered email");
             return Result.Success();
         }
 
-        // A frozen account may reset its password: it can still sign in (the SPA routes it to the
-        // reactivation screen), so locking it out of recovery would be a dead end.
-
-        // A newer request supersedes older pending ones, so a forgotten earlier link cannot resurface.
-        // Loaded and removed rather than bulk-deleted: an account has at most a handful of these.
+        // Only the latest link should work.
         var pending = await _db.PasswordResetRequests
             .Where(r => r.CandidateAccountId == account.Id && r.ConsumedAtUtc == null)
             .ToListAsync(ct);
@@ -68,11 +61,7 @@ public sealed class CandidatePasswordResetService : ICandidatePasswordResetServi
         _logger.LogInformation(
             "Password reset requested for candidate account {CandidateAccountId}", account.Id);
 
-        // Best-effort, unlike the email-change link which fails loudly. That one runs for an
-        // authenticated caller who is owed a real answer; this one must return the same response
-        // whether or not the address exists, and a hard failure here would leak that it does. The
-        // failure is logged, not swallowed, so an SMTP outage is visible to an operator rather than
-        // to an attacker.
+        // Best-effort: failing here would reveal that the email is registered.
         await SendResetLinkAsync(account.Email, account.PreferredLanguage, rawToken, ct);
 
         return Result.Success();
@@ -83,18 +72,15 @@ public sealed class CandidatePasswordResetService : ICandidatePasswordResetServi
         if (string.IsNullOrWhiteSpace(token))
             return Result.Failure(CandidatePasswordResetErrors.InvalidToken);
 
-        // Checked before the token is looked up so a weak password cannot burn a valid link: the
-        // candidate gets to retry with the same one instead of having to request a fresh email.
+        // Checked first so a weak password doesn't use up a valid link.
         if (!CandidatePasswordPolicy.IsAcceptable(newPassword))
             return Result.Failure(CandidatePasswordResetErrors.PasswordTooShort);
 
-        // Hashed outside the query: EF can translate a comparison against a variable, not a call to
-        // a local static method.
+        // Hashed outside the query; EF can't translate the method call.
         var tokenHash = Hash(token);
         var request = await _db.PasswordResetRequests
             .FirstOrDefaultAsync(r => r.TokenHash == tokenHash, ct);
 
-        // Unknown, expired and consumed collapse into one answer on purpose.
         if (request is null || !request.IsValid)
             return Result.Failure(CandidatePasswordResetErrors.InvalidToken);
 
@@ -103,15 +89,11 @@ public sealed class CandidatePasswordResetService : ICandidatePasswordResetServi
         if (account is null)
             return Result.Failure(CandidatePasswordResetErrors.InvalidToken);
 
-        // ChangePassword rotates the security stamp, which is what makes this reset actually lock an
-        // attacker out: every access token dies at the next request (CandidateSecurityStampHandler)
-        // and every refresh token issued under the old stamp stops redeeming (CandidateRefreshToken).
-        // Recovering an account whose password was stolen would be pointless otherwise.
+        // Rotates the stamp, so every existing session ends.
         account.ChangePassword(_passwordHasher.Hash(newPassword));
         request.MarkConsumed();
         await _db.SaveChangesAsync(ct);
 
-        // The id is the only fact logged: neither the password nor its hash may appear in a log line.
         _logger.LogInformation(
             "Password reset completed for candidate account {CandidateAccountId}", account.Id);
 
@@ -136,9 +118,7 @@ public sealed class CandidatePasswordResetService : ICandidatePasswordResetServi
         }
     }
 
-    // Best-effort by design: the reset is already committed, so a failing mail server must not turn a
-    // succeeded operation into an error response. Doubles as a hijack tripwire — if the owner did not
-    // do this, this notice is their signal.
+    // Best-effort: the reset is already saved.
     private async Task NotifyPasswordResetAsync(string email, string language, CancellationToken ct)
     {
         var subject = _emailText.Get(EmailTextKeys.Candidate.PasswordResetSubject, language);
@@ -154,8 +134,6 @@ public sealed class CandidatePasswordResetService : ICandidatePasswordResetServi
         }
     }
 
-    // Same construction as CandidateProfileService's and Tenants.InvitationService's: 256 bits of
-    // randomness, URL-safe base64. Kept local rather than hoisted — see the note in those files.
     private static string GenerateToken()
     {
         var bytes = RandomNumberGenerator.GetBytes(32);

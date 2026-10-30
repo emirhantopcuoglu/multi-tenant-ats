@@ -3,8 +3,7 @@ using MongoDB.Driver;
 
 namespace Ats.Shared.Infrastructure;
 
-// Creates indexes on audit_logs. Idempotent — MongoDB no-ops when the index already exists.
-// Mirrors MongoActivityLogInitializer; run on every startup alongside the other initializers.
+// Creates the audit_logs indexes. Idempotent, so it runs on every startup.
 public static class MongoAuditLogInitializer
 {
     public static async Task EnsureIndexesAsync(
@@ -12,11 +11,7 @@ public static class MongoAuditLogInitializer
     {
         var collection = database.GetCollection<AuditLogDocument>(AuditLogInterceptor.CollectionName);
 
-        // Two access patterns:
-        // 1. "Show all changes for this tenant ordered by time" → (TenantId, OccurredAtUtc DESC)
-        // 2. "Show all changes to a specific entity" → (TenantId, ResourceType, ResourceId, OccurredAtUtc DESC)
-        // Index 2 covers index 1 as a prefix, but a dedicated index 1 is faster for the broad case.
-        // ESR rule: equality keys first, then the sort field.
+        // Two reads: a tenant's changes by time, and one entity's changes by time.
         var models = new[]
         {
             new CreateIndexModel<AuditLogDocument>(

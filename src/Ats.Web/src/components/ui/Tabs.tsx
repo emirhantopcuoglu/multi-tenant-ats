@@ -10,12 +10,9 @@ interface TabsProps {
   value: string;
   onValueChange: (value: string) => void;
   items: TabItem[];
-  /** TabPanel elements for each tab value. */
   children: ReactNode;
 }
 
-/* Tabs on Radix: roving focus, arrow-key navigation, and the aria tab/tabpanel wiring are handled
-   for us. Triggers show the active state via Radix's `data-[state=active]`. */
 export function Tabs({ value, onValueChange, items, children }: TabsProps) {
   return (
     <RadixTabs.Root value={value} onValueChange={onValueChange}>

@@ -43,17 +43,14 @@ export function PublicApplyPage() {
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
-  /* The profile is fetched to find out whether there is a saved CV to offer. Only for signed-in
-     candidates — an anonymous visitor is redirected to login below and would just be a 401. */
+  /* Fetched to see if there is a saved CV. Candidates only. */
   const profileQuery = useCandidateProfile(user?.kind === 'candidate');
   const savedCv = profileQuery.data?.cv ?? null;
 
-  /* Which CV this application will carry. Starts on the saved one whenever there is one, because
-     that is the whole point of having saved it; picking a file switches the choice automatically. */
+  /* Starts on the saved CV if there is one; picking a file switches to it. */
   const [useSavedCv, setUseSavedCv] = useState(true);
 
-  // All three fields are optional; the refinements only fire on non-empty input. The rules
-  // mirror SubmitApplicationValidator — see applyValidation.ts.
+  // All optional; rules mirror SubmitApplicationValidator (see applyValidation.ts).
   const schema = useMemo(
     () =>
       z.object({
@@ -80,10 +77,8 @@ export function PublicApplyPage() {
     defaultValues: { phone: '', linkedInUrl: '', coverLetter: '' },
   });
 
-  // Both candidate-scoped queries report isLoading false while disabled (anonymous visitor), so
-  // this only ever waits for a signed-in candidate — no cost to everyone else. The profile is
-  // waited on rather than rendered around: for the moment it is missing the form cannot tell
-  // whether there is a saved CV, and would ask for a file the candidate does not need to attach.
+  // Disabled queries aren't loading, so only candidates wait. Without the profile the form can't know
+  // whether a saved CV exists.
   if (authLoading || jobQuery.isLoading || appliedJobIds.isLoading || profileQuery.isLoading) {
     return (
       <PublicLayout>
@@ -96,7 +91,6 @@ export function PublicApplyPage() {
     return <PublicNotFound />;
   }
 
-  // Must be a signed-in candidate to apply. Redirect to candidate login, preserving the return URL.
   if (!user || user.kind !== 'candidate') {
     return <Navigate to="/candidate/login" replace state={{ from: location }} />;
   }
@@ -114,12 +108,9 @@ export function PublicApplyPage() {
     setCvError(undefined);
   };
 
-  // Falls back to uploading whenever there is nothing saved, so the two states cannot disagree.
   const willUseSavedCv = savedCv !== null && useSavedCv;
 
-  // The CV lives outside react-hook-form (it's a File in component state, not an input value),
-  // so its required-check runs in both submit branches — otherwise a schema error would hide
-  // the missing-CV error until the second attempt.
+  // The CV isn't part of react-hook-form, so check it in both branches or a schema error would hide it.
   const onSubmit = handleSubmit(
     (values) => {
       setBannerError(null);
@@ -134,7 +125,7 @@ export function PublicApplyPage() {
           phone: values.phone || undefined,
           linkedInUrl: values.linkedInUrl || undefined,
           coverLetter: values.coverLetter || undefined,
-          // Omitted rather than sent: the server copies the account's CV into this application.
+          // Omitted: the server copies the account's CV.
           cv: willUseSavedCv ? undefined : (cv ?? undefined),
         },
         {
@@ -163,6 +154,11 @@ export function PublicApplyPage() {
       setBannerError(t('public.apply.unavailable'));
       return;
     }
+    // Frozen in another tab after the page loaded.
+    if (code === 'application.account_frozen') {
+      setBannerError(t('public.apply.frozen'));
+      return;
+    }
     setBannerError(t('public.apply.error'));
   };
 
@@ -184,10 +180,30 @@ export function PublicApplyPage() {
     );
   }
 
-  // An unverified address cannot apply — the server refuses it with 403 application.email_not_verified,
-  // and offering a form that is guaranteed to fail would waste a CV upload and read as a bug. Placed
-  // before the already-applied branch only because it is the more fundamental blocker; the two cannot
-  // both be true in practice, since applying at all required a verified address.
+  // This page is outside RequireActiveCandidate, so the frozen check lives here. Before the email
+  // check, like on the server.
+  if (user.kind === 'candidate' && user.status === 'Frozen') {
+    return (
+      <PublicLayout>
+        <Card className="py-12">
+          <EmptyState
+            title={t('public.apply.frozenTitle')}
+            description={t('public.apply.frozenBody')}
+            action={
+              <Link
+                to="/candidate/reactivate"
+                className="text-sm font-medium text-accent hover:underline"
+              >
+                {t('public.apply.frozenAction')}
+              </Link>
+            }
+          />
+        </Card>
+      </PublicLayout>
+    );
+  }
+
+  // The server would refuse it, so don't offer a form that can only fail.
   if (user.kind === 'candidate' && !user.isEmailVerified) {
     return (
       <PublicLayout>
@@ -209,8 +225,7 @@ export function PublicApplyPage() {
     );
   }
 
-  // Already applied (and not via this visit — `submitted` above wins right after a submit, since
-  // the cache invalidation would flip this branch on too): show the state instead of the form.
+  // `submitted` above wins right after a submit.
   if (appliedJobIds.data?.has(job.id)) {
     return (
       <PublicLayout>
@@ -247,7 +262,6 @@ export function PublicApplyPage() {
           </h1>
         </div>
 
-        {/* Identity confirmed from the candidate account — not re-entered on the form. */}
         <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm">
           <span className="text-text-muted">{t('public.apply.applyingAs')}</span>{' '}
           <span className="font-medium text-text">

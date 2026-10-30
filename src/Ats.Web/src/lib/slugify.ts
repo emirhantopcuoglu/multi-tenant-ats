@@ -1,6 +1,5 @@
-/* Turn free text into a URL-safe slug: lowercase, Turkish characters folded to ASCII, runs of any
-   other character collapsed to single hyphens, no leading/trailing hyphens. Mirrors the backend's
-   slug rules so the live preview matches what will be stored. */
+/* Mirrors the backend's slug rules (Turkish letters folded to ASCII), so the preview matches what
+   is stored. */
 const turkishMap: Record<string, string> = {
   ı: 'i',
   ş: 's',

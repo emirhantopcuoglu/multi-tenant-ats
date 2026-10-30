@@ -7,17 +7,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// Emails the candidate when a scheduled interview is called off.
-//
-// The reason decides one thing that actually matters to the reader: whether another invitation is
-// coming. "Your interview is cancelled" with no answer to that leaves someone refreshing their
-// inbox for a week, which is why the reason travels on the event at all. The recruiter's internal
-// note is not on the contract, so it cannot be rendered here even by mistake. The sentence itself
-// now lives in the resource files, next to the rest of the wording — see
-// InterviewEmailFormatting.CancellationClosing.
-//
-// Wording comes from IEmailTextProvider in the language the candidate's account carries; see
-// ApplicationRejectedConsumer for why the language is read here rather than carried on the event.
+// Emails the candidate when an interview is cancelled. The reason decides whether the email says
+// another invitation is coming. The recruiter's note isn't on the event.
 public sealed class InterviewCancelledEmailConsumer
     : IConsumer<InterviewCancelledIntegrationEvent>
 {

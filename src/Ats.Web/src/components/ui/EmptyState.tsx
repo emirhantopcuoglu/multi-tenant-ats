@@ -5,13 +5,10 @@ interface EmptyStateProps {
   icon?: ReactNode;
   title: ReactNode;
   description?: ReactNode;
-  /** Primary action (e.g. a "Share job link" button). */
   action?: ReactNode;
   className?: string;
 }
 
-/* Friendly empty state for lists with no rows: centered icon, title, supporting copy, and an
-   optional primary action — one of the four global states every list screen must cover. */
 export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
   return (
     <div className={cn('flex flex-col items-center justify-center gap-3 px-6 py-12 text-center', className)}>

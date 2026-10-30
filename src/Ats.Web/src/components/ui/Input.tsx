@@ -2,11 +2,10 @@ import { forwardRef, type InputHTMLAttributes } from 'react';
 import { cn } from '@/lib/cn';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-  /** Render the error state (red border + ring). Pair with a message element via aria-describedby. */
+  /* Pair with a message via aria-describedby. */
   invalid?: boolean;
 }
 
-/* forwardRef so form libraries (and native focus management) can reach the underlying element. */
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   { invalid = false, className, ...rest },
   ref,

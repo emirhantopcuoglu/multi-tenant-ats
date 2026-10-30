@@ -5,10 +5,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Interviews.Application.Events;
 
-// Bridges the in-process domain event onto the message bus. The domain enum becomes a string here:
-// the contract must not carry this module's types. Transport and failure policy live in
-// IntegrationEventBridge — see its comment for why this publishes through IBus and why a broker
-// failure is swallowed.
+// The type crosses as a string so the contract doesn't carry this module's enum.
 public sealed class PublishInterviewScheduledIntegrationEvent
     : INotificationHandler<InterviewScheduledEvent>
 {

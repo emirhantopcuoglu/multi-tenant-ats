@@ -3,9 +3,7 @@ import { changeUserRole, deactivateUser, reactivateUser } from './usersApi';
 import { usersKey } from './useUsers';
 import type { Role } from '@/types/enums';
 
-/* Admin-only member mutations. Each invalidates the shared users query on success, so Settings, the
-   interviewer picker and the list avatars all pick up the change from one refetch rather than each
-   keeping its own copy in sync. */
+/* Each invalidates the shared users query, so every screen updates. */
 export function useChangeUserRole() {
   const queryClient = useQueryClient();
   return useMutation({

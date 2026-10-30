@@ -1,29 +1,15 @@
 namespace Ats.Modules.Applications.Domain;
 
-// Lifecycle of a single application. Active is the only non-terminal state; the other
-// three are final and cannot transition further.
+// Active is the only non-terminal state.
 public enum ApplicationStatus { Active, Withdrawn, Rejected, Hired }
 
-// Classifies a pipeline stage so the system can reason about it without matching on the
-// stage name (names are user-facing and may be customised later).
-//   Initial       - where every new application starts
-//   Active         - a normal working stage in the middle of the funnel
-//   Interview      - the working stage where a scheduled interview belongs; a distinct type
-//                    (rather than Active) so cross-module code — e.g. auto-advancing an
-//                    application when an interview is scheduled — can find it without matching
-//                    on the user-facing stage name
-//   FinalHired     - terminal success
-//   FinalRejected  - terminal rejection
+// Lets code reason about stages without matching on their names.
+//   Interview - where an application goes when an interview is scheduled
 public enum PipelineStageType { Initial, Active, Interview, FinalHired, FinalRejected }
 
-// What happened to an application, recorded in the activity log. Each value pairs with a
-// payload shape produced by the matching ApplicationActivity factory.
-//   StageChanged   - a normal, forward-only pipeline move
-//   StageCorrected - an out-of-band fix (any direction) for a wrong StageChanged, always
-//                    carrying a reason; kept distinct from StageChanged so the timeline never
-//                    implies a corrected mistake was real progress
-//   Withdrawn      - the candidate closed their own application; the one entry here with no
-//                    company-side actor, so ActorUserId is always null
+// Each value has a payload shape from the matching ApplicationActivity factory.
+//   StageCorrected - a fix for a wrong move, in any direction, always with a reason
+//   Withdrawn      - closed by the candidate; ActorUserId is null
 public enum ApplicationActivityType
 {
     Submitted, StageChanged, Rejected, Viewed, Hired, StageCorrected, Withdrawn

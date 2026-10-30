@@ -4,12 +4,7 @@ using MediatR;
 
 namespace Ats.Modules.Applications.Application.Events;
 
-// Bridges the in-process CvParseRequestedEvent onto the message bus as an integration event, which
-// the CV-parsing consumer handles out-of-process. Identical shape to
-// PublishApplicationSubmittedIntegrationEvent: with the transactional outbox enabled,
-// IPublishEndpoint.Publish writes to the outbox tables in the same DbContext as the application
-// insert, so the parse request and the application row commit atomically — no try/catch, a failure
-// must roll both back.
+// Goes through the outbox, so the parse request commits with the application.
 public sealed class PublishCvParseRequestedIntegrationEvent
     : INotificationHandler<CvParseRequestedEvent>
 {

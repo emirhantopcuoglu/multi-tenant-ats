@@ -1,8 +1,6 @@
 import { apiClient } from '@/lib/apiClient';
 
-/* GET /public/companies/{slug} — the single-company public profile behind the careers page header.
-   Unknown slugs are a 404, so the page can distinguish "no such company" from "no open roles".
-   Null fields were never filled in by the company; the page hides those sections. */
+/* 404 for unknown slugs. Null fields were never filled in. */
 
 export interface PublicCompanyProfile {
   companyName: string;

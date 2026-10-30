@@ -6,9 +6,6 @@ namespace Ats.Modules.Applications.Application.Applications;
 public sealed record CandidateSearchResultDto(
     Guid Id, string FirstName, string LastName, string Email, string? Phone, string? LinkedInUrl);
 
-// Port: Application declares what it needs; Infrastructure wires the PostgreSQL FTS implementation.
-// Keeping this here (not in Shared.Kernel) follows the pattern of IActivityLogRepository and
-// ICvParseResultRepository: each module owns its own persistence ports.
 public interface ICandidateSearchRepository
 {
     Task<PagedResult<CandidateSearchResultDto>> SearchAsync(
@@ -18,9 +15,7 @@ public interface ICandidateSearchRepository
 public sealed record SearchCandidatesQuery(string Q, int Page = 1, int PageSize = 20)
     : IQuery<PagedResult<CandidateSearchResultDto>>;
 
-// Sole guard on the paging bounds: ValidationBehavior runs this before the handler, so an
-// out-of-range page never reaches the database. The upper bound on PageSize is what stops a
-// caller from asking for the whole candidate pool in one query.
+// The only paging guard; the PageSize cap stops a request for the whole candidate pool.
 public sealed class SearchCandidatesValidator : AbstractValidator<SearchCandidatesQuery>
 {
     private const int MaxPageSize = 100;

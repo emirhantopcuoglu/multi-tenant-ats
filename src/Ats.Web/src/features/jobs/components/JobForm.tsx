@@ -11,15 +11,13 @@ import { MarkdownField } from './MarkdownField';
 interface JobFormProps {
   defaultValues: JobFormValues;
   mode: 'create' | 'edit';
-  /** Show the Publish button (create, or editing a still-draft job). */
   showPublish: boolean;
   submitting: boolean;
   onSubmit: (values: JobFormValues, publish: boolean) => void;
   onCancel: () => void;
 }
 
-/* Create/edit form, shared by both routes. The two submit buttons reuse one handleSubmit with a
-   `publish` flag; Publish additionally requires a non-empty description (a draft does not). */
+/* Both buttons use one handleSubmit; Publish also requires a description. */
 export function JobForm({ defaultValues, mode, showPublish, submitting, onSubmit, onCancel }: JobFormProps) {
   const { t } = useTranslation();
   const schema = useMemo(() => buildJobSchema(t), [t]);
@@ -28,10 +26,7 @@ export function JobForm({ defaultValues, mode, showPublish, submitting, onSubmit
     defaultValues,
   });
   const { errors } = formState;
-  // Which cities are offered depends on the selected country, so we read it live with watch().
-  // The country <Select>'s onChange also clears the city field -- otherwise switching country
-  // could leave a city selected that doesn't belong to it (e.g. "Istanbul" surviving a switch to
-  // "Germany").
+  // Cities depend on the country; changing the country clears the city.
   const selectedCountry = watch('country');
   const availableCities = selectedCountry ? CITIES_BY_COUNTRY[selectedCountry] : [];
 

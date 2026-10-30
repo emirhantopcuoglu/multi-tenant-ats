@@ -1,21 +1,16 @@
 namespace Ats.Shared.Infrastructure;
 
-// Rate limiting thresholds, bound from the "RateLimiting" configuration section in Program.cs.
-// Keeping the limits in configuration (rather than as magic numbers in Program.cs) lets each
-// environment tune them without a code change.
 public sealed class RateLimitingOptions
 {
     public const string SectionName = "RateLimiting";
 
-    // Unauthenticated endpoints (login/register/public apply), partitioned by client IP.
+    // Anonymous endpoints like login and register, per client IP.
     public int PerIpPermitLimit { get; init; } = 5;
 
-    // Authenticated traffic, partitioned by the user id (sub) claim.
     public int PerUserPermitLimit { get; init; } = 60;
 
-    // Authenticated traffic, partitioned by the tenant_id claim — a fair share across a whole company.
     public int PerTenantPermitLimit { get; init; } = 100;
 
-    // Fixed window length shared by all three limits; every limit is per minute.
+    // Shared by all three limits.
     public int WindowSeconds { get; init; } = 60;
 }

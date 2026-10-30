@@ -8,19 +8,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// Consumes ApplicationSubmittedIntegrationEvent off RabbitMQ and emails the candidate a
-// confirmation. This is the out-of-process side of the apply flow: the candidate's HTTP request has
-// already returned 201, and this work happens afterwards, decoupled. If it throws, MassTransit
-// retries the message and, once retries are exhausted, dead-letters it — so a transient SMTP failure
-// does not silently drop the email.
-//
-// The send is wrapped in the idempotency guard keyed on the message id, so an at-least-once
-// redelivery of the same message does not email the candidate twice.
-//
-// Wording comes from IEmailTextProvider in the language the candidate account carries, which is why
-// this consumer reads ICandidateAccountReader: the event identifies the recipient by address, and the
-// language belongs to the account behind it. That read happens inside the idempotency guard so a
-// duplicate delivery costs nothing.
+// Emails the candidate a confirmation after they apply. Idempotent on the message id.
+// The language comes from the candidate's account, looked up inside the guard.
 public sealed class ApplicationSubmittedConsumer : IConsumer<ApplicationSubmittedIntegrationEvent>
 {
     private readonly IEmailSender _emailSender;
@@ -69,8 +58,7 @@ public sealed class ApplicationSubmittedConsumer : IConsumer<ApplicationSubmitte
     {
         var language = await _candidateAccounts.GetPreferredLanguageByEmailAsync(message.CandidateEmail, ct);
 
-        // The candidate's name comes from the public apply form and the job title from a recruiter;
-        // both are untrusted in an HTML email, so HTML-encode them to prevent content injection.
+        // Name and job title are user input going into HTML.
         var body = _emailText.Get(
             EmailTextKeys.Application.SubmittedBody,
             language,

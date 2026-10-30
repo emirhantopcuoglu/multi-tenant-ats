@@ -1,7 +1,6 @@
 import type { EmploymentType, ExperienceLevel, WorkArrangement } from './enums';
 
-/* Mirrors PublicJobFeedItemDto. Unlike the recruiter-facing Job type, each item carries the
-   company name and slug so the marketplace can link to the company's own careers page. */
+/* Includes the company name and slug so items can link to the careers page. */
 export interface MarketplaceJob {
   id: string;
   title: string;

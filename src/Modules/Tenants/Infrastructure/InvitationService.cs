@@ -52,13 +52,10 @@ public sealed class InvitationService : IInvitationService
 
         var link = $"{_options.AcceptBaseUrl}?token={rawToken}";
 
-        // The invitee has no account yet, so there is no stored preference to read. The inviter's
-        // language is the best evidence available — colleagues at one company overwhelmingly share
-        // one — and the invitee can switch the moment they land on the accept page.
+        // The invitee has no account yet, so use the inviter's language.
         var language = await ResolveInviterLanguageAsync(ct);
 
-        // Role is one of the values checked against Roles.All above, so it cannot carry markup, but
-        // it is encoded anyway rather than left as the one interpolation that skips the rule.
+        // Role comes from Roles.All, but it is encoded like every other value.
         var body = _emailText.Get(
             EmailTextKeys.Company.InvitationBody,
             language,
@@ -92,10 +89,7 @@ public sealed class InvitationService : IInvitationService
             TenantId = invitation.TenantId,
             CreatedAtUtc = DateTime.UtcNow,
             PreferredLanguage = SupportedLanguages.Normalize(preferredLanguage),
-            // Already proven, by construction: reaching this line required clicking a link that was
-            // mailed to this exact address. Asking an invited colleague to confirm a second time would
-            // be demanding the same evidence twice — and would gate them out of the workspace they were
-            // just invited to. Self-registration is the only path that needs the separate proof.
+            // The invite link already proved the address.
             EmailConfirmed = true
         };
 
@@ -112,8 +106,7 @@ public sealed class InvitationService : IInvitationService
         return Result.Success();
     }
 
-    // Falls back to the default rather than failing: an invitation must still go out if the inviter's
-    // row cannot be read, and the worst outcome is an email in the wrong one of two languages.
+    // Falls back to the default language rather than failing the invitation.
     private async Task<string> ResolveInviterLanguageAsync(CancellationToken ct)
     {
         if (_currentUser.UserId is not { } inviterId)

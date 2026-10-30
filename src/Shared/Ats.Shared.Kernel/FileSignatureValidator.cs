@@ -1,15 +1,7 @@
 namespace Ats.Shared.Kernel;
 
-// Validates an uploaded file at the boundary, before a single byte reaches storage.
-//
-// Why magic bytes and not the file extension or the client's Content-Type header? Both are
-// attacker-controlled: renaming evil.exe to cv.pdf, or sending Content-Type: application/pdf
-// for arbitrary bytes, costs nothing. The leading bytes of the actual content ("magic bytes")
-// reveal the real format. This is the OWASP defence against unrestricted file upload.
-//
-// Lives in the Kernel rather than Infrastructure: it is a pure, allocation-free, dependency-free
-// rule (it only needs Result/Error), so both the API boundary and any handler can reuse it
-// without taking an infrastructure dependency.
+// Checks the file's leading bytes. The extension and Content-Type are client-controlled, so they
+// are never trusted. In the Kernel so both controllers and handlers can use it.
 public static class FileSignatureValidator
 {
     public static readonly Error Empty = new("file.empty", "The file is empty.");
@@ -20,20 +12,14 @@ public static class FileSignatureValidator
     private const string PdfContentType = "application/pdf";
     private const string DocxContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-    // %PDF
     private static readonly byte[] PdfSignature = [0x25, 0x50, 0x44, 0x46];
 
-    // PK\x03\x04 — DOCX is an OOXML package, i.e. a ZIP archive. Note this signature is shared
-    // by every ZIP-based format; distinguishing a real DOCX from any ZIP needs OOXML package
-    // inspection, which is out of scope for the MVP whitelist.
+    // ZIP signature. Any ZIP passes; telling a real DOCX apart would need package inspection.
     private static readonly byte[] DocxSignature = [0x50, 0x4B, 0x03, 0x04];
 
-    // Enough leading bytes to cover every whitelisted signature (PDF and DOCX are 4 each).
     private const int SignatureProbeBytes = 8;
 
-    // Reads the leading bytes itself and rewinds, so callers with a stream in hand do not each
-    // reimplement the probe-and-rewind dance — forgetting the rewind uploads a file with its first
-    // bytes missing, which no test of the validator itself would catch.
+    // Reads and rewinds the stream itself, so callers can't forget the rewind.
     public static async Task<Result> ValidateAsync(
         Stream content, string contentType, long sizeBytes, long maxSizeBytes,
         CancellationToken cancellationToken = default)

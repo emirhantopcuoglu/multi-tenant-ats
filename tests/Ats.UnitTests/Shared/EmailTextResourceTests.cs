@@ -7,21 +7,13 @@ using Ats.Shared.Kernel;
 
 namespace Ats.UnitTests.Shared;
 
-// The safety net behind moving email wording out of C#. A missing or mistyped key no longer fails to
-// compile, and the failure it causes instead — an exception thrown deep inside a MassTransit consumer
-// while a candidate waits for a rejection letter — is a bad place to find out. These tests move that
-// discovery to the build.
-//
-// They read the shipped JSON directly rather than only through the provider, because the provider
-// falls back to English by design: a Turkish file missing half its keys would keep every
-// provider-level assertion green while sending English to Turkish candidates.
+// A wrong key no longer fails the build, so these tests do. They read the JSON directly because
+// the provider falls back to English and would hide missing Turkish keys.
 public class EmailTextResourceTests
 {
     private const string ResourceFolder = "EmailText";
 
-    // Matches the placeholders string.Format will substitute: "{0}", "{12}". The alignment/format
-    // suffixes ("{0,-5:N2}") are not matched because the wording does not use them, and a translator
-    // who introduces one should see this test fail rather than have it quietly accepted.
+    // Matches "{0}", "{12}". Alignment and format suffixes aren't matched on purpose, so adding one fails.
     private static readonly Regex Placeholder = new(@"\{(\d+)\}", RegexOptions.Compiled);
 
     private static readonly FrozenDictionary<string, FrozenDictionary<string, string>> Resources =
@@ -64,9 +56,7 @@ public class EmailTextResourceTests
     [Fact]
     public void Translations_should_use_the_same_placeholders_as_english()
     {
-        // The failure this catches is the expensive one: a Turkish body that drops {1} silently loses
-        // the job title, and one that invents {7} throws FormatException at send time — for one
-        // language only, which is exactly the kind of bug that reaches production.
+        // A Turkish body that drops {1} loses the job title; one that adds {7} throws at send time.
         var english = Resources[SupportedLanguages.Default];
         var mismatches = new List<string>();
 
@@ -123,9 +113,7 @@ public class EmailTextResourceTests
     private static HashSet<string> PlaceholdersOf(string text) =>
         Placeholder.Matches(text).Select(match => match.Groups[1].Value).ToHashSet(StringComparer.Ordinal);
 
-    // Walks EmailTextKeys by reflection: every string constant is a key, and the two prefix constants
-    // are expanded with the value lists that sit beside them. Reflection rather than a hand-written
-    // list because a hand-written list is the thing that goes stale.
+    // Reflection over EmailTextKeys, so the key list can't go stale.
     private static IEnumerable<string> DeclaredKeys()
     {
         var prefixes = new[]
@@ -143,7 +131,7 @@ public class EmailTextResourceTests
 
             foreach (var value in constants)
             {
-                // A prefix is not a key on its own — it is completed below.
+                // A prefix is not a key on its own, it is completed below.
                 if (!prefixes.Contains(value, StringComparer.Ordinal))
                     yield return value;
             }

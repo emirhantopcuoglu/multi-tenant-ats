@@ -1,8 +1,6 @@
 namespace Ats.Shared.Kernel;
 
-// Marks an entity that is never physically removed. A delete is intercepted and
-// turned into a flag update; a global query filter then hides flagged rows from
-// every read unless explicitly opted out with IgnoreQueryFilters().
+// Deletes become a flag update, and a global query filter hides flagged rows.
 public interface ISoftDeletable
 {
     bool IsDeleted { get; }

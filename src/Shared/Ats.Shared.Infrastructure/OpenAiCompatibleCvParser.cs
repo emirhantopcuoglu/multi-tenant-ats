@@ -12,15 +12,9 @@ using Polly.CircuitBreaker;
 
 namespace Ats.Shared.Infrastructure;
 
-// CV parser backed by any OpenAI-compatible /chat/completions API (GitHub Models by default; Groq,
-// OpenRouter, etc. by config). It asks for JSON output (response_format = json_object) and spells out
-// the exact fields in the system prompt, so the model returns parseable JSON in the shape we map.
-// GitHub Models is free with a GitHub token, which is why it backs CV parsing rather than a paid
-// provider — the ICvParser port keeps the choice an Infrastructure detail.
-//
-// Resilience is owned by Polly: retry -> circuit breaker -> per-attempt timeout.
-// The HTTP client comes from IHttpClientFactory. Stateless apart from the reusable
-// pipeline, so it is registered as a singleton.
+// CV parser for any OpenAI-compatible /chat/completions API (GitHub Models by default). Asks for
+// json_object output with the fields spelled out in the prompt. Polly handles retry, circuit
+// breaker and timeout. Stateless, so registered as a singleton.
 public sealed class OpenAiCompatibleCvParser : ICvParser
 {
     private readonly IHttpClientFactory _httpClientFactory;
@@ -28,15 +22,9 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
     private readonly LlmOptions _options;
     private readonly ILogger<OpenAiCompatibleCvParser> _logger;
 
-    // json_object mode guarantees valid JSON but not a schema, so the field contract is stated in the
-    // prompt. Unknown values come back as their empty form (see CvParseResult). The word "JSON" must
-    // appear in the prompt for json_object mode to be accepted.
-    // The fit fields exist so a recruiter gets a job-specific read in seconds instead of re-reading
-    // the whole CV themselves (the actual reason this feature is worth having) -- so the prompt is
-    // explicit both about what to compare against (the job description that follows the CV in the
-    // user message) and, just as importantly, what NOT to reason about: anything adjacent to a
-    // protected characteristic. That instruction is enforced here, at the only place that can
-    // enforce it -- the model itself has no other guardrail.
+    // json_object mode guarantees JSON but not a schema, so the fields are listed in the prompt (which
+    // must contain the word "JSON"). The prompt also forbids reasoning about anything related to
+    // protected characteristics; the model has no other guardrail.
     private const string SystemPrompt =
         "You extract structured data from a candidate's CV and assess their fit for a specific job. " +
         "Use only information present in the CV and the job description. Do not invent or infer " +
@@ -54,35 +42,27 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
         "someone graduated, or any other characteristic unrelated to the job's stated technical " +
         "requirements -- these must never appear in fit_summary, matched_requirements, or " +
         "missing_requirements. " +
-        // The reader of fit_summary is the recruiter who wrote the job description, so that text is
-        // the language signal — no extra field to plumb through, and it is already in the prompt.
-        // Falling back to the CV covers a job that was deleted before parsing ran.
+        // Same language as the job description; the CV if the job is gone.
         "Write fit_summary in the same language as the job description; if no job description is " +
         "given, use the language of the CV. Everything else is extracted data, not prose: leave " +
         "skills, education, recent_positions, matched_requirements and missing_requirements in the " +
         "language they appear in, and never translate the name of a technology, tool or " +
         "qualification. job_fit_rating stays one of the three English values named above.";
 
-    // No naming policy: anonymous-object member names (model, max_tokens, response_format, ...) are
-    // sent verbatim as the OpenAI wire keys.
+    // No naming policy: member names are sent as the OpenAI keys.
     private static readonly JsonSerializerOptions SerializeOptions = new(JsonSerializerDefaults.General)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    // json_object mode guarantees valid JSON syntax but not per-field types or values: the model has
-    // returned a quoted number ("total_experience_years": "5") and, for a CV with no stated graduation
-    // year, an empty string ("year": ""). Neither is a bare number nor a parseable numeric string, so
-    // the two numeric fields most exposed to this (TotalExperienceYears, EducationDto.Year) carry their
-    // own lenient converters below instead of relying on JsonNumberHandling, which still throws on a
-    // non-numeric string like "".
+    // The model sometimes returns numbers as strings, or "" for a missing year. JsonNumberHandling
+    // still throws on "", so the two exposed fields have lenient converters.
     private static readonly JsonSerializerOptions DeserializeOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
     };
 
-    // Reads a number, a numeric string, or falls back to 0 for anything else (empty string, "N/A",
-    // null) -- the CV parse prompt asks for 0 on unknown values, but the model doesn't always comply.
+    // Number or numeric string; anything else becomes 0.
     private sealed class LenientInt32Converter : JsonConverter<int>
     {
         public override int Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -123,7 +103,7 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
         _options = options.Value;
         _logger = logger;
 
-        // Outer-to-inner: retry wraps the circuit breaker wraps a per-attempt timeout.
+        // Retry wraps the circuit breaker, which wraps the per-attempt timeout.
         _pipeline = new ResiliencePipelineBuilder()
             .AddRetry(new Polly.Retry.RetryStrategyOptions
             {
@@ -146,9 +126,7 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
             .Build();
     }
 
-    // Retry and the circuit breaker exist for failures a later attempt could survive: a timeout, a
-    // 5xx, a dropped connection. A rejected key and a cancelled request are neither — one will be
-    // rejected identically every time, and the other was asked to stop.
+    // A rejected key or a cancellation won't succeed on retry.
     private static bool IsWorthRetrying(Exception exception) =>
         exception is not OperationCanceledException and not LlmAuthenticationException;
 
@@ -186,10 +164,7 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
 
             using var response = await client.SendAsync(request, token);
 
-            // A rejected key is not a blip: retrying it three times, tripping the circuit breaker and
-            // then having MassTransit redeliver the message only buries the one fact that matters.
-            // LlmAuthenticationException is excluded from the retry predicate below, so it surfaces
-            // on the first attempt saying exactly what is wrong.
+            // Fails on the first attempt: a rejected key is not transient.
             if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
             {
                 throw new LlmAuthenticationException(
@@ -202,7 +177,6 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
             return await response.Content.ReadFromJsonAsync<ChatResponse>(cancellationToken: token);
         }, cancellationToken);
 
-        // Cost visibility: log the token count on every call.
         if (chatResponse?.Usage is { } usage)
         {
             _logger.LogInformation(
@@ -221,10 +195,7 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
         }
         catch (JsonException ex)
         {
-            // The model's JSON is syntactically valid (json_object mode guarantees that) but its
-            // field *values* are not contractually guaranteed, so log the raw payload on a shape
-            // mismatch -- without it, a new quirk is undiagnosable after the fact (the text is
-            // gone once this throws).
+            // Log the raw JSON on a shape mismatch, or the cause is lost once this throws.
             _logger.LogError(ex, "CV parse response had an unexpected shape: {Json}", json);
             throw;
         }
@@ -235,7 +206,6 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
         return dto.ToResult();
     }
 
-    // ---- OpenAI chat completions response envelope (only the fields we read) ----
     private sealed record ChatResponse(
         [property: JsonPropertyName("choices")] List<ChatChoice>? Choices,
         [property: JsonPropertyName("usage")] ChatUsage? Usage);
@@ -250,7 +220,6 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
         [property: JsonPropertyName("prompt_tokens")] int PromptTokens,
         [property: JsonPropertyName("completion_tokens")] int CompletionTokens);
 
-    // ---- Parsed CV payload (snake_case fields), mapped to the Kernel's CvParseResult ----
     private sealed record CvParseDto(
         [property: JsonPropertyName("skills")] List<string>? Skills,
         [property: JsonPropertyName("total_experience_years"), JsonConverter(typeof(LenientDoubleConverter))]
@@ -275,9 +244,7 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
             MissingRequirements ?? []);
     }
 
-    // Moderate is the safe fallback when the model doesn't return exactly one of the three asked-for
-    // values -- never silently defaulting to the most flattering (Strong) or least flattering (Weak)
-    // reading of a rating we couldn't actually parse.
+    // Unparseable ratings fall back to Moderate, never to Strong or Weak.
     public static CvJobFitRating ParseFitRating(string? value) => value?.Trim().ToLowerInvariant() switch
     {
         "strong" => CvJobFitRating.Strong,

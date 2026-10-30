@@ -7,20 +7,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ats.Api.Dashboard;
 
-// Read-only tenant overview for the dashboard home. This is an API-composition concern, not a domain
-// one: the four numbers live in three different modules, and the API root is the only layer allowed to
-// know all of them. It reaches each module through its cross-module read port (IJobDirectory,
-// IApplicationDirectory, IInterviewDirectory) rather than touching their schemas, so module boundaries
-// stay intact. Authenticated access is enough — every tenant member may see the overview; tenant
-// isolation is automatic via each port's global query filter.
+// The four numbers come from three modules, so they are combined here in the API root through the
+// modules' read ports.
 [ApiController]
 [Authorize]
 [Route("api/v{version:apiVersion}/dashboard")]
 [ApiVersion("1.0")]
 public sealed class DashboardController : ControllerBase
 {
-    // "This week" for the new-applications stat is defined as a rolling 7-day window. A fixed-length
-    // window avoids week-boundary and timezone ambiguity and keeps the count trivially explainable.
+    // A rolling 7 days avoids week-boundary and timezone questions.
     private static readonly TimeSpan NewApplicationsWindow = TimeSpan.FromDays(7);
 
     private readonly IJobDirectory _jobs;
@@ -51,6 +46,5 @@ public sealed class DashboardController : ControllerBase
     }
 }
 
-// The four headline numbers shown on the dashboard. Tenant-scoped, computed per request.
 public sealed record DashboardStatsDto(
     int OpenJobs, int NewApplicationsThisWeek, int UpcomingInterviews, int ActiveCandidates);

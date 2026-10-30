@@ -4,15 +4,8 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace Ats.Modules.Applications.Infrastructure;
 
-// MongoDB persistence model for a CV parse result. Stored in Mongo rather than Postgres
-// for the same reasons as the activity log: schema-flexible, append-mostly, and produced out-of-band
-// by a consumer. Kept separate from the Kernel's CvParseResult so the storage shape can evolve
-// independently of the parse contract.
-//
-// The application id is the document _id: there is exactly one parse result per application, so an
-// upsert keyed on it makes re-processing idempotent. tenantId is stored alongside so every read can
-// confirm the caller's tenant owns the result. Guids are stored as strings (readable in Compass,
-// free of the driver's UUID-representation pitfalls), matching ActivityDocument.
+// Mongo storage model. The application id is the _id, so re-processing upserts the same document.
+// Guids are stored as strings.
 internal sealed class CvParseResultDocument
 {
     [BsonId]

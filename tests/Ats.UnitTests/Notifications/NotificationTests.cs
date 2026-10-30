@@ -12,7 +12,7 @@ public sealed class NotificationTests
         var notification = Notification.ForCandidate(
             accountId, NotificationType.ApplicationStageChanged, """{"jobTitle":"Engineer"}""");
 
-        // Assert — addressed to the account, global (no tenant), born unread
+        // Assert: addressed to the account, global (no tenant), born unread
         Assert.Equal(NotificationRecipientType.Candidate, notification.RecipientType);
         Assert.Equal(accountId, notification.RecipientId);
         Assert.Null(notification.TenantId);
@@ -37,7 +37,7 @@ public sealed class NotificationTests
         var notification = Notification.ForCompanyUser(
             tenantId, userId, NotificationType.NewApplication, """{"jobTitle":"Engineer"}""");
 
-        // Assert — addressed to the user, but tagged with the tenant unlike a candidate row
+        // Assert: addressed to the user, but tagged with the tenant unlike a candidate row
         Assert.Equal(NotificationRecipientType.CompanyUser, notification.RecipientType);
         Assert.Equal(userId, notification.RecipientId);
         Assert.Equal(tenantId, notification.TenantId);

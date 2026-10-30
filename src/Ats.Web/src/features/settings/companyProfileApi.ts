@@ -1,8 +1,6 @@
 import { apiClient, API_V1 } from '@/lib/apiClient';
 
-/* The tenant's own public profile (GET/PUT /api/v1/tenant/profile, Admin-only). Name and slug are
-   read-only context; the nullable fields are what the admin edits and what the public careers page
-   renders. Errors come back as { code, message } (e.g. tenant_profile.website_invalid). */
+/* Name and slug are read-only. */
 
 export interface CompanyProfile {
   companyName: string;

@@ -8,7 +8,6 @@ import { CompanyNotificationBell } from '@/features/notifications/components/Com
 import { NAV_ITEMS, isNavItemActive } from './navConfig';
 
 interface TopbarProps {
-  /** Opens the mobile navigation drawer (the rail is hidden below the lg breakpoint). */
   onMenuClick: () => void;
 }
 
@@ -37,9 +36,6 @@ function LogoutIcon() {
   );
 }
 
-/* The page chrome above the routed content: a mobile menu button, the current page title (derived
-   from the active nav item), the theme/language controls, and the user menu that surfaces the
-   /auth/me identity plus sign-out. */
 export function Topbar({ onMenuClick }: TopbarProps) {
   const { t } = useTranslation();
   const { pathname } = useLocation();

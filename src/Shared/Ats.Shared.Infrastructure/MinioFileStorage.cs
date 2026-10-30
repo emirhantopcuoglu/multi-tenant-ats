@@ -5,8 +5,7 @@ using Minio.DataModel.Args;
 
 namespace Ats.Shared.Infrastructure;
 
-// MinIO-backed IFileStorage. MinIO speaks the S3 API, so swapping it for AWS S3 in
-// production is a configuration change, not a code change.
+// MinIO speaks the S3 API, so switching to AWS S3 is a config change.
 public sealed class MinioFileStorage : IFileStorage
 {
     private readonly IMinioClient _client;
@@ -40,16 +39,13 @@ public sealed class MinioFileStorage : IFileStorage
             .WithObject(key)
             .WithExpiry((int)expiry.TotalSeconds);
 
-        // The MinIO presign call builds the URL locally (no network round-trip), so it
-        // exposes no CancellationToken to honour here.
+        // Presigning happens locally, so there is no CancellationToken to pass.
         return await _client.PresignedGetObjectAsync(args);
     }
 
     public async Task<byte[]> DownloadAsync(string key, CancellationToken cancellationToken = default)
     {
-        // MinIO streams the object to a callback rather than returning a stream, so we copy it into
-        // a MemoryStream and hand back the bytes. CVs are small (10 MB cap at upload), so buffering
-        // the whole object is acceptable here.
+        // MinIO streams to a callback, so the object is buffered. CVs are capped at 10 MB.
         using var buffer = new MemoryStream();
         var args = new GetObjectArgs()
             .WithBucket(_options.BucketName)

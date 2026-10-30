@@ -10,10 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Ats.IntegrationTests.Applications;
 
-// Application.Withdraw() existed and was unit-tested for a long time with nothing calling it. These
-// tests cover the handler that finally does, and in particular the two things that only matter once
-// a real request reaches it: a candidate request carries no ambient tenant, and the acting identity
-// is a global account rather than a company user.
+// A candidate request has no ambient tenant, and the actor is a global account, not a company user.
 [Collection("Integration")]
 public sealed class WithdrawApplicationTests
 {
@@ -32,7 +29,7 @@ public sealed class WithdrawApplicationTests
         var tenantId = Guid.NewGuid();
         var applicationId = await SeedApplicationAsync(tenantId, accountId);
 
-        // Act — no ambient tenant at all, which is what a candidate token actually gives us.
+        // Act: no ambient tenant at all, which is what a candidate token actually gives us.
         var (result, publisher, _) = await WithdrawAsync(applicationId, accountId);
 
         // Assert
@@ -41,16 +38,15 @@ public sealed class WithdrawApplicationTests
 
         var published = Assert.Single(publisher.Published.OfType<ApplicationWithdrawnEvent>());
         Assert.Equal(applicationId, published.ApplicationId);
-        // The tenant must come off the stored row — the caller had none to give.
+        // The tenant must come off the stored row, the caller had none to give.
         Assert.Equal(tenantId, published.TenantId);
     }
 
     [Fact]
     public async Task should_log_the_withdrawal_against_the_applications_own_tenant()
     {
-        // The ambient-tenant overload of AddAsync throws when nothing is resolved, and TryAddAsync
-        // swallows that into a warning — so picking the wrong overload here would drop the entry from
-        // both timelines while still returning success. Asserting the tenant catches that silently.
+        // The ambient-tenant overload would throw, and TryAddAsync would hide it. Asserting the tenant
+        // catches that.
         var accountId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
         var applicationId = await SeedApplicationAsync(tenantId, accountId);
@@ -77,7 +73,7 @@ public sealed class WithdrawApplicationTests
         // Act
         var (result, publisher, activityLog) = await WithdrawAsync(applicationId, stranger);
 
-        // Assert — NotFound, not Forbidden: a real id must be indistinguishable from a made-up one,
+        // Assert: NotFound, not Forbidden: a real id must be indistinguishable from a made-up one,
         // or the endpoint becomes an oracle for whether an application exists.
         Assert.True(result.IsFailure);
         Assert.Equal(ApplicationErrors.NotFound.Code, result.Error.Code);
@@ -109,7 +105,7 @@ public sealed class WithdrawApplicationTests
         // Act
         var (result, publisher, _) = await WithdrawAsync(applicationId, accountId);
 
-        // Assert — a distinct code from NotFound: this is the candidate's own application on a stale
+        // Assert: a distinct code from NotFound: this is the candidate's own application on a stale
         // tab, and the portal should say "already closed" rather than "no such application".
         Assert.True(result.IsFailure);
         Assert.Equal(ApplicationErrors.NotWithdrawable.Code, result.Error.Code);
@@ -142,9 +138,8 @@ public sealed class WithdrawApplicationTests
         Assert.Equal(ApplicationErrors.NotFound.Code, result.Error.Code);
     }
 
-    // Runs the handler the way the controller does: no tenant in scope, the account id as the only
-    // authorization input. Returns the collaborators so each test can assert on what was announced
-    // and logged, not just on the row.
+    // Runs the handler like the controller does: no tenant, only the account id. Returns the
+    // collaborators so tests can check what was published and logged.
     private async Task<(Result<bool> Result, CapturingPublisher Publisher, InMemoryActivityLog ActivityLog)>
         WithdrawAsync(Guid applicationId, Guid candidateAccountId)
     {

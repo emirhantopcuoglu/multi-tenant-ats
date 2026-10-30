@@ -5,27 +5,21 @@ import { Card, EmptyState, Skeleton } from '@/components/ui';
 import { PublicLayout } from '@/features/public/components/PublicLayout';
 import { useVerifyCandidateEmail } from '../useCandidateEmailVerification';
 
-/* Landing page for the mailed verification link. It fires the request on mount rather than showing a
-   button: the click on the link in the email IS the candidate's confirmation, and asking them to
-   confirm a second time here would be asking the same question twice.
-
-   No auth guard — the link is opened from an email client, which carries no session, and possibly on
-   a different device than the one that registered. The token is the credential. */
+/* Verifies on mount: clicking the link is the confirmation. No auth guard; it may be opened on
+   another device. */
 export function CandidateVerifyEmailPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token') ?? '';
   const verify = useVerifyCandidateEmail();
 
-  /* React 18 StrictMode mounts effects twice in development. The token is single-use, so a second
-     call would consume it and then report "invalid link" for a verification that had just succeeded.
-     A ref, not a state flag: it must survive a re-render without triggering one. */
+  /* StrictMode runs effects twice in dev, and the token is single-use, so guard with a ref. */
   const attempted = useRef(false);
   useEffect(() => {
     if (attempted.current || token.length === 0) return;
     attempted.current = true;
     verify.mutate(token);
-    // Fires once per mounted page; verify.mutate is stable and deliberately not a dependency.
+    // Runs once per mount; verify.mutate is stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 

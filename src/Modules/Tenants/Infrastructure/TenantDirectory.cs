@@ -3,10 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Tenants.Infrastructure;
 
-// The Tenants module's implementation of the cross-module read port. It answers only what the public
-// marketplace needs — name a batch of companies, or find companies by name — and returns flat read
-// models, never the Tenant entity. These reads span all tenants intentionally (the Tenant table has
-// no query filter), which is what makes the global job feed possible.
+// Reads span all tenants (Tenant has no query filter); the public feed needs that.
 public sealed class TenantDirectory : ITenantDirectory
 {
     private readonly TenantsDbContext _db;
@@ -16,7 +13,6 @@ public sealed class TenantDirectory : ITenantDirectory
     public async Task<IReadOnlyDictionary<Guid, TenantSummary>> GetSummariesAsync(
         IReadOnlyCollection<Guid> tenantIds, CancellationToken cancellationToken = default)
     {
-        // Short-circuit the empty case: an IN () with no values is a pointless round-trip.
         if (tenantIds.Count == 0)
             return new Dictionary<Guid, TenantSummary>();
 
@@ -37,8 +33,7 @@ public sealed class TenantDirectory : ITenantDirectory
         if (string.IsNullOrWhiteSpace(term))
             return Array.Empty<Guid>();
 
-        // Provider-agnostic case-insensitive match, mirroring the Jobs title search: EF translates
-        // this to lower(Name) LIKE '%term%' rather than depending on the Npgsql-specific ILike here.
+        // Translates to lower(Name) LIKE, same as the job title search.
         var normalized = term.Trim().ToLower();
 
         return await _db.Tenants
@@ -54,7 +49,6 @@ public sealed class TenantDirectory : ITenantDirectory
         if (string.IsNullOrWhiteSpace(slug))
             return null;
 
-        // Slugs are stored lower-cased (Tenant.Create normalizes), so match on the normalized form.
         var normalized = slug.Trim().ToLower();
 
         return await _db.Tenants
@@ -68,9 +62,7 @@ public sealed class TenantDirectory : ITenantDirectory
     public async Task<IReadOnlyCollection<Guid>> GetTenantUserIdsAsync(
         Guid tenantId, CancellationToken cancellationToken = default)
     {
-        // ApplicationUser is not ITenantScoped (it is an Identity entity), so the tenant filter is
-        // explicit here rather than coming from the global query filter — same reasoning as
-        // AuthService.ListTenantUsersAsync.
+        // ApplicationUser isn't ITenantScoped, so the tenant filter is explicit.
         return await _db.Users
             .AsNoTracking()
             .Where(u => u.TenantId == tenantId)

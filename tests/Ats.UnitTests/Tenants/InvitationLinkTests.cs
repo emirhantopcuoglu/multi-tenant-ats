@@ -3,10 +3,8 @@ using Ats.Modules.Tenants.Infrastructure;
 
 namespace Ats.UnitTests.Tenants;
 
-// Guards the one rule that ties the mailed invitation link to the SPA route it has to land on.
-// The link is built from configuration and the route lives in TypeScript, so nothing else in the
-// build can notice when the two drift apart — which is exactly how the default came to point at
-// "/accept-invite" while the SPA served "/accept-invitation".
+// The mailed link comes from configuration and the route lives in TypeScript, so nothing else
+// notices if they drift apart.
 public class InvitationLinkTests
 {
     [Fact]
@@ -14,10 +12,7 @@ public class InvitationLinkTests
     {
         var path = new Uri(new InvitationOptions().AcceptBaseUrl).AbsolutePath.Trim('/');
 
-        // SlugPolicy reserves every bare top-level SPA route so a tenant slug can never shadow one.
-        // The accept page is such a route, so its path must be reserved. If this passes as a valid
-        // slug instead, the two have diverged: either the mailed link is dead, or the page is
-        // registrable as a company slug and a tenant could shadow it.
+        // The accept page is a top-level SPA route, so SlugPolicy must reserve it.
         Assert.True(SlugPolicy.Validate(path).IsFailure);
     }
 }

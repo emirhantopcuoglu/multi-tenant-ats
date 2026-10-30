@@ -38,9 +38,7 @@ internal sealed class NoOpEmailSender : IEmailSender
         => Task.CompletedTask;
 }
 
-// In-memory IEmailSender: tests must never talk to a real SMTP server, and every flow that mails only
-// needs "was a message handed to the port, to whom, saying what" to be observable. Shared because both
-// the candidate and company recovery suites assert on the link they mail.
+// Records sent mail instead of using SMTP.
 internal sealed class RecordingEmailSender : IEmailSender
 {
     public List<(string ToEmail, string Subject, string Body)> Sent { get; } = [];
@@ -53,9 +51,7 @@ internal sealed class RecordingEmailSender : IEmailSender
     }
 }
 
-// Captures MediatR notifications published by command handlers so tests can assert on the exact
-// event payload without a bus. The bridge handlers (in-process event -> integration event) are a
-// pure mapping, so asserting the in-process event is the meaningful check.
+// Captures MediatR notifications so tests can check event payloads without a bus.
 internal sealed class CapturingPublisher : IPublisher
 {
     public List<object> Published { get; } = [];
@@ -75,9 +71,7 @@ internal sealed class CapturingPublisher : IPublisher
     }
 }
 
-// Records keys instead of talking to MinIO. Tests must never reach real object storage, and which
-// keys were written, copied and deleted is exactly what the CV flows need to be observable — an
-// orphaned or prematurely deleted object is invisible in the database alone.
+// Records written, copied and deleted keys instead of using MinIO.
 internal sealed class RecordingFileStorage : IFileStorage
 {
     public List<string> Uploaded { get; } = [];
@@ -113,9 +107,7 @@ internal sealed class RecordingFileStorage : IFileStorage
     }
 }
 
-// Keeps every log entry so a test can assert on a path that deliberately does not fail. A skipped
-// candidate notification is the case this exists for: the command still succeeds, and the only
-// evidence it took the degraded route is the warning.
+// Keeps log entries so tests can check paths that succeed with a warning.
 internal sealed class CapturingLogger<T> : ILogger<T>
 {
     public List<(LogLevel Level, string Message)> Entries { get; } = [];

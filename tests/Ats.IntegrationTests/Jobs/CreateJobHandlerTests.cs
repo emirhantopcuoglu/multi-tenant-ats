@@ -32,7 +32,7 @@ public sealed class CreateJobHandlerTests
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
 
-        // Assert — verify the returned ID resolves to a persisted row via a second context
+        // Assert: verify the returned ID resolves to a persisted row via a second context
         Assert.True(result.IsSuccess);
 
         await using var readDb = new JobsDbContext(
@@ -61,7 +61,7 @@ public sealed class CreateJobHandlerTests
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
 
-        // Assert — TenantSaveChangesInterceptor must have stamped TenantId on the entity
+        // Assert: TenantSaveChangesInterceptor must have stamped TenantId on the entity
         Assert.True(result.IsSuccess);
 
         await using var readDb = new JobsDbContext(

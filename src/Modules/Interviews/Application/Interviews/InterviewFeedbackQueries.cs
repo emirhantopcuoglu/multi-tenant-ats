@@ -7,10 +7,7 @@ public sealed record InterviewFeedbackDto(
     Guid Id, Guid InterviewerUserId, int Rating, string Recommendation,
     string? Comments, DateTime SubmittedAtUtc);
 
-// What the company side sees for one interview's evaluations.
-//
-// SubmittedCount/ExpectedCount answer "is everyone in yet?" without the caller counting rows it may
-// not be allowed to see — which matters precisely because Items can come back empty on purpose.
+// Counts are always returned, even when Items is withheld.
 public sealed record InterviewFeedbackSummaryDto(
     IReadOnlyList<InterviewFeedbackDto> Items,
     int SubmittedCount,
@@ -48,16 +45,11 @@ public sealed class GetInterviewFeedbackHandler
 
         var hasCallerSubmitted = feedback.Any(f => f.InterviewerUserId == query.CallerUserId);
 
-        // An interviewer who has not filed their own evaluation yet sees nobody else's. The entity
-        // is deliberately immutable so a score cannot be softened after the fact
-        // (InterviewFeedback.cs) — letting an evaluator read the panel first would defeat that by
-        // moving the anchoring earlier instead of preventing it. Recruiters and hiring managers who
-        // are not on the panel are decision-makers rather than evaluators, so they have no score to
-        // be influenced and see everything.
+        // A panel member sees nobody else's feedback until they submit their own, so they can't be
+        // anchored by it. People not on the panel see everything.
         var isWithheld = interview.InterviewerUserIds.Contains(query.CallerUserId) && !hasCallerSubmitted;
 
-        // The counts are computed before withholding: "1 of 3 submitted" is not a leak, and knowing
-        // whether the panel is still pending is exactly what tells a recruiter to chase people.
+        // Counts are computed before withholding; "1 of 3 submitted" isn't a leak.
         var summary = new InterviewFeedbackSummaryDto(
             Items: isWithheld ? [] : feedback,
             SubmittedCount: feedback.Count,

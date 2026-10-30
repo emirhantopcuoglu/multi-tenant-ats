@@ -24,7 +24,7 @@ import { ReassignInterviewersModal } from './components/ReassignInterviewersModa
 import { FeedbackList } from './components/FeedbackList';
 import { FeedbackForm } from './components/FeedbackForm';
 
-/* Thin wrapper so the inner view can take a guaranteed-present id and keep its hooks unconditional. */
+/* Wrapper so the inner view always gets an id and its hooks stay unconditional. */
 export function InterviewDetailPage() {
   const { id } = useParams();
   if (!id) return <Navigate to="/interviews" replace />;
@@ -47,8 +47,7 @@ function InterviewDetailView({ id }: { id: string }) {
   const [noShowOpen, setNoShowOpen] = useState(false);
   const [reassignOpen, setReassignOpen] = useState(false);
 
-  // The interview carries only an applicationId; resolve the candidate from the same cache entry the
-  // application detail page uses, gated until the interview (and so the id) has loaded.
+  // Uses the same cache entry as the application detail page; waits for the interview to load.
   const applicationId = interview?.applicationId;
   const applicationQuery = useQuery({
     queryKey: applicationDetailKey(applicationId ?? ''),
@@ -88,10 +87,7 @@ function InterviewDetailView({ id }: { id: string }) {
     reassign.isPending;
   const candidateName = applicationQuery.data?.candidateName;
 
-  // Which actions exist is the domain's answer, not ours — the page renders interview.can* rather
-  // than deriving anything from the status and the browser's clock. Before/after the start time the
-  // legal pair differs: an interview that has not begun can be moved or called off, one that has can
-  // only be recorded as completed or missed.
+  // Actions come from the server's can* flags, not from the status and the browser clock.
   const hasAnyAction =
     interview.canReschedule ||
     interview.canComplete ||
@@ -99,19 +95,13 @@ function InterviewDetailView({ id }: { id: string }) {
     interview.canReassignInterviewers ||
     interview.canCancel;
 
-  // Feedback needs both halves: the backend says the interview is evaluable, and the caller must be
-  // one of its assigned interviewers. The form still maps the backend's 403/409 as final authority.
+  // Needs both: the interview accepts feedback and the user is on the panel. The form still handles
+  // the backend's 403/409.
   const isAssignedInterviewer = user ? interview.interviewerUserIds.includes(user.id) : false;
   const canSubmitFeedback = isAssignedInterviewer && interview.canReceiveFeedback;
 
-  // Gated on panel membership, NOT on canManage: JoinInterviewRoomHandler authorizes a company
-  // caller by checking they are one of the interviewers, so a recruiter or admin who is merely
-  // watching this interview would follow the link into a 404. A button that cannot work is worse
-  // than no button.
-  //
-  // The room's own time window is deliberately not checked here — the room page renders "too early"
-  // and "ended" itself, and re-deriving the schedule from the browser clock is exactly the drift the
-  // can* flags exist to avoid. Status and the absence of a room (a phone screen) are enough.
+  // Panel members only, not canManage: the join endpoint returns 404 for anyone else. The time window
+  // isn't checked here; the room page shows "too early" and "ended" itself.
   const canJoinRoom =
     isAssignedInterviewer && interview.roomToken !== null && interview.status === 'Scheduled';
 
@@ -122,8 +112,7 @@ function InterviewDetailView({ id }: { id: string }) {
     })
     .filter((name): name is string => name !== null);
 
-  // successTitle is already resolved by the caller (the type-safe t() needs a literal key, not a
-  // dynamic string), so this helper only wires the shared success/error toasts to a void mutation.
+  // The caller passes an already translated title (the type-safe t() needs literal keys).
   type VoidMutation = {
     mutate: (
       variables: void,
@@ -136,7 +125,6 @@ function InterviewDetailView({ id }: { id: string }) {
       onError: (error) => toast({ title: actionErrorMessage(error), tone: 'danger' }),
     });
 
-  // Turn the backend's 409 conflict codes into a specific message; anything else is the generic error.
   const conflictMessage = (error: unknown): string => {
     const { code } = toApiError(error);
     if (code === 'interview.interviewer_conflict') return t('interviews.conflict.interviewer');
@@ -144,9 +132,7 @@ function InterviewDetailView({ id }: { id: string }) {
     return actionErrorMessage(error);
   };
 
-  // The buttons are gated on the server's own flags, so a rejected transition means this page is
-  // showing a stale snapshot — most likely the clock crossed the start time, or someone else acted
-  // on the interview first. Saying so is more useful than "something went wrong".
+  // A refused transition means the page is stale: the start time passed or someone else acted first.
   const actionErrorMessage = (error: unknown): string =>
     toApiError(error).code === 'interview.transition_not_allowed'
       ? t('interviews.toast.stale')
@@ -185,9 +171,7 @@ function InterviewDetailView({ id }: { id: string }) {
         setReassignOpen(false);
         toast({ title: t('interviews.toast.reassigned'), tone: 'success' });
       },
-      // Reuses the scheduling conflict wording: a replacement interviewer can already be booked
-      // over this slot, and "an interviewer already has another interview at this time" is the
-      // useful thing to say.
+      // Same wording as scheduling: a new interviewer may already be booked at this time.
       onError: (error) => toast({ title: conflictMessage(error), tone: 'danger' }),
     });
 
@@ -213,8 +197,7 @@ function InterviewDetailView({ id }: { id: string }) {
 
         {(canJoinRoom || (canManage && hasAnyAction)) && (
           <div className="flex flex-wrap justify-end gap-2">
-            {/* First in the row, and the only primary button: while an interview is about to happen,
-                joining it is the thing the interviewer came here to do. */}
+            {/* The only primary button: joining is what the interviewer came for. */}
             {canJoinRoom && (
               <Button onClick={() => navigate(`/interview-room/${interview.roomToken}`)}>
                 {t('interviews.action.joinRoom')}
@@ -249,8 +232,7 @@ function InterviewDetailView({ id }: { id: string }) {
         )}
       </Card>
 
-      {/* The prompt the screen was missing: an elapsed interview nobody resolved looks identical to
-          an upcoming one, so the recruiter has no cue that it is waiting on them. */}
+      {/* Otherwise an elapsed, unresolved interview looks the same as an upcoming one. */}
       {canManage && interview.isAwaitingOutcome && (
         <Card className="border-warning/40 bg-warning/5">
           <p className="text-sm text-text">{t('interviews.awaitingOutcome.title')}</p>
@@ -276,8 +258,6 @@ function InterviewDetailView({ id }: { id: string }) {
           )}
         </InfoRow>
 
-        {/* The outcome details, shown rather than only stored: a reason nobody can read back would
-            be the same write-only field this rework exists to remove. */}
         {interview.noShowParty && (
           <InfoRow label={t('interviews.noShow.party')}>
             {t(`noShowParty.${interview.noShowParty}`)}
@@ -297,17 +277,12 @@ function InterviewDetailView({ id }: { id: string }) {
         )}
       </Card>
 
-      {/* Two separate concerns that previously shared one card: filing your own evaluation, and
-          reading what the panel said. The second did not exist at all — feedback was written and
-          never queried back. */}
       <Card className="space-y-3">
         <h3 className="text-sm font-semibold text-text">{t('interviews.feedback.panelTitle')}</h3>
         <FeedbackList summary={feedbackQuery.data} isLoading={feedbackQuery.isLoading} />
       </Card>
 
-      {/* Only shown while there is still something for this user to file. Once submitted, the entry
-          form has no purpose: feedback is immutable by design, so an editable-looking form would be
-          promising something the backend will refuse. */}
+      {/* Hidden once submitted: feedback can't be edited. */}
       {canSubmitFeedback && feedbackQuery.data && !feedbackQuery.data.hasCallerSubmitted && (
         <Card className="space-y-3">
           <h3 className="text-sm font-semibold text-text">{t('interviews.feedback.title')}</h3>

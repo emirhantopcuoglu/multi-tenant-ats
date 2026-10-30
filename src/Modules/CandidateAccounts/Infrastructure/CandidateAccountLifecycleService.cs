@@ -72,22 +72,17 @@ public sealed class CandidateAccountLifecycleService : ICandidateAccountLifecycl
         if (account is null)
             return Result.Failure(CandidateAccountLifecycleErrors.NotFound);
 
-        // Ownership re-proof before the most destructive action on the account: a stolen token must
-        // not be able to erase someone's identity.
+        // A stolen session alone must not be able to delete the account.
         if (!_passwordHasher.Verify(account.PasswordHash, command.CurrentPassword))
             return Result.Failure(CandidateAccountLifecycleErrors.InvalidCurrentPassword);
 
-        // The anonymization must reach every table holding personal data: pending AND consumed
-        // email change requests carry real addresses, so all of them go — audit value loses to the
-        // right to erasure here.
+        // These hold real email addresses, consumed ones included.
         var emailChangeRequests = await _db.EmailChangeRequests
             .Where(r => r.CandidateAccountId == account.Id)
             .ToListAsync();
         _db.EmailChangeRequests.RemoveRange(emailChangeRequests);
 
-        // Read before Delete() clears it. The CV is personal data living outside the database, so
-        // erasure has to follow it into object storage — a row that no longer names the file does
-        // not make the file go away.
+        // Read before Delete() clears it; the file itself still has to be removed from storage.
         var cvFileKey = account.CvFileKey;
 
         try
@@ -101,9 +96,7 @@ public sealed class CandidateAccountLifecycleService : ICandidateAccountLifecycl
 
         await _db.SaveChangesAsync();
 
-        // After the commit: if the deletion had failed, the account would still be live and would
-        // still need its CV. Best-effort, because a storage outage must not block an erasure the
-        // database has already accepted — the failure is logged loudly enough to be swept later.
+        // After the save, and best-effort: a storage outage must not undo the deletion.
         if (cvFileKey is not null)
         {
             try
@@ -119,8 +112,7 @@ public sealed class CandidateAccountLifecycleService : ICandidateAccountLifecycl
             }
         }
 
-        // The id is deliberately the only fact logged: after this line the account has no personal
-        // data left anywhere, and the log must not become the place it survives.
+        // Only the id: no personal data in the log.
         _logger.LogInformation("Candidate account {CandidateAccountId} deleted", candidateAccountId);
         return Result.Success();
     }

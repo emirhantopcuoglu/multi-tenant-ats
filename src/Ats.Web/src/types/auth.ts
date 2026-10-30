@@ -1,7 +1,6 @@
 import type { Role } from './enums';
 
-/* Returned by register / login / refresh on both sides. The candidate endpoints return the same
-   shape as the company ones, so the refresh interceptor handles either with one type. */
+/* Same shape for company and candidate endpoints. */
 export interface AuthResult {
   accessToken: string;
   refreshToken: string;
@@ -9,9 +8,7 @@ export interface AuthResult {
 
 export type CandidateAuthResult = AuthResult;
 
-/* Discriminated union: all company-workspace users vs global candidate accounts.
-   The `kind` field is added client-side when deserializing /auth/me and /candidate/auth/me
-   since the backend owns no such field; the calling endpoint determines the type. */
+/* `kind` is added on the client based on which /me endpoint answered. */
 export interface CompanyUser {
   kind: 'company';
   id: string;
@@ -22,8 +19,7 @@ export interface CompanyUser {
   tenant: CurrentUserTenant;
 }
 
-/* What /candidate/auth/me can report. Never 'Deleted': a deleted account's token dies with the
-   stamp rotation, so no signed-in session ever sees that state. */
+/* Never 'Deleted': a deleted account has no live session. */
 export type CandidateAccountStatus = 'Active' | 'Frozen';
 
 export interface CandidateUser {
@@ -33,9 +29,7 @@ export interface CandidateUser {
   lastName: string;
   email: string;
   status: CandidateAccountStatus;
-  /* Whether the candidate has clicked the link mailed to this address. Unverified accounts are fully
-     usable except for applying — deliberately not folded into `status`, which answers a different
-     question (Active/Frozen/Deleted). */
+  /* Separate from `status`: unverified accounts can do everything except apply. */
   isEmailVerified: boolean;
 }
 
@@ -46,7 +40,6 @@ export interface CurrentUserTenant {
   slug: string;
 }
 
-/* Request bodies for company auth endpoints. */
 export interface LoginRequest {
   email: string;
   password: string;
@@ -60,13 +53,10 @@ export interface RegisterRequest {
   firstName: string;
   lastName: string;
 
-  /* The UI language at the moment of signing up. The server stores it and writes every later email
-     in it — including the confirmation mail this request triggers, which is why it has to travel
-     here rather than being set from the settings screen afterwards. */
+  /* Sent with registration because the confirmation email goes out in it. */
   preferredLanguage: string;
 }
 
-/* Request bodies for candidate auth endpoints. */
 export interface CandidateLoginRequest {
   email: string;
   password: string;
@@ -78,23 +68,17 @@ export interface CandidateRegisterRequest {
   email: string;
   password: string;
 
-  /* The UI language at the moment of signing up. The server stores it and writes every later email
-     in it — including the confirmation mail this request triggers, which is why it has to travel
-     here rather than being set from the settings screen afterwards. */
+  /* Sent with registration because the confirmation email goes out in it. */
   preferredLanguage: string;
 }
 
-/* POST /api/v1/invitations/accept (InvitationsController.AcceptRequest). The token comes from the
-   invitation URL; the user only supplies a password and their name. Unlike login/register this
-   endpoint returns no tokens, so the user is sent to /login afterwards. */
+/* Returns no tokens; the user goes to /login afterwards. */
 export interface AcceptInvitationRequest {
   token: string;
   password: string;
   firstName: string;
   lastName: string;
 
-  /* The UI language at the moment of signing up. The server stores it and writes every later email
-     in it — including the confirmation mail this request triggers, which is why it has to travel
-     here rather than being set from the settings screen afterwards. */
+  /* Sent with the request because email to this user starts right away. */
   preferredLanguage: string;
 }

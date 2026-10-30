@@ -9,17 +9,13 @@ interface RejectDialogProps {
   submitting: boolean;
 }
 
-/* Reject confirmation: a required free-text reason. The reason is sent to POST /{id}/reject and kept
-   internal (the candidate's notification never includes it). */
+/* The reason is required and stays internal; the candidate never sees it. */
 export function RejectDialog({ open, onOpenChange, onConfirm, submitting }: RejectDialogProps) {
   const { t } = useTranslation();
   const [reason, setReason] = useState('');
   const [error, setError] = useState(false);
 
-  // Reset the field each time the dialog opens, so a previous draft never lingers. Adjusted during
-  // render rather than in an effect: React discards the in-progress output and re-renders before
-  // committing, so the cleared field is what reaches the DOM. An effect would paint the stale draft
-  // first and clear it afterwards, which is the cascading render the linter flags.
+  // Reset when the dialog opens. Done during render, not in an effect, so the old draft is never painted.
   const [prevOpen, setPrevOpen] = useState(open);
   if (prevOpen !== open) {
     setPrevOpen(open);

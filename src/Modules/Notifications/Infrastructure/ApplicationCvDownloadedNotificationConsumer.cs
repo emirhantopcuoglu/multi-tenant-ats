@@ -6,11 +6,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// Writes an in-app notification row the first time a company user downloads an application's CV.
-// Own queue, same shape as
-// ApplicationViewedNotificationConsumer: skip messages with no candidate account behind them, and
-// guard the write with the message-id idempotency key so an at-least-once redelivery can't double
-// the row.
+// In-app row the first time a company user downloads the CV. Skips applications without a
+// candidate account; the message id guards against duplicates.
 public sealed class ApplicationCvDownloadedNotificationConsumer
     : IConsumer<ApplicationCvDownloadedIntegrationEvent>
 {
@@ -64,8 +61,7 @@ public sealed class ApplicationCvDownloadedNotificationConsumer
             message.CandidateAccountId);
     }
 
-    // The message-to-row mapping, kept static and side-effect free so tests can pin the payload
-    // contents and the no-account skip without standing up a ConsumeContext.
+    // Static so tests can check the mapping without a ConsumeContext.
     public static Notification? TryBuildNotification(ApplicationCvDownloadedIntegrationEvent message)
     {
         if (message.CandidateAccountId is not { } candidateAccountId)

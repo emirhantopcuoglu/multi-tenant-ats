@@ -3,13 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
-/* Split-screen auth shell (form left, brand panel right), matching Auth.dc.html. The brand panel is
-   hidden below lg so small screens get a focused single column. Theme + language toggles stay
-   visible, as in the prototype.
-
-   `audience` swaps the brand-panel copy so the screen itself says who it is for: hiring language
-   on company screens, job-search language on candidate screens. Company is the default because
-   the invitation-accept screen is a company flow and predates the split. */
+/* The brand panel is hidden below lg. `audience` switches its copy; company is the default. */
 export function AuthLayout({
   title,
   subtitle,

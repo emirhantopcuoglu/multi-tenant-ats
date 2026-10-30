@@ -1,8 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { SUPPORTED_LANGUAGES, type Language } from '@/i18n';
 
-/* Segmented EN/TR control, matching the design prototype's language toggle. Persistence is handled
-   by the i18n layer (languageChanged listener), so this component only flips the active language. */
+/* The i18n layer persists the choice; this only switches the language. */
 export function LanguageSwitcher() {
   const { i18n } = useTranslation();
   const current = i18n.resolvedLanguage as Language;

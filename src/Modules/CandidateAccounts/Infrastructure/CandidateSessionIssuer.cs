@@ -35,12 +35,9 @@ public sealed class CandidateSessionIssuer : ICandidateSessionIssuer
             account.SecurityStamp,
             DateTime.UtcNow.AddDays(_options.RefreshTokenDays)));
 
-        // One SaveChanges for the whole scope: when the refresh path stages a revocation before
-        // calling this, the spent row and its replacement commit together or not at all.
+        // Also saves a revocation the refresh path staged, so old and new tokens commit together.
         await _db.SaveChangesAsync();
 
-        // The raw token is returned here and never stored — only its hash was persisted above, so
-        // this is the only moment it exists outside the client.
         return new CandidateAuthResult(accessToken, refreshToken);
     }
 
@@ -50,10 +47,7 @@ public sealed class CandidateSessionIssuer : ICandidateSessionIssuer
         return _db.CandidateRefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash);
     }
 
-    // Only the hash is stored, so a leaked table cannot be replayed as a set of live sessions. Plain
-    // SHA-256 with no salt or work factor on purpose: the input is 64 bytes of CSPRNG output, not a
-    // human-chosen password, so there is nothing for a dictionary or rainbow table to attack. Same
-    // construction as the company AuthService's own token hash.
+    // No salt needed: the input is 64 random bytes, not a password.
     private static string Hash(string input)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));

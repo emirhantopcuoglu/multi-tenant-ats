@@ -38,10 +38,8 @@ public class CandidateAccountEmailVerificationTests
     [Fact]
     public void changing_the_email_should_verify_the_new_address()
     {
-        // This is the recovery path for someone who mistyped at registration: ChangeEmail only runs
-        // after a link mailed to the NEW address was clicked, so that address arrives already proven.
-        // Asking for a second confirmation would be asking for the same proof twice — and would leave
-        // a typo'd registration with no way out, since the old address is unreachable by definition.
+        // ChangeEmail only runs after the new address's link was clicked, so the address is already
+        // verified. This is also how a mistyped registration gets fixed.
         var account = Register();
 
         account.ChangeEmail("corrected@acme.test");
@@ -54,7 +52,7 @@ public class CandidateAccountEmailVerificationTests
     public void changing_the_email_should_re_verify_even_an_already_verified_account()
     {
         // The timestamp must track the address currently on the account, not the first one ever
-        // proven — otherwise "verified on the 3rd" would refer to a mailbox no longer in use.
+        // proven, otherwise "verified on the 3rd" would refer to a mailbox no longer in use.
         var account = Register();
         account.MarkEmailVerified();
         var firstVerification = account.EmailVerifiedAtUtc;

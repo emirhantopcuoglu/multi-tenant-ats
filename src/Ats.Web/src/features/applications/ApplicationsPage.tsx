@@ -40,8 +40,7 @@ function ViewToggle({ view, onChange }: { view: ApplicationsView; onChange: (vie
   );
 }
 
-/* Recruiter applications screen (Steps 3.3 + 3.4). A view toggle switches between the filtered table
-   and the per-job Kanban board; filters, page, and the active view all live in the URL. */
+/* Table or per-job board; filters, page and view all live in the URL. */
 export function ApplicationsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -87,7 +86,7 @@ export function ApplicationsPage() {
       params.delete('page');
     });
 
-  // Changing the job clears the stage filter — a stage id belongs to the old job's pipeline.
+  // A stage id belongs to the old job's pipeline, so changing the job clears it.
   const setJob = (value: string) =>
     updateParams((params) => {
       if (value) params.set('job', value);
@@ -103,8 +102,8 @@ export function ApplicationsPage() {
       params.delete('page');
     });
 
-  // Dropping a board card onto the Interview column opens this instead of moving it directly — the
-  // move itself happens server-side once the interview is actually scheduled.
+  // Dropping a card on the Interview column opens this; the server moves it once an interview is
+  // scheduled.
   const [interviewPrompt, setInterviewPrompt] = useState<{ applicationId: string; candidateName: string } | null>(
     null,
   );
@@ -115,7 +114,6 @@ export function ApplicationsPage() {
       if (searchInput.trim() !== search) setFilter('q', searchInput.trim());
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(handle);
-    // Re-run when the user types or the URL settles.
   }, [searchInput, search]);
 
   const { data, isLoading, isError, refetch } = useApplications({

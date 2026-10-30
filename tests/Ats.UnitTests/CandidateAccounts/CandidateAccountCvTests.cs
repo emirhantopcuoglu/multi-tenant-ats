@@ -3,9 +3,7 @@ using Ats.Shared.Kernel;
 
 namespace Ats.UnitTests.CandidateAccounts;
 
-// The contract worth pinning here is the return value: it is the only thing that tells the caller
-// which object in storage is now unreferenced. Get it wrong and either a live CV is deleted or an
-// orphaned one is kept forever — both invisible from the database alone.
+// The return value tells the caller which storage object to delete, so it is what these pin.
 public class CandidateAccountCvTests
 {
     private const string PasswordHash = "hashed-password";
