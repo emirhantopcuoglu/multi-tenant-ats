@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/components/ui';
+import { isConcurrencyConflict } from '@/lib/problemDetails';
 import type { PagedResult } from '@/types/pagination';
 import type { ApplicationListItem } from '@/types/application';
 import { listApplications, moveApplicationStage } from './applicationsApi';
@@ -45,9 +46,10 @@ export function useApplicationsBoard(jobId: string | undefined) {
       );
       return { key, previous };
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (context?.previous) queryClient.setQueryData(context.key, context.previous);
-      toast({ title: t('applications.moveError'), tone: 'danger' });
+      const title = isConcurrencyConflict(error) ? t('common.concurrencyConflict') : t('applications.moveError');
+      toast({ title, tone: 'danger' });
     },
     onSettled: () => {
       if (jobId) queryClient.invalidateQueries({ queryKey: boardKey(jobId) });
