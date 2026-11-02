@@ -59,8 +59,9 @@ builder.Services.AddOpenApi(options =>
     });
 });
 
-// Order matters: the validation handler runs first.
+// Order matters: the specific handlers run first, the catch-all last.
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
+builder.Services.AddExceptionHandler<ConcurrencyExceptionHandler>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
