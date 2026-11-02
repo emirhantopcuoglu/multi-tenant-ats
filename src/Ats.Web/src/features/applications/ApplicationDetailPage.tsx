@@ -5,6 +5,7 @@ import { Button, Card, Skeleton, TabPanel, Tabs, useToast } from '@/components/u
 import { useAuth } from '@/app/auth/auth-context';
 import { canManageInterviews } from '@/features/interviews/interviewPermissions';
 import { ScheduleInterviewModal } from '@/features/interviews/components/ScheduleInterviewModal';
+import { isConcurrencyConflict } from '@/lib/problemDetails';
 import { canManageApplications } from './applicationPermissions';
 import { getCvDownloadUrl } from './applicationsApi';
 import { useJobStages } from './useApplications';
@@ -65,6 +66,12 @@ function ApplicationDetailView({ id }: { id: string }) {
 
   const busy = move.isPending || correctStage.isPending || reject.isPending || hire.isPending;
 
+  const showActionError = (error: unknown) =>
+    toast({
+      title: isConcurrencyConflict(error) ? t('common.concurrencyConflict') : t('applicationDetail.toast.error'),
+      tone: 'danger',
+    });
+
   const handleMove = (stageId: string) => {
     // Choosing the Interview stage opens the scheduling dialog; the server moves the stage once an
     // interview is scheduled.
@@ -76,7 +83,7 @@ function ApplicationDetailView({ id }: { id: string }) {
 
     move.mutate(stageId, {
       onSuccess: () => toast({ title: t('applicationDetail.toast.moved'), tone: 'success' }),
-      onError: () => toast({ title: t('applicationDetail.toast.error'), tone: 'danger' }),
+      onError: showActionError,
     });
   };
 
@@ -88,7 +95,7 @@ function ApplicationDetailView({ id }: { id: string }) {
           setCorrectStageOpen(false);
           toast({ title: t('applicationDetail.toast.corrected'), tone: 'success' });
         },
-        onError: () => toast({ title: t('applicationDetail.toast.error'), tone: 'danger' }),
+        onError: showActionError,
       },
     );
 
@@ -98,7 +105,7 @@ function ApplicationDetailView({ id }: { id: string }) {
         setRejectOpen(false);
         toast({ title: t('applicationDetail.toast.rejected'), tone: 'success' });
       },
-      onError: () => toast({ title: t('applicationDetail.toast.error'), tone: 'danger' }),
+      onError: showActionError,
     });
 
   const handleHire = () =>
@@ -107,7 +114,7 @@ function ApplicationDetailView({ id }: { id: string }) {
         setHireOpen(false);
         toast({ title: t('applicationDetail.toast.hired'), tone: 'success' });
       },
-      onError: () => toast({ title: t('applicationDetail.toast.error'), tone: 'danger' }),
+      onError: showActionError,
     });
 
   const openCv = async () => {

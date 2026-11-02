@@ -10,7 +10,8 @@
     "viewCareers": "View careers page",
     "errorTitle": "Something went wrong",
     "errorRetry": "Please try again later.",
-    "remove": "Remove"
+    "remove": "Remove",
+    "concurrencyConflict": "Someone else changed this first. The latest version is now shown."
   },
   "nav": {
     "overview": "Overview",

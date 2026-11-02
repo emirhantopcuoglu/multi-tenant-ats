@@ -10,7 +10,8 @@
     "viewCareers": "Kariyer sayfasını görüntüle",
     "errorTitle": "Bir hata oluştu",
     "errorRetry": "Lütfen daha sonra tekrar deneyin.",
-    "remove": "Kaldır"
+    "remove": "Kaldır",
+    "concurrencyConflict": "Bu kaydı sizden önce başka biri değiştirdi. Güncel hali gösteriliyor."
   },
   "nav": {
     "overview": "Genel bakış",
