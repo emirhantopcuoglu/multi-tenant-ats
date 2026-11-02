@@ -49,7 +49,10 @@ services:
     build: .
     image: ats-api
     container_name: ats-api
-    environment: *api-environment
+    environment:
+      <<: *api-environment
+      # 9464 serves /metrics and stays unpublished.
+      ASPNETCORE_HTTP_PORTS: "8080;9464"
     volumes:
       - ./secrets:/run/secrets:ro
     ports:

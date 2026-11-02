@@ -167,8 +167,8 @@ app.UseForwardedHeaders();
 
 app.UseExceptionHandler();
 
-// Before auth so Prometheus doesn't need a token. No business data here.
-app.UseMetricServer();
+// No token, so only on a port that is never published.
+app.UseMetricServer(app.Configuration.GetRequiredSection("Metrics:Port").Get<int>());
 
 app.UseHttpMetrics();
 
