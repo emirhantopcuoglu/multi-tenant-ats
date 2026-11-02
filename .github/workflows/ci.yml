@@ -137,6 +137,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Dev tools never reach the browser, so only shipped packages fail the build.
+      - name: Audit dependencies
+        run: npm audit --omit=dev --audit-level=high
+
       # Ordered cheapest-first so an obvious mistake fails in seconds rather than after a bundle.
       - name: Lint
         run: npm run lint
