@@ -18,6 +18,8 @@
     <PackageReference Include="Hangfire.PostgreSql" Version="1.21.1" />
     <PackageReference Include="MassTransit" Version="8.5.12" />
     <PackageReference Include="MassTransit.RabbitMQ" Version="8.5.12" />
+    <!-- Hangfire.Core only asks for 11.0.1, which has GHSA-5crp-9r3c-p9vr. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.22" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.20.1" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.20.1" />
