@@ -1,6 +1,9 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
+# Same build rules as CI: warnings as errors, NuGet audit, lock files.
+COPY Directory.Build.props ./
+
 # Copy only the source tree; tests are excluded by .dockerignore.
 # Restoring by project (not solution) avoids pulling test-only packages.
 COPY src/ src/
