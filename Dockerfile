@@ -4,7 +4,7 @@ WORKDIR /src
 # Copy only the source tree; tests are excluded by .dockerignore.
 # Restoring by project (not solution) avoids pulling test-only packages.
 COPY src/ src/
-RUN dotnet restore src/Ats.Api/Ats.Api.csproj
+RUN dotnet restore src/Ats.Api/Ats.Api.csproj --locked-mode
 
 RUN dotnet publish src/Ats.Api/Ats.Api.csproj \
     --configuration Release \
