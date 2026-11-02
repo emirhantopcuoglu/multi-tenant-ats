@@ -106,15 +106,9 @@ builder.Services.AddStackExchangeRedisCache(options =>
 builder.AddRateLimiting();
 builder.AddCorsForSpa();
 
-// Behind the proxy the client IP is in X-Forwarded-For, and the per-IP limiter depends on it.
-// Known networks are cleared because the proxy's Docker network is unknown; only safe while the API
-// is never exposed directly.
+// Only loopback is trusted to set X-Forwarded-For; add the proxy's network here once there is one.
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
-    options.KnownProxies.Clear();
-});
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto);
 
 builder.AddMessaging();
 builder.AddBackgroundJobs();
