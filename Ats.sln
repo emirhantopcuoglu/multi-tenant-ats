@@ -129,6 +129,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ats.Modules.CandidateAccoun
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ats.Modules.CandidateAccounts.Api", "src\Modules\CandidateAccounts\Api\Ats.Modules.CandidateAccounts.Api.csproj", "{A35A9163-D3F1-4774-AF26-4C0197ACC584}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ats.Api.IntegrationTests", "tests\Ats.Api.IntegrationTests\Ats.Api.IntegrationTests.csproj", "{33B66351-61B9-4516-A22E-4A965C85F856}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -511,6 +513,18 @@ Global
 		{A35A9163-D3F1-4774-AF26-4C0197ACC584}.Release|x64.Build.0 = Release|Any CPU
 		{A35A9163-D3F1-4774-AF26-4C0197ACC584}.Release|x86.ActiveCfg = Release|Any CPU
 		{A35A9163-D3F1-4774-AF26-4C0197ACC584}.Release|x86.Build.0 = Release|Any CPU
+		{33B66351-61B9-4516-A22E-4A965C85F856}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{33B66351-61B9-4516-A22E-4A965C85F856}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{33B66351-61B9-4516-A22E-4A965C85F856}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{33B66351-61B9-4516-A22E-4A965C85F856}.Debug|x64.Build.0 = Debug|Any CPU
+		{33B66351-61B9-4516-A22E-4A965C85F856}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{33B66351-61B9-4516-A22E-4A965C85F856}.Debug|x86.Build.0 = Debug|Any CPU
+		{33B66351-61B9-4516-A22E-4A965C85F856}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{33B66351-61B9-4516-A22E-4A965C85F856}.Release|Any CPU.Build.0 = Release|Any CPU
+		{33B66351-61B9-4516-A22E-4A965C85F856}.Release|x64.ActiveCfg = Release|Any CPU
+		{33B66351-61B9-4516-A22E-4A965C85F856}.Release|x64.Build.0 = Release|Any CPU
+		{33B66351-61B9-4516-A22E-4A965C85F856}.Release|x86.ActiveCfg = Release|Any CPU
+		{33B66351-61B9-4516-A22E-4A965C85F856}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -577,5 +591,6 @@ Global
 		{872EB828-0234-5F9A-7FC7-3C0D2D9715FB} = {F093B34D-D74B-A951-FC30-E8811B62D865}
 		{B5BD82B1-C676-45AC-A764-4B6B4035C138} = {872EB828-0234-5F9A-7FC7-3C0D2D9715FB}
 		{A35A9163-D3F1-4774-AF26-4C0197ACC584} = {872EB828-0234-5F9A-7FC7-3C0D2D9715FB}
+		{33B66351-61B9-4516-A22E-4A965C85F856} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

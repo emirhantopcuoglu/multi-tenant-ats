@@ -49,7 +49,7 @@ jobs:
           path: coverage/
           retention-days: 7
 
-  # Integration tests require Docker (Testcontainers pulls postgres:17-alpine).
+  # Integration tests require Docker (Testcontainers pulls the images).
   # ubuntu-latest runners have Docker pre-installed.
   integration:
     needs: unit-and-arch
@@ -71,6 +71,11 @@ jobs:
       - name: Integration tests
         run: |
           dotnet test tests/Ats.IntegrationTests/Ats.IntegrationTests.csproj \
+            --no-build --configuration Release
+
+      - name: API integration tests
+        run: |
+          dotnet test tests/Ats.Api.IntegrationTests/Ats.Api.IntegrationTests.csproj \
             --no-build --configuration Release
 
   # Builds the API image and boots it with its dependencies. Bus, DI and config errors only show up
