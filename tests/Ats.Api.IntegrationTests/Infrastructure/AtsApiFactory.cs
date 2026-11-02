@@ -73,7 +73,11 @@ public sealed class AtsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         foreach (var (key, value) in BuildSettings())
             builder.UseSetting(key, value);
 
-        builder.ConfigureTestServices(services => services.AddMassTransitTestHarness());
+        builder.ConfigureTestServices(services =>
+        {
+            services.AddMassTransitTestHarness();
+            services.AddTransient<IStartupFilter, ExternalClientIpStartupFilter>();
+        });
     }
 
     private Dictionary<string, string> BuildSettings() => new()
