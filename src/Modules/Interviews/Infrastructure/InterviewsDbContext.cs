@@ -32,6 +32,8 @@ public sealed class InterviewsDbContext : DbContext, IInterviewsDbContext
             entity.Property(i => i.CancellationReason).HasConversion<string>().HasMaxLength(30);
             entity.Property(i => i.CancellationNote).HasMaxLength(500);
             entity.Property(i => i.NoShowParty).HasConversion<string>().HasMaxLength(20);
+            // xmin as a concurrency token, so a save from a stale copy fails instead of overwriting.
+            entity.Property<uint>("xmin").IsRowVersion();
             // Null for phone screens. Postgres treats NULLs as distinct in a unique index.
             entity.Property(i => i.RoomToken).HasMaxLength(64);
 
