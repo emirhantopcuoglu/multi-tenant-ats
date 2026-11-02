@@ -36,5 +36,15 @@ public sealed class ApplicationAuthorizationTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Fact]
+    public async Task should_forbid_read_only_user_from_rejecting_an_application()
+    {
+        var client = _factory.CreateCompanyClient(Roles.ReadOnly, Guid.NewGuid());
+
+        var response = await client.PostAsJsonAsync(RejectUrl(Guid.NewGuid()), new { reason = "Not a fit." });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private static string RejectUrl(Guid applicationId) => $"/api/v1/applications/{applicationId}/reject";
 }
