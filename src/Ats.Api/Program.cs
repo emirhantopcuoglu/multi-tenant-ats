@@ -249,3 +249,6 @@ static Task WriteHealthCheckJson(HttpContext context, HealthReport report)
         })
     });
 }
+
+// For WebApplicationFactory<Program> in the API tests.
+public partial class Program;
