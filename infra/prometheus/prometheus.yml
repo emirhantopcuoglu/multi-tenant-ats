@@ -8,5 +8,6 @@ scrape_configs:
     # On Linux set PROMETHEUS_HOST=172.17.0.1 (or the Docker bridge IP) via environment variable,
     # or use extra_hosts: ["host.docker.internal:host-gateway"] in docker-compose.
     static_configs:
-      - targets: ["host.docker.internal:5236"]
+      # The first is `dotnet run`, the second the compose api service; one of them is always down.
+      - targets: ["host.docker.internal:9464", "api:9464"]
     metrics_path: /metrics
