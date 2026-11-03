@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// In-app reminder. Keyed on (interview, kind) for the same reason as InterviewReminderEmailConsumer.
+// In-app reminder. Keyed like InterviewReminderEmailConsumer, for the same reason.
 public sealed class InterviewReminderNotificationConsumer
     : IConsumer<InterviewReminderDueIntegrationEvent>
 {
@@ -39,7 +39,7 @@ public sealed class InterviewReminderNotificationConsumer
             return;
         }
 
-        var key = $"notifications:in-app:interview-reminder:{message.InterviewId}:{message.Kind}";
+        var key = $"notifications:in-app:interview-reminder:{InterviewReminderIdentity.For(message)}";
         var written = await _idempotencyGuard.ProcessOnceAsync(key, async () =>
         {
             _db.Notifications.Add(notification);
