@@ -69,6 +69,7 @@ public sealed class TenantsDbContext
             entity.Property(i => i.Role).IsRequired().HasMaxLength(50);
             entity.Property(i => i.TokenHash).IsRequired();
             entity.HasIndex(i => i.TokenHash);
+            entity.Property<uint>("xmin").IsRowVersion();
         });
 
         // Called through an instance method so EF re-reads _currentTenant on every query.
