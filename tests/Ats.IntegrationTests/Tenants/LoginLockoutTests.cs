@@ -44,6 +44,45 @@ public sealed class LoginLockoutTests
         Assert.Equal(AuthErrors.InvalidCredentials.Code, locked.Error.Code);
     }
 
+    // Guessing arrives in parallel. Failures that read the same count and each write count + 1 would
+    // never reach the limit.
+    [Fact]
+    public async Task Parallel_wrong_passwords_should_still_lock_the_account()
+    {
+        await using var provider = BuildProvider();
+        var email = await SeedUserAsync(provider);
+
+        await Task.WhenAll(Enumerable.Range(0, MaxAttempts).Select(_ => LoginAsync(provider, email, WrongPassword)));
+
+        Assert.NotNull(await LockoutEndAsync(provider, email));
+    }
+
+    [Fact]
+    public async Task Parallel_wrong_passwords_below_the_limit_should_all_be_counted()
+    {
+        await using var provider = BuildProvider();
+        var email = await SeedUserAsync(provider);
+
+        await Task.WhenAll(Enumerable.Range(0, MaxAttempts - 1).Select(_ => LoginAsync(provider, email, WrongPassword)));
+
+        Assert.Equal(MaxAttempts - 1, await FailedCountAsync(provider, email));
+        Assert.Null(await LockoutEndAsync(provider, email));
+    }
+
+    // Every guess must get the normal wrong-password answer, not an error from a lost race.
+    [Fact]
+    public async Task A_burst_of_parallel_wrong_passwords_should_lock_without_failing_any_request()
+    {
+        await using var provider = BuildProvider();
+        var email = await SeedUserAsync(provider);
+
+        var results = await Task.WhenAll(
+            Enumerable.Range(0, 20).Select(_ => LoginAsync(provider, email, WrongPassword)));
+
+        Assert.All(results, result => Assert.Equal(AuthErrors.InvalidCredentials.Code, result.Error.Code));
+        Assert.NotNull(await LockoutEndAsync(provider, email));
+    }
+
     [Fact]
     public async Task A_locked_account_should_answer_a_right_password_exactly_like_a_wrong_one()
     {
@@ -153,6 +192,14 @@ public sealed class LoginLockoutTests
         var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var user = await users.FindByEmailAsync(email);
         return user!.AccessFailedCount;
+    }
+
+    private static async Task<DateTimeOffset?> LockoutEndAsync(ServiceProvider provider, string email)
+    {
+        using var scope = provider.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await users.FindByEmailAsync(email);
+        return user!.LockoutEnd;
     }
 
     private static async Task<string> SeedUserAsync(ServiceProvider provider)
