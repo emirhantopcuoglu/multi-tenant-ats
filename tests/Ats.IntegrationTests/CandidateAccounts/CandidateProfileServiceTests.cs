@@ -313,6 +313,32 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         Assert.Contains(emailSender.Sent, mail => mail.ToEmail == "jane@example.com");
     }
 
+    // A conflict must surface as a conflict (409), not as "address already registered".
+    [Fact]
+    public async Task ConfirmEmailChange_should_not_report_a_concurrent_edit_as_a_taken_address()
+    {
+        var accountId = await SeedAccountAsync("Old!passw0rd");
+        var emailSender = new RecordingEmailSender();
+        await CreateService(emailSender).RequestEmailChangeAsync(
+            accountId, new RequestCandidateEmailChangeCommand($"{Guid.NewGuid():N}@example.com", "Old!passw0rd"));
+        var rawToken = ExtractToken(emailSender.Sent.Single().Body);
+
+        // The confirming context holds a copy read before another edit was saved; the service's own
+        // query returns that tracked copy instead of rereading.
+        await using var staleDb = CreateDbContext();
+        await staleDb.CandidateAccounts.SingleAsync(a => a.Id == accountId);
+        await using (var otherDb = CreateDbContext())
+        {
+            var account = await otherDb.CandidateAccounts.SingleAsync(a => a.Id == accountId);
+            account.SetPreferredLanguage("tr");
+            await otherDb.SaveChangesAsync();
+        }
+
+        var confirm = () => CreateService(db: staleDb).ConfirmEmailChangeAsync(rawToken);
+
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(confirm);
+    }
+
     [Fact]
     public async Task ConfirmEmailChange_should_reject_a_reused_token()
     {
@@ -457,11 +483,12 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
     private static CandidateTokenService CreateTokenService() => new(CreateJwtOptions());
 
     private CandidateProfileService CreateService(
-        RecordingEmailSender? emailSender = null, RecordingFileStorage? fileStorage = null)
+        RecordingEmailSender? emailSender = null, RecordingFileStorage? fileStorage = null,
+        CandidateAccountsDbContext? db = null)
     {
         // One DbContext shared with the session issuer, matching how DI scopes them in the app: the
         // password change rotates the stamp and re-issues a session, and both writes belong together.
-        var db = CreateDbContext();
+        db ??= CreateDbContext();
 
         return new CandidateProfileService(
             db,
