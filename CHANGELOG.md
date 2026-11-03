@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.13.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.12.1...v0.13.0) (2026-11-03)
+
+
+### Features
+
+* **api:** add a migrate command ([#223](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/223)) ([1c8f80a](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/1c8f80af4433ae7a73d1d1e92418fd141bce8973))
+* **api:** keep DataProtection keys in Postgres, encrypted with a certificate ([#227](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/227)) ([3a186b1](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/3a186b139fbf0ab6de12d9fcb77d5e018d85b2b2))
+* **compose:** run the API and migrations in Docker ([#224](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/224)) ([f8feabe](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/f8feabec0e6143d671ad2388fe7cc87b1795b026))
+
+
+### Bug Fixes
+
+* **api:** only trust X-Forwarded-For from loopback ([#230](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/230)) ([796825b](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/796825b875035b4e207f32fab922f75ef3211761))
+* **api:** serve /metrics only on an unpublished port ([#231](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/231)) ([e2d10bb](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/e2d10bbf21c414a1e463b88def8dbd9c7b9694cd))
+* **applications:** stop concurrent edits from overwriting each other ([#238](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/238)) ([2931510](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/29315107d1f690e26a8f92058cd46c7d28dc505b))
+* **auth:** count every failed company login under parallel attempts ([#243](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/243)) ([838d160](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/838d1603a47ea440fde3b1d13aad956d5ead5346))
+* **candidate-accounts:** count every failed login under parallel attempts ([#242](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/242)) ([55c534c](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/55c534c66df54d4d63a8fd5d7deed02b888da74b))
+* **candidate-accounts:** retry candidate saves that lose to a login attempt ([#246](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/246)) ([95d7aa8](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/95d7aa8545ac8d5f8c94a08d2947242bc889605c))
+* **compose:** use the Chainguard MinIO image ([#226](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/226)) ([577a7f1](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/577a7f1e3e4a9bee7799ba4c1bd48c80702cdf8c))
+* **deps:** bump follow-redirects to 1.16.2 ([#233](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/233)) ([1e4823c](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/1e4823cc8737a8b052149679530bc173af1685fe))
+* **deps:** pin Newtonsoft.Json to 13.0.4 ([#232](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/232)) ([08596a8](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/08596a86976f0946dc855954a123a958fe11cc41))
+* **docker:** build the image with the repo's build rules ([#237](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/237)) ([7a21ffb](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/7a21ffb23b3a651b694d84d61b15192d049067a7))
+* **interviews:** answer a parallel duplicate feedback with 409, not 500 ([#244](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/244)) ([49c3800](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/49c38001316b843e0cf19731e2087324c006498c))
+* **interviews:** stop concurrent edits from overwriting each other ([#240](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/240)) ([5cb47c7](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/5cb47c7da3d508cef0efd9585b119f763f45a425))
+* **invitations:** make accepting an invitation atomic and race-safe ([#247](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/247)) ([9233e98](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/9233e98568839ba59fdccac01ddb7bcbfffb463f))
+* **notifications:** send the reminder for a rescheduled interview time ([#241](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/241)) ([7489ceb](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/7489ceb0bade258c4913d0219cb75b4e9ebfb95c))
+* stop stale job and company forms from overwriting newer saves ([#245](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/245)) ([9a40e7d](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/9a40e7d71683a2482e6df1fba8ec674d8910a158))
+* **web:** show a clear message when someone else saved first ([#239](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/239)) ([1d67781](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/1d67781e69393a2a8a1d6fedc769199352141f02))
+
 ## [0.12.1](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.12.0...v0.12.1) (2026-10-30)
 
 
