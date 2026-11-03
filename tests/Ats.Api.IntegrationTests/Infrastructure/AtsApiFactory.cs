@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Ats.Api;
 using Ats.Api.Extensions;
+using Ats.Modules.CandidateAccounts.Application;
 using Ats.Modules.Tenants.Application;
 using Ats.Modules.Tenants.Domain;
 using MassTransit;
@@ -25,6 +26,8 @@ public sealed class AtsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
     private const string MinioImage = "cgr.dev/chainguard/minio:latest";
     private const string JwtSecret = "integration-tests-only-jwt-secret-0123456789";
     private const string CertificatePassword = "integration-tests";
+
+    public const string SpaOrigin = "https://spa.test";
 
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine").Build();
     private readonly MongoDbContainer _mongo = new MongoDbBuilder("mongo:7").Build();
@@ -64,6 +67,18 @@ public sealed class AtsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         return client;
     }
 
+    // The account isn't in the database, so CandidateOnly endpoints fail its stamp check; company ones fail on role.
+    public HttpClient CreateCandidateClient()
+    {
+        using var scope = Services.CreateScope();
+        var tokenService = scope.ServiceProvider.GetRequiredService<ICandidateTokenService>();
+
+        var client = CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", tokenService.GenerateAccessToken(Guid.NewGuid(), "candidate@acme.test", Guid.NewGuid()));
+        return client;
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         // Keeps User Secrets and appsettings.Development.json out.
@@ -90,7 +105,8 @@ public sealed class AtsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         ["FileStorage:SecretKey"] = _minio.GetSecretKey(),
         ["Jwt:Secret"] = JwtSecret,
         ["DataProtection:CertificatePath"] = _certificatePath,
-        ["DataProtection:CertificatePassword"] = CertificatePassword
+        ["DataProtection:CertificatePassword"] = CertificatePassword,
+        ["Cors:AllowedOrigins:0"] = SpaOrigin
     };
 
     // Startup seeds roles, so migrate first.
