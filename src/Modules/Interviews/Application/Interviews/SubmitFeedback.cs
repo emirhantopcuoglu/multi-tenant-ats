@@ -44,11 +44,7 @@ public sealed class SubmitInterviewFeedbackHandler : ICommandHandler<SubmitInter
         if (!interview.CanReceiveFeedback(DateTime.UtcNow))
             return Result.Failure<Guid>(InterviewErrors.FeedbackNotEligible);
 
-        var alreadySubmitted = await _db.Feedback.AnyAsync(
-            f => f.InterviewId == command.InterviewId
-              && f.InterviewerUserId == command.InterviewerUserId, ct);
-
-        if (alreadySubmitted)
+        if (await IsAlreadySubmittedAsync(command, ct))
             return Result.Failure<Guid>(InterviewErrors.DuplicateFeedback);
 
         var feedback = InterviewFeedback.Submit(
@@ -56,8 +52,23 @@ public sealed class SubmitInterviewFeedbackHandler : ICommandHandler<SubmitInter
             command.Rating, command.Recommendation, command.Comments);
 
         _db.Feedback.Add(feedback);
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // A parallel submission saved first and the unique index refused this one.
+            if (!await IsAlreadySubmittedAsync(command, ct))
+                throw;
+            return Result.Failure<Guid>(InterviewErrors.DuplicateFeedback);
+        }
 
         return Result.Success(feedback.Id);
     }
+
+    private Task<bool> IsAlreadySubmittedAsync(SubmitInterviewFeedbackCommand command, CancellationToken ct) =>
+        _db.Feedback.AnyAsync(
+            f => f.InterviewId == command.InterviewId
+              && f.InterviewerUserId == command.InterviewerUserId, ct);
 }
