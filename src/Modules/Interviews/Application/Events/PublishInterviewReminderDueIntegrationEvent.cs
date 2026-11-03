@@ -5,7 +5,7 @@ using MediatR;
 namespace Ats.Modules.Interviews.Application.Events;
 
 // Doesn't use IntegrationEventBridge: delivering the reminder is the whole job, so a broker
-// failure should fail the sweep and let Hangfire retry. Consumers dedupe on (interview, kind).
+// failure should fail the sweep and let Hangfire retry. Consumers dedupe on (interview, kind, start time).
 public sealed class PublishInterviewReminderDueIntegrationEvent
     : INotificationHandler<InterviewReminderDueEvent>
 {

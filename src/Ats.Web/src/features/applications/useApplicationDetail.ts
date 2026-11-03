@@ -26,7 +26,7 @@ export function useCvParseResult(id: string) {
   return useQuery({ queryKey: cvParseKey(id), queryFn: () => getCvParseResult(id), retry: false });
 }
 
-/* All invalidate the detail, timeline, lists and board. */
+/* All invalidate the detail, timeline, lists and board, on failure too: a 409 means the page is stale. */
 export function useApplicationActions(id: string) {
   const queryClient = useQueryClient();
   const invalidate = () => {
@@ -37,20 +37,20 @@ export function useApplicationActions(id: string) {
 
   const move = useMutation({
     mutationFn: (targetStageId: string) => moveApplicationStage(id, targetStageId),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   });
   const correctStage = useMutation({
     mutationFn: ({ targetStageId, reason }: { targetStageId: string; reason: string }) =>
       correctApplicationStage(id, targetStageId, reason),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   });
   const reject = useMutation({
     mutationFn: (reason: string) => rejectApplication(id, reason),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   });
   const hire = useMutation({
     mutationFn: () => hireApplication(id),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   });
 
   return { move, correctStage, reject, hire };

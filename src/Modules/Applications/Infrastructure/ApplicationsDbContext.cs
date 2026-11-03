@@ -59,6 +59,8 @@ public sealed class ApplicationsDbContext : DbContext, IApplicationsDbContext
             entity.Property(a => a.CoverLetter).HasMaxLength(5000);
             entity.Property(a => a.RejectionReason).HasMaxLength(1000);
             entity.Property(a => a.Status).HasConversion<string>().HasMaxLength(20);
+            // xmin as a concurrency token, so a save from a stale copy fails instead of overwriting.
+            entity.Property<uint>("xmin").IsRowVersion();
             entity.HasIndex(a => new { a.TenantId, a.JobId, a.CandidateId });
             // One active application per (tenant, job, candidate). Partial, so a withdrawn or rejected
             // candidate can apply again. The handler's pre-check alone can't stop concurrent submits.

@@ -20,6 +20,9 @@ public sealed class Job : ITenantScoped, IAuditable, ISoftDeletable
     public DateTime? PublishedAtUtc { get; private set; }
     public DateTime? ClosedAtUtc { get; private set; }
 
+    // Changes on every save. The edit form sends back the one it loaded.
+    public uint Version { get; private set; }
+
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }

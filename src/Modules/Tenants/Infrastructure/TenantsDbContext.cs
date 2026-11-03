@@ -1,13 +1,15 @@
 using System.Reflection;
 using Ats.Modules.Tenants.Domain;
 using Ats.Shared.Kernel;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Tenants.Infrastructure;
 
-public sealed class TenantsDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
+public sealed class TenantsDbContext
+    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>, IDataProtectionKeyContext
 {
     private readonly ICurrentTenant _currentTenant;
 
@@ -22,6 +24,9 @@ public sealed class TenantsDbContext : IdentityDbContext<ApplicationUser, Identi
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public DbSet<Invitation> Invitations => Set<Invitation>();
+
+    // Key ring for Identity's confirmation and reset tokens. See DataProtectionSetup.
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -38,6 +43,7 @@ public sealed class TenantsDbContext : IdentityDbContext<ApplicationUser, Identi
             entity.Property(t => t.Description).HasMaxLength(Tenant.DescriptionMaxLength);
             entity.Property(t => t.Website).HasMaxLength(Tenant.WebsiteMaxLength);
             entity.Property(t => t.Location).HasMaxLength(Tenant.LocationMaxLength);
+            entity.Property(t => t.Version).IsRowVersion();
         });
 
         builder.Entity<ApplicationUser>(entity =>
@@ -63,6 +69,7 @@ public sealed class TenantsDbContext : IdentityDbContext<ApplicationUser, Identi
             entity.Property(i => i.Role).IsRequired().HasMaxLength(50);
             entity.Property(i => i.TokenHash).IsRequired();
             entity.HasIndex(i => i.TokenHash);
+            entity.Property<uint>("xmin").IsRowVersion();
         });
 
         // Called through an instance method so EF re-reads _currentTenant on every query.

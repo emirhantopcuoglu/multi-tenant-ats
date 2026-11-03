@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Badge, Button, Card, Skeleton, useToast } from '@/components/ui';
 import { useAuth } from '@/app/auth/auth-context';
-import { toApiError } from '@/lib/problemDetails';
+import { isConcurrencyConflict, toApiError } from '@/lib/problemDetails';
 import { fullName, useUserLookup } from '@/features/users/useUsers';
 import { getApplication } from '@/features/applications/applicationsApi';
 import { applicationDetailKey } from '@/features/applications/useApplicationDetail';
@@ -134,7 +134,7 @@ function InterviewDetailView({ id }: { id: string }) {
 
   // A refused transition means the page is stale: the start time passed or someone else acted first.
   const actionErrorMessage = (error: unknown): string =>
-    toApiError(error).code === 'interview.transition_not_allowed'
+    toApiError(error).code === 'interview.transition_not_allowed' || isConcurrencyConflict(error)
       ? t('interviews.toast.stale')
       : t('interviews.toast.error');
 

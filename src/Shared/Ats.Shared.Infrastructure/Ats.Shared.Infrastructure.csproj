@@ -20,16 +20,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FluentValidation" Version="11.10.0" />
-    <PackageReference Include="MailKit" Version="4.17.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.0" />
-    <PackageReference Include="Minio" Version="6.0.3" />
-    <PackageReference Include="MongoDB.Driver" Version="3.9.0" />
-    <PackageReference Include="PdfPig" Version="0.1.15" />
-    <PackageReference Include="Polly.Core" Version="8.7.0" />
+    <PackageReference Include="FluentValidation" Version="11.12.0" />
+    <PackageReference Include="MailKit" Version="4.18.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.22" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.22" />
+    <PackageReference Include="Minio" Version="6.0.5" />
+    <PackageReference Include="MongoDB.Driver" Version="3.13.0" />
+    <PackageReference Include="PdfPig" Version="0.1.16" />
+    <PackageReference Include="Polly.Core" Version="8.9.0" />
     <PackageReference Include="prometheus-net" Version="8.2.1" />
-    <PackageReference Include="StackExchange.Redis" Version="2.8.58" />
+    <PackageReference Include="StackExchange.Redis" Version="2.13.17" />
   </ItemGroup>
 
   <PropertyGroup>

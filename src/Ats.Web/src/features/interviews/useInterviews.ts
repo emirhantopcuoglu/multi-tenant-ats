@@ -47,27 +47,27 @@ export function useScheduleInterview() {
   });
 }
 
-/* Toasts are left to the caller. */
+/* Toasts are left to the caller. Failures refresh too: a refused action means a stale page. */
 export function useInterviewActions(id: string) {
   const queryClient = useQueryClient();
   const invalidate = () => queryClient.invalidateQueries({ queryKey: INTERVIEWS_KEY });
 
   const reschedule = useMutation({
     mutationFn: (body: RescheduleRequest) => rescheduleInterview(id, body),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   });
   const cancel = useMutation({
     mutationFn: (body: CancelInterviewRequest) => cancelInterview(id, body),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   });
-  const complete = useMutation({ mutationFn: () => completeInterview(id), onSuccess: invalidate });
+  const complete = useMutation({ mutationFn: () => completeInterview(id), onSettled: invalidate });
   const noShow = useMutation({
     mutationFn: (body: MarkNoShowRequest) => markInterviewNoShow(id, body),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   });
   const reassign = useMutation({
     mutationFn: (body: ReassignInterviewersRequest) => reassignInterviewers(id, body),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   });
 
   return { reschedule, cancel, complete, noShow, reassign };

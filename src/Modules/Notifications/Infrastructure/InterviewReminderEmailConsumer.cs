@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// Keyed on (interview, kind), not the message id: the sweep can republish the same reminder
+// Keyed on InterviewReminderIdentity, not the message id: the sweep can republish the same reminder
 // under a new message id after a failed save.
 public sealed class InterviewReminderEmailConsumer
     : IConsumer<InterviewReminderDueIntegrationEvent>
@@ -40,7 +40,7 @@ public sealed class InterviewReminderEmailConsumer
     {
         var message = context.Message;
 
-        var key = $"notifications:interview-reminder-email:{message.InterviewId}:{message.Kind}";
+        var key = $"notifications:interview-reminder-email:{InterviewReminderIdentity.For(message)}";
         var sent = await _idempotencyGuard.ProcessOnceAsync(
             key, () => SendAsync(message, context.CancellationToken));
 

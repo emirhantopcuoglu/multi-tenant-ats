@@ -202,8 +202,7 @@ public sealed class CorrectApplicationStageHandler : ICommandHandler<CorrectAppl
 }
 
 // Sent by the API when a company user opens the application; there is no client endpoint for it,
-// so it can't be faked. Only the first view counts. A concurrent double view may log twice; the
-// candidate view reads only the earliest.
+// so it can't be faked. Only the first view counts.
 public sealed record MarkApplicationViewedCommand(Guid ApplicationId) : ICommand<bool>;
 
 public sealed class MarkApplicationViewedHandler : ICommandHandler<MarkApplicationViewedCommand, bool>
@@ -249,7 +248,8 @@ public sealed class MarkApplicationViewedHandler : ICommandHandler<MarkApplicati
                 application.CandidateId, application.CandidateAccountId, application.TenantId),
             ct);
 
-        await _db.SaveChangesAsync(ct);
+        if (!await FirstStampSave.TrySaveAsync(_db, ct))
+            return Result.Success(false);
 
         await _activityLog.TryAddAsync(
             ApplicationActivity.Viewed(application.Id, _currentUser.UserId), _logger, ct);
@@ -293,9 +293,24 @@ public sealed class MarkCvDownloadedHandler : ICommandHandler<MarkCvDownloadedCo
                 application.CandidateId, application.CandidateAccountId, application.TenantId),
             ct);
 
-        await _db.SaveChangesAsync(ct);
+        return Result.Success(await FirstStampSave.TrySaveAsync(_db, ct));
+    }
+}
 
-        return Result.Success(true);
+// These stamps are saved inside GET requests, so losing a race returns false instead of a 409.
+internal static class FirstStampSave
+{
+    internal static async Task<bool> TrySaveAsync(IApplicationsDbContext db, CancellationToken ct)
+    {
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return false;
+        }
     }
 }
 

@@ -45,6 +45,41 @@ public sealed class CandidateLoginLockoutTests
         Assert.Equal(CandidateAuthErrors.InvalidCredentials.Code, locked.Error.Code);
     }
 
+    // Lockout exists for distributed guessing, which arrives in parallel. Failures that read the same
+    // count and each write count + 1 would never reach the limit.
+    [Fact]
+    public async Task Parallel_wrong_passwords_should_still_lock_the_account()
+    {
+        var email = await SeedAsync();
+
+        await Task.WhenAll(Enumerable.Range(0, MaxAttempts).Select(_ => LoginAsync(email, WrongPassword)));
+
+        Assert.NotNull(await LockoutEndAsync(email));
+    }
+
+    [Fact]
+    public async Task Parallel_wrong_passwords_below_the_limit_should_all_be_counted()
+    {
+        var email = await SeedAsync();
+
+        await Task.WhenAll(Enumerable.Range(0, MaxAttempts - 1).Select(_ => LoginAsync(email, WrongPassword)));
+
+        Assert.Equal(MaxAttempts - 1, await FailedCountAsync(email));
+        Assert.Null(await LockoutEndAsync(email));
+    }
+
+    // Every guess must get the normal wrong-password answer, not an error from a lost race.
+    [Fact]
+    public async Task A_burst_of_parallel_wrong_passwords_should_lock_without_failing_any_request()
+    {
+        var email = await SeedAsync();
+
+        var results = await Task.WhenAll(Enumerable.Range(0, 20).Select(_ => LoginAsync(email, WrongPassword)));
+
+        Assert.All(results, result => Assert.Equal(CandidateAuthErrors.InvalidCredentials.Code, result.Error.Code));
+        Assert.NotNull(await LockoutEndAsync(email));
+    }
+
     [Fact]
     public async Task A_locked_account_should_answer_a_right_password_exactly_like_a_wrong_one()
     {

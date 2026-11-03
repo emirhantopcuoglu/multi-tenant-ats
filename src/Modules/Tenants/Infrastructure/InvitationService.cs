@@ -93,18 +93,41 @@ public sealed class InvitationService : IInvitationService
             EmailConfirmed = true
         };
 
-        var result = await _userManager.CreateAsync(user, password);
-        if (!result.Succeeded)
-            return Result.Failure(InvitationErrors.CreationFailed(
-                string.Join("; ", result.Errors.Select(e => e.Description))));
+        try
+        {
+            return await CreateMemberAsync(invitation, user, password, ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // A parallel accept of the same link claimed it first.
+            return Result.Failure(InvitationErrors.InvalidToken);
+        }
+    }
 
-        await _userManager.AddToRoleAsync(user, invitation.Role);
+    // One transaction, so a failure part-way leaves the link usable and no user blocking the retry.
+    private async Task<Result> CreateMemberAsync(
+        Invitation invitation, ApplicationUser user, string password, CancellationToken ct)
+    {
+        await using var transaction = await _db.Database.BeginTransactionAsync(ct);
 
+        // Claimed first: a parallel accept waits on this row, then fails the xmin check.
         invitation.MarkAccepted();
         await _db.SaveChangesAsync(ct);
 
+        var created = await _userManager.CreateAsync(user, password);
+        if (!created.Succeeded)
+            return Result.Failure(InvitationErrors.CreationFailed(Describe(created)));
+
+        var roleAdded = await _userManager.AddToRoleAsync(user, invitation.Role);
+        if (!roleAdded.Succeeded)
+            return Result.Failure(InvitationErrors.CreationFailed(Describe(roleAdded)));
+
+        await transaction.CommitAsync(ct);
         return Result.Success();
     }
+
+    private static string Describe(IdentityResult result) =>
+        string.Join("; ", result.Errors.Select(e => e.Description));
 
     // Falls back to the default language rather than failing the invitation.
     private async Task<string> ResolveInviterLanguageAsync(CancellationToken ct)

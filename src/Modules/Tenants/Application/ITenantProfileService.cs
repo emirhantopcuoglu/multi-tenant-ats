@@ -8,12 +8,14 @@ public sealed record TenantProfileDto(
     string Slug,
     string? Description,
     string? Website,
-    string? Location);
+    string? Location,
+    uint Version);
 
 public sealed record UpdateTenantProfileRequest(
     string? Description,
     string? Website,
-    string? Location);
+    string? Location,
+    uint Version);
 
 public interface ITenantProfileService
 {

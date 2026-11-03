@@ -109,12 +109,16 @@ public sealed class AuthService : IAuthService
 
         if (!await _userManager.CheckPasswordAsync(user, password))
         {
-            await _userManager.AccessFailedAsync(user);
+            await SaveCounterChangeAsync(user, async current =>
+                // A parallel failure may have locked it since we read it; guesses during a lockout don't count.
+                await _userManager.IsLockedOutAsync(current)
+                    ? IdentityResult.Success
+                    : await _userManager.AccessFailedAsync(current));
             return Result.Failure<AuthResult>(AuthErrors.InvalidCredentials);
         }
 
         if (user.AccessFailedCount > 0)
-            await _userManager.ResetAccessFailedCountAsync(user);
+            await SaveCounterChangeAsync(user, current => _userManager.ResetAccessFailedCountAsync(current));
 
         // Same error as a wrong password, so it doesn't reveal which accounts still exist.
         if (!user.IsActive)
@@ -341,6 +345,35 @@ public sealed class AuthService : IAuthService
             .ToListAsync();
 
         return users;
+    }
+
+    // Parallel logins to one user race on its failure counter. Identity's ConcurrencyStamp makes the
+    // losing saves return ConcurrencyFailure instead of overwriting, and the loser rereads the user and
+    // applies its change again, so every failure is counted. Each conflict means another login's save
+    // went through, so after MaxFailedAccessAttempts conflicts the user is locked and the reread stops
+    // the loop.
+    private async Task SaveCounterChangeAsync(
+        ApplicationUser user, Func<ApplicationUser, Task<IdentityResult>> applyChange)
+    {
+        var maxAttempts = _userManager.Options.Lockout.MaxFailedAccessAttempts;
+
+        for (var attempt = 1; ; attempt++)
+        {
+            var result = await applyChange(user);
+            if (result.Succeeded)
+                return;
+
+            var isConflict = result.Errors.Any(e => e.Code == nameof(IdentityErrorDescriber.ConcurrencyFailure));
+            if (!isConflict || attempt > maxAttempts)
+            {
+                _logger.LogWarning(
+                    "Failed to save the login failure counter for user {UserId}: {Errors}",
+                    user.Id, string.Join(", ", result.Errors.Select(e => e.Code)));
+                return;
+            }
+
+            await _db.Entry(user).ReloadAsync();
+        }
     }
 
     private async Task<AuthResult> IssueTokensAsync(ApplicationUser user)

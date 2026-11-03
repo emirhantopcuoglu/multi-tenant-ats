@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Skeleton, useToast } from '@/components/ui';
 import { useAuth } from '@/app/auth/auth-context';
+import { isConcurrencyConflict } from '@/lib/problemDetails';
 import { canManageJobs } from './jobPermissions';
 import { useJob, useJobActions, useJobForm } from './useJobs';
 import { JobForm } from './components/JobForm';
@@ -25,6 +27,10 @@ export function JobFormPage() {
   const { data: job, isLoading, isError } = useJob(id);
   const { create, update } = useJobForm();
   const { publish } = useJobActions();
+
+  // Kept from the first load: a later refetch must not let a stale form save over newer changes.
+  const [openedVersion, setOpenedVersion] = useState<number>();
+  if (job && openedVersion === undefined) setOpenedVersion(job.version);
 
   if (!canManageJobs(role)) return <Navigate to="/jobs" replace />;
 
@@ -55,12 +61,13 @@ export function JobFormPage() {
     const body = valuesToRequest(values);
     try {
       const jobId = isEdit ? (id as string) : await create.mutateAsync(body);
-      if (isEdit) await update.mutateAsync({ id: jobId, body });
+      if (isEdit) await update.mutateAsync({ id: jobId, body, version: openedVersion as number });
       if (doPublish) await publish.mutateAsync(jobId);
       toast({ title: t(doPublish ? 'jobForm.publishedToast' : 'jobForm.savedToast'), tone: 'success' });
       navigate('/jobs');
-    } catch {
-      toast({ title: t('jobs.toast.error'), tone: 'danger' });
+    } catch (error) {
+      const message = isConcurrencyConflict(error) ? 'common.editConflict' : 'jobs.toast.error';
+      toast({ title: t(message), tone: 'danger' });
     }
   };
 

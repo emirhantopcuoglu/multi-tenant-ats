@@ -22,6 +22,7 @@ export interface JobDetail extends Job {
   salaryMax: number | null;
   salaryCurrency: string | null;
   publishedAtUtc: string | null;
+  version: number;
 }
 
 /* Used for both create and update. CreatedBy comes from the token. */

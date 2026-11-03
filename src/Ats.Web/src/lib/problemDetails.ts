@@ -60,3 +60,10 @@ export function toApiError(error: unknown): ApiError {
 
   return UNKNOWN_ERROR;
 }
+
+/* Sent by the API when another user saved the same record first. */
+const CONCURRENCY_CONFLICT_CODE = 'concurrency_conflict';
+
+export function isConcurrencyConflict(error: unknown): boolean {
+  return toApiError(error).code === CONCURRENCY_CONFLICT_CODE;
+}

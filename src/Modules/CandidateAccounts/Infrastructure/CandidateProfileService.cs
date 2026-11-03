@@ -54,38 +54,39 @@ public sealed class CandidateProfileService : ICandidateProfileService
             : Result.Success(ToDto(account));
     }
 
-    public async Task<Result<CandidateProfileDto>> UpdateAsync(
-        Guid candidateAccountId, UpdateCandidateProfileCommand command)
-    {
-        var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
-        if (account is null)
-            return Result.Failure<CandidateProfileDto>(CandidateProfileErrors.NotFound);
-
-        var country = NullIfWhiteSpace(command.Country);
-        var city = NullIfWhiteSpace(command.City);
-
-        if (country is not null &&
-            (!SupportedCountries.CitiesByCountry.TryGetValue(country, out var cities) ||
-             city is null || !cities.Contains(city)))
+    public Task<Result<CandidateProfileDto>> UpdateAsync(
+        Guid candidateAccountId, UpdateCandidateProfileCommand command) =>
+        ConflictRetry.RunAsync(_db, async () =>
         {
-            return Result.Failure<CandidateProfileDto>(CandidateProfileErrors.UnsupportedLocation);
-        }
+            var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
+            if (account is null)
+                return Result.Failure<CandidateProfileDto>(CandidateProfileErrors.NotFound);
 
-        try
-        {
-            account.UpdateProfile(
-                command.FirstName, command.LastName, command.PhoneNumber, country, city, command.BirthDate);
-        }
-        catch (ArgumentException invariantViolation)
-        {
-            // Domain guards throw; turn them into a 400 instead of a 500.
-            return Result.Failure<CandidateProfileDto>(
-                CandidateProfileErrors.InvalidData(invariantViolation.Message));
-        }
+            var country = NullIfWhiteSpace(command.Country);
+            var city = NullIfWhiteSpace(command.City);
 
-        await _db.SaveChangesAsync();
-        return Result.Success(ToDto(account));
-    }
+            if (country is not null &&
+                (!SupportedCountries.CitiesByCountry.TryGetValue(country, out var cities) ||
+                 city is null || !cities.Contains(city)))
+            {
+                return Result.Failure<CandidateProfileDto>(CandidateProfileErrors.UnsupportedLocation);
+            }
+
+            try
+            {
+                account.UpdateProfile(
+                    command.FirstName, command.LastName, command.PhoneNumber, country, city, command.BirthDate);
+            }
+            catch (ArgumentException invariantViolation)
+            {
+                // Domain guards throw; turn them into a 400 instead of a 500.
+                return Result.Failure<CandidateProfileDto>(
+                    CandidateProfileErrors.InvalidData(invariantViolation.Message));
+            }
+
+            await _db.SaveChangesAsync();
+            return Result.Success(ToDto(account));
+        });
 
     public async Task<Result> SetPreferredLanguageAsync(Guid candidateAccountId, string language)
     {
@@ -93,14 +94,16 @@ public sealed class CandidateProfileService : ICandidateProfileService
         if (!SupportedLanguages.IsSupported(language))
             return Result.Failure(CandidateProfileErrors.UnsupportedLanguage);
 
-        var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
-        if (account is null)
-            return Result.Failure(CandidateProfileErrors.NotFound);
+        return await ConflictRetry.RunAsync(_db, async () =>
+        {
+            var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
+            if (account is null)
+                return Result.Failure(CandidateProfileErrors.NotFound);
 
-        account.SetPreferredLanguage(language);
-        await _db.SaveChangesAsync();
-
-        return Result.Success();
+            account.SetPreferredLanguage(language);
+            await _db.SaveChangesAsync();
+            return Result.Success();
+        });
     }
 
     public async Task<Result<CandidatePasswordChangeResult>> ChangePasswordAsync(
@@ -109,24 +112,31 @@ public sealed class CandidateProfileService : ICandidateProfileService
         if (!CandidatePasswordPolicy.IsAcceptable(command.NewPassword))
             return Result.Failure<CandidatePasswordChangeResult>(CandidateProfileErrors.PasswordTooShort);
 
-        var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
-        if (account is null)
-            return Result.Failure<CandidatePasswordChangeResult>(CandidateProfileErrors.NotFound);
+        var changed = await ConflictRetry.RunAsync(_db, async () =>
+        {
+            var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
+            if (account is null)
+                return Result.Failure<CandidateAccount>(CandidateProfileErrors.NotFound);
 
-        // A stolen session alone must not be able to lock the owner out.
-        if (!_passwordHasher.Verify(account.PasswordHash, command.CurrentPassword))
-            return Result.Failure<CandidatePasswordChangeResult>(CandidateProfileErrors.InvalidCurrentPassword);
+            // A stolen session alone must not be able to lock the owner out.
+            if (!_passwordHasher.Verify(account.PasswordHash, command.CurrentPassword))
+                return Result.Failure<CandidateAccount>(CandidateProfileErrors.InvalidCurrentPassword);
 
-        account.ChangePassword(_passwordHasher.Hash(command.NewPassword));
-        await _db.SaveChangesAsync();
+            account.ChangePassword(_passwordHasher.Hash(command.NewPassword));
+            await _db.SaveChangesAsync();
+            return Result.Success(account);
+        });
+
+        if (changed.IsFailure)
+            return Result.Failure<CandidatePasswordChangeResult>(changed.Error);
 
         _logger.LogInformation(
             "Password changed for candidate account {CandidateAccountId}", candidateAccountId);
 
-        await NotifyPasswordChangedAsync(account.Email, account.PreferredLanguage);
+        await NotifyPasswordChangedAsync(changed.Value.Email, changed.Value.PreferredLanguage);
 
         // The stamp rotation also killed this session, so issue a new one for the caller.
-        var session = await _sessions.IssueAsync(account);
+        var session = await _sessions.IssueAsync(changed.Value);
         return Result.Success(new CandidatePasswordChangeResult(session.AccessToken, session.RefreshToken));
     }
 
@@ -179,40 +189,49 @@ public sealed class CandidateProfileService : ICandidateProfileService
 
         // Hashed outside the query; EF can't translate the method call.
         var tokenHash = Hash(token);
-        var request = await _db.EmailChangeRequests
-            .FirstOrDefaultAsync(r => r.TokenHash == tokenHash);
 
-        if (request is null || !request.IsValid)
-            return Result.Failure(CandidateProfileErrors.InvalidEmailChangeToken);
-
-        var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == request.CandidateAccountId);
-        if (account is null)
-            return Result.Failure(CandidateProfileErrors.InvalidEmailChangeToken);
-
-        // Someone may have registered this address since the request was made.
-        var emailTaken = await _db.CandidateAccounts.AnyAsync(c => c.Email == request.NewEmail);
-        if (emailTaken)
-            return Result.Failure(CandidateProfileErrors.EmailAlreadyRegistered);
-
-        var oldEmail = account.Email;
-        account.ChangeEmail(request.NewEmail);
-        request.MarkConsumed();
-
-        try
+        var changed = await ConflictRetry.RunAsync<Result<(CandidateAccount Account, string OldEmail)>>(_db, async () =>
         {
-            await _db.SaveChangesAsync();
-        }
-        catch (DbUpdateException)
-        {
-            // A registration slipped in between the check and the save.
-            return Result.Failure(CandidateProfileErrors.EmailAlreadyRegistered);
-        }
+            var request = await _db.EmailChangeRequests
+                .FirstOrDefaultAsync(r => r.TokenHash == tokenHash);
+
+            if (request is null || !request.IsValid)
+                return Result.Failure<(CandidateAccount, string)>(CandidateProfileErrors.InvalidEmailChangeToken);
+
+            var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == request.CandidateAccountId);
+            if (account is null)
+                return Result.Failure<(CandidateAccount, string)>(CandidateProfileErrors.InvalidEmailChangeToken);
+
+            // Someone may have registered this address since the request was made.
+            var emailTaken = await _db.CandidateAccounts.AnyAsync(c => c.Email == request.NewEmail);
+            if (emailTaken)
+                return Result.Failure<(CandidateAccount, string)>(CandidateProfileErrors.EmailAlreadyRegistered);
+
+            var oldEmail = account.Email;
+            account.ChangeEmail(request.NewEmail);
+            request.MarkConsumed();
+
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (ex is not DbUpdateConcurrencyException)
+            {
+                // A registration slipped in between the check and the save.
+                return Result.Failure<(CandidateAccount, string)>(CandidateProfileErrors.EmailAlreadyRegistered);
+            }
+
+            return Result.Success((account, oldEmail));
+        });
+
+        if (changed.IsFailure)
+            return changed;
 
         _logger.LogInformation(
-            "Email changed for candidate account {CandidateAccountId}", account.Id);
+            "Email changed for candidate account {CandidateAccountId}", changed.Value.Account.Id);
 
         // Tell the old address, in case the owner didn't make this change.
-        await NotifyEmailChangedAsync(oldEmail, account.PreferredLanguage);
+        await NotifyEmailChangedAsync(changed.Value.OldEmail, changed.Value.Account.PreferredLanguage);
 
         return Result.Success();
     }
@@ -220,24 +239,34 @@ public sealed class CandidateProfileService : ICandidateProfileService
     public async Task<Result<CandidateCvDto>> UploadCvAsync(
         Guid candidateAccountId, UploadCandidateCvCommand command)
     {
-        var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
-        if (account is null)
+        var accountExists = await _db.CandidateAccounts.AnyAsync(c => c.Id == candidateAccountId);
+        if (!accountExists)
             return Result.Failure<CandidateCvDto>(CandidateProfileErrors.NotFound);
 
         var fileName = StorageKey.SanitizeFileName(command.FileName);
 
         // No tenant in the path: this CV belongs to the person. A new guid per upload keeps the old
         // object intact if the save below fails.
-        var fileKey = $"{CvKeyPrefix}/{account.Id}/{Guid.NewGuid()}-{fileName}";
+        var fileKey = $"{CvKeyPrefix}/{candidateAccountId}/{Guid.NewGuid()}-{fileName}";
 
         await _fileStorage.UploadAsync(
             fileKey, command.Content, command.SizeBytes, command.ContentType);
 
-        var replacedKey = account.AttachCv(fileKey, fileName);
-
+        Result<CandidateAccount> attached;
+        string? replacedKey = null;
         try
         {
-            await _db.SaveChangesAsync();
+            // The upload stays outside: its stream can't be read a second time.
+            attached = await ConflictRetry.RunAsync(_db, async () =>
+            {
+                var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
+                if (account is null)
+                    return Result.Failure<CandidateAccount>(CandidateProfileErrors.NotFound);
+
+                replacedKey = account.AttachCv(fileKey, fileName);
+                await _db.SaveChangesAsync();
+                return Result.Success(account);
+            });
         }
         catch
         {
@@ -246,29 +275,43 @@ public sealed class CandidateProfileService : ICandidateProfileService
             throw;
         }
 
+        if (attached.IsFailure)
+        {
+            await TryDeleteAsync(fileKey);
+            return Result.Failure<CandidateCvDto>(attached.Error);
+        }
+
         // After the save, so a failed save doesn't lose the current CV.
         if (replacedKey is not null)
             await TryDeleteAsync(replacedKey);
 
         _logger.LogInformation("CV attached to candidate account {CandidateAccountId}", candidateAccountId);
 
-        return Result.Success(new CandidateCvDto(fileName, account.CvUploadedAtUtc!.Value));
+        return Result.Success(new CandidateCvDto(fileName, attached.Value.CvUploadedAtUtc!.Value));
     }
 
     public async Task<Result> RemoveCvAsync(Guid candidateAccountId)
     {
-        var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
-        if (account is null)
-            return Result.Failure(CandidateProfileErrors.NotFound);
+        var removed = await ConflictRetry.RunAsync(_db, async () =>
+        {
+            var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
+            if (account is null)
+                return Result.Failure<string?>(CandidateProfileErrors.NotFound);
 
-        var removedKey = account.RemoveCv();
-        if (removedKey is null)
+            var removedKey = account.RemoveCv();
+            if (removedKey is not null)
+                await _db.SaveChangesAsync();
+
+            return Result.Success(removedKey);
+        });
+
+        if (removed.IsFailure)
+            return removed;
+        if (removed.Value is null)
             return Result.Success();
 
-        await _db.SaveChangesAsync();
-
         // Best-effort: the CV is already unreachable once the row is saved.
-        await TryDeleteAsync(removedKey);
+        await TryDeleteAsync(removed.Value);
 
         _logger.LogInformation("CV removed from candidate account {CandidateAccountId}", candidateAccountId);
 

@@ -112,7 +112,8 @@ public sealed record UpdateJobCommand(
     WorkArrangement WorkArrangement,
     decimal? SalaryMin,
     decimal? SalaryMax,
-    string? SalaryCurrency) : ICommand<bool>;
+    string? SalaryCurrency,
+    uint Version) : ICommand<bool>;
 
 public sealed class UpdateJobValidator : AbstractValidator<UpdateJobCommand>
 {
@@ -147,6 +148,9 @@ public sealed class UpdateJobHandler : ICommandHandler<UpdateJobCommand, bool>
         var job = await _db.Jobs.FirstOrDefaultAsync(j => j.Id == command.JobId, ct);
         if (job is null)
             return Result.Failure<bool>(JobErrors.NotFound);
+
+        // Saves only if the row is still the version the form loaded, otherwise it's a 409.
+        _db.Entry(job).Property(j => j.Version).OriginalValue = command.Version;
 
         SalaryRange? salary = null;
         if (command.SalaryMin.HasValue && command.SalaryMax.HasValue && command.SalaryCurrency is not null)

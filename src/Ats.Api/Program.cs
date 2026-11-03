@@ -59,8 +59,9 @@ builder.Services.AddOpenApi(options =>
     });
 });
 
-// Order matters: the validation handler runs first.
+// Order matters: the specific handlers run first, the catch-all last.
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
+builder.Services.AddExceptionHandler<ConcurrencyExceptionHandler>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
@@ -106,15 +107,9 @@ builder.Services.AddStackExchangeRedisCache(options =>
 builder.AddRateLimiting();
 builder.AddCorsForSpa();
 
-// Behind the proxy the client IP is in X-Forwarded-For, and the per-IP limiter depends on it.
-// Known networks are cleared because the proxy's Docker network is unknown; only safe while the API
-// is never exposed directly.
+// Only loopback is trusted to set X-Forwarded-For; add the proxy's network here once there is one.
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
-    options.KnownProxies.Clear();
-});
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto);
 
 builder.AddMessaging();
 builder.AddBackgroundJobs();
@@ -141,10 +136,17 @@ builder.Services.AddSingleton<IMinioClient>(sp =>
 builder.Services.AddSingleton<IFileStorage, MinioFileStorage>();
 
 builder.AddIdentityAndAuthorization();
+builder.AddDataProtectionKeys();
 
 builder.AddObservability(redisConnection);
 
 var app = builder.Build();
+
+if (args.Contains(DatabaseMigrator.Command))
+{
+    await DatabaseMigrator.MigrateAsync(app.Services);
+    return;
+}
 
 using (var scope = app.Services.CreateScope())
 {
@@ -166,8 +168,8 @@ app.UseForwardedHeaders();
 
 app.UseExceptionHandler();
 
-// Before auth so Prometheus doesn't need a token. No business data here.
-app.UseMetricServer();
+// No token, so only on a port that is never published.
+app.UseMetricServer(app.Configuration.GetRequiredSection("Metrics:Port").Get<int>());
 
 app.UseHttpMetrics();
 
@@ -242,3 +244,6 @@ static Task WriteHealthCheckJson(HttpContext context, HealthReport report)
         })
     });
 }
+
+// For WebApplicationFactory<Program> in the API tests.
+public partial class Program;
