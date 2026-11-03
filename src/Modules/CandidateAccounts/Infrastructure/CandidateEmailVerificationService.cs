@@ -70,25 +70,33 @@ public sealed class CandidateEmailVerificationService : ICandidateEmailVerificat
 
         // Hashed outside the query; EF can't translate the method call.
         var tokenHash = Hash(token);
-        var request = await _db.EmailVerificationRequests
-            .FirstOrDefaultAsync(r => r.TokenHash == tokenHash, ct);
 
-        if (request is null || !request.IsValid)
-            return Result.Failure(CandidateEmailVerificationErrors.InvalidToken);
+        var verified = await ConflictRetry.RunAsync<Result<(Guid AccountId, bool JustVerified)>>(_db, async () =>
+        {
+            var request = await _db.EmailVerificationRequests
+                .FirstOrDefaultAsync(r => r.TokenHash == tokenHash, ct);
 
-        var account = await _db.CandidateAccounts
-            .FirstOrDefaultAsync(c => c.Id == request.CandidateAccountId, ct);
-        if (account is null)
-            return Result.Failure(CandidateEmailVerificationErrors.InvalidToken);
+            if (request is null || !request.IsValid)
+                return Result.Failure<(Guid, bool)>(CandidateEmailVerificationErrors.InvalidToken);
 
-        var justVerified = account.MarkEmailVerified();
-        request.MarkConsumed();
-        await _db.SaveChangesAsync(ct);
+            var account = await _db.CandidateAccounts
+                .FirstOrDefaultAsync(c => c.Id == request.CandidateAccountId, ct);
+            if (account is null)
+                return Result.Failure<(Guid, bool)>(CandidateEmailVerificationErrors.InvalidToken);
+
+            var justVerified = account.MarkEmailVerified();
+            request.MarkConsumed();
+            await _db.SaveChangesAsync(ct);
+            return Result.Success((account.Id, justVerified));
+        });
+
+        if (verified.IsFailure)
+            return verified;
 
         // No stamp rotation: credentials didn't change, so there is no reason to end sessions.
         _logger.LogInformation(
             "Email verified for candidate account {CandidateAccountId} (newly verified: {JustVerified})",
-            account.Id, justVerified);
+            verified.Value.AccountId, verified.Value.JustVerified);
 
         return Result.Success();
     }

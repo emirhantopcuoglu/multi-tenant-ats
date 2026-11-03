@@ -78,26 +78,34 @@ public sealed class CandidatePasswordResetService : ICandidatePasswordResetServi
 
         // Hashed outside the query; EF can't translate the method call.
         var tokenHash = Hash(token);
-        var request = await _db.PasswordResetRequests
-            .FirstOrDefaultAsync(r => r.TokenHash == tokenHash, ct);
 
-        if (request is null || !request.IsValid)
-            return Result.Failure(CandidatePasswordResetErrors.InvalidToken);
+        var reset = await ConflictRetry.RunAsync(_db, async () =>
+        {
+            var request = await _db.PasswordResetRequests
+                .FirstOrDefaultAsync(r => r.TokenHash == tokenHash, ct);
 
-        var account = await _db.CandidateAccounts
-            .FirstOrDefaultAsync(c => c.Id == request.CandidateAccountId, ct);
-        if (account is null)
-            return Result.Failure(CandidatePasswordResetErrors.InvalidToken);
+            if (request is null || !request.IsValid)
+                return Result.Failure<CandidateAccount>(CandidatePasswordResetErrors.InvalidToken);
 
-        // Rotates the stamp, so every existing session ends.
-        account.ChangePassword(_passwordHasher.Hash(newPassword));
-        request.MarkConsumed();
-        await _db.SaveChangesAsync(ct);
+            var account = await _db.CandidateAccounts
+                .FirstOrDefaultAsync(c => c.Id == request.CandidateAccountId, ct);
+            if (account is null)
+                return Result.Failure<CandidateAccount>(CandidatePasswordResetErrors.InvalidToken);
+
+            // Rotates the stamp, so every existing session ends.
+            account.ChangePassword(_passwordHasher.Hash(newPassword));
+            request.MarkConsumed();
+            await _db.SaveChangesAsync(ct);
+            return Result.Success(account);
+        });
+
+        if (reset.IsFailure)
+            return reset;
 
         _logger.LogInformation(
-            "Password reset completed for candidate account {CandidateAccountId}", account.Id);
+            "Password reset completed for candidate account {CandidateAccountId}", reset.Value.Id);
 
-        await NotifyPasswordResetAsync(account.Email, account.PreferredLanguage, ct);
+        await NotifyPasswordResetAsync(reset.Value.Email, reset.Value.PreferredLanguage, ct);
 
         return Result.Success();
     }

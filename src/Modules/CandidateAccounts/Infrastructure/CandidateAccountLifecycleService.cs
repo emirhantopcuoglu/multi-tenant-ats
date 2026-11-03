@@ -1,4 +1,5 @@
 using Ats.Modules.CandidateAccounts.Application;
+using Ats.Modules.CandidateAccounts.Domain;
 using Ats.Shared.Kernel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -26,78 +27,81 @@ public sealed class CandidateAccountLifecycleService : ICandidateAccountLifecycl
 
     public async Task<Result> FreezeAsync(Guid candidateAccountId)
     {
-        var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
-        if (account is null)
-            return Result.Failure(CandidateAccountLifecycleErrors.NotFound);
+        var frozen = await ChangeStatusAsync(candidateAccountId, account => account.Freeze());
+        if (frozen.IsSuccess)
+            _logger.LogInformation("Candidate account {CandidateAccountId} frozen", candidateAccountId);
 
-        try
-        {
-            account.Freeze();
-        }
-        catch (InvalidOperationException rejectedTransition)
-        {
-            return Result.Failure(CandidateAccountLifecycleErrors.InvalidState(rejectedTransition.Message));
-        }
-
-        await _db.SaveChangesAsync();
-
-        _logger.LogInformation("Candidate account {CandidateAccountId} frozen", candidateAccountId);
-        return Result.Success();
+        return frozen;
     }
 
     public async Task<Result> ReactivateAsync(Guid candidateAccountId)
     {
-        var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
-        if (account is null)
-            return Result.Failure(CandidateAccountLifecycleErrors.NotFound);
+        var reactivated = await ChangeStatusAsync(candidateAccountId, account => account.Reactivate());
+        if (reactivated.IsSuccess)
+            _logger.LogInformation("Candidate account {CandidateAccountId} reactivated", candidateAccountId);
 
-        try
-        {
-            account.Reactivate();
-        }
-        catch (InvalidOperationException rejectedTransition)
-        {
-            return Result.Failure(CandidateAccountLifecycleErrors.InvalidState(rejectedTransition.Message));
-        }
-
-        await _db.SaveChangesAsync();
-
-        _logger.LogInformation("Candidate account {CandidateAccountId} reactivated", candidateAccountId);
-        return Result.Success();
+        return reactivated;
     }
+
+    private Task<Result> ChangeStatusAsync(Guid candidateAccountId, Action<CandidateAccount> transition) =>
+        ConflictRetry.RunAsync(_db, async () =>
+        {
+            var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
+            if (account is null)
+                return Result.Failure(CandidateAccountLifecycleErrors.NotFound);
+
+            try
+            {
+                transition(account);
+            }
+            catch (InvalidOperationException rejectedTransition)
+            {
+                return Result.Failure(CandidateAccountLifecycleErrors.InvalidState(rejectedTransition.Message));
+            }
+
+            await _db.SaveChangesAsync();
+            return Result.Success();
+        });
 
     public async Task<Result> DeleteAsync(Guid candidateAccountId, DeleteCandidateAccountCommand command)
     {
-        var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
-        if (account is null)
-            return Result.Failure(CandidateAccountLifecycleErrors.NotFound);
-
-        // A stolen session alone must not be able to delete the account.
-        if (!_passwordHasher.Verify(account.PasswordHash, command.CurrentPassword))
-            return Result.Failure(CandidateAccountLifecycleErrors.InvalidCurrentPassword);
-
-        // These hold real email addresses, consumed ones included.
-        var emailChangeRequests = await _db.EmailChangeRequests
-            .Where(r => r.CandidateAccountId == account.Id)
-            .ToListAsync();
-        _db.EmailChangeRequests.RemoveRange(emailChangeRequests);
-
-        // Read before Delete() clears it; the file itself still has to be removed from storage.
-        var cvFileKey = account.CvFileKey;
-
-        try
+        var deleted = await ConflictRetry.RunAsync(_db, async () =>
         {
-            account.Delete();
-        }
-        catch (InvalidOperationException rejectedTransition)
-        {
-            return Result.Failure(CandidateAccountLifecycleErrors.InvalidState(rejectedTransition.Message));
-        }
+            var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
+            if (account is null)
+                return Result.Failure<string?>(CandidateAccountLifecycleErrors.NotFound);
 
-        await _db.SaveChangesAsync();
+            // A stolen session alone must not be able to delete the account.
+            if (!_passwordHasher.Verify(account.PasswordHash, command.CurrentPassword))
+                return Result.Failure<string?>(CandidateAccountLifecycleErrors.InvalidCurrentPassword);
+
+            // These hold real email addresses, consumed ones included.
+            var emailChangeRequests = await _db.EmailChangeRequests
+                .Where(r => r.CandidateAccountId == account.Id)
+                .ToListAsync();
+            _db.EmailChangeRequests.RemoveRange(emailChangeRequests);
+
+            // Read before Delete() clears it; the file itself still has to be removed from storage.
+            var cvFileKey = account.CvFileKey;
+
+            try
+            {
+                account.Delete();
+            }
+            catch (InvalidOperationException rejectedTransition)
+            {
+                return Result.Failure<string?>(CandidateAccountLifecycleErrors.InvalidState(rejectedTransition.Message));
+            }
+
+            await _db.SaveChangesAsync();
+            return Result.Success(cvFileKey);
+        });
+
+        if (deleted.IsFailure)
+            return deleted;
 
         // After the save, and best-effort: a storage outage must not undo the deletion.
-        if (cvFileKey is not null)
+        if (deleted.Value is { } cvFileKey)
         {
             try
             {

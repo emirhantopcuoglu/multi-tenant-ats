@@ -313,14 +313,15 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         Assert.Contains(emailSender.Sent, mail => mail.ToEmail == "jane@example.com");
     }
 
-    // A conflict must surface as a conflict (409), not as "address already registered".
+    // A conflict must be retried, not reported as "address already registered".
     [Fact]
-    public async Task ConfirmEmailChange_should_not_report_a_concurrent_edit_as_a_taken_address()
+    public async Task ConfirmEmailChange_should_retry_a_concurrent_edit_instead_of_reporting_a_taken_address()
     {
         var accountId = await SeedAccountAsync("Old!passw0rd");
         var emailSender = new RecordingEmailSender();
+        var newEmail = $"{Guid.NewGuid():N}@example.com";
         await CreateService(emailSender).RequestEmailChangeAsync(
-            accountId, new RequestCandidateEmailChangeCommand($"{Guid.NewGuid():N}@example.com", "Old!passw0rd"));
+            accountId, new RequestCandidateEmailChangeCommand(newEmail, "Old!passw0rd"));
         var rawToken = ExtractToken(emailSender.Sent.Single().Body);
 
         // The confirming context holds a copy read before another edit was saved; the service's own
@@ -334,9 +335,12 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
             await otherDb.SaveChangesAsync();
         }
 
-        var confirm = () => CreateService(db: staleDb).ConfirmEmailChangeAsync(rawToken);
+        var result = await CreateService(db: staleDb).ConfirmEmailChangeAsync(rawToken);
 
-        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(confirm);
+        Assert.True(result.IsSuccess);
+        var saved = await LoadAccountAsync(accountId);
+        Assert.Equal(newEmail, saved.Email);
+        Assert.Equal("tr", saved.PreferredLanguage);
     }
 
     [Fact]
