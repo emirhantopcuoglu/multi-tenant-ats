@@ -11,7 +11,8 @@
     "errorTitle": "Something went wrong",
     "errorRetry": "Please try again later.",
     "remove": "Remove",
-    "concurrencyConflict": "Someone else changed this first. The latest version is now shown."
+    "concurrencyConflict": "Someone else changed this first. The latest version is now shown.",
+    "editConflict": "Someone else saved this while you were editing, so your changes were not saved. Copy anything you need and reload the page to see their version."
   },
   "nav": {
     "overview": "Overview",

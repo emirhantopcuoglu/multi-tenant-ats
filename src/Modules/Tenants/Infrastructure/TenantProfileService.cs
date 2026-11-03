@@ -35,6 +35,8 @@ public sealed class TenantProfileService : ITenantProfileService
         if (tenant is null)
             return Result.Failure<TenantProfileDto>(TenantProfileErrors.TenantNotFound);
 
+        // Saves only if the row is still the version the form loaded, otherwise it's a 409.
+        _db.Entry(tenant).Property(t => t.Version).OriginalValue = request.Version;
         tenant.UpdateProfile(request.Description, request.Website, request.Location);
         await _db.SaveChangesAsync(cancellationToken);
 
@@ -74,5 +76,5 @@ public sealed class TenantProfileService : ITenantProfileService
         && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 
     private static TenantProfileDto ToDto(Tenant tenant) => new(
-        tenant.Name, tenant.Slug, tenant.Description, tenant.Website, tenant.Location);
+        tenant.Name, tenant.Slug, tenant.Description, tenant.Website, tenant.Location, tenant.Version);
 }

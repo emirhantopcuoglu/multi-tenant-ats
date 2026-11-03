@@ -35,6 +35,7 @@ public sealed class JobsDbContext : DbContext, IJobsDbContext
             entity.Property(j => j.ExperienceLevel).HasConversion<string>();
             entity.Property(j => j.WorkArrangement).HasConversion<string>();
             entity.Property(j => j.Status).HasConversion<string>();
+            entity.Property(j => j.Version).IsRowVersion();
             entity.HasIndex(j => new { j.TenantId, j.Slug }).IsUnique();
             // Per-tenant public listing: filter and ORDER BY both come from this index.
             entity.HasIndex(j => new { j.TenantId, j.Status, j.PublishedAtUtc })

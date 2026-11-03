@@ -14,7 +14,7 @@ public sealed record JobDetailDto(
     Guid Id, string Title, string Description, string Department, string City, string? Country,
     string EmploymentType, string ExperienceLevel, string WorkArrangement, string Status, string Slug,
     decimal? SalaryMin, decimal? SalaryMax, string? SalaryCurrency, DateTime CreatedAtUtc,
-    DateTime? PublishedAtUtc);
+    DateTime? PublishedAtUtc, uint Version);
 
 public sealed record GetJobByIdQuery(Guid JobId) : IQuery<JobDetailDto>;
 
@@ -36,7 +36,7 @@ public sealed class GetJobByIdHandler : IQueryHandler<GetJobByIdQuery, JobDetail
                 j.SalaryRange == null ? null : (decimal?)j.SalaryRange.Min,
                 j.SalaryRange == null ? null : (decimal?)j.SalaryRange.Max,
                 j.SalaryRange == null ? null : j.SalaryRange.Currency,
-                j.CreatedAtUtc, j.PublishedAtUtc))
+                j.CreatedAtUtc, j.PublishedAtUtc, j.Version))
             .FirstOrDefaultAsync(ct);
 
         return job is null
@@ -142,7 +142,7 @@ public sealed class GetPublicJobBySlugHandler : IQueryHandler<GetPublicJobBySlug
                 j.SalaryRange == null ? null : (decimal?)j.SalaryRange.Min,
                 j.SalaryRange == null ? null : (decimal?)j.SalaryRange.Max,
                 j.SalaryRange == null ? null : j.SalaryRange.Currency,
-                j.CreatedAtUtc, j.PublishedAtUtc))
+                j.CreatedAtUtc, j.PublishedAtUtc, j.Version))
             .FirstOrDefaultAsync(ct);
 
         return job is null

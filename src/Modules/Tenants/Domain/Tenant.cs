@@ -16,6 +16,9 @@ public sealed class Tenant
     public string? Website { get; private set; }
     public string? Location { get; private set; }
 
+    // Changes on every save. The profile form sends back the one it loaded.
+    public uint Version { get; private set; }
+
     private Tenant(Guid id, string name, string slug, TenantStatus status, DateTime createdAtUtc)
     {
         Id = id;

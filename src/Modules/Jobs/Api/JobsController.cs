@@ -97,7 +97,7 @@ public sealed class JobsController : ControllerBase
         var command = new UpdateJobCommand(
             id, body.Title, body.Description, body.Department, body.City, body.Country,
             body.EmploymentType, body.ExperienceLevel, body.WorkArrangement,
-            body.SalaryMin, body.SalaryMax, body.SalaryCurrency);
+            body.SalaryMin, body.SalaryMax, body.SalaryCurrency, body.Version);
 
         var result = await _sender.Send(command);
         return result.IsSuccess
@@ -118,5 +118,5 @@ public sealed class JobsController : ControllerBase
         Ats.Modules.Jobs.Domain.EmploymentType EmploymentType,
         Ats.Modules.Jobs.Domain.ExperienceLevel ExperienceLevel,
         Ats.Modules.Jobs.Domain.WorkArrangement WorkArrangement,
-        decimal? SalaryMin, decimal? SalaryMax, string? SalaryCurrency);
+        decimal? SalaryMin, decimal? SalaryMax, string? SalaryCurrency, uint Version);
 }

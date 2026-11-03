@@ -84,7 +84,7 @@ public class JobCommandValidatorTests
         var result = validator.Validate(new UpdateJobCommand(
             Guid.NewGuid(), "Staff Engineer", "Lead the platform team", "Engineering", "Istanbul", "Turkey",
             EmploymentType.FullTime, ExperienceLevel.Lead, WorkArrangement.Remote,
-            120000m, 160000m, "Turkish Lira"));
+            120000m, 160000m, "Turkish Lira", Version: 1));
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.PropertyName == nameof(UpdateJobCommand.SalaryCurrency));
@@ -98,7 +98,7 @@ public class JobCommandValidatorTests
         var result = validator.Validate(new UpdateJobCommand(
             Guid.NewGuid(), "Staff Engineer", "Lead the platform team", "Engineering", "Istanbul", "Turkey",
             EmploymentType.FullTime, ExperienceLevel.Lead, WorkArrangement.Remote,
-            120000m, 160000m, "EUR"));
+            120000m, 160000m, "EUR", Version: 1));
 
         Assert.True(result.IsValid);
     }
@@ -111,7 +111,7 @@ public class JobCommandValidatorTests
         var result = validator.Validate(new UpdateJobCommand(
             Guid.NewGuid(), "Staff Engineer", "Lead the platform team", "Engineering", "Berlin", "Turkey",
             EmploymentType.FullTime, ExperienceLevel.Lead, WorkArrangement.Remote,
-            null, null, null));
+            null, null, null, Version: 1));
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.PropertyName == nameof(UpdateJobCommand.City));

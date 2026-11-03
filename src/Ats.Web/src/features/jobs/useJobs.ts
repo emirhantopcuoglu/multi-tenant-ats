@@ -39,7 +39,8 @@ export function useJobForm() {
 
   const create = useMutation({ mutationFn: createJob, onSuccess: invalidate });
   const update = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: JobWriteRequest }) => updateJob(id, body),
+    mutationFn: ({ id, body, version }: { id: string; body: JobWriteRequest; version: number }) =>
+      updateJob(id, body, version),
     onSuccess: invalidate,
   });
 

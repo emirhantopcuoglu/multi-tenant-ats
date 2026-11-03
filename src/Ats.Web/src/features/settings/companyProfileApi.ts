@@ -8,12 +8,14 @@ export interface CompanyProfile {
   description: string | null;
   website: string | null;
   location: string | null;
+  version: number;
 }
 
 export interface UpdateCompanyProfileRequest {
   description: string | null;
   website: string | null;
   location: string | null;
+  version: number;
 }
 
 export async function getCompanyProfile(): Promise<CompanyProfile> {
