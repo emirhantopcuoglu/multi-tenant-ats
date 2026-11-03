@@ -27,6 +27,8 @@ public sealed class CandidateAccountsDbContext : DbContext
             entity.HasKey(c => c.Id);
             entity.Property(c => c.Email).IsRequired().HasMaxLength(256);
             entity.Property(c => c.PasswordHash).IsRequired();
+            // xmin as a concurrency token, so a save from a stale copy fails instead of overwriting.
+            entity.Property<uint>("xmin").IsRowVersion();
             // The default only backfilled rows that existed before the column.
             entity.Property(c => c.SecurityStamp).IsRequired().HasDefaultValueSql("gen_random_uuid()");
             entity.Property(c => c.FirstName).IsRequired().HasMaxLength(100);

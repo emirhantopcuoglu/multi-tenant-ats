@@ -79,19 +79,52 @@ public sealed class CandidateAuthService : ICandidateAuthService
 
         if (!_passwordHasher.Verify(account.PasswordHash, password))
         {
-            account.RegisterFailedLogin(_lockout.MaxFailedAttempts, _lockout.LockoutDuration, nowUtc);
-            await _db.SaveChangesAsync();
+            await SaveCounterChangeAsync(account, current =>
+            {
+                // A parallel failure may have locked it since we read it; guesses during a lockout don't count.
+                if (current.IsLockedOut(nowUtc))
+                    return false;
+
+                current.RegisterFailedLogin(_lockout.MaxFailedAttempts, _lockout.LockoutDuration, nowUtc);
+                return true;
+            });
             return Result.Failure<CandidateAuthResult>(CandidateAuthErrors.InvalidCredentials);
         }
 
         if (account.FailedLoginCount > 0)
         {
-            account.ClearLockout();
-            await _db.SaveChangesAsync();
+            await SaveCounterChangeAsync(account, current =>
+            {
+                current.ClearLockout();
+                return true;
+            });
         }
 
         // Frozen accounts may sign in so they can reactivate. Deleted ones are filtered out above.
         return Result.Success(await _sessions.IssueAsync(account));
+    }
+
+    // Parallel logins to one account race on its failure counter. xmin makes the losing saves fail
+    // instead of overwriting, and the loser rereads the row and applies its change again, so every
+    // failure is counted. Each conflict means another login's save went through, so after
+    // MaxFailedAttempts conflicts the account is locked and the reread stops the loop.
+    private async Task SaveCounterChangeAsync(CandidateAccount account, Func<CandidateAccount, bool> applyChange)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            if (!applyChange(account))
+                return;
+
+            try
+            {
+                await _db.SaveChangesAsync();
+                return;
+            }
+            catch (DbUpdateConcurrencyException) when (attempt <= _lockout.MaxFailedAttempts)
+            {
+                await _db.Entry(account).ReloadAsync();
+            }
+        }
     }
 
     public async Task<Result<CandidateAuthResult>> RefreshAsync(string refreshToken)

@@ -202,9 +202,10 @@ public sealed class CandidateProfileService : ICandidateProfileService
         {
             await _db.SaveChangesAsync();
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException ex) when (ex is not DbUpdateConcurrencyException)
         {
-            // A registration slipped in between the check and the save.
+            // A registration slipped in between the check and the save. A concurrent edit of this
+            // account is a different failure and goes on to the 409 handler.
             return Result.Failure(CandidateProfileErrors.EmailAlreadyRegistered);
         }
 
