@@ -43,6 +43,7 @@ public sealed class TenantsDbContext
             entity.Property(t => t.Description).HasMaxLength(Tenant.DescriptionMaxLength);
             entity.Property(t => t.Website).HasMaxLength(Tenant.WebsiteMaxLength);
             entity.Property(t => t.Location).HasMaxLength(Tenant.LocationMaxLength);
+            entity.Property(t => t.Version).IsRowVersion();
         });
 
         builder.Entity<ApplicationUser>(entity =>

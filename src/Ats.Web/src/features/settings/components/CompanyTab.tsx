@@ -1,11 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Field, Input, Skeleton, Textarea, useToast } from '@/components/ui';
 import { CareersPageLink } from '@/components/CareersPageLink';
-import { toApiError } from '@/lib/problemDetails';
+import { isConcurrencyConflict, toApiError } from '@/lib/problemDetails';
 import { isAbsoluteHttpUrl } from '@/lib/validation';
 import type { CompanyProfile } from '../companyProfileApi';
 import { useCompanyProfile, useUpdateCompanyProfile } from '../useCompanyProfile';
@@ -46,6 +46,8 @@ function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const update = useUpdateCompanyProfile();
+  // Not read from props: a refetch must not let a stale form save over newer changes.
+  const [version, setVersion] = useState(profile.version);
 
   const schema = useMemo(
     () =>
@@ -84,10 +86,12 @@ function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
         description: form.description || null,
         website: form.website || null,
         location: form.location || null,
+        version,
       },
       {
-        onSuccess: () => {
+        onSuccess: (saved) => {
           toast({ title: t('settings.company.saved'), tone: 'success' });
+          setVersion(saved.version);
           reset(form);
         },
         onError: (error) => {
@@ -96,7 +100,8 @@ function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
             setError('website', { message: t('validation.url') });
             return;
           }
-          toast({ title: t('settings.company.saveError'), tone: 'danger' });
+          const message = isConcurrencyConflict(error) ? 'common.editConflict' : 'settings.company.saveError';
+          toast({ title: t(message), tone: 'danger' });
         },
       },
     );

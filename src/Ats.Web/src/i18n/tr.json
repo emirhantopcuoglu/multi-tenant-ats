@@ -11,7 +11,8 @@
     "errorTitle": "Bir hata oluştu",
     "errorRetry": "Lütfen daha sonra tekrar deneyin.",
     "remove": "Kaldır",
-    "concurrencyConflict": "Bu kaydı sizden önce başka biri değiştirdi. Güncel hali gösteriliyor."
+    "concurrencyConflict": "Bu kaydı sizden önce başka biri değiştirdi. Güncel hali gösteriliyor.",
+    "editConflict": "Siz düzenlerken bunu başka biri kaydetti, bu yüzden değişiklikleriniz kaydedilmedi. Gerekenleri kopyalayıp güncel hali görmek için sayfayı yenileyin."
   },
   "nav": {
     "overview": "Genel bakış",

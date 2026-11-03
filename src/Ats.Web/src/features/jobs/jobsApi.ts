@@ -38,8 +38,8 @@ export async function createJob(body: JobWriteRequest): Promise<string> {
   return data.id;
 }
 
-export async function updateJob(id: string, body: JobWriteRequest): Promise<void> {
-  await apiClient.put(`${JOBS_BASE}/${id}`, body);
+export async function updateJob(id: string, body: JobWriteRequest, version: number): Promise<void> {
+  await apiClient.put(`${JOBS_BASE}/${id}`, { ...body, version });
 }
 
 export async function publishJob(id: string): Promise<void> {
