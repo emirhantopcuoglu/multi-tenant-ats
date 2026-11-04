@@ -4,6 +4,7 @@ using Ats.Modules.CandidateAccounts.Application;
 using Ats.Modules.CandidateAccounts.Domain;
 using Ats.Modules.CandidateAccounts.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Ats.Shared.Kernel;
 
 namespace Ats.IntegrationTests.CandidateAccounts;
@@ -162,7 +163,8 @@ public sealed class CandidateEmailVerificationServiceTests
                 new Microsoft.AspNetCore.Identity.PasswordHasher<CandidateAccount>()),
             new CandidateSessionIssuer(db, new CandidateTokenService(JwtOptions), JwtOptions),
             CandidateServiceFactory.EmailVerification(db, mail),
-            CandidateServiceFactory.Lockout());
+            CandidateServiceFactory.Lockout(),
+            NullLogger<CandidateAuthService>.Instance);
 
         var result = await authService.RegisterAsync(email, "correct horse battery", "Test", "Candidate", SupportedLanguages.Default);
         Assert.True(result.IsSuccess);

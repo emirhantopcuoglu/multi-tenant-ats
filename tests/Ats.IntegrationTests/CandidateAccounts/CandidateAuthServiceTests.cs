@@ -7,6 +7,7 @@ using Ats.Modules.CandidateAccounts.Infrastructure;
 using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace Ats.IntegrationTests.CandidateAccounts;
@@ -178,6 +179,42 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Parallel_refreshes_of_one_token_should_open_one_session()
+    {
+        var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
+
+        var results = await Task.WhenAll(Enumerable.Range(0, 5)
+            .Select(_ => CreateService().RefreshAsync(register.Value.RefreshToken)));
+
+        Assert.Single(results, r => r.IsSuccess);
+    }
+
+    [Fact]
+    public async Task Replaying_a_rotated_token_should_end_the_session_it_was_rotated_into()
+    {
+        var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
+        var rotated = await CreateService().RefreshAsync(register.Value.RefreshToken);
+
+        await CreateService().RefreshAsync(register.Value.RefreshToken);
+        var successor = await CreateService().RefreshAsync(rotated.Value.RefreshToken);
+
+        Assert.True(successor.IsFailure);
+    }
+
+    [Fact]
+    public async Task A_replay_should_leave_the_candidates_other_sessions_alone()
+    {
+        var register = await CreateService().RegisterAsync("jane@example.com", "S3cret!pass", "Jane", "Doe", SupportedLanguages.Default);
+        var otherDevice = await CreateService().LoginAsync("jane@example.com", "S3cret!pass");
+        await CreateService().RefreshAsync(register.Value.RefreshToken);
+
+        await CreateService().RefreshAsync(register.Value.RefreshToken);
+        var other = await CreateService().RefreshAsync(otherDevice.Value.RefreshToken);
+
+        Assert.True(other.IsSuccess);
+    }
+
+    [Fact]
     public async Task Refresh_should_fail_for_a_token_issued_before_a_password_change()
     {
         // Why refresh tokens carry the stamp: otherwise a stolen refresh token would outlive a password
@@ -252,7 +289,8 @@ public sealed class CandidateAuthServiceTests : IAsyncLifetime
 
         return new CandidateAuthService(
             db, passwordHasher, sessions, CandidateServiceFactory.EmailVerification(db),
-            CandidateServiceFactory.Lockout());
+            CandidateServiceFactory.Lockout(),
+            NullLogger<CandidateAuthService>.Instance);
     }
 
     private static IOptions<CandidateJwtOptions> CandidateJwtTestOptions =>

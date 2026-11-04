@@ -2,6 +2,7 @@ using Ats.Modules.CandidateAccounts.Application;
 using Ats.Modules.CandidateAccounts.Domain;
 using Ats.Shared.Kernel;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Ats.Modules.CandidateAccounts.Infrastructure;
@@ -13,19 +14,22 @@ public sealed class CandidateAuthService : ICandidateAuthService
     private readonly ICandidateSessionIssuer _sessions;
     private readonly ICandidateEmailVerificationService _emailVerification;
     private readonly LoginLockoutOptions _lockout;
+    private readonly ILogger<CandidateAuthService> _logger;
 
     public CandidateAuthService(
         CandidateAccountsDbContext db,
         ICandidatePasswordHasher passwordHasher,
         ICandidateSessionIssuer sessions,
         ICandidateEmailVerificationService emailVerification,
-        IOptions<LoginLockoutOptions> lockout)
+        IOptions<LoginLockoutOptions> lockout,
+        ILogger<CandidateAuthService> logger)
     {
         _db = db;
         _passwordHasher = passwordHasher;
         _sessions = sessions;
         _emailVerification = emailVerification;
         _lockout = lockout.Value;
+        _logger = logger;
     }
 
     public async Task<Result<CandidateAuthResult>> RegisterAsync(
@@ -136,6 +140,9 @@ public sealed class CandidateAuthService : ICandidateAuthService
         if (stored is null)
             return Result.Failure<CandidateAuthResult>(CandidateAuthErrors.InvalidRefreshToken);
 
+        if (stored.IsRevoked)
+            return await RejectReuseAsync(stored);
+
         var account = await _db.CandidateAccounts
             .FirstOrDefaultAsync(c => c.Id == stored.CandidateAccountId);
         if (account is null)
@@ -145,10 +152,31 @@ public sealed class CandidateAuthService : ICandidateAuthService
         if (!stored.CanBeRedeemedWith(account.SecurityStamp))
             return Result.Failure<CandidateAuthResult>(CandidateAuthErrors.InvalidRefreshToken);
 
-        stored.Revoke();
-        return Result.Success(await _sessions.IssueAsync(account));
+        try
+        {
+            return Result.Success(await _sessions.RotateAsync(stored, account));
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // A parallel refresh spent this token first.
+            return await RejectReuseAsync(stored);
+        }
     }
 
+    // A spent token coming back means someone else holds a copy. There is no telling which side is
+    // the thief, so the whole session ends and the real candidate signs in again.
+    private async Task<Result<CandidateAuthResult>> RejectReuseAsync(CandidateRefreshToken spent)
+    {
+        var revoked = await _sessions.RevokeFamilyAsync(spent.FamilyId);
+
+        _logger.LogWarning(
+            "Spent refresh token reused for candidate {CandidateAccountId}; revoked {RevokedCount} token(s) in family {FamilyId}",
+            spent.CandidateAccountId, revoked, spent.FamilyId);
+
+        return Result.Failure<CandidateAuthResult>(CandidateAuthErrors.InvalidRefreshToken);
+    }
+
+    // Ends the whole session, so a refresh racing the logout can't leave a live successor behind.
     public async Task<Result> LogoutAsync(string refreshToken)
     {
         if (string.IsNullOrWhiteSpace(refreshToken))
@@ -156,11 +184,8 @@ public sealed class CandidateAuthService : ICandidateAuthService
 
         var stored = await _sessions.FindAsync(refreshToken);
 
-        if (stored is not null && stored.IsActive)
-        {
-            stored.Revoke();
-            await _db.SaveChangesAsync();
-        }
+        if (stored is not null)
+            await _sessions.RevokeFamilyAsync(stored.FamilyId);
 
         return Result.Success();
     }
