@@ -48,7 +48,16 @@ const refreshPromises: Record<'company' | 'candidate', Promise<string> | null> =
   candidate: null,
 };
 
+/* Tabs share the stored refresh token, so they take turns, each redeeming the one the tab before it
+   stored. Without the Web Locks API a tab refreshes on its own, as before. */
 function refreshAccessToken(kind: 'company' | 'candidate'): Promise<string> {
+  if (!('locks' in navigator)) {
+    return redeemStoredRefreshToken(kind);
+  }
+  return navigator.locks.request(`ats-refresh-${kind}`, () => redeemStoredRefreshToken(kind));
+}
+
+function redeemStoredRefreshToken(kind: 'company' | 'candidate'): Promise<string> {
   const isCompany = kind === 'company';
   const refreshToken = isCompany
     ? tokenStore.getRefreshToken()
