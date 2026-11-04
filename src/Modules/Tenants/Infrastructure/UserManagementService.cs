@@ -84,20 +84,15 @@ public sealed class UserManagementService : IUserManagementService
             return Result.Failure(UserManagementErrors.LastAdmin);
 
         user.DeactivatedAtUtc = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
 
         // Company tokens have no security stamp, so refresh tokens must be revoked explicitly.
-        var activeTokens = await _db.RefreshTokens
-            .Where(t => t.UserId == user.Id && t.RevokedAtUtc == null)
-            .ToListAsync(ct);
-
-        foreach (var refreshToken in activeTokens)
-            refreshToken.Revoke();
-
-        await _db.SaveChangesAsync(ct);
+        // If this fails after the save above, refresh still refuses the inactive user.
+        var revoked = await _db.RefreshTokens.Where(t => t.UserId == user.Id).RevokeActiveAsync(ct);
 
         _logger.LogInformation(
             "User {UserId} deactivated; revoked {RevokedCount} refresh token(s)",
-            user.Id, activeTokens.Count);
+            user.Id, revoked);
 
         return Result.Success();
     }

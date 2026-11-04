@@ -60,6 +60,8 @@ public sealed class TenantsDbContext
             entity.HasKey(t => t.Id);
             entity.Property(t => t.TokenHash).IsRequired();
             entity.HasIndex(t => t.TokenHash);
+            entity.HasIndex(t => t.FamilyId);
+            entity.Property<uint>("xmin").IsRowVersion();
         });
 
         builder.Entity<Invitation>(entity =>

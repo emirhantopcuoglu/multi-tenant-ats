@@ -266,7 +266,8 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
             CreatePasswordHasher(),
             new CandidateSessionIssuer(db, CreateTokenService(), CreateJwtOptions()),
             CandidateServiceFactory.EmailVerification(db),
-            CandidateServiceFactory.Lockout());
+            CandidateServiceFactory.Lockout(),
+            NullLogger<CandidateAuthService>.Instance);
     }
 
     private CandidateProfileService CreateProfileService(RecordingEmailSender? emailSender = null)

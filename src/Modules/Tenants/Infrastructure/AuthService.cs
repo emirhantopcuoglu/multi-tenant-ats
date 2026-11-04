@@ -137,7 +137,13 @@ public sealed class AuthService : IAuthService
         var hash = Hash(refreshToken);
         var stored = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash);
 
-        if (stored is null || !stored.IsActive)
+        if (stored is null)
+            return Result.Failure<AuthResult>(AuthErrors.InvalidRefreshToken);
+
+        if (stored.IsRevoked)
+            return await RejectReuseAsync(stored);
+
+        if (!stored.IsActive)
             return Result.Failure<AuthResult>(AuthErrors.InvalidRefreshToken);
 
         var user = await _userManager.FindByIdAsync(stored.UserId.ToString());
@@ -153,23 +159,38 @@ public sealed class AuthService : IAuthService
         if (!user.EmailConfirmed)
             return Result.Failure<AuthResult>(AuthErrors.InvalidRefreshToken);
 
-        stored.Revoke();
-        await _db.SaveChangesAsync();
-
-        var tokens = await IssueTokensAsync(user);
-        return Result.Success(tokens);
+        try
+        {
+            return Result.Success(await IssueTokensAsync(user, rotating: stored));
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // A parallel refresh spent this token first.
+            return await RejectReuseAsync(stored);
+        }
     }
 
+    // A spent token coming back means someone else holds a copy. There is no telling which side is
+    // the thief, so the whole session ends and the real user signs in again.
+    private async Task<Result<AuthResult>> RejectReuseAsync(RefreshToken spent)
+    {
+        var revoked = await _db.RefreshTokens.Where(t => t.FamilyId == spent.FamilyId).RevokeActiveAsync();
+
+        _logger.LogWarning(
+            "Spent refresh token reused for user {UserId}; revoked {RevokedCount} token(s) in family {FamilyId}",
+            spent.UserId, revoked, spent.FamilyId);
+
+        return Result.Failure<AuthResult>(AuthErrors.InvalidRefreshToken);
+    }
+
+    // Ends the whole session, so a refresh racing the logout can't leave a live successor behind.
     public async Task<Result> LogoutAsync(string refreshToken)
     {
         var hash = Hash(refreshToken);
         var stored = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash);
 
-        if (stored is not null && stored.IsActive)
-        {
-            stored.Revoke();
-            await _db.SaveChangesAsync();
-        }
+        if (stored is not null)
+            await _db.RefreshTokens.Where(t => t.FamilyId == stored.FamilyId).RevokeActiveAsync();
 
         return Result.Success();
     }
@@ -261,18 +282,11 @@ public sealed class AuthService : IAuthService
         await _userManager.SetLockoutEndDateAsync(user, null);
 
         // Company tokens have no security stamp, so refresh tokens must be revoked explicitly.
-        var activeTokens = await _db.RefreshTokens
-            .Where(t => t.UserId == user.Id && t.RevokedAtUtc == null)
-            .ToListAsync(ct);
-
-        foreach (var refreshToken in activeTokens)
-            refreshToken.Revoke();
-
-        await _db.SaveChangesAsync(ct);
+        var revoked = await _db.RefreshTokens.Where(t => t.UserId == user.Id).RevokeActiveAsync(ct);
 
         _logger.LogInformation(
             "Password reset completed for user {UserId}; revoked {RevokedCount} refresh token(s)",
-            user.Id, activeTokens.Count);
+            user.Id, revoked);
 
         await NotifyPasswordResetAsync(user.Email!, user.PreferredLanguage, ct);
 
@@ -376,17 +390,20 @@ public sealed class AuthService : IAuthService
         }
     }
 
-    private async Task<AuthResult> IssueTokensAsync(ApplicationUser user)
+    // Without a token to rotate this starts a new session.
+    private async Task<AuthResult> IssueTokensAsync(ApplicationUser user, RefreshToken? rotating = null)
     {
         var roles = await _userManager.GetRolesAsync(user);
         var accessToken = _tokenService.GenerateAccessToken(user, roles);
 
         var refreshToken = _tokenService.GenerateRefreshToken();
-        var entity = RefreshToken.Issue(
-            user.Id,
-            Hash(refreshToken),
-            DateTime.UtcNow.AddDays(_jwtOptions.RefreshTokenDays));
+        var hash = Hash(refreshToken);
+        var expiresAtUtc = DateTime.UtcNow.AddDays(_jwtOptions.RefreshTokenDays);
+        var entity = rotating is null
+            ? RefreshToken.Issue(user.Id, hash, expiresAtUtc)
+            : rotating.Rotate(hash, expiresAtUtc);
 
+        // Also saves the rotated token's revocation, so a lost xmin check rolls back the new row too.
         _db.RefreshTokens.Add(entity);
         await _db.SaveChangesAsync();
 
