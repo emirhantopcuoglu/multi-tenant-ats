@@ -16,6 +16,12 @@ public sealed class LlmOptions
 
     public int MaxOutputTokens { get; init; } = 2048;
 
+    // About four dense pages, longer than almost any CV. With the job description and the system
+    // prompt that is roughly 6,500 tokens even for Turkish, which takes more tokens per character.
+    public int MaxCvCharacters { get; init; } = 12_000;
+
+    public int MaxJobDescriptionCharacters { get; init; } = 6_000;
+
     // Per attempt.
     public int TimeoutSeconds { get; init; } = 30;
 
