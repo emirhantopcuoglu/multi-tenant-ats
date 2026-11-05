@@ -27,6 +27,9 @@ using StackExchange.Redis;
 // sensitive properties.
 var builder = WebApplication.CreateBuilder(args);
 
+// Before anything below opens a connection with them.
+builder.Configuration.EnsureRequiredSettings();
+
 builder.Host.UseSerilog((ctx, services, config) => config
     .ReadFrom.Configuration(ctx.Configuration)
     .ReadFrom.Services(services)

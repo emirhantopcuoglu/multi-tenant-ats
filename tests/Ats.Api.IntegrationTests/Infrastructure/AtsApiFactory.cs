@@ -122,13 +122,27 @@ public sealed class AtsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         ["ConnectionStrings:Postgres"] = _postgres.GetConnectionString(),
         ["Mongo:ConnectionString"] = _mongo.GetConnectionString(),
         ["Redis:ConnectionString"] = _redis.GetConnectionString(),
+        // Placeholders: the test harness replaces RabbitMQ and no test here checks mail.
+        ["RabbitMq:Host"] = "localhost",
+        ["RabbitMq:Username"] = "ats",
+        ["RabbitMq:Password"] = "unused",
+        ["Email:Host"] = "localhost",
+        ["Email:Port"] = "1025",
+        ["Email:FromAddress"] = "noreply@acme.test",
         ["FileStorage:Endpoint"] = $"{_minio.Hostname}:{_minio.GetMappedPublicPort(MinioBuilder.MinioPort)}",
         ["FileStorage:AccessKey"] = _minio.GetAccessKey(),
         ["FileStorage:SecretKey"] = _minio.GetSecretKey(),
         ["Jwt:Secret"] = JwtSecret,
         ["DataProtection:CertificatePath"] = _certificatePath,
         ["DataProtection:CertificatePassword"] = CertificatePassword,
-        ["Cors:AllowedOrigins:0"] = SpaOrigin
+        ["Cors:AllowedOrigins:0"] = SpaOrigin,
+        ["Invitation:AcceptBaseUrl"] = $"{SpaOrigin}/accept-invitation",
+        ["PasswordReset:ResetBaseUrl"] = $"{SpaOrigin}/reset-password",
+        ["EmailConfirmation:ConfirmBaseUrl"] = $"{SpaOrigin}/confirm-email",
+        ["CandidateEmailChange:ConfirmBaseUrl"] = $"{SpaOrigin}/candidate/confirm-email",
+        ["CandidatePasswordReset:ResetBaseUrl"] = $"{SpaOrigin}/candidate/reset-password",
+        ["CandidateEmailVerification:ConfirmBaseUrl"] = $"{SpaOrigin}/candidate/verify-email",
+        ["InterviewRoom:BaseUrl"] = $"{SpaOrigin}/interview-room"
     };
 
     // Startup seeds roles, so migrate first.
@@ -136,6 +150,8 @@ public sealed class AtsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
     {
         var builder = Host.CreateApplicationBuilder();
         builder.Configuration["ConnectionStrings:Postgres"] = _postgres.GetConnectionString();
+        // The audit interceptor needs a Mongo client, even though migrations write no audit entries.
+        builder.Configuration["Mongo:ConnectionString"] = _mongo.GetConnectionString();
         builder.AddPersistence();
 
         using var host = builder.Build();

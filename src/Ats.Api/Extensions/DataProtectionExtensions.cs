@@ -5,7 +5,9 @@ namespace Ats.Api.Extensions;
 
 public static class DataProtectionExtensions
 {
-    private const string SectionName = "DataProtection";
+    internal const string SectionName = "DataProtection";
+    internal const string CertificatePathKey = nameof(CertificateOptions.CertificatePath);
+    internal const string CertificatePasswordKey = nameof(CertificateOptions.CertificatePassword);
 
     public static IHostApplicationBuilder AddDataProtectionKeys(this IHostApplicationBuilder builder)
     {

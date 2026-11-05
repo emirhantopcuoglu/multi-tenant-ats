@@ -7,5 +7,5 @@ public sealed class InvitationOptions
     public int ValidDays { get; init; } = 7;
 
     // The path must stay in SlugPolicy's reserved list (see InvitationLinkTests).
-    public string AcceptBaseUrl { get; init; } = "http://localhost:5173/accept-invitation";
+    public string AcceptBaseUrl { get; init; } = string.Empty;
 }
