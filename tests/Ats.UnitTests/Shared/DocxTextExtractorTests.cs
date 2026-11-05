@@ -1,6 +1,8 @@
+using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Text;
 using Ats.Shared.Infrastructure;
+using Ats.Shared.Kernel;
 
 namespace Ats.UnitTests.Shared;
 
@@ -69,15 +71,73 @@ public class DocxTextExtractorTests
         Assert.Equal(string.Empty, text);
     }
 
+    [Fact]
+    public void Extract_should_refuse_a_document_part_that_opens_past_the_size_limit()
+    {
+        // Compresses to a few kilobytes, which is how a decompression bomb gets past the upload limit.
+        var docx = BuildDocx(ParagraphsOfAtLeast(DocxTextExtractor.MaxDocumentPartBytes + 1));
+
+        Assert.Throws<TextExtractionException>(() => new DocxTextExtractor().Extract(docx));
+    }
+
+    [Fact]
+    public void Extract_should_not_read_past_a_size_the_archive_understates()
+    {
+        // The size check trusts the archive header. This pins that the BCL also stops inflating there.
+        var docx = BuildDocx(ParagraphsOfAtLeast(DocxTextExtractor.MaxDocumentPartBytes + 1));
+        DeclareDocumentPartSize(docx, 1024);
+
+        Assert.Throws<TextExtractionException>(() => new DocxTextExtractor().Extract(docx));
+    }
+
+    [Fact]
+    public void Extract_should_refuse_a_document_part_with_a_dtd()
+    {
+        // Entities would let a tiny part expand past the size limit. Word never writes a DTD.
+        var docx = BuildPackage($"""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE w:document [
+              <!ENTITY a "{new string('A', 1000)}">
+              <!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;">
+            ]>
+            <w:document xmlns:w="{WordprocessingNamespace}">
+              <w:body><w:p><w:r><w:t>{string.Concat(Enumerable.Repeat("&b;", 100))}</w:t></w:r></w:p></w:body>
+            </w:document>
+            """);
+
+        Assert.Throws<TextExtractionException>(() => new DocxTextExtractor().Extract(docx));
+    }
+
+    private static string ParagraphsOfAtLeast(long bytes)
+    {
+        var paragraph = $"<w:p><w:r><w:t>{new string('A', 1000)}</w:t></w:r></w:p>";
+        return string.Concat(Enumerable.Repeat(paragraph, (int)(bytes / paragraph.Length) + 1));
+    }
+
+    // Rewrites the uncompressed size in the local header and the central directory of the only entry.
+    private static void DeclareDocumentPartSize(byte[] docx, uint size)
+    {
+        const int LocalHeaderSizeOffset = 22;
+        const int CentralDirectorySizeOffset = 24;
+        ReadOnlySpan<byte> centralDirectorySignature = [0x50, 0x4B, 0x01, 0x02];
+
+        BinaryPrimitives.WriteUInt32LittleEndian(docx.AsSpan(LocalHeaderSizeOffset), size);
+        var centralDirectory = docx.AsSpan().IndexOf(centralDirectorySignature);
+        BinaryPrimitives.WriteUInt32LittleEndian(docx.AsSpan(centralDirectory + CentralDirectorySizeOffset), size);
+    }
+
     private static byte[] BuildDocx(string bodyXml)
     {
-        var documentXml = $"""
+        return BuildPackage($"""
             <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
             <w:document xmlns:w="{WordprocessingNamespace}">
               <w:body>{bodyXml}</w:body>
             </w:document>
-            """;
+            """);
+    }
 
+    private static byte[] BuildPackage(string documentXml)
+    {
         using var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
         {

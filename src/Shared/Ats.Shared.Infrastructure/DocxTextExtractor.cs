@@ -11,6 +11,9 @@ public sealed class DocxTextExtractor : IDocxTextExtractor
 {
     private const string DocumentPartPath = "word/document.xml";
 
+    // A CV's document.xml is tens of kilobytes; this is already a long book.
+    public const long MaxDocumentPartBytes = 5 * 1024 * 1024;
+
     private static readonly XNamespace W =
         "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 
@@ -26,8 +29,15 @@ public sealed class DocxTextExtractor : IDocxTextExtractor
             if (documentPart is null)
                 return string.Empty;
 
+            // Length comes from the archive header. The BCL never inflates past it, so this bounds
+            // memory even when the header lies, and a bomb is refused before anything is inflated.
+            if (documentPart.Length > MaxDocumentPartBytes)
+                throw new TextExtractionException(
+                    $"The DOCX document part opens to {documentPart.Length} bytes, over the {MaxDocumentPartBytes} limit.");
+
             using var partStream = documentPart.Open();
-            var document = XDocument.Load(partStream);
+            using var reader = XmlReader.Create(partStream, new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit });
+            var document = XDocument.Load(reader);
 
             return ExtractParagraphText(document);
         }
