@@ -46,6 +46,9 @@ dotnet user-secrets set "FileStorage:SecretKey" "minioadmin"
 dotnet user-secrets set "Llm:ApiKey" "<GitHub token with Models access>"  # optional, for CV parsing
 ```
 
+The API checks its required settings at startup and refuses to start, naming the missing ones.
+Locally, `appsettings.Development.json` and the secrets above cover them all.
+
 The API doesn't migrate on startup, so apply the migrations first:
 
 ```bash
