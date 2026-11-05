@@ -13,7 +13,7 @@ public class CvParserInputLimitTests
     [Fact]
     public async Task a_cv_over_the_limit_should_be_cut_to_the_limit_before_it_is_sent()
     {
-        var handler = new RecordingLlmHandler();
+        var handler = new FakeLlmHandler();
         var cv = new string('x', CvLimit) + new string('z', 1_000_000);
 
         await CreateParser(handler).ParseAsync(cv, "job description");
@@ -25,7 +25,7 @@ public class CvParserInputLimitTests
     [Fact]
     public async Task a_job_description_over_the_limit_should_be_cut_to_the_limit_before_it_is_sent()
     {
-        var handler = new RecordingLlmHandler();
+        var handler = new FakeLlmHandler();
         var jobDescription = new string('q', JobDescriptionLimit) + new string('z', 1_000_000);
 
         await CreateParser(handler).ParseAsync("cv text", jobDescription);
