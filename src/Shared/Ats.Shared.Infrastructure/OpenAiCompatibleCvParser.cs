@@ -13,14 +13,17 @@ using Polly.CircuitBreaker;
 namespace Ats.Shared.Infrastructure;
 
 // CV parser for any OpenAI-compatible /chat/completions API (GitHub Models by default). Asks for
-// json_object output with the fields spelled out in the prompt. Polly handles retry, circuit
-// breaker and timeout. Stateless, so registered as a singleton.
+// json_object output with the fields spelled out in the prompt. Polly handles the circuit breaker
+// and timeout; retrying is left to the message retry. Stateless, so registered as a singleton.
 public sealed class OpenAiCompatibleCvParser : ICvParser
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ResiliencePipeline _pipeline;
     private readonly LlmOptions _options;
     private readonly ILogger<OpenAiCompatibleCvParser> _logger;
+
+    // Enough of the provider's error body to tell "too large" from "unknown model".
+    private const int MaxRefusalDetailCharacters = 500;
 
     // json_object mode guarantees JSON but not a schema, so the fields are listed in the prompt (which
     // must contain the word "JSON"). The prompt also forbids reasoning about anything related to
@@ -103,16 +106,9 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
         _options = options.Value;
         _logger = logger;
 
-        // Retry wraps the circuit breaker, which wraps the per-attempt timeout.
+        // No retry here: the message retry reruns the whole parse, and retrying in both places
+        // multiplied the attempts. The circuit breaker wraps the per-attempt timeout.
         _pipeline = new ResiliencePipelineBuilder()
-            .AddRetry(new Polly.Retry.RetryStrategyOptions
-            {
-                MaxRetryAttempts = _options.RetryLimit,
-                BackoffType = DelayBackoffType.Exponential,
-                Delay = TimeSpan.FromSeconds(1),
-                ShouldHandle = new PredicateBuilder()
-                    .Handle<Exception>(IsWorthRetrying)
-            })
             .AddCircuitBreaker(new Polly.CircuitBreaker.CircuitBreakerStrategyOptions
             {
                 FailureRatio = 0.5,
@@ -120,15 +116,21 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
                 SamplingDuration = TimeSpan.FromSeconds(30),
                 BreakDuration = TimeSpan.FromSeconds(15),
                 ShouldHandle = new PredicateBuilder()
-                    .Handle<Exception>(IsWorthRetrying)
+                    .Handle<Exception>(SaysTheProviderIsUnhealthy)
             })
             .AddTimeout(TimeSpan.FromSeconds(_options.TimeoutSeconds))
             .Build();
     }
 
-    // A rejected key or a cancellation won't succeed on retry.
-    private static bool IsWorthRetrying(Exception exception) =>
-        exception is not OperationCanceledException and not LlmAuthenticationException;
+    // The breaker is shared by every CV, so a request that was refused for what it contained, a
+    // rejected key or a cancellation must not stop the next candidate's parse.
+    private static bool SaysTheProviderIsUnhealthy(Exception exception) =>
+        exception is not (OperationCanceledException or LlmAuthenticationException or LlmRequestRejectedException);
+
+    // The rest of 4xx means this request will never succeed; 408 and 429 only ask to come back later.
+    private static bool IsRefusal(HttpStatusCode status) =>
+        (int)status is >= 400 and < 500 &&
+        status is not (HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests);
 
     public async Task<CvParseResult> ParseAsync(
         string cvText, string jobDescription, CancellationToken cancellationToken = default)
@@ -171,6 +173,14 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
                     $"The LLM provider rejected the API key with {(int)response.StatusCode} " +
                     $"{response.StatusCode}. Check the Llm:ApiKey secret — a GitHub token for the " +
                     "default provider expires and has to be reissued with Models access.");
+            }
+
+            if (IsRefusal(response.StatusCode))
+            {
+                var detail = await response.Content.ReadAsStringAsync(token);
+                throw new LlmRequestRejectedException(
+                    $"The LLM provider refused the request with {(int)response.StatusCode} " +
+                    $"{response.StatusCode}: {detail[..Math.Min(detail.Length, MaxRefusalDetailCharacters)]}");
             }
 
             response.EnsureSuccessStatusCode();

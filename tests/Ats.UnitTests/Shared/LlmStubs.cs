@@ -15,18 +15,26 @@ internal sealed class StubHttpClientFactory : IHttpClientFactory
     public HttpClient CreateClient(string name) => new(_handler, disposeHandler: false);
 }
 
-// Answers like the provider with a fixed parse result and keeps the last user message it was sent.
-internal sealed class RecordingLlmHandler : HttpMessageHandler
+// Stands in for the provider: answers with Status (a fixed parse result on 200) and keeps what it was sent.
+internal sealed class FakeLlmHandler : HttpMessageHandler
 {
     private const string ParseResult = """{"skills":[],"job_fit_rating":"Weak"}""";
+
+    public HttpStatusCode Status { get; set; } = HttpStatusCode.OK;
+
+    public int Calls { get; private set; }
 
     public string LastUserMessage { get; private set; } = "";
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        Calls++;
         using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellationToken));
         LastUserMessage = body.RootElement.GetProperty("messages")[1].GetProperty("content").GetString()!;
+
+        if (Status != HttpStatusCode.OK)
+            return new HttpResponseMessage(Status);
 
         return new HttpResponseMessage(HttpStatusCode.OK)
         {

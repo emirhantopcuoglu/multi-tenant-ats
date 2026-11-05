@@ -69,17 +69,7 @@ public static class MessagingExtensions
 
                 // Before ConfigureEndpoints so every consumer gets it. After the last attempt the message goes to
                 // the "<queue>_error" queue.
-                configurator.UseMessageRetry(retry =>
-                {
-                    retry.Exponential(
-                        retryLimit: rabbitMqOptions.RetryLimit,
-                        minInterval: TimeSpan.FromSeconds(rabbitMqOptions.RetryInitialIntervalSeconds),
-                        maxInterval: TimeSpan.FromSeconds(rabbitMqOptions.RetryMaxIntervalSeconds),
-                        intervalDelta: TimeSpan.FromSeconds(rabbitMqOptions.RetryInitialIntervalSeconds));
-
-                    // A rejected LLM key won't fix itself; send it straight to the error queue.
-                    retry.Ignore<LlmAuthenticationException>();
-                });
+                configurator.UseMessageRetry(retry => ConfigureMessageRetry(retry, rabbitMqOptions));
 
                 configurator.ConfigureEndpoints(context);
             });
@@ -91,5 +81,19 @@ public static class MessagingExtensions
         builder.Services.AddSingleton<IIdempotencyGuard, RedisIdempotencyGuard>();
 
         return builder;
+    }
+
+    public static void ConfigureMessageRetry(IRetryConfigurator retry, RabbitMqOptions options)
+    {
+        retry.Exponential(
+            retryLimit: options.RetryLimit,
+            minInterval: TimeSpan.FromSeconds(options.RetryInitialIntervalSeconds),
+            maxInterval: TimeSpan.FromSeconds(options.RetryMaxIntervalSeconds),
+            intervalDelta: TimeSpan.FromSeconds(options.RetryInitialIntervalSeconds));
+
+        // A rejected LLM key or a refused request fails the same way every time; send it straight
+        // to the error queue.
+        retry.Ignore<LlmAuthenticationException>();
+        retry.Ignore<LlmRequestRejectedException>();
     }
 }

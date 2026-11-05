@@ -24,6 +24,4 @@ public sealed class LlmOptions
 
     // Per attempt.
     public int TimeoutSeconds { get; init; } = 30;
-
-    public int RetryLimit { get; init; } = 3;
 }
