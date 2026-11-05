@@ -16,6 +16,12 @@ public sealed class LlmOptions
 
     public int MaxOutputTokens { get; init; } = 2048;
 
+    // Sized for the 8000 input tokens of the free GitHub Models tier: these two plus the system
+    // prompt stay under it even for Turkish, which takes more tokens per character.
+    public int MaxCvCharacters { get; init; } = 12_000;
+
+    public int MaxJobDescriptionCharacters { get; init; } = 6_000;
+
     // Per attempt.
     public int TimeoutSeconds { get; init; } = 30;
 

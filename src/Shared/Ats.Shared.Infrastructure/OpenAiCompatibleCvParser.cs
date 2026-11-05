@@ -134,8 +134,8 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
         string cvText, string jobDescription, CancellationToken cancellationToken = default)
     {
         var userContent =
-            "Job description:\n\n" + jobDescription +
-            "\n\nCandidate CV:\n\n" + cvText;
+            "Job description:\n\n" + CutToLimit(jobDescription, _options.MaxJobDescriptionCharacters, "job description") +
+            "\n\nCandidate CV:\n\n" + CutToLimit(cvText, _options.MaxCvCharacters, "CV");
 
         var requestBody = new
         {
@@ -204,6 +204,19 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
             throw new InvalidOperationException("The model returned a CV parse result that could not be deserialized.");
 
         return dto.ToResult();
+    }
+
+    // Keeps the start, where a CV puts its summary, recent roles and skills.
+    private string CutToLimit(string text, int maxCharacters, string part)
+    {
+        if (text.Length <= maxCharacters)
+            return text;
+
+        _logger.LogWarning(
+            "The {Part} text was cut from {Length} to {MaxCharacters} characters before parsing.",
+            part, text.Length, maxCharacters);
+
+        return text[..maxCharacters];
     }
 
     private sealed record ChatResponse(

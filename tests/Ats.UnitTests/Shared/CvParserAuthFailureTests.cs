@@ -64,15 +64,4 @@ public class CvParserAuthFailureTests
             return Task.FromResult(new HttpResponseMessage(_status));
         }
     }
-
-    private sealed class StubHttpClientFactory : IHttpClientFactory
-    {
-        private readonly HttpMessageHandler _handler;
-
-        public StubHttpClientFactory(HttpMessageHandler handler) => _handler = handler;
-
-        // disposeHandler: false, the parser disposes the client it is handed, and the test still
-        // needs to read the call count off the handler afterwards.
-        public HttpClient CreateClient(string name) => new(_handler, disposeHandler: false);
-    }
 }
