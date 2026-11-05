@@ -12,7 +12,7 @@ using Polly.CircuitBreaker;
 
 namespace Ats.Shared.Infrastructure;
 
-// CV parser for any OpenAI-compatible /chat/completions API (GitHub Models by default). Asks for
+// CV parser for any OpenAI-compatible /chat/completions API (Groq by default). Asks for
 // json_object output with the fields spelled out in the prompt. Polly handles the circuit breaker
 // and timeout; retrying is left to the message retry. Stateless, so registered as a singleton.
 public sealed class OpenAiCompatibleCvParser : ICvParser
@@ -171,8 +171,8 @@ public sealed class OpenAiCompatibleCvParser : ICvParser
             {
                 throw new LlmAuthenticationException(
                     $"The LLM provider rejected the API key with {(int)response.StatusCode} " +
-                    $"{response.StatusCode}. Check the Llm:ApiKey secret — a GitHub token for the " +
-                    "default provider expires and has to be reissued with Models access.");
+                    $"{response.StatusCode}. Check the Llm:ApiKey secret: it must be a key for the " +
+                    "provider Llm:BaseUrl points at.");
             }
 
             if (IsRefusal(response.StatusCode))
