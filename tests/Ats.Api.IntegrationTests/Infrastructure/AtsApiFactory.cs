@@ -4,12 +4,16 @@ using System.Security.Cryptography.X509Certificates;
 using Ats.Api;
 using Ats.Api.Extensions;
 using Ats.Modules.CandidateAccounts.Application;
+using Ats.Modules.CandidateAccounts.Domain;
+using Ats.Modules.CandidateAccounts.Infrastructure;
 using Ats.Modules.Tenants.Application;
 using Ats.Modules.Tenants.Domain;
+using Ats.Shared.Kernel;
 using MassTransit;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Testcontainers.Minio;
@@ -67,16 +71,34 @@ public sealed class AtsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         return client;
     }
 
-    // The account isn't in the database, so CandidateOnly endpoints fail its stamp check; company ones fail on role.
-    public HttpClient CreateCandidateClient()
+    // A real account, so the token's stamp matches and only policies decide.
+    public async Task<(HttpClient Client, Guid AccountId)> CreateCandidateClientAsync()
     {
         using var scope = Services.CreateScope();
-        var tokenService = scope.ServiceProvider.GetRequiredService<ICandidateTokenService>();
+        var db = scope.ServiceProvider.GetRequiredService<CandidateAccountsDbContext>();
+        var hasher = scope.ServiceProvider.GetRequiredService<ICandidatePasswordHasher>();
+        var account = CandidateAccount.Register(
+            $"candidate-{Guid.NewGuid():N}@acme.test", hasher.Hash($"Aa1!{Guid.NewGuid():N}"),
+            "Jane", "Doe", SupportedLanguages.Default);
+        db.CandidateAccounts.Add(account);
+        await db.SaveChangesAsync();
 
+        var tokenService = scope.ServiceProvider.GetRequiredService<ICandidateTokenService>();
         var client = CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
-            "Bearer", tokenService.GenerateAccessToken(Guid.NewGuid(), "candidate@acme.test", Guid.NewGuid()));
-        return client;
+            "Bearer", tokenService.GenerateAccessToken(account.Id, account.Email, account.SecurityStamp));
+        return (client, account.Id);
+    }
+
+    // What a password change does to the account: tokens issued before it carry the old stamp.
+    public async Task ChangeCandidatePasswordAsync(Guid accountId)
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<CandidateAccountsDbContext>();
+        var hasher = scope.ServiceProvider.GetRequiredService<ICandidatePasswordHasher>();
+        var account = await db.CandidateAccounts.SingleAsync(a => a.Id == accountId);
+        account.ChangePassword(hasher.Hash($"Bb2@{Guid.NewGuid():N}"));
+        await db.SaveChangesAsync();
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)

@@ -180,9 +180,42 @@ public sealed class EndpointAuthorizationTests
     }
 
     [Fact]
+    public async Task a_candidate_token_from_before_a_password_change_should_get_401_everywhere()
+    {
+        var (client, accountId) = await _factory.CreateCandidateClientAsync();
+        await _factory.ChangeCandidatePasswordAsync(accountId);
+        var wrong = new List<string>();
+
+        foreach (var endpoint in ControllerEndpoints().Where(e => !IsPublic(e)))
+        {
+            var status = await SendAsync(client, endpoint);
+            if (status != HttpStatusCode.Unauthorized)
+                wrong.Add($"{Describe(endpoint)} -> {(int)status}");
+        }
+
+        AssertNone(wrong);
+    }
+
+    [Fact]
+    public async Task a_current_candidate_token_should_get_past_auth_on_every_candidate_endpoint()
+    {
+        var (client, _) = await _factory.CreateCandidateClientAsync();
+        var wrong = new List<string>();
+
+        foreach (var endpoint in ControllerEndpoints().Where(e => PoliciesOf(e).Contains(Policies.CandidateOnly)))
+        {
+            var status = await SendAsync(client, endpoint);
+            if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                wrong.Add($"{Describe(endpoint)} -> {(int)status}");
+        }
+
+        AssertNone(wrong);
+    }
+
+    [Fact]
     public async Task a_candidate_token_should_be_refused_by_every_company_policy()
     {
-        var client = _factory.CreateCandidateClient();
+        var (client, _) = await _factory.CreateCandidateClientAsync();
         var wrong = new List<string>();
 
         foreach (var endpoint in ControllerEndpoints()

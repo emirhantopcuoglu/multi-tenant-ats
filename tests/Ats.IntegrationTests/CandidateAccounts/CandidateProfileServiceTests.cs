@@ -6,7 +6,6 @@ using Ats.Modules.CandidateAccounts.Domain;
 using Ats.Modules.CandidateAccounts.Infrastructure;
 using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -195,7 +194,7 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Security_stamp_handler_should_reject_tokens_issued_before_a_password_change()
+    public async Task Security_stamp_validator_should_reject_tokens_issued_before_a_password_change()
     {
         // Arrange: a principal built from the stamp as it was BEFORE the change, i.e. an old token
         var accountId = await SeedAccountAsync("Old!passw0rd");
@@ -204,9 +203,9 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
             accountId, new ChangeCandidatePasswordCommand("Old!passw0rd", "New!passw0rd"));
 
         // Act
-        var staleResult = await RunStampHandlerAsync(accountId, staleStamp);
+        var staleResult = await IsStampCurrentAsync(accountId, staleStamp);
         var freshStamp = (await LoadAccountAsync(accountId)).SecurityStamp;
-        var freshResult = await RunStampHandlerAsync(accountId, freshStamp);
+        var freshResult = await IsStampCurrentAsync(accountId, freshStamp);
 
         // Assert: the pre-change token is dead, a token with the current stamp still works
         Assert.False(staleResult);
@@ -453,19 +452,16 @@ public sealed class CandidateProfileServiceTests : IAsyncLifetime
         return match.Groups[1].Value;
     }
 
-    private async Task<bool> RunStampHandlerAsync(Guid accountId, Guid tokenStamp)
+    private async Task<bool> IsStampCurrentAsync(Guid accountId, Guid tokenStamp)
     {
-        var requirement = new CandidateSecurityStampRequirement();
         var principal = new ClaimsPrincipal(new ClaimsIdentity(
         [
             new Claim(ClaimTypes.NameIdentifier, accountId.ToString()),
             new Claim(CandidateClaims.SecurityStamp, tokenStamp.ToString())
         ], authenticationType: "Test"));
 
-        var context = new AuthorizationHandlerContext([requirement], principal, resource: null);
         await using var db = CreateDbContext();
-        await new CandidateSecurityStampHandler(db).HandleAsync(context);
-        return context.HasSucceeded;
+        return await new CandidateSecurityStampValidator(db).IsCurrentAsync(principal);
     }
 
     private CandidateAccountsDbContext CreateDbContext() =>

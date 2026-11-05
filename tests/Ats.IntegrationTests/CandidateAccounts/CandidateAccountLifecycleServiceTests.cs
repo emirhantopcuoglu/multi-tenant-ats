@@ -3,7 +3,6 @@ using Ats.IntegrationTests.Shared;
 using Ats.Modules.CandidateAccounts.Application;
 using Ats.Modules.CandidateAccounts.Domain;
 using Ats.Modules.CandidateAccounts.Infrastructure;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -50,7 +49,7 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
         var account = await LoadAccountAsync(accountId);
         Assert.Equal(CandidateAccountStatus.Frozen, account.Status);
         Assert.NotNull(account.FrozenAtUtc);
-        Assert.True(await RunStampHandlerAsync(accountId, stampBefore));
+        Assert.True(await IsStampCurrentAsync(accountId, stampBefore));
     }
 
     [Fact]
@@ -166,8 +165,8 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
         // Act
         await CreateService().DeleteAsync(accountId, new DeleteCandidateAccountCommand(Password));
 
-        // Assert: the filter hides the row from the stamp handler, so any old token dies
-        Assert.False(await RunStampHandlerAsync(accountId, stampBefore));
+        // Assert: the filter hides the row from the stamp validator, so any old token dies
+        Assert.False(await IsStampCurrentAsync(accountId, stampBefore));
     }
 
     [Fact]
@@ -216,19 +215,16 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
         Assert.Equal(CandidateProfileErrors.NotFound.Code, profile.Error.Code);
     }
 
-    private async Task<bool> RunStampHandlerAsync(Guid accountId, Guid tokenStamp)
+    private async Task<bool> IsStampCurrentAsync(Guid accountId, Guid tokenStamp)
     {
-        var requirement = new CandidateSecurityStampRequirement();
         var principal = new ClaimsPrincipal(new ClaimsIdentity(
         [
             new Claim(ClaimTypes.NameIdentifier, accountId.ToString()),
             new Claim(CandidateClaims.SecurityStamp, tokenStamp.ToString())
         ], authenticationType: "Test"));
 
-        var context = new AuthorizationHandlerContext([requirement], principal, resource: null);
         await using var db = CreateDbContext();
-        await new CandidateSecurityStampHandler(db).HandleAsync(context);
-        return context.HasSucceeded;
+        return await new CandidateSecurityStampValidator(db).IsCurrentAsync(principal);
     }
 
     private CandidateAccountsDbContext CreateDbContext() =>
