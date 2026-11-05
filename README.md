@@ -43,7 +43,7 @@ dotnet user-secrets set "DataProtection:CertificatePath" "../../secrets/dataprot
 dotnet user-secrets set "DataProtection:CertificatePassword" "<password>"
 dotnet user-secrets set "FileStorage:AccessKey" "minioadmin"
 dotnet user-secrets set "FileStorage:SecretKey" "minioadmin"
-dotnet user-secrets set "Llm:ApiKey" "<GitHub token with Models access>"  # optional, for CV parsing
+dotnet user-secrets set "Llm:ApiKey" "<Groq API key>"  # optional, for CV parsing
 ```
 
 The API checks its required settings at startup and refuses to start, naming the missing ones.
