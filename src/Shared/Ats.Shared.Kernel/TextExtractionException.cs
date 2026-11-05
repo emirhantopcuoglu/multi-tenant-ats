@@ -6,6 +6,11 @@ namespace Ats.Shared.Kernel;
 /// </summary>
 public sealed class TextExtractionException : Exception
 {
+    public TextExtractionException(string message)
+        : base(message)
+    {
+    }
+
     public TextExtractionException(string message, Exception innerException)
         : base(message, innerException)
     {
