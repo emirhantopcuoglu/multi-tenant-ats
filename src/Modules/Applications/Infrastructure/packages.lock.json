@@ -496,8 +496,8 @@
       },
       "StackExchange.Redis": {
         "type": "Transitive",
-        "resolved": "2.13.17",
-        "contentHash": "P7o7ZDBAmBrOLQEw8Pt44iIA08ioj48smRxn4Jp6yzCu6P3DOSU6lj7f+IOtN3pPvSgC9YufvM92ycukEEBCYQ==",
+        "resolved": "2.13.23",
+        "contentHash": "Au7NdOFFkYzQ89WpRCvERQLRebZDRFfuFVpXWX6RebOy8yZwt6x2n4rbup0WkLoaR9Rpzx/S39+BbRyuq8VVoQ==",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "8.0.0",
           "Pipelines.Sockets.Unofficial": "2.2.16",
@@ -677,7 +677,7 @@
           "MongoDB.Driver": "[3.13.0, )",
           "PdfPig": "[0.1.16, )",
           "Polly.Core": "[8.9.0, )",
-          "StackExchange.Redis": "[2.13.17, )",
+          "StackExchange.Redis": "[2.13.23, )",
           "prometheus-net": "[8.2.1, )"
         }
       },
