@@ -29,7 +29,7 @@
     <PackageReference Include="PdfPig" Version="0.1.16" />
     <PackageReference Include="Polly.Core" Version="8.9.0" />
     <PackageReference Include="prometheus-net" Version="8.2.1" />
-    <PackageReference Include="StackExchange.Redis" Version="2.13.17" />
+    <PackageReference Include="StackExchange.Redis" Version="2.13.23" />
   </ItemGroup>
 
   <PropertyGroup>
