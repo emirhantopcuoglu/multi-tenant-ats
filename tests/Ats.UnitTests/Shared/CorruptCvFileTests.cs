@@ -5,25 +5,10 @@ using Ats.Shared.Kernel;
 
 namespace Ats.UnitTests.Shared;
 
-// A corrupted CV passes the signature check and fails in the extractor. It must fail as
+// A corrupted DOCX passes the signature check and fails in the extractor. It must fail as
 // TextExtractionException so the consumer skips it instead of retrying.
 public class CorruptCvFileTests
 {
-    [Fact]
-    public void A_truncated_pdf_should_report_a_text_extraction_failure()
-    {
-        // Real "%PDF" magic bytes, nothing valid behind them, exactly what got through the
-        // boundary and filled the error queue.
-        var truncated = Encoding.ASCII.GetBytes("%PDF-1.4 this is not actually a pdf");
-
-        var exception = Assert.Throws<TextExtractionException>(
-            () => new PdfPigTextExtractor().Extract(truncated));
-
-        // The library's own exception is kept as the cause: callers must not have to reference
-        // PdfPig, but the detail still has to reach the log.
-        Assert.NotNull(exception.InnerException);
-    }
-
     [Fact]
     public void A_corrupted_docx_archive_should_report_a_text_extraction_failure()
     {

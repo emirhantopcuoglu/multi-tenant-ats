@@ -734,12 +734,19 @@
           "Microsoft.Extensions.Identity.Stores": "[9.0.22, )"
         }
       },
+      "ats.pdfworker": {
+        "type": "Project",
+        "dependencies": {
+          "PdfPig": "[0.1.16, )"
+        }
+      },
       "ats.shared.contracts": {
         "type": "Project"
       },
       "ats.shared.infrastructure": {
         "type": "Project",
         "dependencies": {
+          "Ats.PdfWorker": "[1.0.0, )",
           "Ats.Shared.Kernel": "[1.0.0, )",
           "FluentValidation": "[11.12.0, )",
           "MailKit": "[4.18.2, )",
@@ -747,7 +754,6 @@
           "Microsoft.Extensions.Caching.StackExchangeRedis": "[9.0.22, )",
           "Minio": "[6.0.5, )",
           "MongoDB.Driver": "[3.13.0, )",
-          "PdfPig": "[0.1.16, )",
           "Polly.Core": "[8.9.0, )",
           "StackExchange.Redis": "[2.13.17, )",
           "prometheus-net": "[8.2.1, )"

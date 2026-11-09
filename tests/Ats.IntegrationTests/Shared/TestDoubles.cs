@@ -77,6 +77,7 @@ internal sealed class RecordingFileStorage : IFileStorage
     public List<string> Uploaded { get; } = [];
     public List<(string Source, string Destination)> Copied { get; } = [];
     public List<string> Deleted { get; } = [];
+    public byte[] DownloadContent { get; init; } = [];
 
     public Task UploadAsync(
         string key, Stream content, long size, string contentType,
@@ -91,7 +92,7 @@ internal sealed class RecordingFileStorage : IFileStorage
         Task.FromResult($"https://storage.test/{key}");
 
     public Task<byte[]> DownloadAsync(string key, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Array.Empty<byte>());
+        Task.FromResult(DownloadContent);
 
     public Task CopyAsync(
         string sourceKey, string destinationKey, CancellationToken cancellationToken = default)

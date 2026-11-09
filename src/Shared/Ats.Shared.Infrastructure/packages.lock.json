@@ -70,12 +70,6 @@
           "ZstdSharp.Port": "0.7.3"
         }
       },
-      "PdfPig": {
-        "type": "Direct",
-        "requested": "[0.1.16, )",
-        "resolved": "0.1.16",
-        "contentHash": "qQcbsNMYVY+K5ELptax2S8thNMk0+rSQq3H/KdYj3LLcko8yTCz8y5KIvsKxIyAuTN0ZYNnfsZkM+0EvxTwHVA=="
-      },
       "Polly.Core": {
         "type": "Direct",
         "requested": "[8.9.0, )",
@@ -248,6 +242,11 @@
           "System.Runtime.CompilerServices.Unsafe": "5.0.0"
         }
       },
+      "PdfPig": {
+        "type": "Transitive",
+        "resolved": "0.1.16",
+        "contentHash": "qQcbsNMYVY+K5ELptax2S8thNMk0+rSQq3H/KdYj3LLcko8yTCz8y5KIvsKxIyAuTN0ZYNnfsZkM+0EvxTwHVA=="
+      },
       "Pipelines.Sockets.Unofficial": {
         "type": "Transitive",
         "resolved": "2.2.16",
@@ -320,6 +319,12 @@
         "type": "Transitive",
         "resolved": "0.7.3",
         "contentHash": "U9Ix4l4cl58Kzz1rJzj5hoVTjmbx1qGMwzAcbv1j/d3NzrFaESIurQyg+ow4mivCgkE3S413y+U9k4WdnEIkRA=="
+      },
+      "ats.pdfworker": {
+        "type": "Project",
+        "dependencies": {
+          "PdfPig": "[0.1.16, )"
+        }
       },
       "ats.shared.kernel": {
         "type": "Project"
