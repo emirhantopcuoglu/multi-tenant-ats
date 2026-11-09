@@ -29,9 +29,9 @@ public class PdfHiddenTextTests
     }
 
     [Fact]
-    public void text_smaller_than_one_point_should_be_left_out()
+    public void text_smaller_than_two_points_should_be_left_out()
     {
-        var text = ExtractPage((page, font) => page.AddText(Hidden, 0.5, new PdfPoint(72, 700), font));
+        var text = ExtractPage((page, font) => page.AddText(Hidden, 1.5, new PdfPoint(72, 700), font));
 
         AssertOnlyVisibleText(text);
     }
