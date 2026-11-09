@@ -33,7 +33,8 @@ CI runs lint, test and build.
 ## Docker
 
 The image builds the app and serves it with nginx. Vite bakes `VITE_*` values into the bundle, so the
-API URL is a build arg:
+API URL is a build arg. It must be an origin (no path): nginx also puts it in the Content-Security-Policy
+as the only address besides the site itself that the page may call.
 
 ```bash
 docker build --build-arg VITE_API_BASE_URL=https://api.example.com -t ats-web .
