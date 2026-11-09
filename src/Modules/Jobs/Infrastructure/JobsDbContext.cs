@@ -1,6 +1,7 @@
 using System.Reflection;
 using Ats.Modules.Jobs.Application;
 using Ats.Modules.Jobs.Domain;
+using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,6 +22,7 @@ public sealed class JobsDbContext : DbContext, IJobsDbContext
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.HasDefaultSchema("jobs");
+        builder.ApplyConfiguration(new AuditLogEntryConfiguration());
 
         builder.Entity<Job>(entity =>
         {

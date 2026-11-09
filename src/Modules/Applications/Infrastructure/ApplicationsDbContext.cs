@@ -1,6 +1,7 @@
 using System.Reflection;
 using Ats.Modules.Applications.Application;
 using Ats.Modules.Applications.Domain;
+using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +30,7 @@ public sealed class ApplicationsDbContext : DbContext, IApplicationsDbContext
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.HasDefaultSchema("applications");
+        builder.ApplyConfiguration(new AuditLogEntryConfiguration());
 
         // Outbox tables, in this context so publishes commit with the business change. Not tenant-scoped.
         builder.AddTransactionalOutboxEntities();
