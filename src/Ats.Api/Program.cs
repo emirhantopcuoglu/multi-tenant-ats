@@ -163,7 +163,6 @@ using (var scope = app.Services.CreateScope())
 
     var mongoDatabase = scope.ServiceProvider.GetRequiredService<IMongoDatabase>();
     await MongoActivityLogInitializer.EnsureIndexesAsync(mongoDatabase);
-    await MongoAuditLogInitializer.EnsureIndexesAsync(mongoDatabase);
 }
 
 // First, so logging, metrics and the rate limiter see the real client IP.

@@ -1,178 +1,155 @@
+using System.Text.Json;
 using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using MongoDB.Bson;
-using MongoDB.Driver;
 
 namespace Ats.Shared.Infrastructure;
 
+// Adds the audit rows to the same SaveChanges, so a change and its audit row commit or roll back
+// together. Runs after AuditableSaveChangesInterceptor, which has already turned deletes into soft
+// deletes, and while OriginalValues still holds the old data.
 public sealed class AuditLogInterceptor : SaveChangesInterceptor
 {
-    internal const string CollectionName = "audit_logs";
-
     private readonly ICurrentTenant _currentTenant;
     private readonly ICurrentUser _currentUser;
     private readonly IHttpContextAccessor _httpContextAccessor;
-    private readonly IMongoDatabase _database;
-
-    private List<AuditLogDocument>? _pendingDocuments;
 
     public AuditLogInterceptor(
         ICurrentTenant currentTenant,
         ICurrentUser currentUser,
-        IHttpContextAccessor httpContextAccessor,
-        IMongoDatabase database)
+        IHttpContextAccessor httpContextAccessor)
     {
         _currentTenant = currentTenant;
         _currentUser = currentUser;
         _httpContextAccessor = httpContextAccessor;
-        _database = database;
     }
 
-    // Captured here while OriginalValues still has the old data. AuditableSaveChangesInterceptor runs
-    // first and has already turned deletes into soft deletes.
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
         InterceptionResult<int> result,
         CancellationToken ct = default)
     {
-        _pendingDocuments = BuildDocuments(eventData.Context);
+        AddAuditEntries(eventData.Context);
         return base.SavingChangesAsync(eventData, result, ct);
     }
 
-    // Written after the commit, so a failed save leaves no audit entry. Best-effort.
-    public override async ValueTask<int> SavedChangesAsync(
-        SaveChangesCompletedEventData eventData,
-        int result,
-        CancellationToken ct = default)
+    public override InterceptionResult<int> SavingChanges(
+        DbContextEventData eventData,
+        InterceptionResult<int> result)
     {
-        if (_pendingDocuments is { Count: > 0 })
-        {
-            try
-            {
-                var collection = _database.GetCollection<AuditLogDocument>(CollectionName);
-                await collection.InsertManyAsync(_pendingDocuments, cancellationToken: ct);
-            }
-            catch
-            {
-                // An audit failure must not undo a saved change.
-            }
-            finally
-            {
-                _pendingDocuments = null;
-            }
-        }
-
-        return await base.SavedChangesAsync(eventData, result, ct);
+        AddAuditEntries(eventData.Context);
+        return base.SavingChanges(eventData, result);
     }
 
-    public override Task SaveChangesFailedAsync(
-        DbContextErrorEventData eventData,
-        CancellationToken ct = default)
-    {
-        _pendingDocuments = null;
-        return base.SaveChangesFailedAsync(eventData, ct);
-    }
-
-    private List<AuditLogDocument> BuildDocuments(DbContext? context)
+    private void AddAuditEntries(DbContext? context)
     {
         if (context is null || _currentTenant.TenantId is not { } tenantId)
-            return [];
+            return;
 
-        var now = DateTime.UtcNow;
-        var actorUserId = _currentUser.UserId;
-        var actorEmail = _currentUser.Email;
-        var httpCtx = _httpContextAccessor.HttpContext;
-        var ipAddress = httpCtx?.Connection.RemoteIpAddress?.ToString();
-        var userAgent = httpCtx?.Request.Headers.UserAgent.ToString();
+        // Listed first: adding while enumerating the change tracker would change it.
+        var tracked = context.ChangeTracker.Entries().ToList();
+        var owned = tracked.Where(entry => entry.Metadata.IsOwned()).ToList();
+        var auditEntries = tracked
+            .Where(entry => entry.Entity is ITenantScoped)
+            .Select(entry => BuildEntry(entry, owned, tenantId))
+            .OfType<AuditLogEntry>()
+            .ToList();
 
-        var documents = new List<AuditLogDocument>();
+        context.AddRange(auditEntries);
+    }
 
-        foreach (var entry in context.ChangeTracker.Entries<ITenantScoped>())
+    private AuditLogEntry? BuildEntry(EntityEntry entry, List<EntityEntry> owned, Guid tenantId)
+    {
+        var fields = FieldsOf(entry).Concat(OwnedFieldsOf(entry, owned)).ToList();
+        string action;
+        string? before = null;
+        string? after = null;
+
+        switch (entry.State)
         {
-            if (entry.State is not (EntityState.Added or EntityState.Modified or EntityState.Deleted))
-                continue;
-
-            var resourceId = entry.Property("Id").CurrentValue?.ToString() ?? string.Empty;
-            var resourceType = entry.Entity.GetType().Name;
-
-            BsonDocument? before = null;
-            BsonDocument? after = null;
-            string action;
-
-            if (entry.State == EntityState.Added)
-            {
+            case EntityState.Added:
                 action = "Created";
-                after = BuildSnapshot(entry.CurrentValues);
-            }
-            else if (entry.State == EntityState.Deleted)
-            {
+                after = ToJson(fields.Select(f => (f.Name, f.After)));
+                break;
+            case EntityState.Deleted:
                 action = "Deleted";
-                before = BuildSnapshot(entry.OriginalValues);
-            }
-            else // Modified — includes soft deletes (AuditableSaveChangesInterceptor converted them)
-            {
-                var isSoftDelete = entry.Entity is ISoftDeletable
-                    && entry.Property(nameof(ISoftDeletable.IsDeleted)).IsModified
-                    && entry.Property(nameof(ISoftDeletable.IsDeleted)).CurrentValue is true;
+                before = ToJson(fields.Select(f => (f.Name, f.Before)));
+                break;
+            default:
+                // Unchanged too: only an owned value may have changed.
+                var changed = fields.Where(f => f.IsChanged).ToList();
+                if (changed.Count == 0)
+                    return null;
 
-                action = isSoftDelete ? "Deleted" : "Updated";
-
-                var changedProps = entry.Properties.Where(p => p.IsModified).ToList();
-                if (changedProps.Count == 0)
-                    continue;
-
-                before = BuildDiff(changedProps, useOriginal: true);
-                after = BuildDiff(changedProps, useOriginal: false);
-            }
-
-            documents.Add(new AuditLogDocument
-            {
-                TenantId = tenantId,
-                ActorUserId = actorUserId,
-                ActorEmail = actorEmail,
-                Action = action,
-                ResourceType = resourceType,
-                ResourceId = resourceId,
-                Before = before,
-                After = after,
-                OccurredAtUtc = now,
-                IpAddress = ipAddress,
-                UserAgent = userAgent
-            });
+                action = IsSoftDelete(entry) ? "Deleted" : "Updated";
+                before = ToJson(changed.Select(f => (f.Name, f.Before)));
+                after = ToJson(changed.Select(f => (f.Name, f.After)));
+                break;
         }
 
-        return documents;
+        var request = _httpContextAccessor.HttpContext?.Request;
+        return new AuditLogEntry
+        {
+            TenantId = tenantId,
+            ActorUserId = _currentUser.UserId,
+            ActorEmail = _currentUser.Email,
+            Action = action,
+            ResourceType = entry.Entity.GetType().Name,
+            ResourceId = entry.Property("Id").CurrentValue?.ToString() ?? string.Empty,
+            Before = before,
+            After = after,
+            OccurredAtUtc = DateTime.UtcNow,
+            IpAddress = request?.HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Truncate(request?.Headers.UserAgent.ToString(), AuditLogEntry.UserAgentMaxLength),
+        };
     }
 
-    private static BsonDocument BuildSnapshot(PropertyValues values)
-    {
-        var doc = new BsonDocument();
-        foreach (var prop in values.Properties)
-            doc[prop.Name] = ToBsonSafe(values[prop.Name]);
-        return doc;
-    }
+    private static bool IsSoftDelete(EntityEntry entry) =>
+        entry.Entity is ISoftDeletable
+        && entry.Property(nameof(ISoftDeletable.IsDeleted)) is { IsModified: true, CurrentValue: true };
 
-    private static BsonDocument BuildDiff(List<PropertyEntry> properties, bool useOriginal)
-    {
-        var doc = new BsonDocument();
-        foreach (var prop in properties)
-            doc[prop.Metadata.Name] = ToBsonSafe(useOriginal ? prop.OriginalValue : prop.CurrentValue);
-        return doc;
-    }
+    private static IEnumerable<Field> FieldsOf(EntityEntry entry) =>
+        entry.Properties.Select(p => new Field(p.Metadata.Name, p.OriginalValue, p.CurrentValue, p.IsModified));
 
-    private static BsonValue ToBsonSafe(object? value) => value switch
+    // EF tracks an owned value such as Job.SalaryRange as entries of its own: a new value is Added and
+    // the one it replaces Deleted, so the pair is merged into one before and after per property.
+    private static IEnumerable<Field> OwnedFieldsOf(EntityEntry owner, List<EntityEntry> owned) =>
+        owned
+            .Where(entry => IsOwnedBy(entry, owner))
+            .SelectMany(entry => entry.Properties
+                .Where(p => !p.Metadata.IsKey())
+                .Select(p => (
+                    Name: $"{entry.Metadata.FindOwnership()!.PrincipalToDependent!.Name}.{p.Metadata.Name}",
+                    Before: entry.State == EntityState.Added ? null : p.OriginalValue,
+                    After: entry.State == EntityState.Deleted ? null : p.CurrentValue)))
+            .GroupBy(value => value.Name)
+            .Select(group =>
+            {
+                var before = group.Select(v => v.Before).FirstOrDefault(v => v is not null);
+                var after = group.Select(v => v.After).FirstOrDefault(v => v is not null);
+                return new Field(group.Key, before, after, !Equals(before, after));
+            });
+
+    private static bool IsOwnedBy(EntityEntry entry, EntityEntry owner) =>
+        entry.Metadata.FindOwnership() is { } ownership
+        && ownership.PrincipalEntityType == owner.Metadata
+        && ownership.Properties.Select(p => entry.Property(p.Name).CurrentValue)
+            .SequenceEqual(ownership.PrincipalKey.Properties.Select(p => owner.Property(p.Name).CurrentValue));
+
+    private static string ToJson(IEnumerable<(string Name, object? Value)> values) =>
+        JsonSerializer.Serialize(values.ToDictionary(v => v.Name, v => ToJsonValue(v.Value)));
+
+    // Enums and anything else are written as text, so the JSON stays readable.
+    private static object? ToJsonValue(object? value) => value switch
     {
-        null => BsonNull.Value,
-        bool b => new BsonBoolean(b),
-        int i => new BsonInt32(i),
-        long l => new BsonInt64(l),
-        double d => new BsonDouble(d),
-        decimal dec => new BsonDecimal128(dec),
-        DateTime dt => new BsonDateTime(dt),
-        Guid g => new BsonString(g.ToString()),
-        _ => new BsonString(value.ToString() ?? string.Empty)
+        null or bool or int or long or double or decimal or DateTime or Guid => value,
+        _ => value.ToString(),
     };
+
+    private static string? Truncate(string? value, int maxLength) =>
+        string.IsNullOrEmpty(value) ? null : value.Length <= maxLength ? value : value[..maxLength];
+
+    private sealed record Field(string Name, object? Before, object? After, bool IsChanged);
 }

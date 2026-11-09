@@ -115,6 +115,21 @@
           "Microsoft.OpenApi": "1.6.31"
         }
       },
+      "MongoDB.Driver": {
+        "type": "Direct",
+        "requested": "[3.13.0, )",
+        "resolved": "3.13.0",
+        "contentHash": "1Ae+OaZRKVsb4KI39tV9rkV48Bth+3pGaEpXVNCu9ueWUF7zVe00GQzK9jjyNDsScIUZJQleHr5ceNaRnWKJqw==",
+        "dependencies": {
+          "DnsClient": "1.6.1",
+          "Microsoft.Extensions.Logging.Abstractions": "2.0.0",
+          "MongoDB.Bson": "3.13.0",
+          "SharpCompress": "0.48.1",
+          "Snappier": "1.3.1",
+          "System.Buffers": "4.6.1",
+          "ZstdSharp.Port": "0.7.3"
+        }
+      },
       "Newtonsoft.Json": {
         "type": "Direct",
         "requested": "[13.0.4, )",
@@ -809,20 +824,6 @@
           "System.Runtime.CompilerServices.Unsafe": "5.0.0"
         }
       },
-      "MongoDB.Driver": {
-        "type": "Transitive",
-        "resolved": "3.13.0",
-        "contentHash": "1Ae+OaZRKVsb4KI39tV9rkV48Bth+3pGaEpXVNCu9ueWUF7zVe00GQzK9jjyNDsScIUZJQleHr5ceNaRnWKJqw==",
-        "dependencies": {
-          "DnsClient": "1.6.1",
-          "Microsoft.Extensions.Logging.Abstractions": "2.0.0",
-          "MongoDB.Bson": "3.13.0",
-          "SharpCompress": "0.48.1",
-          "Snappier": "1.3.1",
-          "System.Buffers": "4.6.1",
-          "ZstdSharp.Port": "0.7.3"
-        }
-      },
       "Npgsql": {
         "type": "Transitive",
         "resolved": "9.0.3",
@@ -1119,6 +1120,7 @@
           "MassTransit": "[8.5.12, )",
           "MassTransit.EntityFrameworkCore": "[8.5.12, )",
           "Microsoft.EntityFrameworkCore": "[9.0.22, )",
+          "MongoDB.Driver": "[3.13.0, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[9.0.4, )",
           "prometheus-net": "[8.2.1, )"
         }
@@ -1316,9 +1318,9 @@
           "FluentValidation": "[11.12.0, )",
           "MailKit": "[4.18.2, )",
           "Microsoft.EntityFrameworkCore": "[9.0.22, )",
+          "Microsoft.EntityFrameworkCore.Relational": "[9.0.22, )",
           "Microsoft.Extensions.Caching.StackExchangeRedis": "[9.0.22, )",
           "Minio": "[6.0.5, )",
-          "MongoDB.Driver": "[3.13.0, )",
           "Polly.Core": "[8.9.0, )",
           "StackExchange.Redis": "[2.13.17, )",
           "prometheus-net": "[8.2.1, )"
