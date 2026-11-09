@@ -1,6 +1,9 @@
+using Ats.Modules.Applications.Infrastructure;
+using Ats.Modules.CandidateAccounts.Infrastructure;
 using Ats.Modules.Interviews.Infrastructure;
 using Ats.Modules.Tenants.Infrastructure;
 using Ats.Shared.Infrastructure;
+using Ats.Shared.Kernel;
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.PostgreSql;
@@ -26,6 +29,11 @@ public static class BackgroundJobsExtensions
 
         builder.Services.AddScoped<ExpiredInvitationCleanupJob>();
         builder.Services.AddScoped<InterviewReminderJob>();
+
+        // Every module that stores files registers its owner here, or the cleanup deletes its files.
+        builder.Services.AddScoped<IStoredFileOwner, ApplicationCvFileOwner>();
+        builder.Services.AddScoped<IStoredFileOwner, CandidateAccountCvFileOwner>();
+        builder.Services.AddScoped<OrphanFileCleanupJob>();
 
         return builder;
     }
@@ -58,6 +66,12 @@ public static class BackgroundJobsExtensions
             "interview-reminders",
             job => job.SendDueRemindersAsync(CancellationToken.None),
             hangfireOptions.InterviewReminderCron,
+            new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+
+        RecurringJob.AddOrUpdate<OrphanFileCleanupJob>(
+            "orphan-file-cleanup",
+            job => job.CleanupAsync(CancellationToken.None),
+            hangfireOptions.OrphanFileCleanupCron,
             new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 
         return app;

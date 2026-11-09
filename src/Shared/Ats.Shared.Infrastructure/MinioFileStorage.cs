@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Ats.Shared.Kernel;
 using Microsoft.Extensions.Options;
 using Minio;
@@ -94,5 +95,20 @@ public sealed class MinioFileStorage : IFileStorage
             .WithObject(key);
 
         await _client.RemoveObjectAsync(args, cancellationToken);
+    }
+
+    public async IAsyncEnumerable<StoredFile> ListAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var args = new ListObjectsArgs()
+            .WithBucket(_options.BucketName)
+            .WithRecursive(true);
+
+        await foreach (var item in _client.ListObjectsEnumAsync(args, cancellationToken))
+        {
+            // A file whose age is unknown is never offered for deletion.
+            if (!item.IsDir && item.LastModifiedDateTime is { } lastModified)
+                yield return new StoredFile(item.Key, lastModified.ToUniversalTime());
+        }
     }
 }

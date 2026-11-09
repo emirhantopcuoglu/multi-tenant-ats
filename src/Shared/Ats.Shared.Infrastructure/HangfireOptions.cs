@@ -10,4 +10,6 @@ public sealed class HangfireOptions
     // The interval is the worst-case delay. Every five minutes keeps the starting-soon reminder
     // (due ten minutes before) from arriving after the interview starts.
     public string InterviewReminderCron { get; init; } = "*/5 * * * *";
+
+    public string OrphanFileCleanupCron { get; init; } = "0 3 * * *";
 }

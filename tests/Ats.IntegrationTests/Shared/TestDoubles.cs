@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Ats.Shared.Kernel;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -102,6 +103,17 @@ internal sealed class RecordingFileStorage : IFileStorage
     }
 
     public Exception? DeleteFailure { get; init; }
+
+    // What ListAsync returns; tests put files here with the age they need.
+    public List<StoredFile> Stored { get; } = [];
+
+    public async IAsyncEnumerable<StoredFile> ListAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await Task.Yield();
+        foreach (var file in Stored)
+            yield return file;
+    }
 
     // Like the real client, a cancelled token stops the delete.
     public Task DeleteAsync(string key, CancellationToken cancellationToken = default)
