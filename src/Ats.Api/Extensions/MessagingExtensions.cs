@@ -51,7 +51,7 @@ public static class MessagingExtensions
             bus.AddConsumer<NewApplicationNotificationConsumer>();
 
             // Provider is set by the Llm config section.
-            bus.AddConsumer<CvParsingConsumer>();
+            bus.AddConsumer<CvParsingConsumer, CvParsingConsumerDefinition>();
 
             // Keeps pipelines in step with interviews. The stage-advance consumer publishes a follow-up event,
             // so it runs behind the outbox (see its definition).

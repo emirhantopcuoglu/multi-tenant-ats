@@ -87,7 +87,7 @@ builder.AddPersistence();
 builder.Services.Configure<LlmOptions>(
     builder.Configuration.GetSection(LlmOptions.SectionName));
 builder.Services.AddHttpClient();
-builder.Services.AddSingleton<IPdfTextExtractor, PdfPigTextExtractor>();
+builder.Services.AddSingleton<IPdfTextExtractor, PdfWorkerTextExtractor>();
 builder.Services.AddSingleton<IDocxTextExtractor, DocxTextExtractor>();
 builder.Services.AddSingleton<ICvParser, OpenAiCompatibleCvParser>();
 

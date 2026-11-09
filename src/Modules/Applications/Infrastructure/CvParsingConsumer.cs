@@ -53,7 +53,7 @@ public sealed class CvParsingConsumer : IConsumer<CvParseRequestedIntegrationEve
         string? text;
         try
         {
-            text = ExtractText(bytes);
+            text = await ExtractTextAsync(bytes, context.CancellationToken);
         }
         catch (TextExtractionException exception)
         {
@@ -100,10 +100,10 @@ public sealed class CvParsingConsumer : IConsumer<CvParseRequestedIntegrationEve
     }
 
     // Null means unsupported format; empty means no text. Logged differently.
-    private string? ExtractText(byte[] bytes)
+    private async Task<string?> ExtractTextAsync(byte[] bytes, CancellationToken cancellationToken)
     {
         if (StartsWith(bytes, PdfMagic))
-            return _pdfTextExtractor.Extract(bytes);
+            return await _pdfTextExtractor.ExtractAsync(bytes, cancellationToken);
 
         if (StartsWith(bytes, ZipMagic))
             return _docxTextExtractor.Extract(bytes);
