@@ -1,6 +1,5 @@
 using System.Buffers.Binary;
 using System.IO.Compression;
-using System.Text;
 using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
 
@@ -8,15 +7,12 @@ namespace Ats.UnitTests.Shared;
 
 public class DocxTextExtractorTests
 {
-    private const string WordprocessingNamespace =
-        "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
-
     [Fact]
     public void Extract_should_return_one_line_per_paragraph_with_runs_joined()
     {
         // Arrange: two paragraphs, the first split across two runs (Word fragments runs freely,
         // e.g. around formatting changes, the extractor must stitch them back together).
-        var docx = BuildDocx($"""
+        var docx = TestDocx.WithBody($"""
             <w:p><w:r><w:t>John App</w:t></w:r><w:r><w:t>licant</w:t></w:r></w:p>
             <w:p><w:r><w:t>Senior Software Engineer</w:t></w:r></w:p>
             """);
@@ -32,7 +28,7 @@ public class DocxTextExtractorTests
     [Fact]
     public void Extract_should_render_tabs_as_spaces_and_breaks_as_new_lines()
     {
-        var docx = BuildDocx(
+        var docx = TestDocx.WithBody(
             "<w:p><w:r><w:t>Skills:</w:t><w:tab/><w:t>C#</w:t><w:br/><w:t>.NET</w:t></w:r></w:p>");
 
         var text = new DocxTextExtractor().Extract(docx);
@@ -46,7 +42,7 @@ public class DocxTextExtractorTests
     {
         // Table cells wrap their content in ordinary <w:p> elements, so a CV laid out as a
         // table (a common template style) must still yield its text.
-        var docx = BuildDocx(
+        var docx = TestDocx.WithBody(
             "<w:tbl><w:tr><w:tc><w:p><w:r><w:t>Istanbul Technical University</w:t></w:r></w:p></w:tc></w:tr></w:tbl>");
 
         var text = new DocxTextExtractor().Extract(docx);
@@ -75,7 +71,7 @@ public class DocxTextExtractorTests
     public void Extract_should_refuse_a_document_part_that_opens_past_the_size_limit()
     {
         // Compresses to a few kilobytes, which is how a decompression bomb gets past the upload limit.
-        var docx = BuildDocx(ParagraphsOfAtLeast(DocxTextExtractor.MaxDocumentPartBytes + 1));
+        var docx = TestDocx.WithBody(ParagraphsOfAtLeast(DocxTextExtractor.MaxDocumentPartBytes + 1));
 
         Assert.Throws<TextExtractionException>(() => new DocxTextExtractor().Extract(docx));
     }
@@ -84,7 +80,7 @@ public class DocxTextExtractorTests
     public void Extract_should_not_read_past_a_size_the_archive_understates()
     {
         // The size check trusts the archive header. This pins that the BCL also stops inflating there.
-        var docx = BuildDocx(ParagraphsOfAtLeast(DocxTextExtractor.MaxDocumentPartBytes + 1));
+        var docx = TestDocx.WithBody(ParagraphsOfAtLeast(DocxTextExtractor.MaxDocumentPartBytes + 1));
         DeclareDocumentPartSize(docx, 1024);
 
         Assert.Throws<TextExtractionException>(() => new DocxTextExtractor().Extract(docx));
@@ -94,13 +90,13 @@ public class DocxTextExtractorTests
     public void Extract_should_refuse_a_document_part_with_a_dtd()
     {
         // Entities would let a tiny part expand past the size limit. Word never writes a DTD.
-        var docx = BuildPackage($"""
+        var docx = TestDocx.WithDocumentPart($"""
             <?xml version="1.0" encoding="UTF-8"?>
             <!DOCTYPE w:document [
               <!ENTITY a "{new string('A', 1000)}">
               <!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;">
             ]>
-            <w:document xmlns:w="{WordprocessingNamespace}">
+            <w:document xmlns:w="{TestDocx.WordprocessingNamespace}">
               <w:body><w:p><w:r><w:t>{string.Concat(Enumerable.Repeat("&b;", 100))}</w:t></w:r></w:p></w:body>
             </w:document>
             """);
@@ -124,28 +120,5 @@ public class DocxTextExtractorTests
         BinaryPrimitives.WriteUInt32LittleEndian(docx.AsSpan(LocalHeaderSizeOffset), size);
         var centralDirectory = docx.AsSpan().IndexOf(centralDirectorySignature);
         BinaryPrimitives.WriteUInt32LittleEndian(docx.AsSpan(centralDirectory + CentralDirectorySizeOffset), size);
-    }
-
-    private static byte[] BuildDocx(string bodyXml)
-    {
-        return BuildPackage($"""
-            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-            <w:document xmlns:w="{WordprocessingNamespace}">
-              <w:body>{bodyXml}</w:body>
-            </w:document>
-            """);
-    }
-
-    private static byte[] BuildPackage(string documentXml)
-    {
-        using var stream = new MemoryStream();
-        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
-        {
-            using var writer = new StreamWriter(
-                archive.CreateEntry("word/document.xml").Open(), Encoding.UTF8);
-            writer.Write(documentXml);
-        }
-
-        return stream.ToArray();
     }
 }

@@ -9,7 +9,8 @@ namespace Ats.PdfWorker;
 // Text a reader of the CV can't see is left out, so hidden keywords or instructions never reach the LLM.
 public static class PdfText
 {
-    private const double MinReadablePointSize = 1;
+    // Word's smallest size is 1 pt, and its PDF export writes that as 0.96.
+    private const double MinReadablePointSize = 2;
     // #F2F2F2 and lighter.
     private const double NearWhite = 0.95;
 
