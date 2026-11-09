@@ -101,8 +101,15 @@ internal sealed class RecordingFileStorage : IFileStorage
         return Task.CompletedTask;
     }
 
+    public Exception? DeleteFailure { get; init; }
+
+    // Like the real client, a cancelled token stops the delete.
     public Task DeleteAsync(string key, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (DeleteFailure is not null)
+            throw DeleteFailure;
+
         Deleted.Add(key);
         return Task.CompletedTask;
     }
