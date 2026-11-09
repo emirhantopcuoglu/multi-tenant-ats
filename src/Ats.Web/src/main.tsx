@@ -8,7 +8,12 @@ import { AuthProvider } from '@/app/auth/AuthProvider';
 import { ToastProvider } from '@/components/ui';
 import { queryClient } from '@/lib/queryClient';
 import '@/i18n';
+import { z } from 'zod';
+import '@fontsource-variable/inter';
 import '@/styles/index.css';
+
+// The CSP forbids eval. Without this, zod probes with new Function() and every probe is a violation.
+z.config({ jitless: true });
 
 // Provider order: theme → query client → toasts → router → AuthProvider (needs the query client
 // and the router).

@@ -168,6 +168,8 @@ using (var scope = app.Services.CreateScope())
 // First, so logging, metrics and the rate limiter see the real client IP.
 app.UseForwardedHeaders();
 
+app.UseMiddleware<ApiSecurityHeadersMiddleware>();
+
 app.UseExceptionHandler();
 
 // No token, so only on a port that is never published.

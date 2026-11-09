@@ -93,8 +93,8 @@ jobs:
           echo "DATA_PROTECTION_CERT_PASSWORD=$DATA_PROTECTION_CERT_PASSWORD" >> "$GITHUB_ENV"
           bash scripts/new-dataprotection-cert.sh
 
-      - name: Start the API and its dependencies
-        run: docker compose --profile app up -d --build api
+      - name: Start the API, the web app and their dependencies
+        run: docker compose --profile app up -d --build api web
 
       - name: Wait for /health/ready
         run: |
@@ -104,9 +104,16 @@ jobs:
           done
           exit 1
 
+      # The CSP's API origin is filled in when nginx starts, so check the header it actually sends.
+      - name: Check the web app's Content-Security-Policy
+        run: |
+          headers="$(curl -fsSI http://localhost:8080/)"
+          echo "$headers"
+          echo "$headers" | grep -i "^content-security-policy: default-src 'self'; script-src 'self';.*connect-src 'self' http://localhost:5236;"
+
       - name: Show logs
         if: failure()
-        run: docker compose --profile app logs migrate api
+        run: docker compose --profile app logs migrate api web
 
   # Lints, tests, type-checks and builds the React SPA. Independent of the .NET jobs (no `needs`), so
   # it runs in parallel and gives the frontend its own pass/fail signal.

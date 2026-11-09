@@ -11,6 +11,12 @@ server {
     add_header X-Frame-Options DENY always;
     add_header Referrer-Policy strict-origin-when-cross-origin always;
 
+    # Scripts, styles and fonts only from this origin, requests only to it and the API. An injected
+    # script doesn't run, and one that did couldn't send anything elsewhere. ${API_ORIGIN} is filled
+    # in when the container starts (see the Dockerfile). Inline styles are allowed because Radix adds a
+    # <style> to lock scrolling; injected CSS can't leak data while images and fonts are self-only.
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self' ${API_ORIGIN}; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
+
     gzip on;
     gzip_types text/css application/javascript application/json image/svg+xml;
     gzip_min_length 1024;
