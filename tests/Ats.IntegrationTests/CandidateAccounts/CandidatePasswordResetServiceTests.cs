@@ -213,13 +213,14 @@ public sealed class CandidatePasswordResetServiceTests : IAsyncLifetime
     [Fact]
     public async Task A_deleted_account_should_not_receive_a_reset_link()
     {
-        // Delete anonymizes the address and the query filter hides the row, so there is nothing to
+        // Erase anonymizes the address and the query filter hides the row, so there is nothing to
         // recover and nothing to mail.
         var accountId = await SeedAccountAsync();
         await using (var db = CreateDbContext())
         {
             var account = await db.CandidateAccounts.SingleAsync(c => c.Id == accountId);
-            account.Delete();
+            account.RequestDeletion(DateTime.UtcNow - CandidateAccount.DeletionGracePeriod);
+            account.Erase(DateTime.UtcNow);
             await db.SaveChangesAsync();
         }
 

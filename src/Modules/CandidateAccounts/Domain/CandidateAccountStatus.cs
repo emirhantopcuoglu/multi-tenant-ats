@@ -7,6 +7,9 @@ public enum CandidateAccountStatus
     // Can still sign in and reactivate, but can't apply.
     Frozen,
 
+    // Can still sign in and cancel until the grace period ends, but can't apply.
+    PendingDeletion,
+
     // Anonymized and hidden by the query filter. The row stays for application references.
     Deleted
 }

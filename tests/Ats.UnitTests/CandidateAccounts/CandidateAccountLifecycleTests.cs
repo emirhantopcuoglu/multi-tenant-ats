@@ -5,6 +5,8 @@ namespace Ats.UnitTests.CandidateAccounts;
 
 public sealed class CandidateAccountLifecycleTests
 {
+    private static readonly DateTime Now = new(2026, 11, 12, 15, 0, 0, DateTimeKind.Utc);
+
     private static CandidateAccount CreateAccount() =>
         CandidateAccount.Register("jane@example.com", "hashed-password", "Jane", "Doe", SupportedLanguages.Default);
 
@@ -24,6 +26,7 @@ public sealed class CandidateAccountLifecycleTests
         Assert.Equal(CandidateAccountStatus.Active, account.Status);
         Assert.True(account.IsActive);
         Assert.Null(account.FrozenAtUtc);
+        Assert.Null(account.DeletionDueAtUtc);
         Assert.Null(account.DeletedAtUtc);
     }
 
@@ -76,18 +79,97 @@ public sealed class CandidateAccountLifecycleTests
     }
 
     [Fact]
-    public void Delete_should_anonymize_every_personal_field()
+    public void RequestDeletion_should_schedule_the_erasure_two_weeks_out_and_keep_the_data()
     {
-        // Arrange
         var account = CreateAccountWithProfile();
 
-        // Act
-        account.Delete();
+        account.RequestDeletion(Now);
 
-        // Assert: right to erasure: nothing personally identifying may survive on the row
+        Assert.Equal(CandidateAccountStatus.PendingDeletion, account.Status);
+        Assert.False(account.IsActive);
+        Assert.Equal(Now.AddDays(14), account.DeletionDueAtUtc);
+        Assert.Null(account.DeletedAtUtc);
+        Assert.Equal("Jane", account.FirstName);
+        Assert.Equal("+905321234567", account.PhoneNumber);
+    }
+
+    // Postgres would round the ticks away, and the date read back later must match the one shown now.
+    [Fact]
+    public void RequestDeletion_should_keep_the_due_date_to_whole_seconds()
+    {
+        var account = CreateAccount();
+
+        account.RequestDeletion(Now.AddTicks(6_583_499));
+
+        Assert.Equal(Now.AddDays(14), account.DeletionDueAtUtc);
+    }
+
+    // The request may come from a stolen session; getting back in to cancel needs the password.
+    [Fact]
+    public void RequestDeletion_should_end_every_session()
+    {
+        var account = CreateAccount();
+        var stampBefore = account.SecurityStamp;
+
+        account.RequestDeletion(Now);
+
+        Assert.NotEqual(stampBefore, account.SecurityStamp);
+    }
+
+    [Fact]
+    public void RequestDeletion_should_work_on_a_frozen_account_and_clear_the_frozen_timestamp()
+    {
+        var account = CreateAccount();
+        account.Freeze();
+
+        account.RequestDeletion(Now);
+
+        Assert.Equal(CandidateAccountStatus.PendingDeletion, account.Status);
+        Assert.Null(account.FrozenAtUtc);
+    }
+
+    [Fact]
+    public void RequestDeletion_should_reject_an_account_already_waiting_for_deletion()
+    {
+        var account = CreateAccount();
+        account.RequestDeletion(Now);
+
+        Assert.Throws<InvalidOperationException>(() => account.RequestDeletion(Now.AddDays(1)));
+        Assert.Equal(Now.AddDays(14), account.DeletionDueAtUtc);
+    }
+
+    [Fact]
+    public void CancelDeletion_should_restore_the_account_as_it_was()
+    {
+        var account = CreateAccountWithProfile();
+        account.RequestDeletion(Now);
+
+        account.CancelDeletion();
+
+        Assert.Equal(CandidateAccountStatus.Active, account.Status);
+        Assert.Null(account.DeletionDueAtUtc);
+        Assert.Equal("Jane", account.FirstName);
+    }
+
+    [Fact]
+    public void CancelDeletion_should_reject_an_account_without_a_deletion_request()
+    {
+        Assert.Throws<InvalidOperationException>(CreateAccount().CancelDeletion);
+    }
+
+    [Fact]
+    public void Erase_should_anonymize_every_personal_field()
+    {
+        var account = CreateAccountWithProfile();
+        account.RequestDeletion(Now);
+
+        account.Erase(Now.AddDays(14));
+
+        // Right to erasure: nothing personally identifying may survive on the row.
         Assert.Equal(CandidateAccountStatus.Deleted, account.Status);
         Assert.False(account.IsActive);
         Assert.NotNull(account.DeletedAtUtc);
+        Assert.Null(account.DeletionDueAtUtc);
         Assert.Equal(CandidateAccount.BuildAnonymizedEmail(account.Id), account.Email);
         Assert.Equal(CandidateAccount.AnonymizedFirstName, account.FirstName);
         Assert.Equal(CandidateAccount.AnonymizedLastName, account.LastName);
@@ -98,39 +180,48 @@ public sealed class CandidateAccountLifecycleTests
         Assert.Null(account.CvFileKey);
     }
 
+    // A candidate may sign in during the grace period without cancelling.
     [Fact]
-    public void Delete_should_rotate_the_security_stamp()
+    public void Erase_should_end_sessions_opened_during_the_grace_period()
     {
-        // Arrange
         var account = CreateAccount();
-        var stampBefore = account.SecurityStamp;
+        account.RequestDeletion(Now);
+        var stampDuringGrace = account.SecurityStamp;
 
-        // Act
-        account.Delete();
+        account.Erase(Now.AddDays(14));
 
-        // Assert: every live session must die the moment the account is deleted
-        Assert.NotEqual(stampBefore, account.SecurityStamp);
+        Assert.NotEqual(stampDuringGrace, account.SecurityStamp);
     }
 
     [Fact]
-    public void Delete_should_work_on_a_frozen_account_and_clear_the_frozen_timestamp()
+    public void Erase_should_refuse_before_the_grace_period_ends()
     {
         var account = CreateAccount();
-        account.Freeze();
+        account.RequestDeletion(Now);
 
-        account.Delete();
-
-        Assert.Equal(CandidateAccountStatus.Deleted, account.Status);
-        Assert.Null(account.FrozenAtUtc);
+        Assert.Throws<InvalidOperationException>(() => account.Erase(Now.AddDays(14).AddSeconds(-1)));
+        Assert.Equal(CandidateAccountStatus.PendingDeletion, account.Status);
     }
 
     [Fact]
-    public void Delete_should_reject_an_already_deleted_account()
+    public void Erase_should_refuse_an_account_whose_deletion_was_cancelled()
     {
         var account = CreateAccount();
-        account.Delete();
+        account.RequestDeletion(Now);
+        account.CancelDeletion();
 
-        Assert.Throws<InvalidOperationException>(account.Delete);
+        Assert.Throws<InvalidOperationException>(() => account.Erase(Now.AddDays(30)));
+        Assert.Equal(CandidateAccountStatus.Active, account.Status);
+    }
+
+    [Fact]
+    public void Erase_should_reject_an_already_erased_account()
+    {
+        var account = CreateAccount();
+        account.RequestDeletion(Now);
+        account.Erase(Now.AddDays(14));
+
+        Assert.Throws<InvalidOperationException>(() => account.Erase(Now.AddDays(15)));
     }
 
     [Fact]

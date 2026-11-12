@@ -330,6 +330,9 @@
       "frozenTitle": "Hesabınız dondurulmuş",
       "frozenBody": "Hesabınız dondurulmuşken başvuru yapılamaz. Bu pozisyona başvurmak için hesabınızı yeniden aktifleştirin.",
       "frozenAction": "Hesabımı yeniden aktifleştir",
+      "pendingDeletionTitle": "Hesabın silinmeyi bekliyor",
+      "pendingDeletionBody": "Silme talebin sürerken başvuru yapamazsın. Başvurmak için önce silmeyi iptal et.",
+      "pendingDeletionAction": "Silmeyi iptal et",
       "error": "Bir şeyler ters gitti. Lütfen tekrar deneyin.",
       "successTitle": "Başvurunuz alındı",
       "successBody": "{{title}} pozisyonuna başvurduğunuz için teşekkürler. Sizinle iletişime geçeceğiz.",
@@ -793,10 +796,10 @@
       "freezeDialogDescription": "Sen yeniden aktifleştirene kadar her şey duraklar. İstediğin zaman giriş yapıp tek tıkla geri alabilirsin.",
       "freezeDialogConfirm": "Evet, dondur",
       "deleteTitle": "Hesabı sil",
-      "deleteWarning": "Bu işlem kalıcıdır. Adın, telefonun, konumun ve doğum tarihin silinir ve geri getirilemez. E-posta adresin yeni bir kayıt için kullanılabilir hale gelir.",
+      "deleteWarning": "Hesabın 14 gün sonra kalıcı olarak silinir. Bu sürede giriş yapıp silmeyi iptal edebilirsin. Silindiğinde adın, telefonun, konumun, doğum tarihin ve CV'n geri getirilemez şekilde silinir, e-posta adresin de yeni bir kayıt için kullanılabilir hale gelir.",
       "deleteSubmit": "Hesabımı sil",
       "deleteError": "Hesap silinemedi. Tekrar dene.",
-      "deleted": "Hesabın silindi.",
+      "deletionScheduled": "Hesabın {{date}} tarihinden sonra silinecek. O zamana kadar giriş yapıp iptal edebilirsin.",
       "deleteDialogTitle": "Hesabını silmek istiyor musun?",
       "deleteConfirmLabel": "Onaylamak için {{word}} yaz",
       "deleteConfirmMismatch": "Onaylamak için tam olarak DELETE yaz.",
@@ -814,6 +817,14 @@
       "removeError": "CV kaldırılamadı.",
       "downloadError": "İndirme bağlantısı oluşturulamadı."
     }
+  },
+  "cancelAccountDeletion": {
+    "title": "Hesabın silinecek",
+    "description": "Hesabın {{date}} tarihinden sonra kalıcı olarak silinecek. Fikrini değiştirdiysen silmeyi iptal edebilirsin.",
+    "confirm": "Silmeyi iptal et",
+    "done": "Silme iptal edildi, hesabın yeniden aktif.",
+    "failed": "Silme iptal edilemedi. Tekrar dene.",
+    "signOut": "Çıkış yap"
   },
   "reactivateAccount": {
     "title": "Hesabın dondurulmuş",

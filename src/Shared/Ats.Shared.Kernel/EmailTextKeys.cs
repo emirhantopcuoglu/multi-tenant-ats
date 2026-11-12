@@ -29,6 +29,11 @@ public static class EmailTextKeys
 
         public const string EmailChangedSubject = "candidate.emailChanged.subject";
         public const string EmailChangedBody = "candidate.emailChanged.body";
+
+        public const string DeletionRequestedSubject = "candidate.deletionRequested.subject";
+
+        // {0} first name, {1} date after which the account is erased.
+        public const string DeletionRequestedBody = "candidate.deletionRequested.body";
     }
 
     public static class Company

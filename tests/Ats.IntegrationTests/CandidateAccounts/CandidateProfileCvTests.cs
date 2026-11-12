@@ -161,7 +161,7 @@ public sealed class CandidateProfileCvTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Deleting_the_account_should_delete_the_cv_object_too()
+    public async Task Erasing_the_account_should_delete_the_cv_object_too()
     {
         // Erasure has to follow the personal data out of the database: clearing the column while
         // the file stays in the bucket is not deletion.
@@ -170,10 +170,11 @@ public sealed class CandidateProfileCvTests : IAsyncLifetime
         await CreateService(storage).UploadCvAsync(accountId, CvCommand("cv.pdf"));
         var key = await ReadCvFileKeyAsync(accountId);
 
-        var result = await CreateLifecycleService(storage)
-            .DeleteAsync(accountId, new DeleteCandidateAccountCommand(Password));
+        await RequestDeletionAsync(accountId, DateTime.UtcNow - CandidateAccount.DeletionGracePeriod);
 
-        Assert.True(result.IsSuccess);
+        await new CandidateAccountDeletionJob(CreateDbContext(), storage, NullLogger<CandidateAccountDeletionJob>.Instance)
+            .EraseDueAccountsAsync();
+
         Assert.Equal(key, storage.Deleted.Single());
     }
 
@@ -221,9 +222,13 @@ public sealed class CandidateProfileCvTests : IAsyncLifetime
             NullLogger<CandidateProfileService>.Instance);
     }
 
-    private CandidateAccountLifecycleService CreateLifecycleService(RecordingFileStorage fileStorage) =>
-        new(CreateDbContext(), CreatePasswordHasher(), fileStorage,
-            NullLogger<CandidateAccountLifecycleService>.Instance);
+    private async Task RequestDeletionAsync(Guid accountId, DateTime requestedAtUtc)
+    {
+        await using var db = CreateDbContext();
+        var account = await db.CandidateAccounts.SingleAsync(c => c.Id == accountId);
+        account.RequestDeletion(requestedAtUtc);
+        await db.SaveChangesAsync();
+    }
 
     private static CandidatePasswordHasher CreatePasswordHasher() =>
         new(new PasswordHasher<CandidateAccount>());

@@ -147,15 +147,54 @@ public sealed class CandidateAccountConflictRetryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task delete_should_save_when_a_failed_login_lands_before_it()
+    public async Task request_deletion_should_save_when_a_failed_login_lands_before_it()
     {
         var accountId = await SeedAccountAsync();
 
         var result = await LifecycleService(LoginBeforeSave(accountId))
-            .DeleteAsync(accountId, new DeleteCandidateAccountCommand(Password));
+            .RequestDeletionAsync(accountId, new RequestCandidateAccountDeletionCommand(Password));
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(CandidateAccountStatus.Deleted, (await LoadAsync(accountId)).Status);
+        Assert.Equal(CandidateAccountStatus.PendingDeletion, (await LoadAsync(accountId)).Status);
+    }
+
+    [Fact]
+    public async Task cancel_deletion_should_save_when_a_failed_login_lands_before_it()
+    {
+        var accountId = await SeedAccountAsync();
+        await RequestDeletionAsync(accountId, DateTime.UtcNow);
+
+        var result = await LifecycleService(LoginBeforeSave(accountId)).CancelDeletionAsync(accountId);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(CandidateAccountStatus.Active, (await LoadAsync(accountId)).Status);
+    }
+
+    // Someone guessing the password of an account in its grace period must not keep it alive.
+    [Fact]
+    public async Task the_deletion_job_should_erase_when_a_failed_login_lands_before_it()
+    {
+        var accountId = await SeedAccountAsync();
+        await RequestDeletionAsync(accountId, DateTime.UtcNow - CandidateAccount.DeletionGracePeriod);
+
+        await DeletionJob(LoginBeforeSave(accountId)).EraseDueAccountsAsync();
+
+        Assert.Equal(CandidateAccountStatus.Deleted, (await LoadErasedAsync(accountId)).Status);
+    }
+
+    // The candidate pressed "cancel" while the night's job was erasing: the cancel has to win.
+    [Fact]
+    public async Task the_deletion_job_should_leave_an_account_cancelled_before_its_save()
+    {
+        var accountId = await SeedAccountAsync();
+        await RequestDeletionAsync(accountId, DateTime.UtcNow - CandidateAccount.DeletionGracePeriod);
+        var db = CreateDbContext(new WriteBeforeFirstSave(() => CancelDeletionAsync(accountId)));
+
+        await DeletionJob(db).EraseDueAccountsAsync();
+
+        var account = await LoadAsync(accountId);
+        Assert.Equal(CandidateAccountStatus.Active, account.Status);
+        Assert.Equal(Email, account.Email);
     }
 
     [Fact]
@@ -188,16 +227,16 @@ public sealed class CandidateAccountConflictRetryTests : IAsyncLifetime
 
     // The retry has to decide again on the fresh row, not push the old decision through.
     [Fact]
-    public async Task reactivate_should_not_bring_back_an_account_deleted_before_its_save()
+    public async Task reactivate_should_not_undo_a_deletion_requested_before_its_save()
     {
         var accountId = await SeedAccountAsync();
         await LifecycleService(CreateDbContext()).FreezeAsync(accountId);
-        var db = CreateDbContext(new WriteBeforeFirstSave(() => DeleteAccountAsync(accountId)));
+        var db = CreateDbContext(new WriteBeforeFirstSave(() => RequestDeletionAsync(accountId, DateTime.UtcNow)));
 
         var result = await LifecycleService(db).ReactivateAsync(accountId);
 
         Assert.True(result.IsFailure);
-        Assert.Equal(CandidateAccountStatus.Deleted, (await LoadAsync(accountId)).Status);
+        Assert.Equal(CandidateAccountStatus.PendingDeletion, (await LoadAsync(accountId)).Status);
     }
 
     private static readonly CandidatePasswordHasher Hasher = new(new PasswordHasher<CandidateAccount>());
@@ -223,12 +262,26 @@ public sealed class CandidateAccountConflictRetryTests : IAsyncLifetime
         await db.SaveChangesAsync();
     }
 
-    private async Task DeleteAccountAsync(Guid accountId)
+    private async Task RequestDeletionAsync(Guid accountId, DateTime requestedAtUtc)
     {
         await using var db = CreateDbContext();
         var account = await db.CandidateAccounts.SingleAsync(c => c.Id == accountId);
-        account.Delete();
+        account.RequestDeletion(requestedAtUtc);
         await db.SaveChangesAsync();
+    }
+
+    private async Task CancelDeletionAsync(Guid accountId)
+    {
+        await using var db = CreateDbContext();
+        var account = await db.CandidateAccounts.SingleAsync(c => c.Id == accountId);
+        account.CancelDeletion();
+        await db.SaveChangesAsync();
+    }
+
+    private async Task<CandidateAccount> LoadErasedAsync(Guid accountId)
+    {
+        await using var db = CreateDbContext();
+        return await db.CandidateAccounts.IgnoreQueryFilters().AsNoTracking().SingleAsync(c => c.Id == accountId);
     }
 
     private static UploadCandidateCvCommand CvUpload() =>
@@ -253,7 +306,11 @@ public sealed class CandidateAccountConflictRetryTests : IAsyncLifetime
             NullLogger<CandidateProfileService>.Instance);
 
     private static CandidateAccountLifecycleService LifecycleService(CandidateAccountsDbContext db) =>
-        new(db, Hasher, new RecordingFileStorage(), NullLogger<CandidateAccountLifecycleService>.Instance);
+        new(db, Hasher, new RecordingEmailSender(), new JsonEmailTextProvider(),
+            NullLogger<CandidateAccountLifecycleService>.Instance);
+
+    private static CandidateAccountDeletionJob DeletionJob(CandidateAccountsDbContext db) =>
+        new(db, new RecordingFileStorage(), NullLogger<CandidateAccountDeletionJob>.Instance);
 
     private static CandidatePasswordResetService ResetService(
         CandidateAccountsDbContext db, RecordingEmailSender mail) =>

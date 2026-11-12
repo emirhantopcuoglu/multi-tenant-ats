@@ -19,7 +19,7 @@ export interface CompanyUser {
 }
 
 /* Never 'Deleted': a deleted account has no live session. */
-export type CandidateAccountStatus = 'Active' | 'Frozen';
+export type CandidateAccountStatus = 'Active' | 'Frozen' | 'PendingDeletion';
 
 export interface CandidateUser {
   kind: 'candidate';
@@ -28,6 +28,8 @@ export interface CandidateUser {
   lastName: string;
   email: string;
   status: CandidateAccountStatus;
+  /* ISO date, set only while the status is PendingDeletion. */
+  deletionDueAtUtc: string | null;
   /* Separate from `status`: unverified accounts can do everything except apply. */
   isEmailVerified: boolean;
 }

@@ -5,10 +5,10 @@ namespace Ats.Modules.CandidateAccounts.Application;
 
 public sealed record CandidateAuthResult(string AccessToken, string RefreshToken, DateTime RefreshTokenExpiresAtUtc);
 
-// Status and IsEmailVerified let the SPA show the reactivation screen and the verify banner.
+// Status, IsEmailVerified and DeletionDueAtUtc drive the reactivate and cancel-deletion screens and the verify banner.
 public sealed record CurrentCandidateDto(
     Guid Id, string Email, string FirstName, string LastName, CandidateAccountStatus Status,
-    bool IsEmailVerified);
+    bool IsEmailVerified, DateTime? DeletionDueAtUtc);
 
 public interface ICandidateAuthService
 {

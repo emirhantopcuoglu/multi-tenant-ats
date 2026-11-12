@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using Ats.IntegrationTests.Shared;
 using Ats.Modules.CandidateAccounts.Application;
@@ -99,120 +100,115 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Delete_should_reject_a_wrong_password_and_change_nothing()
+    public async Task RequestDeletion_should_reject_a_wrong_password_and_change_nothing()
     {
-        // Arrange
         var accountId = await SeedAccountAsync();
+        var mail = new RecordingEmailSender();
 
-        // Act
-        var result = await CreateService().DeleteAsync(
-            accountId, new DeleteCandidateAccountCommand("wrong-password"));
+        var result = await CreateService(mail).RequestDeletionAsync(
+            accountId, new RequestCandidateAccountDeletionCommand("wrong-password"));
 
-        // Assert
         Assert.True(result.IsFailure);
         Assert.Equal(CandidateAccountLifecycleErrors.InvalidCurrentPassword.Code, result.Error.Code);
         Assert.Equal(CandidateAccountStatus.Active, (await LoadAccountAsync(accountId)).Status);
+        Assert.Empty(mail.Sent);
     }
 
     [Fact]
-    public async Task Delete_should_anonymize_the_row_in_place()
+    public async Task RequestDeletion_should_keep_the_data_until_the_returned_due_date()
     {
-        // Arrange
         var accountId = await SeedAccountAsync();
-        await CreateProfileService().UpdateAsync(accountId, new UpdateCandidateProfileCommand(
-            "Jane", "Doe", "+905321234567", "Turkey", "Istanbul",
-            DateOnly.FromDateTime(DateTime.UtcNow).AddYears(-30)));
 
-        // Act
-        var result = await CreateService().DeleteAsync(
-            accountId, new DeleteCandidateAccountCommand(Password));
+        var result = await CreateService().RequestDeletionAsync(
+            accountId, new RequestCandidateAccountDeletionCommand(Password));
 
-        // Assert: read past the query filter: the row still exists, but nothing personal survives
         Assert.True(result.IsSuccess);
-        var account = await LoadDeletedAccountAsync(accountId);
-        Assert.Equal(CandidateAccountStatus.Deleted, account.Status);
-        Assert.NotNull(account.DeletedAtUtc);
-        Assert.Equal(CandidateAccount.BuildAnonymizedEmail(accountId), account.Email);
-        Assert.Equal(CandidateAccount.AnonymizedFirstName, account.FirstName);
-        Assert.Null(account.PhoneNumber);
-        Assert.Null(account.Country);
-        Assert.Null(account.City);
-        Assert.Null(account.BirthDate);
+        var account = await LoadAccountAsync(accountId);
+        Assert.Equal(CandidateAccountStatus.PendingDeletion, account.Status);
+        Assert.Equal(account.DeletionDueAtUtc, result.Value);
+        Assert.InRange(result.Value, DateTime.UtcNow.AddDays(14).AddMinutes(-1), DateTime.UtcNow.AddDays(14));
+        Assert.Equal(Email, account.Email);
+        Assert.Equal("Jane", account.FirstName);
     }
 
     [Fact]
-    public async Task Delete_should_make_login_fail_like_an_unknown_account()
+    public async Task RequestDeletion_should_end_every_session()
     {
-        // Arrange
-        var accountId = await SeedAccountAsync();
-        await CreateService().DeleteAsync(accountId, new DeleteCandidateAccountCommand(Password));
-
-        // Act: correct credentials, but the query filter hides the row from login
-        var login = await CreateAuthService().LoginAsync(Email, Password);
-
-        // Assert: indistinguishable from a typo: deletion must not become an account oracle
-        Assert.True(login.IsFailure);
-        Assert.Equal(CandidateAuthErrors.InvalidCredentials.Code, login.Error.Code);
-    }
-
-    [Fact]
-    public async Task Delete_should_kill_every_live_session()
-    {
-        // Arrange
         var accountId = await SeedAccountAsync();
         var stampBefore = (await LoadAccountAsync(accountId)).SecurityStamp;
 
-        // Act
-        await CreateService().DeleteAsync(accountId, new DeleteCandidateAccountCommand(Password));
+        await CreateService().RequestDeletionAsync(accountId, new RequestCandidateAccountDeletionCommand(Password));
 
-        // Assert: the filter hides the row from the stamp validator, so any old token dies
         Assert.False(await IsStampCurrentAsync(accountId, stampBefore));
     }
 
     [Fact]
-    public async Task Delete_should_free_the_email_for_a_new_registration()
+    public async Task RequestDeletion_should_let_the_candidate_sign_in_to_cancel()
     {
-        // Arrange
         var accountId = await SeedAccountAsync();
-        await CreateService().DeleteAsync(accountId, new DeleteCandidateAccountCommand(Password));
+        var requested = await CreateService().RequestDeletionAsync(
+            accountId, new RequestCandidateAccountDeletionCommand(Password));
 
-        // Act: the locked product decision: deletion is final, the address is reusable
-        var register = await CreateAuthService().RegisterAsync(Email, Password, "John", "Roe", SupportedLanguages.Default);
+        var login = await CreateAuthService().LoginAsync(Email, Password);
+        var current = await CreateAuthService().GetCurrentCandidateAsync(accountId);
 
-        // Assert
-        Assert.True(register.IsSuccess);
+        Assert.True(login.IsSuccess);
+        Assert.Equal(CandidateAccountStatus.PendingDeletion, current.Value.Status);
+        Assert.Equal(requested.Value, current.Value.DeletionDueAtUtc);
+    }
+
+    // Tells the owner when the account goes, so a request they did not make can still be stopped.
+    [Fact]
+    public async Task RequestDeletion_should_mail_the_owner_the_due_date()
+    {
+        var accountId = await SeedAccountAsync();
+        var mail = new RecordingEmailSender();
+
+        var result = await CreateService(mail).RequestDeletionAsync(
+            accountId, new RequestCandidateAccountDeletionCommand(Password));
+
+        var sent = Assert.Single(mail.Sent);
+        Assert.Equal(Email, sent.ToEmail);
+        Assert.Contains(result.Value.ToString("d MMMM yyyy", CultureInfo.GetCultureInfo("en")), sent.Body);
     }
 
     [Fact]
-    public async Task Delete_should_remove_the_accounts_email_change_requests()
+    public async Task RequestDeletion_should_reject_an_account_already_waiting_for_deletion()
     {
-        // Arrange: a pending request holds a real address, which the erasure must also cover
         var accountId = await SeedAccountAsync();
-        var emailSender = new RecordingEmailSender();
-        await CreateProfileService(emailSender).RequestEmailChangeAsync(
-            accountId, new RequestCandidateEmailChangeCommand("new@example.com", Password));
+        await CreateService().RequestDeletionAsync(accountId, new RequestCandidateAccountDeletionCommand(Password));
 
-        // Act
-        await CreateService().DeleteAsync(accountId, new DeleteCandidateAccountCommand(Password));
+        var again = await CreateService().RequestDeletionAsync(
+            accountId, new RequestCandidateAccountDeletionCommand(Password));
 
-        // Assert
-        await using var db = CreateDbContext();
-        Assert.False(await db.EmailChangeRequests.AnyAsync(r => r.CandidateAccountId == accountId));
+        Assert.True(again.IsFailure);
+        Assert.Equal(CandidateAccountLifecycleErrors.InvalidState("any").Code, again.Error.Code);
     }
 
     [Fact]
-    public async Task Delete_should_hide_the_account_from_the_profile_read()
+    public async Task CancelDeletion_should_restore_the_account_with_its_data()
     {
-        // Arrange
         var accountId = await SeedAccountAsync();
-        await CreateService().DeleteAsync(accountId, new DeleteCandidateAccountCommand(Password));
+        await CreateService().RequestDeletionAsync(accountId, new RequestCandidateAccountDeletionCommand(Password));
 
-        // Act
-        var profile = await CreateProfileService().GetAsync(accountId);
+        var result = await CreateService().CancelDeletionAsync(accountId);
 
-        // Assert
-        Assert.True(profile.IsFailure);
-        Assert.Equal(CandidateProfileErrors.NotFound.Code, profile.Error.Code);
+        Assert.True(result.IsSuccess);
+        var account = await LoadAccountAsync(accountId);
+        Assert.Equal(CandidateAccountStatus.Active, account.Status);
+        Assert.Null(account.DeletionDueAtUtc);
+        Assert.Equal(Email, account.Email);
+    }
+
+    [Fact]
+    public async Task CancelDeletion_should_reject_an_account_without_a_deletion_request()
+    {
+        var accountId = await SeedAccountAsync();
+
+        var result = await CreateService().CancelDeletionAsync(accountId);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(CandidateAccountLifecycleErrors.InvalidState("any").Code, result.Error.Code);
     }
 
     private async Task<bool> IsStampCurrentAsync(Guid accountId, Guid tokenStamp)
@@ -245,15 +241,15 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
 
     private static CandidateTokenService CreateTokenService() => new(CreateJwtOptions());
 
-    private CandidateAccountLifecycleService CreateService(
-        RecordingFileStorage? fileStorage = null) => new(
+    private CandidateAccountLifecycleService CreateService(RecordingEmailSender? emailSender = null) => new(
         CreateDbContext(),
         CreatePasswordHasher(),
-        fileStorage ?? new RecordingFileStorage(),
+        emailSender ?? new RecordingEmailSender(),
+        new JsonEmailTextProvider(),
         NullLogger<CandidateAccountLifecycleService>.Instance);
 
-    // Both helpers hand the session issuer the same DbContext as the service under test, matching how
-    // DI scopes them in the app, so a staged revocation and its replacement row commit together.
+    // Hands the session issuer the same DbContext as the service under test, matching how DI scopes
+    // them in the app, so a staged revocation and its replacement row commit together.
     private CandidateAuthService CreateAuthService()
     {
         var db = CreateDbContext();
@@ -264,20 +260,6 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
             CandidateServiceFactory.EmailVerification(db),
             CandidateServiceFactory.Lockout(),
             NullLogger<CandidateAuthService>.Instance);
-    }
-
-    private CandidateProfileService CreateProfileService(RecordingEmailSender? emailSender = null)
-    {
-        var db = CreateDbContext();
-        return new CandidateProfileService(
-            db,
-            CreatePasswordHasher(),
-            new CandidateSessionIssuer(db, CreateTokenService(), CreateJwtOptions()),
-            emailSender ?? new RecordingEmailSender(),
-            new JsonEmailTextProvider(),
-            new RecordingFileStorage(),
-            Options.Create(new CandidateEmailChangeOptions()),
-            NullLogger<CandidateProfileService>.Instance);
     }
 
     private async Task<Guid> SeedAccountAsync()
@@ -293,16 +275,5 @@ public sealed class CandidateAccountLifecycleServiceTests : IAsyncLifetime
     {
         await using var db = CreateDbContext();
         return await db.CandidateAccounts.AsNoTracking().SingleAsync(c => c.Id == accountId);
-    }
-
-    // Deleted rows are invisible to normal queries by design, so verifying the anonymization needs
-    // the one legitimate use of IgnoreQueryFilters in the codebase.
-    private async Task<CandidateAccount> LoadDeletedAccountAsync(Guid accountId)
-    {
-        await using var db = CreateDbContext();
-        return await db.CandidateAccounts
-            .IgnoreQueryFilters()
-            .AsNoTracking()
-            .SingleAsync(c => c.Id == accountId);
     }
 }

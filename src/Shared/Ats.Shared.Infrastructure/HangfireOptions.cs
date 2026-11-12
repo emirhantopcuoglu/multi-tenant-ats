@@ -12,4 +12,6 @@ public sealed class HangfireOptions
     public string InterviewReminderCron { get; init; } = "*/5 * * * *";
 
     public string OrphanFileCleanupCron { get; init; } = "0 3 * * *";
+
+    public string CandidateAccountDeletionCron { get; init; } = "0 2 * * *";
 }

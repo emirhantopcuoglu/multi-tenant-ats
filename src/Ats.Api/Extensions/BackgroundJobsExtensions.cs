@@ -35,6 +35,8 @@ public static class BackgroundJobsExtensions
         builder.Services.AddScoped<IStoredFileOwner, CandidateAccountCvFileOwner>();
         builder.Services.AddScoped<OrphanFileCleanupJob>();
 
+        builder.Services.AddScoped<CandidateAccountDeletionJob>();
+
         return builder;
     }
 
@@ -72,6 +74,12 @@ public static class BackgroundJobsExtensions
             "orphan-file-cleanup",
             job => job.CleanupAsync(CancellationToken.None),
             hangfireOptions.OrphanFileCleanupCron,
+            new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+
+        RecurringJob.AddOrUpdate<CandidateAccountDeletionJob>(
+            "candidate-account-deletion",
+            job => job.EraseDueAccountsAsync(CancellationToken.None),
+            hangfireOptions.CandidateAccountDeletionCron,
             new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 
         return app;

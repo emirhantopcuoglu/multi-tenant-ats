@@ -180,8 +180,29 @@ export function PublicApplyPage() {
     );
   }
 
-  // This page is outside RequireActiveCandidate, so the frozen check lives here. Before the email
-  // check, like on the server.
+  // This page is outside RequireActiveCandidate, so the frozen and pending-deletion checks live here.
+  // Before the email check, like on the server.
+  if (user.kind === 'candidate' && user.status === 'PendingDeletion') {
+    return (
+      <PublicLayout>
+        <Card className="py-12">
+          <EmptyState
+            title={t('public.apply.pendingDeletionTitle')}
+            description={t('public.apply.pendingDeletionBody')}
+            action={
+              <Link
+                to="/candidate/cancel-deletion"
+                className="text-sm font-medium text-accent hover:underline"
+              >
+                {t('public.apply.pendingDeletionAction')}
+              </Link>
+            }
+          />
+        </Card>
+      </PublicLayout>
+    );
+  }
+
   if (user.kind === 'candidate' && user.status === 'Frozen') {
     return (
       <PublicLayout>
