@@ -1,9 +1,8 @@
 import type { Role } from './enums';
 
-/* Same shape for company and candidate endpoints. */
+/* Same shape for company and candidate endpoints. The refresh token comes as an HttpOnly cookie. */
 export interface AuthResult {
   accessToken: string;
-  refreshToken: string;
 }
 
 export type CandidateAuthResult = AuthResult;

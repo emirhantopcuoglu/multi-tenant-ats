@@ -2,7 +2,7 @@ using Ats.Shared.Kernel;
 
 namespace Ats.Modules.Tenants.Application;
 
-public sealed record AuthResult(string AccessToken, string RefreshToken);
+public sealed record AuthResult(string AccessToken, string RefreshToken, DateTime RefreshTokenExpiresAtUtc);
 
 // Adds the display name and company name, which the JWT doesn't carry.
 public sealed record CurrentUserDto(

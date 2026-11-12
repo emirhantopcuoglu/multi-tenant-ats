@@ -2,12 +2,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 
-const REFRESH_TOKEN_KEY = 'ats-refresh-token';
+const SESSION_KIND_KEY = 'ats-session-kind';
+const LEGACY_REFRESH_TOKEN_KEY = 'ats-refresh-token';
 
-/* Accepts each refresh token once, like the API, and slow enough that two tabs' calls overlap. */
+/* Plays the browser's cookie jar and the API: the jar is shared by every tab, the cookie is sent
+   only with credentials, and each refresh token is accepted once. Slow enough that tabs overlap. */
 function createServer() {
+  const cookieJar = { refresh: 'refresh-0' };
   let issued = 0;
-  let liveRefreshToken = 'refresh-0';
   const liveAccessTokens = new Set<string>();
 
   const respond = (config: InternalAxiosRequestConfig, status: number, data: unknown) => {
@@ -18,33 +20,32 @@ function createServer() {
     return Promise.resolve(response);
   };
 
-  return async (config: InternalAxiosRequestConfig): Promise<AxiosResponse> => {
+  const adapter = async (config: InternalAxiosRequestConfig): Promise<AxiosResponse> => {
+    const sentCookie = config.withCredentials ? cookieJar.refresh : undefined;
     await new Promise((resolve) => setTimeout(resolve, 5));
 
     if (config.url?.endsWith('/auth/refresh')) {
-      const { refreshToken } = JSON.parse(config.data as string) as { refreshToken: string };
-      if (refreshToken !== liveRefreshToken) return respond(config, 401, null);
+      if (sentCookie !== cookieJar.refresh) return respond(config, 401, null);
       issued += 1;
-      liveRefreshToken = `refresh-${issued}`;
+      cookieJar.refresh = `refresh-${issued}`;
       liveAccessTokens.add(`access-${issued}`);
-      return respond(config, 200, {
-        accessToken: `access-${issued}`,
-        refreshToken: liveRefreshToken,
-      });
+      return respond(config, 200, { accessToken: `access-${issued}` });
     }
 
     const bearer = String(config.headers.Authorization ?? '').replace('Bearer ', '');
     return respond(config, liveAccessTokens.has(bearer) ? 200 : 401, {});
   };
+
+  return { adapter, cookieJar };
 }
 
-/* A fresh module graph per tab: own access token and single-flight slot, shared localStorage. */
+/* A fresh module graph per tab: own access token and single-flight slot, shared storage. */
 async function openTab(server: ReturnType<typeof createServer>) {
   vi.resetModules();
   const axios = (await import('axios')).default;
-  axios.defaults.adapter = server;
+  axios.defaults.adapter = server.adapter;
   const { apiClient } = await import('./apiClient');
-  apiClient.defaults.adapter = server;
+  apiClient.defaults.adapter = server.adapter;
   return apiClient;
 }
 
@@ -61,7 +62,7 @@ function installWebLocks() {
 
 describe('apiClient refresh', () => {
   beforeEach(() => {
-    localStorage.setItem(REFRESH_TOKEN_KEY, 'refresh-0');
+    localStorage.setItem(SESSION_KIND_KEY, 'company');
   });
 
   afterEach(() => {
@@ -69,7 +70,7 @@ describe('apiClient refresh', () => {
     Reflect.deleteProperty(navigator, 'locks');
   });
 
-  it('lets two tabs refresh in turn instead of spending the same token twice', async () => {
+  it('lets two tabs refresh in turn instead of spending the same cookie twice', async () => {
     installWebLocks();
     const server = createServer();
     const firstTab = await openTab(server);
@@ -81,15 +82,33 @@ describe('apiClient refresh', () => {
     ]);
 
     expect(responses.map((r) => r.status)).toEqual([200, 200]);
-    expect(localStorage.getItem(REFRESH_TOKEN_KEY)).toBe('refresh-2');
+    expect(server.cookieJar.refresh).toBe('refresh-2');
   });
 
   it('still refreshes in a browser without the Web Locks API', async () => {
-    const tab = await openTab(createServer());
+    const server = createServer();
+    const tab = await openTab(server);
 
     const response = await tab.get('/api/v1/jobs');
 
     expect(response.status).toBe(200);
-    expect(localStorage.getItem(REFRESH_TOKEN_KEY)).toBe('refresh-1');
+    expect(server.cookieJar.refresh).toBe('refresh-1');
+  });
+
+  // A script on the page can read localStorage, so no refresh token may end up there.
+  it('keeps only the session kind in storage', async () => {
+    const tab = await openTab(createServer());
+
+    await tab.get('/api/v1/jobs');
+
+    expect(Object.keys(localStorage)).toEqual([SESSION_KIND_KEY]);
+  });
+
+  it('removes a refresh token left in storage by the old client', async () => {
+    localStorage.setItem(LEGACY_REFRESH_TOKEN_KEY, 'refresh-from-before');
+
+    await openTab(createServer());
+
+    expect(localStorage.getItem(LEGACY_REFRESH_TOKEN_KEY)).toBeNull();
   });
 });

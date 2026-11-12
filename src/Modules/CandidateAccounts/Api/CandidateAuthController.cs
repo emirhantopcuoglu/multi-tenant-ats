@@ -33,8 +33,8 @@ public sealed class CandidateAuthController : ControllerBase
     public sealed record RegisterRequest(
         string Email, string Password, string FirstName, string LastName, string? PreferredLanguage);
     public sealed record LoginRequest(string Email, string Password);
-    public sealed record RefreshRequest(string RefreshToken);
-    public sealed record LogoutRequest(string RefreshToken);
+    // The refresh token is never in a body; it goes out and comes back in CandidateSessionCookie.
+    public sealed record SessionResponse(string AccessToken);
     public sealed record ForgotPasswordRequest(string Email);
     public sealed record ResetPasswordRequest(string Token, string NewPassword);
     public sealed record VerifyEmailRequest(string Token);
@@ -48,7 +48,7 @@ public sealed class CandidateAuthController : ControllerBase
             ?? SupportedLanguages.Default);
 
         return result.IsSuccess
-            ? Ok(result.Value)
+            ? StartSession(result.Value)
             : BadRequest(new { result.Error.Code, result.Error.Message });
     }
 
@@ -59,28 +59,35 @@ public sealed class CandidateAuthController : ControllerBase
         var result = await _authService.LoginAsync(request.Email, request.Password);
 
         return result.IsSuccess
-            ? Ok(result.Value)
+            ? StartSession(result.Value)
             : Unauthorized(new { result.Error.Code, result.Error.Message });
     }
 
     [HttpPost("refresh")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.PerIp)]
-    public async Task<IActionResult> Refresh(RefreshRequest request)
+    public async Task<IActionResult> Refresh()
     {
-        var result = await _authService.RefreshAsync(request.RefreshToken);
+        var result = CandidateSessionCookie.Read(Request) is { } refreshToken
+            ? await _authService.RefreshAsync(refreshToken)
+            : Result.Failure<CandidateAuthResult>(CandidateAuthErrors.InvalidRefreshToken);
+
+        if (result.IsSuccess)
+            return StartSession(result.Value);
 
         // 401 so the client drops the session and signs in again.
-        return result.IsSuccess
-            ? Ok(result.Value)
-            : Unauthorized(new { result.Error.Code, result.Error.Message });
+        CandidateSessionCookie.Delete(Response);
+        return Unauthorized(new { result.Error.Code, result.Error.Message });
     }
 
     [HttpPost("logout")]
     [AllowAnonymous]
-    public async Task<IActionResult> Logout(LogoutRequest request)
+    public async Task<IActionResult> Logout()
     {
-        await _authService.LogoutAsync(request.RefreshToken);
+        if (CandidateSessionCookie.Read(Request) is { } refreshToken)
+            await _authService.LogoutAsync(refreshToken);
+
+        CandidateSessionCookie.Delete(Response);
         return NoContent();
     }
 
@@ -150,5 +157,11 @@ public sealed class CandidateAuthController : ControllerBase
         return result.IsSuccess
             ? Ok(result.Value)
             : NotFound(new { result.Error.Code, result.Error.Message });
+    }
+
+    private OkObjectResult StartSession(CandidateAuthResult session)
+    {
+        CandidateSessionCookie.Write(Response, session.RefreshToken, session.RefreshTokenExpiresAtUtc);
+        return Ok(new SessionResponse(session.AccessToken));
     }
 }

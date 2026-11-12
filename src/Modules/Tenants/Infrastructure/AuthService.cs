@@ -407,7 +407,7 @@ public sealed class AuthService : IAuthService
         _db.RefreshTokens.Add(entity);
         await _db.SaveChangesAsync();
 
-        return new AuthResult(accessToken, refreshToken);
+        return new AuthResult(accessToken, refreshToken, expiresAtUtc);
     }
 
     private static string Hash(string input)
