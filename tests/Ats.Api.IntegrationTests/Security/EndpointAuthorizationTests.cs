@@ -85,6 +85,7 @@ public sealed class EndpointAuthorizationTests
         "POST /api/v{version:apiVersion}/auth/register -> public",
         "POST /api/v{version:apiVersion}/auth/resend-confirmation -> public",
         "POST /api/v{version:apiVersion}/auth/reset-password -> public",
+        "POST /api/v{version:apiVersion}/candidate/account/cancel-deletion -> CandidateOnly",
         "POST /api/v{version:apiVersion}/candidate/account/freeze -> CandidateOnly",
         "POST /api/v{version:apiVersion}/candidate/account/reactivate -> CandidateOnly",
         "POST /api/v{version:apiVersion}/candidate/applications/{id:guid}/withdraw -> CandidateOnly",

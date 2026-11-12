@@ -13,7 +13,7 @@ export function CandidateReactivatePage() {
   const navigate = useNavigate();
   const reactivate = useReactivateCandidateAccount();
 
-  if (user?.kind === 'candidate' && user.status === 'Active') {
+  if (user?.kind === 'candidate' && user.status !== 'Frozen') {
     return <Navigate to="/candidate/settings" replace />;
   }
 

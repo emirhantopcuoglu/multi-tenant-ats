@@ -10,7 +10,7 @@ const DELETE_INVALID_PASSWORD_CODE = 'candidate_account.invalid_current_password
 
 /* Freeze and delete each have their own card and confirmation dialog. */
 export function CandidateAccountSettingsTab() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { toast } = useToast();
   const freeze = useFreezeCandidateAccount();
   const deleteAccount = useDeleteCandidateAccount();
@@ -31,9 +31,12 @@ export function CandidateAccountSettingsTab() {
     deleteAccount.mutate(
       { currentPassword },
       {
-        onSuccess: () => {
+        onSuccess: ({ deletionDueAtUtc }) => {
           /* The session has already ended and the user is on the login page. */
-          toast({ title: t('candidateSettings.account.deleted'), tone: 'success' });
+          const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'long' }).format(
+            new Date(deletionDueAtUtc),
+          );
+          toast({ title: t('candidateSettings.account.deletionScheduled', { date }), tone: 'success' });
         },
         onError: (error) => {
           if (toApiError(error).code === DELETE_INVALID_PASSWORD_CODE) {

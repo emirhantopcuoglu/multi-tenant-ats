@@ -104,7 +104,7 @@ public sealed class CandidateAuthService : ICandidateAuthService
             });
         }
 
-        // Frozen accounts may sign in so they can reactivate. Deleted ones are filtered out above.
+        // Frozen and pending accounts may sign in to reactivate or cancel. Deleted ones are filtered out above.
         return Result.Success(await _sessions.IssueAsync(account));
     }
 
@@ -201,6 +201,6 @@ public sealed class CandidateAuthService : ICandidateAuthService
 
         return Result.Success(new CurrentCandidateDto(
             account.Id, account.Email, account.FirstName, account.LastName, account.Status,
-            account.IsEmailVerified));
+            account.IsEmailVerified, account.DeletionDueAtUtc));
     }
 }

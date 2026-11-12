@@ -40,6 +40,7 @@ import { CandidateProfileSettingsTab } from '@/features/candidates/pages/Candida
 import { CandidateSecuritySettingsTab } from '@/features/candidates/pages/CandidateSecuritySettingsTab';
 import { CandidateAccountSettingsTab } from '@/features/candidates/pages/CandidateAccountSettingsTab';
 import { CandidateReactivatePage } from '@/features/candidates/pages/CandidateReactivatePage';
+import { CandidateCancelDeletionPage } from '@/features/candidates/pages/CandidateCancelDeletionPage';
 import { CompanyNotificationsPage } from '@/features/notifications/pages/CompanyNotificationsPage';
 
 /* Authenticated screens nest under RequireAuth → AppShell; role-restricted ones nest again under
@@ -68,8 +69,9 @@ export default function App() {
       <Route path="/interview-room/:roomToken" element={<InterviewRoomPage />} />
 
       <Route element={<RequireCandidateAuth />}>
-        {/* Outside RequireActiveCandidate: the one screen a frozen account may see. */}
+        {/* Outside RequireActiveCandidate: the one screen a frozen or deleting account may see. */}
         <Route path="/candidate/reactivate" element={<CandidateReactivatePage />} />
+        <Route path="/candidate/cancel-deletion" element={<CandidateCancelDeletionPage />} />
         <Route element={<RequireActiveCandidate />}>
           <Route path="/candidate/applications" element={<CandidateApplicationsPage />} />
           <Route path="/candidate/applications/:id" element={<CandidateApplicationDetailPage />} />

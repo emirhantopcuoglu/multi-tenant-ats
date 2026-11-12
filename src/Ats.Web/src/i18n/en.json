@@ -330,6 +330,9 @@
       "frozenTitle": "Your account is frozen",
       "frozenBody": "Applications are paused while your account is frozen. Reactivate it to apply to this position.",
       "frozenAction": "Reactivate my account",
+      "pendingDeletionTitle": "Your account is waiting to be deleted",
+      "pendingDeletionBody": "You can't apply while your account is waiting to be deleted. Cancel the deletion first to apply.",
+      "pendingDeletionAction": "Cancel deletion",
       "error": "Something went wrong. Please try again.",
       "successTitle": "Application received",
       "successBody": "Thanks for applying to {{title}}. We'll be in touch.",
@@ -793,10 +796,10 @@
       "freezeDialogDescription": "Everything pauses until you reactivate. Sign in any time and undo this with one click.",
       "freezeDialogConfirm": "Yes, freeze it",
       "deleteTitle": "Delete account",
-      "deleteWarning": "This is permanent. Your name, phone number, location and birth date are erased and cannot be recovered. Your email address becomes available for a new registration.",
+      "deleteWarning": "Your account is deleted for good after 14 days. Until then you can sign in and cancel. Once deleted, your name, phone number, location, birth date and CV are erased and cannot be recovered, and your email address becomes available for a new registration.",
       "deleteSubmit": "Delete my account",
       "deleteError": "Couldn't delete your account. Try again.",
-      "deleted": "Your account was deleted.",
+      "deletionScheduled": "Your account will be deleted after {{date}}. Until then you can sign in and cancel.",
       "deleteDialogTitle": "Delete your account?",
       "deleteConfirmLabel": "Type {{word}} to confirm",
       "deleteConfirmMismatch": "Type DELETE exactly to confirm.",
@@ -814,6 +817,14 @@
       "removeError": "The CV could not be removed.",
       "downloadError": "The download link could not be created."
     }
+  },
+  "cancelAccountDeletion": {
+    "title": "Your account will be deleted",
+    "description": "Your account will be deleted for good after {{date}}. If you changed your mind, you can cancel the deletion.",
+    "confirm": "Cancel deletion",
+    "done": "Deletion cancelled, your account is active again.",
+    "failed": "Couldn't cancel the deletion. Try again.",
+    "signOut": "Sign out"
   },
   "reactivateAccount": {
     "title": "Your account is frozen",

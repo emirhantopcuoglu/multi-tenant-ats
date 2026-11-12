@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Net;
 using Ats.Modules.CandidateAccounts.Application;
 using Ats.Modules.CandidateAccounts.Domain;
 using Ats.Shared.Kernel;
@@ -8,20 +10,26 @@ namespace Ats.Modules.CandidateAccounts.Infrastructure;
 
 public sealed class CandidateAccountLifecycleService : ICandidateAccountLifecycleService
 {
+    // The culture comes from the account's language, so the month is spelled in it.
+    private const string DeletionDateFormat = "d MMMM yyyy";
+
     private readonly CandidateAccountsDbContext _db;
     private readonly ICandidatePasswordHasher _passwordHasher;
-    private readonly IFileStorage _fileStorage;
+    private readonly IEmailSender _emailSender;
+    private readonly IEmailTextProvider _emailText;
     private readonly ILogger<CandidateAccountLifecycleService> _logger;
 
     public CandidateAccountLifecycleService(
         CandidateAccountsDbContext db,
         ICandidatePasswordHasher passwordHasher,
-        IFileStorage fileStorage,
+        IEmailSender emailSender,
+        IEmailTextProvider emailText,
         ILogger<CandidateAccountLifecycleService> logger)
     {
         _db = db;
         _passwordHasher = passwordHasher;
-        _fileStorage = fileStorage;
+        _emailSender = emailSender;
+        _emailText = emailText;
         _logger = logger;
     }
 
@@ -41,6 +49,15 @@ public sealed class CandidateAccountLifecycleService : ICandidateAccountLifecycl
             _logger.LogInformation("Candidate account {CandidateAccountId} reactivated", candidateAccountId);
 
         return reactivated;
+    }
+
+    public async Task<Result> CancelDeletionAsync(Guid candidateAccountId)
+    {
+        var cancelled = await ChangeStatusAsync(candidateAccountId, account => account.CancelDeletion());
+        if (cancelled.IsSuccess)
+            _logger.LogInformation("Deletion of candidate account {CandidateAccountId} cancelled", candidateAccountId);
+
+        return cancelled;
     }
 
     private Task<Result> ChangeStatusAsync(Guid candidateAccountId, Action<CandidateAccount> transition) =>
@@ -63,61 +80,65 @@ public sealed class CandidateAccountLifecycleService : ICandidateAccountLifecycl
             return Result.Success();
         });
 
-    public async Task<Result> DeleteAsync(Guid candidateAccountId, DeleteCandidateAccountCommand command)
+    // CandidateAccountDeletionJob erases the account once the grace period is over.
+    public async Task<Result<DateTime>> RequestDeletionAsync(
+        Guid candidateAccountId, RequestCandidateAccountDeletionCommand command)
     {
-        var deleted = await ConflictRetry.RunAsync(_db, async () =>
+        var requested = await ConflictRetry.RunAsync(_db, async () =>
         {
             var account = await _db.CandidateAccounts.FirstOrDefaultAsync(c => c.Id == candidateAccountId);
             if (account is null)
-                return Result.Failure<string?>(CandidateAccountLifecycleErrors.NotFound);
+                return Result.Failure<CandidateAccount>(CandidateAccountLifecycleErrors.NotFound);
 
             // A stolen session alone must not be able to delete the account.
             if (!_passwordHasher.Verify(account.PasswordHash, command.CurrentPassword))
-                return Result.Failure<string?>(CandidateAccountLifecycleErrors.InvalidCurrentPassword);
-
-            // These hold real email addresses, consumed ones included.
-            var emailChangeRequests = await _db.EmailChangeRequests
-                .Where(r => r.CandidateAccountId == account.Id)
-                .ToListAsync();
-            _db.EmailChangeRequests.RemoveRange(emailChangeRequests);
-
-            // Read before Delete() clears it; the file itself still has to be removed from storage.
-            var cvFileKey = account.CvFileKey;
+                return Result.Failure<CandidateAccount>(CandidateAccountLifecycleErrors.InvalidCurrentPassword);
 
             try
             {
-                account.Delete();
+                account.RequestDeletion(DateTime.UtcNow);
             }
             catch (InvalidOperationException rejectedTransition)
             {
-                return Result.Failure<string?>(CandidateAccountLifecycleErrors.InvalidState(rejectedTransition.Message));
+                return Result.Failure<CandidateAccount>(
+                    CandidateAccountLifecycleErrors.InvalidState(rejectedTransition.Message));
             }
 
             await _db.SaveChangesAsync();
-            return Result.Success(cvFileKey);
+            return Result.Success(account);
         });
 
-        if (deleted.IsFailure)
-            return deleted;
+        if (requested.IsFailure)
+            return Result.Failure<DateTime>(requested.Error);
 
-        // After the save, and best-effort: a storage outage must not undo the deletion.
-        if (deleted.Value is { } cvFileKey)
+        var account = requested.Value;
+        var dueAtUtc = account.DeletionDueAtUtc!.Value;
+        _logger.LogInformation(
+            "Deletion of candidate account {CandidateAccountId} requested, due {DeletionDueAtUtc}", account.Id, dueAtUtc);
+
+        await NotifyDeletionRequestedAsync(account, dueAtUtc);
+        return Result.Success(dueAtUtc);
+    }
+
+    // Best-effort: the request is already saved.
+    private async Task NotifyDeletionRequestedAsync(CandidateAccount account, DateTime dueAtUtc)
+    {
+        var language = account.PreferredLanguage;
+        var dueDate = dueAtUtc.ToString(DeletionDateFormat, CultureInfo.GetCultureInfo(language));
+
+        // The name is user input going into HTML.
+        var body = _emailText.Get(
+            EmailTextKeys.Candidate.DeletionRequestedBody, language, WebUtility.HtmlEncode(account.FirstName), dueDate);
+
+        try
         {
-            try
-            {
-                await _fileStorage.DeleteAsync(cvFileKey);
-            }
-            catch (Exception exception)
-            {
-                _logger.LogError(
-                    exception,
-                    "Failed to delete the CV of erased candidate account {CandidateAccountId}",
-                    candidateAccountId);
-            }
+            await _emailSender.SendAsync(
+                account.Email, _emailText.Get(EmailTextKeys.Candidate.DeletionRequestedSubject, language), body);
         }
-
-        // Only the id: no personal data in the log.
-        _logger.LogInformation("Candidate account {CandidateAccountId} deleted", candidateAccountId);
-        return Result.Success();
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception, "Failed to send the deletion request email of candidate account {CandidateAccountId}", account.Id);
+        }
     }
 }
