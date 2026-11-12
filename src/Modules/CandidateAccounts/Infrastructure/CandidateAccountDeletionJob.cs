@@ -9,13 +9,18 @@ namespace Ats.Modules.CandidateAccounts.Infrastructure;
 public sealed class CandidateAccountDeletionJob
 {
     private readonly CandidateAccountsDbContext _db;
+    private readonly IReadOnlyList<ICandidateDataEraser> _erasers;
     private readonly IFileStorage _fileStorage;
     private readonly ILogger<CandidateAccountDeletionJob> _logger;
 
     public CandidateAccountDeletionJob(
-        CandidateAccountsDbContext db, IFileStorage fileStorage, ILogger<CandidateAccountDeletionJob> logger)
+        CandidateAccountsDbContext db,
+        IEnumerable<ICandidateDataEraser> erasers,
+        IFileStorage fileStorage,
+        ILogger<CandidateAccountDeletionJob> logger)
     {
         _db = db;
+        _erasers = erasers.ToList();
         _fileStorage = fileStorage;
         _logger = logger;
     }
@@ -61,11 +66,20 @@ public sealed class CandidateAccountDeletionJob
 
     private async Task<bool> EraseAsync(Guid accountId, DateTime nowUtc, CancellationToken ct)
     {
+        // The other modules go first, while the account is still pending: this job only picks up pending
+        // accounts, so a module failing after the account was erased would keep its data for good.
+        var pending = await _db.CandidateAccounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == accountId, ct);
+        if (pending is null || !pending.IsDeletionDue(nowUtc))
+            return false;
+
+        foreach (var eraser in _erasers)
+            await eraser.EraseAsync(accountId, ct);
+
         var erasure = await ConflictRetry.RunAsync(_db, async () =>
         {
             var account = await _db.CandidateAccounts.FirstOrDefaultAsync(a => a.Id == accountId, ct);
 
-            // Cancelled after the list was read.
+            // Another run got there first.
             if (account is null || !account.IsDeletionDue(nowUtc))
                 return (Erased: false, CvFileKey: (string?)null);
 

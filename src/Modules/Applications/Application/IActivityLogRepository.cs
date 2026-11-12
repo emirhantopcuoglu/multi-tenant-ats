@@ -18,6 +18,10 @@ public interface IActivityLogRepository
     // never one supplied by the caller.
     Task<IReadOnlyList<ActivityLogEntry>> GetByApplicationAsync(
         Guid applicationId, Guid tenantId, CancellationToken cancellationToken = default);
+
+    // For an erased candidate: removes their email and the free-text reasons, keeps the rest of the history.
+    Task ErasePersonalDataAsync(
+        Guid tenantId, IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default);
 }
 
 // Payload is raw JSON; the API turns it into a JSON object.

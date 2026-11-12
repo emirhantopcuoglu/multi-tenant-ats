@@ -11,7 +11,7 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
     public Guid CandidateId { get; private set; }
     public Guid? CandidateAccountId { get; private set; }
     public Guid CurrentStageId { get; private set; }
-    public string CvFileKey { get; private set; } = null!;
+    public string? CvFileKey { get; private set; }
     public string? CoverLetter { get; private set; }
     public ApplicationStatus Status { get; private set; }
     public string? RejectionReason { get; private set; }
@@ -122,6 +122,20 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
 
         FirstCvDownloadedAtUtc = DateTime.UtcNow;
         return true;
+    }
+
+    // Returns the CV key so the caller can delete the file. Status and stage stay for the company's
+    // numbers. An active application has to be closed first.
+    public string? ErasePersonalData()
+    {
+        if (Status == ApplicationStatus.Active)
+            throw new InvalidOperationException("An active application cannot be erased.");
+
+        var cvFileKey = CvFileKey;
+        CvFileKey = null;
+        CoverLetter = null;
+        RejectionReason = null;
+        return cvFileKey;
     }
 
     private void EnsureActive(string action)

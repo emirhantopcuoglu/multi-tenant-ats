@@ -16,7 +16,7 @@ public sealed class ApplicationCvFileOwner : IStoredFileOwner
         IReadOnlyCollection<string> keys, CancellationToken cancellationToken = default) =>
         await _db.Applications
             .IgnoreQueryFilters()
-            .Where(application => keys.Contains(application.CvFileKey))
-            .Select(application => application.CvFileKey)
+            .Where(application => application.CvFileKey != null && keys.Contains(application.CvFileKey))
+            .Select(application => application.CvFileKey!)
             .ToListAsync(cancellationToken);
 }

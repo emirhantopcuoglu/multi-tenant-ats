@@ -53,7 +53,7 @@ public sealed class CandidateAccountLifecycleService : ICandidateAccountLifecycl
 
     public async Task<Result> CancelDeletionAsync(Guid candidateAccountId)
     {
-        var cancelled = await ChangeStatusAsync(candidateAccountId, account => account.CancelDeletion());
+        var cancelled = await ChangeStatusAsync(candidateAccountId, account => account.CancelDeletion(DateTime.UtcNow));
         if (cancelled.IsSuccess)
             _logger.LogInformation("Deletion of candidate account {CandidateAccountId} cancelled", candidateAccountId);
 

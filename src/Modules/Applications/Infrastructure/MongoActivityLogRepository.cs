@@ -13,6 +13,11 @@ public sealed class MongoActivityLogRepository : IActivityLogRepository
     // Internal so MongoActivityLogInitializer uses the same name.
     internal const string CollectionName = "application_activities";
 
+    // Payload fields written by ApplicationActivity: the email on Submitted, the reason on Rejected and
+    // StageCorrected.
+    private const string CandidateEmailField = "payload.candidateEmail";
+    private const string ReasonField = "payload.reason";
+
     private readonly IMongoCollection<ActivityDocument> _collection;
     private readonly ICurrentTenant _currentTenant;
 
@@ -83,5 +88,15 @@ public sealed class MongoActivityLogRepository : IActivityLogRepository
                 d.Payload.ToJson(),
                 d.OccurredAtUtc))
             .ToList();
+    }
+
+    public async Task ErasePersonalDataAsync(
+        Guid tenantId, IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<ActivityDocument>.Filter.Eq(d => d.TenantId, tenantId)
+            & Builders<ActivityDocument>.Filter.In(d => d.ApplicationId, applicationIds);
+        var update = Builders<ActivityDocument>.Update.Unset(CandidateEmailField).Unset(ReasonField);
+
+        await _collection.UpdateManyAsync(filter, update, cancellationToken: cancellationToken);
     }
 }

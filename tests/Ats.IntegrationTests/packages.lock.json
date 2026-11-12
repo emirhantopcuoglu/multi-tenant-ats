@@ -836,7 +836,10 @@
         }
       },
       "ats.modules.candidateaccounts.domain": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "Ats.Shared.Kernel": "[1.0.0, )"
+        }
       },
       "ats.modules.candidateaccounts.infrastructure": {
         "type": "Project",

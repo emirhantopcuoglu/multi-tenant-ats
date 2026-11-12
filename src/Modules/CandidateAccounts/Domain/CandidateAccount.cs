@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Ats.Shared.Kernel;
 
 namespace Ats.Modules.CandidateAccounts.Domain;
 
@@ -225,10 +226,6 @@ public sealed class CandidateAccount
     public const string AnonymizedFirstName = "Deleted";
     public const string AnonymizedLastName = "user";
 
-    // .invalid never resolves (RFC 2606). The id keeps it unique under the email index.
-    public static string BuildAnonymizedEmail(Guid accountId) =>
-        $"deleted-{accountId:N}@account.invalid";
-
     // The stamp is not rotated: a frozen account stays signed in so it can reactivate itself.
     public void Freeze()
     {
@@ -265,10 +262,14 @@ public sealed class CandidateAccount
         SecurityStamp = Guid.NewGuid();
     }
 
-    public void CancelDeletion()
+    // Once due, the erasure may already have reached other modules, and cancelling would leave the
+    // account half-erased.
+    public void CancelDeletion(DateTime nowUtc)
     {
         if (Status != CandidateAccountStatus.PendingDeletion)
             throw new InvalidOperationException("The account has no deletion request to cancel.");
+        if (IsDeletionDue(nowUtc))
+            throw new InvalidOperationException("The grace period has ended and the account is being deleted.");
 
         Status = CandidateAccountStatus.Active;
         DeletionDueAtUtc = null;
@@ -289,7 +290,7 @@ public sealed class CandidateAccount
         DeletionDueAtUtc = null;
 
         // PasswordHash is kept: overwriting it with a non-hash would make Verify() throw.
-        Email = BuildAnonymizedEmail(Id);
+        Email = AnonymizedEmail.For(Id);
         FirstName = AnonymizedFirstName;
         LastName = AnonymizedLastName;
         PhoneNumber = null;
