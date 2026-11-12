@@ -45,7 +45,7 @@ public sealed class CandidateAccountDeletionJobTests : IAsyncLifetime
 
         var account = await LoadAsync(accountId);
         Assert.Equal(CandidateAccountStatus.Deleted, account.Status);
-        Assert.Equal(CandidateAccount.BuildAnonymizedEmail(accountId), account.Email);
+        Assert.Equal(AnonymizedEmail.For(accountId), account.Email);
         Assert.Equal(CandidateAccount.AnonymizedFirstName, account.FirstName);
         Assert.Null(account.PhoneNumber);
         Assert.Null(account.City);
@@ -60,7 +60,7 @@ public sealed class CandidateAccountDeletionJobTests : IAsyncLifetime
         var cancelled = await SeedAccountAsync("cancelled@example.com", account =>
         {
             account.RequestDeletion(GraceEndedAt);
-            account.CancelDeletion();
+            account.CancelDeletion(GraceEndedAt);
         });
         var active = await SeedAccountAsync("active@example.com");
 
@@ -155,6 +155,48 @@ public sealed class CandidateAccountDeletionJobTests : IAsyncLifetime
         Assert.Equal(CandidateAccountStatus.Deleted, (await LoadAsync(healthy)).Status);
     }
 
+    // The job only picks up pending accounts, so erasing the account first would leave the other
+    // modules' data behind for good if they failed.
+    [Fact]
+    public async Task the_other_modules_should_be_erased_while_the_account_is_still_pending()
+    {
+        var accountId = await SeedAccountAsync(Email, account => account.RequestDeletion(GraceEndedAt));
+        var eraser = new RecordingEraser(LoadAsync);
+
+        await CreateJob(erasers: [eraser]).EraseDueAccountsAsync();
+
+        Assert.Equal([(accountId, CandidateAccountStatus.PendingDeletion)], eraser.Calls);
+        Assert.Equal(CandidateAccountStatus.Deleted, (await LoadAsync(accountId)).Status);
+    }
+
+    [Fact]
+    public async Task an_account_whose_data_could_not_be_erased_should_be_tried_again_on_the_next_run()
+    {
+        var accountId = await SeedAccountAsync(Email, account => account.RequestDeletion(GraceEndedAt));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => CreateJob(erasers: [new FailingEraser()]).EraseDueAccountsAsync());
+
+        var pending = await LoadAsync(accountId);
+        Assert.Equal(CandidateAccountStatus.PendingDeletion, pending.Status);
+        Assert.Equal(Email, pending.Email);
+
+        await CreateJob(erasers: [new RecordingEraser(LoadAsync)]).EraseDueAccountsAsync();
+
+        Assert.Equal(CandidateAccountStatus.Deleted, (await LoadAsync(accountId)).Status);
+    }
+
+    [Fact]
+    public async Task an_account_still_in_its_grace_period_should_not_reach_the_other_modules()
+    {
+        await SeedAccountAsync(Email, account => account.RequestDeletion(GraceEndedAt.AddMinutes(5)));
+        var eraser = new RecordingEraser(LoadAsync);
+
+        await CreateJob(erasers: [eraser]).EraseDueAccountsAsync();
+
+        Assert.Empty(eraser.Calls);
+    }
+
     private CandidateAccountsDbContext CreateDbContext(IInterceptor? interceptor = null)
     {
         var options = PostgresContainerFixture.BuildCandidateAccountsOptions(_fixture.ConnectionString);
@@ -165,8 +207,31 @@ public sealed class CandidateAccountDeletionJobTests : IAsyncLifetime
     }
 
     private CandidateAccountDeletionJob CreateJob(
-        RecordingFileStorage? storage = null, CandidateAccountsDbContext? db = null) =>
-        new(db ?? CreateDbContext(), storage ?? new RecordingFileStorage(), NullLogger<CandidateAccountDeletionJob>.Instance);
+        RecordingFileStorage? storage = null,
+        CandidateAccountsDbContext? db = null,
+        IEnumerable<ICandidateDataEraser>? erasers = null) =>
+        new(
+            db ?? CreateDbContext(), erasers ?? [], storage ?? new RecordingFileStorage(),
+            NullLogger<CandidateAccountDeletionJob>.Instance);
+
+    // Records the account's status at the time of the call.
+    private sealed class RecordingEraser : ICandidateDataEraser
+    {
+        private readonly Func<Guid, Task<CandidateAccount>> _load;
+
+        public RecordingEraser(Func<Guid, Task<CandidateAccount>> load) => _load = load;
+
+        public List<(Guid AccountId, CandidateAccountStatus Status)> Calls { get; } = [];
+
+        public async Task EraseAsync(Guid candidateAccountId, CancellationToken cancellationToken = default) =>
+            Calls.Add((candidateAccountId, (await _load(candidateAccountId)).Status));
+    }
+
+    private sealed class FailingEraser : ICandidateDataEraser
+    {
+        public Task EraseAsync(Guid candidateAccountId, CancellationToken cancellationToken = default) =>
+            throw new IOException("Mongo is down.");
+    }
 
     // A save that changes this account always fails, the way a broken row would.
     private sealed class FailSavesOf : SaveChangesInterceptor

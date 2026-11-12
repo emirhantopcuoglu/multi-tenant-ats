@@ -53,7 +53,6 @@ namespace Ats.Modules.Applications.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("CvFileKey")
-                        .IsRequired()
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 

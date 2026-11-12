@@ -796,7 +796,7 @@
       "freezeDialogDescription": "Everything pauses until you reactivate. Sign in any time and undo this with one click.",
       "freezeDialogConfirm": "Yes, freeze it",
       "deleteTitle": "Delete account",
-      "deleteWarning": "Your account is deleted for good after 14 days. Until then you can sign in and cancel. Once deleted, your name, phone number, location, birth date and CV are erased and cannot be recovered, and your email address becomes available for a new registration.",
+      "deleteWarning": "Your account is deleted for good after 14 days. Until then you can sign in and cancel. Once deleted, your name, phone number, location, birth date and CV are erased and cannot be recovered. Your applications are anonymized at every company, and open ones are withdrawn. Your email address becomes available for a new registration.",
       "deleteSubmit": "Delete my account",
       "deleteError": "Couldn't delete your account. Try again.",
       "deletionScheduled": "Your account will be deleted after {{date}}. Until then you can sign in and cancel.",
@@ -824,7 +824,9 @@
     "confirm": "Cancel deletion",
     "done": "Deletion cancelled, your account is active again.",
     "failed": "Couldn't cancel the deletion. Try again.",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "inProgressTitle": "Your account is being deleted",
+    "inProgressDescription": "The waiting period is over. Your account will be deleted for good within a day, and this can no longer be cancelled."
   },
   "reactivateAccount": {
     "title": "Your account is frozen",

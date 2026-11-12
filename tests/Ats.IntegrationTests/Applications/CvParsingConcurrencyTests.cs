@@ -102,5 +102,9 @@ public sealed class CvParsingConcurrencyTests
         public Task<StoredCvParseResult?> GetByApplicationAsync(
             Guid applicationId, CancellationToken cancellationToken = default) =>
             Task.FromResult<StoredCvParseResult?>(null);
+
+        public Task DeleteAsync(
+            Guid tenantId, IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 }

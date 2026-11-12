@@ -35,6 +35,8 @@ public static class BackgroundJobsExtensions
         builder.Services.AddScoped<IStoredFileOwner, CandidateAccountCvFileOwner>();
         builder.Services.AddScoped<OrphanFileCleanupJob>();
 
+        // Every module that keeps a candidate's data registers its eraser here, or the data outlives the account.
+        builder.Services.AddScoped<ICandidateDataEraser, ApplicationCandidateDataEraser>();
         builder.Services.AddScoped<CandidateAccountDeletionJob>();
 
         return builder;

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, useToast } from '@/components/ui';
@@ -12,14 +13,28 @@ export function CandidateCancelDeletionPage() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const cancelDeletion = useCancelCandidateAccountDeletion();
+  const [openedAtMs] = useState(Date.now);
 
   if (user?.kind !== 'candidate' || user.status !== 'PendingDeletion' || !user.deletionDueAtUtc) {
     return <Navigate to="/candidate/settings" replace />;
   }
 
-  const dueDate = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'long' }).format(
-    new Date(user.deletionDueAtUtc),
-  );
+  const dueAt = new Date(user.deletionDueAtUtc);
+  // The nightly job erases the account some hours later, and the API refuses a cancel by then.
+  if (dueAt.getTime() <= openedAtMs) {
+    return (
+      <AuthLayout
+        title={t('cancelAccountDeletion.inProgressTitle')}
+        subtitle={t('cancelAccountDeletion.inProgressDescription')}
+      >
+        <Button type="button" variant="ghost" className="w-full" onClick={() => void logout()}>
+          {t('cancelAccountDeletion.signOut')}
+        </Button>
+      </AuthLayout>
+    );
+  }
+
+  const dueDate = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'long' }).format(dueAt);
 
   return (
     <AuthLayout

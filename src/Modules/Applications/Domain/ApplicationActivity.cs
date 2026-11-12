@@ -3,8 +3,8 @@ using Ats.Shared.Kernel;
 
 namespace Ats.Modules.Applications.Domain;
 
-// Append-only history entry with a JSON payload, stored in MongoDB. Never edited or deleted, so
-// not IAuditable or ISoftDeletable.
+// Append-only history entry with a JSON payload, stored in MongoDB. Only edited to erase a deleted
+// candidate's data, so not IAuditable or ISoftDeletable.
 public sealed class ApplicationActivity : ITenantScoped
 {
     public Guid Id { get; private set; }

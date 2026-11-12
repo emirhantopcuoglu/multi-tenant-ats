@@ -524,6 +524,15 @@ internal sealed class InMemoryActivityLog : IActivityLogRepository
         Guid applicationId, Guid tenantId, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<ActivityLogEntry>>(
             _entries.Where(e => e.ApplicationId == applicationId).ToList());
+
+    public List<(Guid TenantId, IReadOnlyCollection<Guid> ApplicationIds)> Erased { get; } = [];
+
+    public Task ErasePersonalDataAsync(
+        Guid tenantId, IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default)
+    {
+        Erased.Add((tenantId, applicationIds));
+        return Task.CompletedTask;
+    }
 }
 
 internal sealed class FakeJobDirectory : IJobDirectory

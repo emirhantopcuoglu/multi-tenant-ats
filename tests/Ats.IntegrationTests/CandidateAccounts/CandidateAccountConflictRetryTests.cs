@@ -182,21 +182,6 @@ public sealed class CandidateAccountConflictRetryTests : IAsyncLifetime
         Assert.Equal(CandidateAccountStatus.Deleted, (await LoadErasedAsync(accountId)).Status);
     }
 
-    // The candidate pressed "cancel" while the night's job was erasing: the cancel has to win.
-    [Fact]
-    public async Task the_deletion_job_should_leave_an_account_cancelled_before_its_save()
-    {
-        var accountId = await SeedAccountAsync();
-        await RequestDeletionAsync(accountId, DateTime.UtcNow - CandidateAccount.DeletionGracePeriod);
-        var db = CreateDbContext(new WriteBeforeFirstSave(() => CancelDeletionAsync(accountId)));
-
-        await DeletionJob(db).EraseDueAccountsAsync();
-
-        var account = await LoadAsync(accountId);
-        Assert.Equal(CandidateAccountStatus.Active, account.Status);
-        Assert.Equal(Email, account.Email);
-    }
-
     [Fact]
     public async Task email_verification_should_save_when_a_failed_login_lands_before_it()
     {
@@ -270,14 +255,6 @@ public sealed class CandidateAccountConflictRetryTests : IAsyncLifetime
         await db.SaveChangesAsync();
     }
 
-    private async Task CancelDeletionAsync(Guid accountId)
-    {
-        await using var db = CreateDbContext();
-        var account = await db.CandidateAccounts.SingleAsync(c => c.Id == accountId);
-        account.CancelDeletion();
-        await db.SaveChangesAsync();
-    }
-
     private async Task<CandidateAccount> LoadErasedAsync(Guid accountId)
     {
         await using var db = CreateDbContext();
@@ -310,7 +287,7 @@ public sealed class CandidateAccountConflictRetryTests : IAsyncLifetime
             NullLogger<CandidateAccountLifecycleService>.Instance);
 
     private static CandidateAccountDeletionJob DeletionJob(CandidateAccountsDbContext db) =>
-        new(db, new RecordingFileStorage(), NullLogger<CandidateAccountDeletionJob>.Instance);
+        new(db, [], new RecordingFileStorage(), NullLogger<CandidateAccountDeletionJob>.Instance);
 
     private static CandidatePasswordResetService ResetService(
         CandidateAccountsDbContext db, RecordingEmailSender mail) =>

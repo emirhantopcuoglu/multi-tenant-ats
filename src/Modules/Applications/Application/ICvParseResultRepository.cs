@@ -12,6 +12,10 @@ public interface ICvParseResultRepository
 
     Task<StoredCvParseResult?> GetByApplicationAsync(
         Guid applicationId, CancellationToken cancellationToken = default);
+
+    // Everything in a parse result comes from the CV, so an erased candidate's results go entirely.
+    Task DeleteAsync(
+        Guid tenantId, IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default);
 }
 
 public sealed record StoredCvParseResult(

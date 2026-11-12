@@ -57,7 +57,7 @@ public sealed class ApplicationsDbContext : DbContext, IApplicationsDbContext
         builder.Entity<ApplicationEntity>(entity =>
         {
             entity.HasKey(a => a.Id);
-            entity.Property(a => a.CvFileKey).IsRequired().HasMaxLength(512);
+            entity.Property(a => a.CvFileKey).HasMaxLength(512);
             entity.Property(a => a.CoverLetter).HasMaxLength(5000);
             entity.Property(a => a.RejectionReason).HasMaxLength(1000);
             entity.Property(a => a.Status).HasConversion<string>().HasMaxLength(20);

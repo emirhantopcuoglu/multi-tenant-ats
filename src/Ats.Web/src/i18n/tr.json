@@ -796,7 +796,7 @@
       "freezeDialogDescription": "Sen yeniden aktifleştirene kadar her şey duraklar. İstediğin zaman giriş yapıp tek tıkla geri alabilirsin.",
       "freezeDialogConfirm": "Evet, dondur",
       "deleteTitle": "Hesabı sil",
-      "deleteWarning": "Hesabın 14 gün sonra kalıcı olarak silinir. Bu sürede giriş yapıp silmeyi iptal edebilirsin. Silindiğinde adın, telefonun, konumun, doğum tarihin ve CV'n geri getirilemez şekilde silinir, e-posta adresin de yeni bir kayıt için kullanılabilir hale gelir.",
+      "deleteWarning": "Hesabın 14 gün sonra kalıcı olarak silinir. Bu sürede giriş yapıp silmeyi iptal edebilirsin. Silindiğinde adın, telefonun, konumun, doğum tarihin ve CV'n geri getirilemez şekilde silinir. Şirketlerdeki başvuruların anonimleşir, devam edenler geri çekilir. E-posta adresin de yeni bir kayıt için kullanılabilir hale gelir.",
       "deleteSubmit": "Hesabımı sil",
       "deleteError": "Hesap silinemedi. Tekrar dene.",
       "deletionScheduled": "Hesabın {{date}} tarihinden sonra silinecek. O zamana kadar giriş yapıp iptal edebilirsin.",
@@ -824,7 +824,9 @@
     "confirm": "Silmeyi iptal et",
     "done": "Silme iptal edildi, hesabın yeniden aktif.",
     "failed": "Silme iptal edilemedi. Tekrar dene.",
-    "signOut": "Çıkış yap"
+    "signOut": "Çıkış yap",
+    "inProgressTitle": "Hesabın siliniyor",
+    "inProgressDescription": "Bekleme süresi doldu. Hesabın bir gün içinde kalıcı olarak silinecek ve bu artık iptal edilemez."
   },
   "reactivateAccount": {
     "title": "Hesabın dondurulmuş",

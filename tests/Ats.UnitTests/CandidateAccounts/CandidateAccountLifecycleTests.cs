@@ -144,7 +144,7 @@ public sealed class CandidateAccountLifecycleTests
         var account = CreateAccountWithProfile();
         account.RequestDeletion(Now);
 
-        account.CancelDeletion();
+        account.CancelDeletion(Now.AddDays(14).AddSeconds(-1));
 
         Assert.Equal(CandidateAccountStatus.Active, account.Status);
         Assert.Null(account.DeletionDueAtUtc);
@@ -154,7 +154,18 @@ public sealed class CandidateAccountLifecycleTests
     [Fact]
     public void CancelDeletion_should_reject_an_account_without_a_deletion_request()
     {
-        Assert.Throws<InvalidOperationException>(CreateAccount().CancelDeletion);
+        Assert.Throws<InvalidOperationException>(() => CreateAccount().CancelDeletion(Now));
+    }
+
+    // The erasure may already have reached other modules; cancelling then would leave a half-erased account.
+    [Fact]
+    public void CancelDeletion_should_refuse_once_the_grace_period_has_ended()
+    {
+        var account = CreateAccount();
+        account.RequestDeletion(Now);
+
+        Assert.Throws<InvalidOperationException>(() => account.CancelDeletion(Now.AddDays(14)));
+        Assert.Equal(CandidateAccountStatus.PendingDeletion, account.Status);
     }
 
     [Fact]
@@ -170,7 +181,7 @@ public sealed class CandidateAccountLifecycleTests
         Assert.False(account.IsActive);
         Assert.NotNull(account.DeletedAtUtc);
         Assert.Null(account.DeletionDueAtUtc);
-        Assert.Equal(CandidateAccount.BuildAnonymizedEmail(account.Id), account.Email);
+        Assert.Equal(AnonymizedEmail.For(account.Id), account.Email);
         Assert.Equal(CandidateAccount.AnonymizedFirstName, account.FirstName);
         Assert.Equal(CandidateAccount.AnonymizedLastName, account.LastName);
         Assert.Null(account.PhoneNumber);
@@ -208,7 +219,7 @@ public sealed class CandidateAccountLifecycleTests
     {
         var account = CreateAccount();
         account.RequestDeletion(Now);
-        account.CancelDeletion();
+        account.CancelDeletion(Now);
 
         Assert.Throws<InvalidOperationException>(() => account.Erase(Now.AddDays(30)));
         Assert.Equal(CandidateAccountStatus.Active, account.Status);
@@ -222,16 +233,5 @@ public sealed class CandidateAccountLifecycleTests
         account.Erase(Now.AddDays(14));
 
         Assert.Throws<InvalidOperationException>(() => account.Erase(Now.AddDays(15)));
-    }
-
-    [Fact]
-    public void BuildAnonymizedEmail_should_be_unique_per_account_and_undeliverable()
-    {
-        var first = CandidateAccount.BuildAnonymizedEmail(Guid.NewGuid());
-        var second = CandidateAccount.BuildAnonymizedEmail(Guid.NewGuid());
-
-        Assert.NotEqual(first, second);
-        // ".invalid" is reserved by RFC 2606, the placeholder can never receive real mail.
-        Assert.EndsWith("@account.invalid", first);
     }
 }

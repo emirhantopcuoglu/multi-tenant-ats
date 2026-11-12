@@ -172,7 +172,7 @@ public sealed class CandidateProfileCvTests : IAsyncLifetime
 
         await RequestDeletionAsync(accountId, DateTime.UtcNow - CandidateAccount.DeletionGracePeriod);
 
-        await new CandidateAccountDeletionJob(CreateDbContext(), storage, NullLogger<CandidateAccountDeletionJob>.Instance)
+        await new CandidateAccountDeletionJob(CreateDbContext(), [], storage, NullLogger<CandidateAccountDeletionJob>.Instance)
             .EraseDueAccountsAsync();
 
         Assert.Equal(key, storage.Deleted.Single());
