@@ -53,14 +53,14 @@ public sealed class CandidateSessionIssuer : ICandidateSessionIssuer
             account.Id, account.Email, account.SecurityStamp);
 
         var refreshToken = _tokenService.GenerateRefreshToken();
-        _db.CandidateRefreshTokens.Add(createRefreshToken(
-            Hash(refreshToken), DateTime.UtcNow.AddDays(_options.RefreshTokenDays)));
+        var expiresAtUtc = DateTime.UtcNow.AddDays(_options.RefreshTokenDays);
+        _db.CandidateRefreshTokens.Add(createRefreshToken(Hash(refreshToken), expiresAtUtc));
 
         // Also saves what the caller staged (a rotation's revocation, a profile change), so the old
         // and new state commit together.
         await _db.SaveChangesAsync();
 
-        return new CandidateAuthResult(accessToken, refreshToken);
+        return new CandidateAuthResult(accessToken, refreshToken, expiresAtUtc);
     }
 
     // No salt needed: the input is 64 random bytes, not a password.

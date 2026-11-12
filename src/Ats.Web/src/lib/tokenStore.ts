@@ -1,79 +1,66 @@
 import type { AuthResult } from '@/types/auth';
 
-/* Company and candidate tokens never coexist; logging in as one clears the other. For both, the
-   access token lives in memory and the refresh token in localStorage (an accepted XSS trade-off). */
+/* Company and candidate sessions never coexist; signing in as one ends the other. The access token
+   lives in memory. The refresh token is an HttpOnly cookie the API sets, which no script can read;
+   only the kind of session is remembered here, so a fresh page load knows which refresh to call. */
 
-const REFRESH_TOKEN_KEY = 'ats-refresh-token';
-const CANDIDATE_REFRESH_TOKEN_KEY = 'ats-candidate-refresh-token';
+type SessionKind = 'company' | 'candidate';
+
+const SESSION_KIND_KEY = 'ats-session-kind';
+// Where refresh tokens were kept before the cookie. Still valid secrets until they expire.
+const LEGACY_REFRESH_TOKEN_KEYS = ['ats-refresh-token', 'ats-candidate-refresh-token'];
 
 let accessToken: string | null = null;
 let candidateAccessToken: string | null = null;
 
-function getRefreshToken(): string | null {
+function readSessionKind(): SessionKind | null {
   try {
-    return localStorage.getItem(REFRESH_TOKEN_KEY);
+    const kind = localStorage.getItem(SESSION_KIND_KEY);
+    return kind === 'company' || kind === 'candidate' ? kind : null;
   } catch {
     return null;
   }
 }
 
-function getCandidateRefreshToken(): string | null {
+function writeSessionKind(kind: SessionKind | null): void {
   try {
-    return localStorage.getItem(CANDIDATE_REFRESH_TOKEN_KEY);
+    if (kind) localStorage.setItem(SESSION_KIND_KEY, kind);
+    else localStorage.removeItem(SESSION_KIND_KEY);
   } catch {
-    return null;
+    // Storage unavailable; the session lasts until the page is closed.
   }
+}
+
+try {
+  LEGACY_REFRESH_TOKEN_KEYS.forEach((key) => localStorage.removeItem(key));
+} catch {
+  // Storage unavailable; nothing to remove.
 }
 
 export const tokenStore = {
   getAccessToken: (): string | null => accessToken,
 
-  getRefreshToken,
-
   getCandidateToken: (): string | null => candidateAccessToken,
 
-  getCandidateRefreshToken,
+  getSessionKind: readSessionKind,
 
-  /* Company wins if both are set. Based on the stored refresh tokens, so it works on a fresh load. */
-  getSessionKind: (): 'company' | 'candidate' | null => {
-    if (getRefreshToken() !== null) return 'company';
-    if (getCandidateRefreshToken() !== null) return 'candidate';
-    return null;
-  },
-
-  setTokens: ({ accessToken: access, refreshToken: refresh }: AuthResult): void => {
+  setTokens: ({ accessToken: access }: AuthResult): void => {
     accessToken = access;
-    try {
-      localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
-    } catch {
-      // Best-effort; the in-memory token still works for this session.
-    }
+    writeSessionKind('company');
   },
 
-  setCandidateTokens: ({ accessToken: access, refreshToken: refresh }: AuthResult): void => {
+  setCandidateTokens: ({ accessToken: access }: AuthResult): void => {
     candidateAccessToken = access;
-    try {
-      localStorage.setItem(CANDIDATE_REFRESH_TOKEN_KEY, refresh);
-    } catch {
-      // Best-effort; the in-memory token still works for this session.
-    }
+    writeSessionKind('candidate');
   },
 
   clear: (): void => {
     accessToken = null;
-    try {
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
-    } catch {
-      // Storage unavailable; nothing to clear.
-    }
+    if (readSessionKind() === 'company') writeSessionKind(null);
   },
 
   clearCandidateToken: (): void => {
     candidateAccessToken = null;
-    try {
-      localStorage.removeItem(CANDIDATE_REFRESH_TOKEN_KEY);
-    } catch {
-      // Storage unavailable; nothing to clear.
-    }
+    if (readSessionKind() === 'candidate') writeSessionKind(null);
   },
 };

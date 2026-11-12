@@ -137,7 +137,8 @@ public sealed class CandidateProfileService : ICandidateProfileService
 
         // The stamp rotation also killed this session, so issue a new one for the caller.
         var session = await _sessions.IssueAsync(changed.Value);
-        return Result.Success(new CandidatePasswordChangeResult(session.AccessToken, session.RefreshToken));
+        return Result.Success(new CandidatePasswordChangeResult(
+            session.AccessToken, session.RefreshToken, session.RefreshTokenExpiresAtUtc));
     }
 
     public async Task<Result> RequestEmailChangeAsync(

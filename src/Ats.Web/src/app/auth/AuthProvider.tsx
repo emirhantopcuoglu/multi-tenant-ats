@@ -35,12 +35,12 @@ function currentLanguage(): Language {
 
 /* Session state for company users and candidates. Only one is active; each login clears the other. */
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // From the remembered session kind; on a cold start there is no access token yet.
   const [hasCompanySession, setHasCompanySession] = useState(
-    () => tokenStore.getRefreshToken() !== null,
+    () => tokenStore.getSessionKind() === 'company',
   );
-  // Checks the stored refresh token; on a cold start there is no access token yet.
   const [hasCandidateSession, setHasCandidateSession] = useState(
-    () => tokenStore.getCandidateRefreshToken() !== null,
+    () => tokenStore.getSessionKind() === 'candidate',
   );
 
   const queryClient = useQueryClient();

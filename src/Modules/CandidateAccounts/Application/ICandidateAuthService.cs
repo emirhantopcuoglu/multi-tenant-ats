@@ -3,7 +3,7 @@ using Ats.Shared.Kernel;
 
 namespace Ats.Modules.CandidateAccounts.Application;
 
-public sealed record CandidateAuthResult(string AccessToken, string RefreshToken);
+public sealed record CandidateAuthResult(string AccessToken, string RefreshToken, DateTime RefreshTokenExpiresAtUtc);
 
 // Status and IsEmailVerified let the SPA show the reactivation screen and the verify banner.
 public sealed record CurrentCandidateDto(

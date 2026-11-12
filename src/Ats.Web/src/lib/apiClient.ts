@@ -25,7 +25,9 @@ export const AUTH_CANDIDATE_LOGOUT_EVENT = 'auth:candidate-logout';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL;
 
-export const apiClient = axios.create({ baseURL });
+/* The API is another origin, so without this the browser would neither keep the refresh cookie
+   the login response sets nor send it back. The cookie's path limits it to the auth endpoints. */
+export const apiClient = axios.create({ baseURL, withCredentials: true });
 
 // Company token first, then the candidate one. Anonymous calls send no header.
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
@@ -48,29 +50,21 @@ const refreshPromises: Record<'company' | 'candidate', Promise<string> | null> =
   candidate: null,
 };
 
-/* Tabs share the stored refresh token, so they take turns, each redeeming the one the tab before it
-   stored. Without the Web Locks API a tab refreshes on its own, as before. */
+/* Tabs share the refresh cookie, so they take turns, each redeeming the one the tab before it got.
+   Without the Web Locks API a tab refreshes on its own, as before. */
 function refreshAccessToken(kind: 'company' | 'candidate'): Promise<string> {
   if (!('locks' in navigator)) {
-    return redeemStoredRefreshToken(kind);
+    return redeemRefreshCookie(kind);
   }
-  return navigator.locks.request(`ats-refresh-${kind}`, () => redeemStoredRefreshToken(kind));
+  return navigator.locks.request(`ats-refresh-${kind}`, () => redeemRefreshCookie(kind));
 }
 
-function redeemStoredRefreshToken(kind: 'company' | 'candidate'): Promise<string> {
+function redeemRefreshCookie(kind: 'company' | 'candidate'): Promise<string> {
   const isCompany = kind === 'company';
-  const refreshToken = isCompany
-    ? tokenStore.getRefreshToken()
-    : tokenStore.getCandidateRefreshToken();
-
-  if (!refreshToken) {
-    return Promise.reject(new Error('No refresh token available'));
-  }
-
   const endpoint = isCompany ? REFRESH_ENDPOINT : CANDIDATE_REFRESH_ENDPOINT;
 
-  // Plain axios so the interceptor can't recurse.
-  return axios.post<AuthResult>(`${baseURL}${endpoint}`, { refreshToken }).then((response) => {
+  // Plain axios so the interceptor can't recurse; the browser adds the cookie.
+  return axios.post<AuthResult>(`${baseURL}${endpoint}`, null, { withCredentials: true }).then((response) => {
     if (isCompany) {
       tokenStore.setTokens(response.data);
     } else {
