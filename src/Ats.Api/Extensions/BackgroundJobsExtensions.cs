@@ -1,6 +1,7 @@
 using Ats.Modules.Applications.Infrastructure;
 using Ats.Modules.CandidateAccounts.Infrastructure;
 using Ats.Modules.Interviews.Infrastructure;
+using Ats.Modules.Notifications.Infrastructure;
 using Ats.Modules.Tenants.Infrastructure;
 using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
@@ -37,6 +38,8 @@ public static class BackgroundJobsExtensions
 
         // Every module that keeps a candidate's data registers its eraser here, or the data outlives the account.
         builder.Services.AddScoped<ICandidateDataEraser, ApplicationCandidateDataEraser>();
+        builder.Services.AddScoped<ICandidateDataEraser, InterviewCandidateDataEraser>();
+        builder.Services.AddScoped<ICandidateDataEraser, NotificationCandidateDataEraser>();
         builder.Services.AddScoped<CandidateAccountDeletionJob>();
 
         return builder;

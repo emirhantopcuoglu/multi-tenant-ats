@@ -140,6 +140,10 @@ public sealed class InterviewConcurrencyTests
             Guid candidateId, CancellationToken cancellationToken = default) =>
             _inner.GetApplicationIdsForCandidateAsync(candidateId, cancellationToken);
 
+        public Task<IReadOnlyList<Guid>> GetApplicationIdsForCandidateAccountAsync(
+            Guid candidateAccountId, CancellationToken cancellationToken = default) =>
+            _inner.GetApplicationIdsForCandidateAccountAsync(candidateAccountId, cancellationToken);
+
         public Task<int> CountApplicationsSinceAsync(
             DateTime sinceUtc, CancellationToken cancellationToken = default) =>
             _inner.CountApplicationsSinceAsync(sinceUtc, cancellationToken);

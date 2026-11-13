@@ -49,8 +49,7 @@ public sealed class ApplicationRejectedConsumer : IConsumer<ApplicationRejectedI
         }
 
         _logger.LogInformation(
-            "Sent application-rejected email to {CandidateEmail} for application {ApplicationId}",
-            message.CandidateEmail,
+            "Sent application-rejected email for application {ApplicationId}",
             message.ApplicationId);
     }
 

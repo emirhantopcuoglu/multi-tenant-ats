@@ -54,9 +54,8 @@ public sealed class InterviewReminderEmailConsumer
         }
 
         _logger.LogInformation(
-            "Sent {ReminderKind} reminder email to {CandidateEmail} for interview {InterviewId}",
+            "Sent {ReminderKind} reminder email for interview {InterviewId}",
             message.Kind,
-            message.CandidateEmail,
             message.InterviewId);
     }
 

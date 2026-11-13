@@ -37,6 +37,8 @@ builder.Host.UseSerilog((ctx, services, config) => config
     // Adds TraceId and SpanId so log lines can be matched to traces.
     .Enrich.WithOpenTelemetryTraceId()
     .Enrich.WithOpenTelemetrySpanId()
+    // After FromLogContext, so values pushed onto the context are masked too.
+    .Enrich.With<PersonalDataMaskingEnricher>()
     .Destructure.With(new SensitiveDataMaskingPolicy()));
 
 builder.Services

@@ -4,5 +4,9 @@ namespace Ats.Shared.Kernel;
 // unique under an email index.
 public static class AnonymizedEmail
 {
-    public static string For(Guid id) => $"deleted-{id:N}@account.invalid";
+    private const string Domain = "@account.invalid";
+
+    public static string For(Guid id) => $"deleted-{id:N}{Domain}";
+
+    public static bool IsAnonymized(string email) => email.EndsWith(Domain, StringComparison.OrdinalIgnoreCase);
 }

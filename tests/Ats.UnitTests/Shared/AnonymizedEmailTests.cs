@@ -14,4 +14,14 @@ public class AnonymizedEmailTests
         // ".invalid" is reserved by RFC 2606, the placeholder can never receive real mail.
         Assert.EndsWith("@account.invalid", first);
     }
+
+    [Fact]
+    public void Should_recognize_only_the_placeholder_in_any_case()
+    {
+        var placeholder = AnonymizedEmail.For(Guid.NewGuid());
+
+        Assert.True(AnonymizedEmail.IsAnonymized(placeholder));
+        Assert.True(AnonymizedEmail.IsAnonymized(placeholder.ToUpperInvariant()));
+        Assert.False(AnonymizedEmail.IsAnonymized("mira.tolun@example.test"));
+    }
 }
