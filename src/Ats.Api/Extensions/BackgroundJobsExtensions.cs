@@ -1,6 +1,7 @@
 using Ats.Modules.Applications.Infrastructure;
 using Ats.Modules.CandidateAccounts.Infrastructure;
 using Ats.Modules.Interviews.Infrastructure;
+using Ats.Modules.Jobs.Infrastructure;
 using Ats.Modules.Notifications.Infrastructure;
 using Ats.Modules.Tenants.Infrastructure;
 using Ats.Shared.Infrastructure;
@@ -52,6 +53,17 @@ public static class BackgroundJobsExtensions
         builder.Services.AddScoped<IApplicationDataEraser, NotificationCandidateDataEraser>();
         builder.Services.AddScoped<ClosedApplicationRetentionJob>();
 
+        // Every module that keeps records past their use registers a cleaner here, and so does every schema
+        // with an AuditLogs table, or those records are kept for good.
+        builder.Services.AddScoped<IRetentionCleaner, AuditLogRetentionCleaner<TenantsDbContext>>();
+        builder.Services.AddScoped<IRetentionCleaner, AuditLogRetentionCleaner<JobsDbContext>>();
+        builder.Services.AddScoped<IRetentionCleaner, AuditLogRetentionCleaner<ApplicationsDbContext>>();
+        builder.Services.AddScoped<IRetentionCleaner, AuditLogRetentionCleaner<InterviewsDbContext>>();
+        builder.Services.AddScoped<IRetentionCleaner, TenantsRetentionCleaner>();
+        builder.Services.AddScoped<IRetentionCleaner, CandidateAccountsRetentionCleaner>();
+        builder.Services.AddScoped<IRetentionCleaner, NotificationRetentionCleaner>();
+        builder.Services.AddScoped<RetentionCleanupJob>();
+
         return builder;
     }
 
@@ -101,6 +113,12 @@ public static class BackgroundJobsExtensions
             "closed-application-retention",
             job => job.EraseDueApplicationsAsync(CancellationToken.None),
             hangfireOptions.ClosedApplicationRetentionCron,
+            new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+
+        RecurringJob.AddOrUpdate<RetentionCleanupJob>(
+            "retention-cleanup",
+            job => job.CleanupAsync(CancellationToken.None),
+            hangfireOptions.RetentionCleanupCron,
             new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 
         return app;
