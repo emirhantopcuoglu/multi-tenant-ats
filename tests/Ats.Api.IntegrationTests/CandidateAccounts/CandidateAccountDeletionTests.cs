@@ -118,7 +118,7 @@ public sealed class CandidateAccountDeletionTests
     private HttpClient NewClient()
     {
         var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Add(ExternalClientIpStartupFilter.ClientIpHeader, $"203.0.113.{Random.Shared.Next(1, 255)}");
+        client.DefaultRequestHeaders.Add(ExternalClientIpStartupFilter.ClientIpHeader, ExternalClientIpStartupFilter.NextClientIp());
         return client;
     }
 }
