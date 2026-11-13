@@ -17,7 +17,7 @@ ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build
 
-FROM nginx:1.29-alpine AS runtime
+FROM nginx:1.31-alpine AS runtime
 # The image fills ${API_ORIGIN} in templates at start-up and writes the result to conf.d, replacing
 # the default site. The API URL is an origin, so it doubles as the CSP's connect-src.
 ARG VITE_API_BASE_URL
