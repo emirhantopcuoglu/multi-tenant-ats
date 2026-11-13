@@ -16,6 +16,10 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
     public ApplicationStatus Status { get; private set; }
     public string? RejectionReason { get; private set; }
     public DateTime AppliedAtUtc { get; private set; }
+
+    // When it was withdrawn, rejected or hired. Its personal data is erased a retention period later.
+    public DateTime? ClosedAtUtc { get; private set; }
+
     // When someone at the company first opened it. Later views don't change it.
     public DateTime? FirstViewedAtUtc { get; private set; }
 
@@ -85,6 +89,7 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
 
         EnsureActive("rejected");
         Status = ApplicationStatus.Rejected;
+        ClosedAtUtc = DateTime.UtcNow;
         RejectionReason = reason.Trim();
         CurrentStageId = rejectedStageId;
     }
@@ -96,6 +101,7 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
 
         EnsureActive("hired");
         Status = ApplicationStatus.Hired;
+        ClosedAtUtc = DateTime.UtcNow;
         CurrentStageId = hiredStageId;
     }
 
@@ -103,6 +109,7 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
     {
         EnsureActive("withdrawn");
         Status = ApplicationStatus.Withdrawn;
+        ClosedAtUtc = DateTime.UtcNow;
     }
 
     // True only on the first call. Allowed in any status: a closed application can still be opened.

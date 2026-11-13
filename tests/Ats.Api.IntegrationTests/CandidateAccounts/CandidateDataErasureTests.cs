@@ -11,18 +11,20 @@ using Ats.Modules.Notifications.Domain;
 using Ats.Modules.Notifications.Infrastructure;
 using Ats.Modules.Tenants.Infrastructure;
 using Ats.Shared.Contracts.Applications;
+using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
 using MassTransit.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Npgsql;
 
 namespace Ats.Api.IntegrationTests.CandidateAccounts;
 
-// The deletion job against the app's own registrations, Postgres, Mongo and MinIO. Every value below
-// is searched for afterwards, in every table and collection.
+// The account deletion and retention jobs against the app's own registrations, Postgres, Mongo and MinIO.
+// Every value below is searched for afterwards, in every table and collection.
 [Collection(ApiTestCollection.Name)]
 public sealed class CandidateDataErasureTests
 {
@@ -99,6 +101,52 @@ public sealed class CandidateDataErasureTests
                 typeof(NotificationCandidateDataEraser)
             },
             erasers.ToHashSet());
+    }
+
+    // No account row is seeded: the account outlives its applications and is not this job's business.
+    [Fact]
+    public async Task nothing_of_a_closed_application_should_remain_once_its_retention_period_ends()
+    {
+        var tenantId = Guid.NewGuid();
+        var accountId = Guid.NewGuid();
+        var (applicationId, cvKey) = await ApplyAsync(tenantId, accountId);
+        await RejectAsync(tenantId, applicationId);
+        await SeedDocumentsAsync(tenantId, applicationId);
+        await InterviewAsync(tenantId, applicationId);
+        await NotifyAsync(tenantId, accountId, applicationId);
+        await DateClosingBackAsync(applicationId);
+
+        using (var scope = _factory.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<ClosedApplicationRetentionJob>().EraseDueApplicationsAsync();
+
+        Assert.Empty(await FindInPostgresAsync());
+        Assert.Empty(await FindInMongoAsync());
+        Assert.Empty(await FindFilesAsync(cvKey));
+        Assert.False(await HasNotificationsAsync(accountId));
+    }
+
+    // A module missing here would keep its copy after the application's retention period.
+    [Fact]
+    public void every_module_that_keeps_application_data_should_have_an_eraser()
+    {
+        using var scope = _factory.Services.CreateScope();
+
+        var erasers = scope.ServiceProvider.GetServices<IApplicationDataEraser>().Select(eraser => eraser.GetType());
+
+        Assert.Equal(
+            new HashSet<Type> { typeof(InterviewCandidateDataEraser), typeof(NotificationCandidateDataEraser) },
+            erasers.ToHashSet());
+    }
+
+    private async Task DateClosingBackAsync(Guid applicationId)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var retention = scope.ServiceProvider.GetRequiredService<IOptions<RetentionOptions>>().Value;
+        var closedAtUtc = DateTime.UtcNow.AddMonths(-retention.ClosedApplicationMonths).AddDays(-1);
+        await scope.ServiceProvider.GetRequiredService<ApplicationsDbContext>().Applications
+            .IgnoreQueryFilters()
+            .Where(a => a.Id == applicationId)
+            .ExecuteUpdateAsync(set => set.SetProperty(a => a.ClosedAtUtc, closedAtUtc));
     }
 
     private async Task<(Guid AccountId, string CvKey)> SeedDueAccountAsync()

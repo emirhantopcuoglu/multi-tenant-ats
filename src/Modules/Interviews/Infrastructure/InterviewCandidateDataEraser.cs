@@ -6,9 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Interviews.Infrastructure;
 
-// Clears what the companies wrote about a deleted candidate in their interviews. Ratings, outcomes and
-// times stay. Runs with no tenant, so the query filters are bypassed and the audit interceptor stays out.
-public sealed class InterviewCandidateDataEraser : ICandidateDataEraser
+// Clears what the companies wrote about a candidate in their interviews, for a deleted account or for
+// applications past their retention period. Ratings, outcomes and times stay. Runs with no tenant, so
+// the query filters are bypassed and the audit interceptor stays out.
+public sealed class InterviewCandidateDataEraser : ICandidateDataEraser, IApplicationDataEraser
 {
     private static readonly string InterviewResourceType = typeof(Interview).Name;
     private static readonly string FeedbackResourceType = typeof(InterviewFeedback).Name;
@@ -22,12 +23,17 @@ public sealed class InterviewCandidateDataEraser : ICandidateDataEraser
         _applications = applications;
     }
 
-    // Updates in place rather than load and save: the withdrawal just before this cancels the same
-    // interviews, and a save from a loaded copy would fail on the row version.
     public async Task EraseAsync(Guid candidateAccountId, CancellationToken cancellationToken = default)
     {
         var applicationIds = await _applications.GetApplicationIdsForCandidateAccountAsync(
             candidateAccountId, cancellationToken);
+        await EraseAsync(applicationIds, cancellationToken);
+    }
+
+    // Updates in place rather than load and save: the withdrawal just before an account erasure cancels
+    // the same interviews, and a save from a loaded copy would fail on the row version.
+    public async Task EraseAsync(IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default)
+    {
         if (applicationIds.Count == 0)
             return;
 

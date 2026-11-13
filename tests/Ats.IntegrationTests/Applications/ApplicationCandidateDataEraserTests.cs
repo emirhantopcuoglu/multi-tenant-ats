@@ -231,7 +231,10 @@ public sealed class ApplicationCandidateDataEraserTests
     }
 
     private ApplicationCandidateDataEraser CreateEraser(ApplicationsDbContext db, RecordingFileStorage storage) =>
-        new(db, _publisher, _activityLog, _cvParseResults, storage, NullLogger<ApplicationCandidateDataEraser>.Instance);
+        new(db, _publisher, _activityLog,
+            new ApplicationPersonalDataEraser(
+                db, _activityLog, _cvParseResults, storage, NullLogger<ApplicationPersonalDataEraser>.Instance),
+            NullLogger<ApplicationCandidateDataEraser>.Instance);
 
     // Saved the way a candidate's apply request saves it, so the audit log holds their details.
     private async Task<Seeded> ApplyAsync(Guid tenantId, Guid? accountId = null, string email = Email)
@@ -326,6 +329,8 @@ internal sealed class RecordingCvParseResults : ICvParseResultRepository
 {
     public List<(Guid TenantId, IReadOnlyCollection<Guid> ApplicationIds)> Deleted { get; } = [];
 
+    public Exception? DeleteFailure { get; set; }
+
     public Task SaveAsync(
         Guid tenantId, Guid applicationId, CvParseResult result, DateTime parsedAtUtc,
         CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -337,6 +342,9 @@ internal sealed class RecordingCvParseResults : ICvParseResultRepository
     public Task DeleteAsync(
         Guid tenantId, IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default)
     {
+        if (DeleteFailure is not null)
+            throw DeleteFailure;
+
         Deleted.Add((tenantId, applicationIds));
         return Task.CompletedTask;
     }

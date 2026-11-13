@@ -5,9 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ats.Modules.Notifications.Infrastructure;
 
-// Deletes a deleted candidate's own notifications and the company ones about their applications, which
-// name them. A notification is not a record anyone needs to keep.
-public sealed class NotificationCandidateDataEraser : ICandidateDataEraser
+// Deletes a deleted candidate's own notifications and every notification about their applications; the
+// company ones name the candidate. Applications past their retention period lose theirs the same way.
+// A notification is not a record anyone needs to keep.
+public sealed class NotificationCandidateDataEraser : ICandidateDataEraser, IApplicationDataEraser
 {
     private readonly NotificationsDbContext _db;
     private readonly IApplicationDirectory _applications;
@@ -26,6 +27,11 @@ public sealed class NotificationCandidateDataEraser : ICandidateDataEraser
 
         var applicationIds = await _applications.GetApplicationIdsForCandidateAccountAsync(
             candidateAccountId, cancellationToken);
+        await EraseAsync(applicationIds, cancellationToken);
+    }
+
+    public async Task EraseAsync(IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default)
+    {
         if (applicationIds.Count == 0)
             return;
 

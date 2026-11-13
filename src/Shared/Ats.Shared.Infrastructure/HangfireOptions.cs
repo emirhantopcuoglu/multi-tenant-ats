@@ -14,4 +14,6 @@ public sealed class HangfireOptions
     public string OrphanFileCleanupCron { get; init; } = "0 3 * * *";
 
     public string CandidateAccountDeletionCron { get; init; } = "0 2 * * *";
+
+    public string ClosedApplicationRetentionCron { get; init; } = "30 2 * * *";
 }

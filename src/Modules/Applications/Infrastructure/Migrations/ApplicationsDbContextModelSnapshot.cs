@@ -39,6 +39,9 @@ namespace Ats.Modules.Applications.Infrastructure.Migrations
                     b.Property<Guid>("CandidateId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("ClosedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("CoverLetter")
                         .HasMaxLength(5000)
                         .HasColumnType("character varying(5000)");
@@ -102,6 +105,9 @@ namespace Ats.Modules.Applications.Infrastructure.Migrations
 
                     b.HasIndex("CandidateAccountId")
                         .HasFilter("\"CandidateAccountId\" IS NOT NULL");
+
+                    b.HasIndex("ClosedAtUtc")
+                        .HasFilter("\"ClosedAtUtc\" IS NOT NULL AND \"CvFileKey\" IS NOT NULL");
 
                     b.HasIndex("TenantId", "AppliedAtUtc")
                         .IsDescending(false, true);
