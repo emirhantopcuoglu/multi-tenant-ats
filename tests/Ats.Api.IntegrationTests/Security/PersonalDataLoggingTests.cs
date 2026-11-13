@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using Ats.Api.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Serilog.Core;
 using Serilog.Events;
 
@@ -18,7 +17,9 @@ public sealed class PersonalDataLoggingTests
 
     public PersonalDataLoggingTests(AtsApiFactory factory) => _factory = factory;
 
-    // Through the app's own logger, so unplugging the masking fails this too.
+    // Through the app's own Serilog pipeline, so unplugging the masking fails this too. Not through a
+    // Microsoft ILogger: that writes to the static Log.Logger, which belongs to whichever test host was
+    // built last.
     [Fact]
     public async Task an_email_or_phone_number_logged_by_mistake_should_be_masked()
     {
@@ -27,7 +28,7 @@ public sealed class PersonalDataLoggingTests
             builder.ConfigureTestServices(services => services.AddSingleton<ILogEventSink>(sink)));
         var applicationId = Guid.NewGuid();
 
-        factory.Services.GetRequiredService<ILogger<PersonalDataLoggingTests>>().LogInformation(
+        factory.Services.GetRequiredService<Serilog.ILogger>().Information(
             "Mailed {CandidateEmail} and texted {PhoneNumber} about application {ApplicationId}",
             Email, Phone, applicationId);
 
