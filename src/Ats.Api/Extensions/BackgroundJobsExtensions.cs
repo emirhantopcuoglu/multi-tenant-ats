@@ -19,6 +19,8 @@ public static class BackgroundJobsExtensions
     {
         builder.Services.Configure<HangfireOptions>(
             builder.Configuration.GetSection(HangfireOptions.SectionName));
+        builder.Services.Configure<RetentionOptions>(
+            builder.Configuration.GetSection(RetentionOptions.SectionName));
 
         builder.Services.AddHangfire(hangfire => hangfire
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
@@ -36,11 +38,19 @@ public static class BackgroundJobsExtensions
         builder.Services.AddScoped<IStoredFileOwner, CandidateAccountCvFileOwner>();
         builder.Services.AddScoped<OrphanFileCleanupJob>();
 
+        builder.Services.AddScoped<ApplicationPersonalDataEraser>();
+
         // Every module that keeps a candidate's data registers its eraser here, or the data outlives the account.
         builder.Services.AddScoped<ICandidateDataEraser, ApplicationCandidateDataEraser>();
         builder.Services.AddScoped<ICandidateDataEraser, InterviewCandidateDataEraser>();
         builder.Services.AddScoped<ICandidateDataEraser, NotificationCandidateDataEraser>();
         builder.Services.AddScoped<CandidateAccountDeletionJob>();
+
+        // Every module that keeps data about an application registers here too, or it outlives the
+        // retention period. Applications erases its own rows last, inside the job.
+        builder.Services.AddScoped<IApplicationDataEraser, InterviewCandidateDataEraser>();
+        builder.Services.AddScoped<IApplicationDataEraser, NotificationCandidateDataEraser>();
+        builder.Services.AddScoped<ClosedApplicationRetentionJob>();
 
         return builder;
     }
@@ -85,6 +95,12 @@ public static class BackgroundJobsExtensions
             "candidate-account-deletion",
             job => job.EraseDueAccountsAsync(CancellationToken.None),
             hangfireOptions.CandidateAccountDeletionCron,
+            new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+
+        RecurringJob.AddOrUpdate<ClosedApplicationRetentionJob>(
+            "closed-application-retention",
+            job => job.EraseDueApplicationsAsync(CancellationToken.None),
+            hangfireOptions.ClosedApplicationRetentionCron,
             new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 
         return app;

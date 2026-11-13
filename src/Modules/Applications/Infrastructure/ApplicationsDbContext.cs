@@ -78,6 +78,9 @@ public sealed class ApplicationsDbContext : DbContext, IApplicationsDbContext
             // For the candidate portal's cross-tenant list.
             entity.HasIndex(a => a.CandidateAccountId)
                 .HasFilter("\"CandidateAccountId\" IS NOT NULL");
+            // For the retention job: closed applications that still hold personal data.
+            entity.HasIndex(a => a.ClosedAtUtc)
+                .HasFilter("\"ClosedAtUtc\" IS NOT NULL AND \"CvFileKey\" IS NOT NULL");
         });
 
         builder.Entity<Pipeline>(entity =>

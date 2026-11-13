@@ -68,6 +68,31 @@ public class ApplicationErasureTests
         Assert.Null(application.ErasePersonalData());
     }
 
+    // The retention period for its personal data counts from here.
+    [Fact]
+    public void Closing_an_application_in_any_way_should_record_when()
+    {
+        var before = DateTime.UtcNow;
+        var withdrawn = CreateWithdrawn();
+        var rejected = Application.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), CvFileKey);
+        rejected.Reject("Weak on distributed systems.", Guid.NewGuid());
+        var hired = Application.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), CvFileKey);
+        hired.Hire(Guid.NewGuid());
+
+        Assert.All(
+            new[] { withdrawn, rejected, hired },
+            application => Assert.InRange(application.ClosedAtUtc!.Value, before, DateTime.UtcNow));
+    }
+
+    [Fact]
+    public void An_open_application_should_have_no_closing_time()
+    {
+        var application = Application.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), CvFileKey);
+        application.MoveToStage(Guid.NewGuid());
+
+        Assert.Null(application.ClosedAtUtc);
+    }
+
     // Otherwise the pipeline would keep a live application nobody can read or contact.
     [Fact]
     public void Erasing_an_active_application_should_be_refused()
