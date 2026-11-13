@@ -129,8 +129,6 @@ public sealed class EndpointAuthorizationTests
         "PUT /api/v{version:apiVersion}/users/{id:guid}/role -> CanManageUsers"
     ];
 
-    private static int _nextClientIp;
-
     private readonly AtsApiFactory _factory;
 
     public EndpointAuthorizationTests(AtsApiFactory factory)
@@ -272,7 +270,7 @@ public sealed class EndpointAuthorizationTests
     {
         var method = new HttpMethod(MethodOf(endpoint));
         using var request = new HttpRequestMessage(method, UrlFor(endpoint.RoutePattern));
-        request.Headers.Add(ExternalClientIpStartupFilter.ClientIpHeader, NextClientIp());
+        request.Headers.Add(ExternalClientIpStartupFilter.ClientIpHeader, ExternalClientIpStartupFilter.NextClientIp());
         if (method != HttpMethod.Get && method != HttpMethod.Delete)
             request.Content = AcceptsForm(endpoint) ? new MultipartFormDataContent() : JsonContent.Create(new { });
 
@@ -283,12 +281,6 @@ public sealed class EndpointAuthorizationTests
     // Routing answers 415 before authorization runs if the body type doesn't match.
     private static bool AcceptsForm(RouteEndpoint endpoint) =>
         endpoint.Metadata.GetMetadata<IAcceptsMetadata>()?.ContentTypes.Any(t => t.StartsWith("multipart/")) == true;
-
-    private static string NextClientIp()
-    {
-        var n = Interlocked.Increment(ref _nextClientIp);
-        return $"10.{(n >> 16) & 255}.{(n >> 8) & 255}.{n & 255}";
-    }
 
     // Fills route parameters with values their constraints accept, so routing reaches the endpoint.
     private static string UrlFor(RoutePattern pattern) =>

@@ -12,6 +12,15 @@ public sealed class ExternalClientIpStartupFilter : IStartupFilter
 
     private static readonly IPAddress ExternalClientIp = IPAddress.Parse("198.51.100.10");
 
+    private static int _lastClientIp;
+
+    // One counter for every test: a random pick from a small range let two tests share a bucket.
+    public static string NextClientIp()
+    {
+        var n = Interlocked.Increment(ref _lastClientIp);
+        return $"10.{(n >> 16) & 255}.{(n >> 8) & 255}.{n & 255}";
+    }
+
     public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
     {
         app.Use((context, nextMiddleware) =>
