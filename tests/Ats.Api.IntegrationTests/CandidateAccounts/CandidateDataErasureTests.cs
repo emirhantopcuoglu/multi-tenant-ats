@@ -5,6 +5,10 @@ using Ats.Modules.Applications.Infrastructure;
 using Ats.Modules.CandidateAccounts.Application;
 using Ats.Modules.CandidateAccounts.Domain;
 using Ats.Modules.CandidateAccounts.Infrastructure;
+using Ats.Modules.Interviews.Domain;
+using Ats.Modules.Interviews.Infrastructure;
+using Ats.Modules.Notifications.Domain;
+using Ats.Modules.Notifications.Infrastructure;
 using Ats.Modules.Tenants.Infrastructure;
 using Ats.Shared.Contracts.Applications;
 using Ats.Shared.Kernel;
@@ -30,8 +34,9 @@ public sealed class CandidateDataErasureTests
     private const string RejectionReason = "Selinay needs more Kubernetes experience.";
     private const string Skill = "Quillmark templating";
     private const string CvFileName = "selinay-arvasoglu-cv.pdf";
-
-    private static readonly string[] SearchedSchemas = ["applications", "candidate_accounts"];
+    private const string InterviewNotes = "Selinay prefers to talk in the morning.";
+    private const string CancellationNote = "Selinay asked for a later date.";
+    private const string FeedbackComments = "Selinay explained the outbox pattern well.";
 
     private readonly AtsApiFactory _factory;
     private readonly string _email = $"selinay.arvasoglu.{Guid.NewGuid():N}@example.test";
@@ -39,7 +44,10 @@ public sealed class CandidateDataErasureTests
     public CandidateDataErasureTests(AtsApiFactory factory) => _factory = factory;
 
     private string[] PersonalValues =>
-        [_email, FirstName, LastName, Phone, LinkedIn, CoverLetter, RejectionReason, Skill, CvFileName];
+    [
+        _email, FirstName, LastName, Phone, LinkedIn, CoverLetter, RejectionReason, Skill, CvFileName,
+        InterviewNotes, CancellationNote, FeedbackComments
+    ];
 
     [Fact]
     public async Task nothing_of_an_erased_candidate_should_remain_in_the_databases_or_the_file_storage()
@@ -49,12 +57,15 @@ public sealed class CandidateDataErasureTests
         var (applicationId, applicationCvKey) = await ApplyAsync(tenantId, accountId);
         await RejectAsync(tenantId, applicationId);
         await SeedDocumentsAsync(tenantId, applicationId);
+        await InterviewAsync(tenantId, applicationId);
+        await NotifyAsync(tenantId, accountId, applicationId);
 
         await RunDeletionJobAsync();
 
         Assert.Empty(await FindInPostgresAsync());
         Assert.Empty(await FindInMongoAsync());
         Assert.Empty(await FindFilesAsync(accountCvKey, applicationCvKey));
+        Assert.False(await HasNotificationsAsync(accountId));
     }
 
     // Runs the publish through the outbox in a job scope, with no request behind it.
@@ -80,7 +91,14 @@ public sealed class CandidateDataErasureTests
 
         var erasers = scope.ServiceProvider.GetServices<ICandidateDataEraser>().Select(eraser => eraser.GetType());
 
-        Assert.Equal([typeof(ApplicationCandidateDataEraser)], erasers);
+        Assert.Equal(
+            new HashSet<Type>
+            {
+                typeof(ApplicationCandidateDataEraser),
+                typeof(InterviewCandidateDataEraser),
+                typeof(NotificationCandidateDataEraser)
+            },
+            erasers.ToHashSet());
     }
 
     private async Task<(Guid AccountId, string CvKey)> SeedDueAccountAsync()
@@ -138,6 +156,42 @@ public sealed class CandidateDataErasureTests
             .SaveAsync(tenantId, applicationId, parseResult, DateTime.UtcNow);
     }
 
+    private async Task InterviewAsync(Guid tenantId, Guid applicationId)
+    {
+        using var scope = TenantScope(tenantId);
+        var nowUtc = DateTime.UtcNow;
+        var interview = Interview.Schedule(
+            applicationId, InterviewType.Technical, nowUtc.AddDays(2), 30, [Guid.NewGuid()], nowUtc, InterviewNotes);
+        interview.Cancel(InterviewCancellationReason.CandidateRequested, CancellationNote, nowUtc);
+
+        var db = scope.ServiceProvider.GetRequiredService<InterviewsDbContext>();
+        db.Interviews.Add(interview);
+        db.Feedback.Add(InterviewFeedback.Submit(
+            interview.Id, Guid.NewGuid(), 4, FeedbackRecommendation.Hire, FeedbackComments));
+        await db.SaveChangesAsync();
+    }
+
+    private async Task NotifyAsync(Guid tenantId, Guid accountId, Guid applicationId)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
+        db.Notifications.Add(Notification.ForCandidate(
+            accountId, NotificationType.ApplicationViewed,
+            NotificationPayloads.Serialize(new NotificationPayloads.ApplicationViewed(applicationId, "Platform Engineer"))));
+        db.Notifications.Add(Notification.ForCompanyUser(
+            tenantId, Guid.NewGuid(), NotificationType.NewApplication,
+            NotificationPayloads.Serialize(
+                new NotificationPayloads.NewApplication(applicationId, "Platform Engineer", FirstName, LastName))));
+        await db.SaveChangesAsync();
+    }
+
+    private async Task<bool> HasNotificationsAsync(Guid accountId)
+    {
+        using var scope = _factory.Services.CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<NotificationsDbContext>().Notifications
+            .AnyAsync(n => n.RecipientId == accountId);
+    }
+
     private async Task RunDeletionJobAsync()
     {
         using var scope = _factory.Services.CreateScope();
@@ -183,13 +237,13 @@ public sealed class CandidateDataErasureTests
         return found;
     }
 
+    // Every schema but Postgres' own, so a module added later is searched too.
     private static async Task<List<string>> ListTablesAsync(NpgsqlConnection connection)
     {
         await using var command = new NpgsqlCommand(
             "SELECT format('%I.%I', table_schema, table_name) FROM information_schema.tables " +
-            "WHERE table_type = 'BASE TABLE' AND table_schema = ANY(@schemas)",
+            "WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema')",
             connection);
-        command.Parameters.AddWithValue("schemas", SearchedSchemas);
 
         var tables = new List<string>();
         await using var reader = await command.ExecuteReaderAsync();

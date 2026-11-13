@@ -106,6 +106,8 @@ internal sealed class FakeApplicationDirectory : IApplicationDirectory
     // several applications. Empty by default: fall back to the single seeded application.
     public Dictionary<Guid, IReadOnlyList<Guid>> ApplicationIdsByCandidate { get; } = new();
 
+    public Dictionary<Guid, IReadOnlyList<Guid>> ApplicationIdsByCandidateAccount { get; } = new();
+
     public FakeApplicationDirectory(ApplicationForScheduling? application) => _application = application;
 
     public Task<ApplicationForScheduling?> GetForSchedulingAsync(
@@ -135,6 +137,10 @@ internal sealed class FakeApplicationDirectory : IApplicationDirectory
             ApplicationIdsByCandidate.TryGetValue(candidateId, out var ids)
                 ? ids
                 : _application?.CandidateId == candidateId ? [_application.Id] : []);
+
+    public Task<IReadOnlyList<Guid>> GetApplicationIdsForCandidateAccountAsync(
+        Guid candidateAccountId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(ApplicationIdsByCandidateAccount.GetValueOrDefault(candidateAccountId, []));
 
     public Task<int> CountApplicationsSinceAsync(
         DateTime sinceUtc, CancellationToken cancellationToken = default) =>
