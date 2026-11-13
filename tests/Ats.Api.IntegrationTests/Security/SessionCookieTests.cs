@@ -129,7 +129,7 @@ public sealed class SessionCookieTests
     private HttpClient NewClient()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
-        client.DefaultRequestHeaders.Add(ExternalClientIpStartupFilter.ClientIpHeader, $"203.0.113.{Random.Shared.Next(1, 255)}");
+        client.DefaultRequestHeaders.Add(ExternalClientIpStartupFilter.ClientIpHeader, ExternalClientIpStartupFilter.NextClientIp());
         return client;
     }
 
