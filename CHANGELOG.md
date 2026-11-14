@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.14.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.13.0...v0.14.0) (2026-11-14)
+
+
+### Features
+
+* **applications:** erase a deleted candidate's application data ([#282](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/282)) ([d945a46](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/d945a46c609b8cea17e89a5703f49d06dab3f8c9))
+* **candidate-accounts:** wait 14 days before erasing a deleted account ([#281](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/281)) ([384e7e1](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/384e7e11eba5d77851d4c67a8a72ebb186837983))
+* **erasure:** erase a deleted candidate's interviews and notifications ([#285](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/285)) ([c8cd4aa](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/c8cd4aa026bc0157a852cc9b49dbe0f550e2e511))
+* **retention:** clean up expired records every night ([#287](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/287)) ([810eeb9](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/810eeb93c1de27af67ac1e91f1c13be83878c311))
+* **retention:** erase closed applications after twelve months ([#286](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/286)) ([f9710fb](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/f9710fbab56082b7f968873e43d02bbb40321780))
+
+
+### Bug Fixes
+
+* **api:** refuse to start when a required setting is missing ([#255](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/255)) ([718b68b](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/718b68b2c095e6b16b7361e7c67177afd98efe46))
+* **applications:** always clean up the CV of an unsaved application ([#277](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/277)) ([072e577](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/072e577e586103707e677bd327aad27e33e086a9))
+* **audit:** write audit rows in the same transaction as the change ([#276](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/276)) ([260da47](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/260da474984271ccc65a90eb103991da5b67e23f))
+* **auth:** end stale candidate sessions on every endpoint ([#254](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/254)) ([8663f37](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/8663f3754fa1876b8c3c0685bc2b6f52bff55131))
+* **auth:** end the session when a spent refresh token comes back ([#253](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/253)) ([95c9901](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/95c9901936e0667988520cb3635dee8da2fd663d))
+* **auth:** keep the refresh token in an HttpOnly cookie ([#280](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/280)) ([875aac9](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/875aac9b0a29aa5914f899837c058ddeac2a1af2))
+* **cv-parsing:** cut the text sent to the LLM to a set length ([#257](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/257)) ([e2bc0b5](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/e2bc0b5b82b19be8ef3c363f1f7fb39e2914873d))
+* **cv-parsing:** leave hidden text out of DOCX CVs ([#275](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/275)) ([d0afbc9](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/d0afbc9a5c0e840dcc9ac1f172f81c23c5c358ea))
+* **cv-parsing:** leave hidden text out of PDF CVs ([#274](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/274)) ([03adca6](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/03adca689aa294ceb1cf88dc77b09902587a130b))
+* **cv-parsing:** point the LLM defaults at Groq ([#259](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/259)) ([859b8e2](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/859b8e2edad48d07f8ee940f71f735d2c69c4694))
+* **cv-parsing:** rate a CV from its extracted profile, not its text ([#260](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/260)) ([f914827](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/f9148275d00740832077a0289a3d0a0d00abb33e))
+* **cv-parsing:** read each PDF in a worker process with limits ([#270](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/270)) ([d2df5bc](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/d2df5bc44b421fd1a21737a2435cdb3352ce8ac8))
+* **cv-parsing:** refuse a DOCX that opens past a size limit ([#256](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/256)) ([5d77131](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/5d771314176fa52f118e2722b0f567ce9beafbba))
+* **cv-parsing:** retry an LLM call in one place, never when refused ([#258](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/258)) ([8943352](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/8943352b80acc46c9b0c6a8080264d7a28ad54b0))
+* **security:** send a Content-Security-Policy from the web app and API ([#279](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/279)) ([9548eaf](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/9548eaf3b86a9f002d05796043e53c30365ad571))
+* **storage:** delete stored files no record points to every night ([#278](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/278)) ([8effc1a](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/8effc1a4c7cc1cd6a7972c8eecf8037b9f253e60))
+* **web:** let tabs take turns refreshing the session ([#252](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/252)) ([c315725](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/c315725e4e021b5d30c772ac210392afb6c282d5))
+
 ## [0.13.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.12.1...v0.13.0) (2026-11-03)
 
 
