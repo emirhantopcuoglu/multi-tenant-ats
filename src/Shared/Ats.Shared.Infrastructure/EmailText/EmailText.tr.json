@@ -17,6 +17,9 @@
   "candidate.emailChanged.subject": "Giriş e-postanız değiştirildi",
   "candidate.emailChanged.body": "<p>Aday hesabınızın giriş e-postası az önce yeni bir adresle değiştirildi.</p>\n<p>Bu değişikliği siz yaptıysanız yapmanız gereken bir şey yok.</p>\n<p>Siz yapmadıysanız başkası hesabınıza erişiyor olabilir — lütfen hemen bizimle iletişime geçin.</p>",
 
+  "candidate.deletionRequested.subject": "Hesabınız silinecek",
+  "candidate.deletionRequested.body": "<p>Merhaba {0},</p>\n<p>Aday hesabınızı silme talebinizi aldık. Hesabınız {1} tarihinden sonra kalıcı olarak silinecek.</p>\n<p>Fikrinizi değiştirirseniz bu tarihten önce giriş yapıp silmeyi iptal edebilirsiniz.</p>\n<p>Bu talebi siz yapmadıysanız hemen giriş yapın, silmeyi iptal edin ve şifrenizi değiştirin.</p>",
+
   "company.confirmEmail.subject": "E-posta adresinizi onaylayın",
   "company.confirmEmail.body": "<p>Merhaba {0},</p>\n<p>Ats çalışma alanınızı tamamlamak için bu adresi onaylayın. Giriş yapabilmeniz için bunu bir kez yapmanız gerekiyor.</p>\n<p><a href=\"{1}\">E-posta adresimi onayla</a></p>\n<p>Bu bağlantı {2} saat içinde geçerliliğini yitirir. Bir hesap oluşturmadıysanız bu e-postayı yok sayın.</p>",
 

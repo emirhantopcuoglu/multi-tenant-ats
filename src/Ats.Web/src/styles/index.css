@@ -15,7 +15,7 @@
    Naming note: utilities read as `<utility>-<token>` (e.g. bg-bg, text-text, border-border).
    The doubled names are a little awkward but keep the token vocabulary 1:1 with the design source. */
 @theme inline {
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: 'Inter Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   /* Surfaces */
   --color-bg: var(--bg);

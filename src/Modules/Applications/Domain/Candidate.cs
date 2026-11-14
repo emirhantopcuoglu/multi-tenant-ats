@@ -60,6 +60,20 @@ public sealed class Candidate : ITenantScoped, IAuditable, ISoftDeletable
             LinkedInUrl = linkedInUrl.Trim();
     }
 
+    public const string AnonymizedFirstName = "Deleted";
+    public const string AnonymizedLastName = "candidate";
+
+    // The row stays because applications point to it. The placeholder email keeps it out of the way
+    // if the same person applies again with a new account.
+    public void Erase()
+    {
+        Email = AnonymizedEmail.For(Id);
+        FirstName = AnonymizedFirstName;
+        LastName = AnonymizedLastName;
+        Phone = null;
+        LinkedInUrl = null;
+    }
+
     // Lowercased so the unique index is case-insensitive without relying on DB collation.
     public static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 }

@@ -33,7 +33,8 @@ CI runs lint, test and build.
 ## Docker
 
 The image builds the app and serves it with nginx. Vite bakes `VITE_*` values into the bundle, so the
-API URL is a build arg:
+API URL is a build arg. It must be an origin (no path): nginx also puts it in the Content-Security-Policy
+as the only address besides the site itself that the page may call.
 
 ```bash
 docker build --build-arg VITE_API_BASE_URL=https://api.example.com -t ats-web .
@@ -43,4 +44,6 @@ docker run -p 8080:80 ats-web
 Or from the repo root: `docker compose up web --build` (http://localhost:8080).
 
 When deploying, also add the web origin to the API's `Cors:AllowedOrigins`. Production config ships
-with an empty list.
+with an empty list. The API keeps the refresh token in a `SameSite=Strict` cookie, so the web app and
+the API must share a site, such as `app.example.com` and `api.example.com`; on two unrelated domains
+the browser won't send the cookie and every reload ends the session.

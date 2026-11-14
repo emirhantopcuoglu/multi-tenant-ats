@@ -5,7 +5,7 @@ public sealed class FileStorageOptions
     public const string SectionName = "FileStorage";
 
     // Host:port only; UseSsl decides the scheme.
-    public string Endpoint { get; init; } = "localhost:9000";
+    public string Endpoint { get; init; } = string.Empty;
 
     // Secret: User Secrets or environment variables (see .env.example).
     public string AccessKey { get; init; } = null!;

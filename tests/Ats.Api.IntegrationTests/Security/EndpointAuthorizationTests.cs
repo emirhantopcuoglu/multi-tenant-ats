@@ -85,6 +85,7 @@ public sealed class EndpointAuthorizationTests
         "POST /api/v{version:apiVersion}/auth/register -> public",
         "POST /api/v{version:apiVersion}/auth/resend-confirmation -> public",
         "POST /api/v{version:apiVersion}/auth/reset-password -> public",
+        "POST /api/v{version:apiVersion}/candidate/account/cancel-deletion -> CandidateOnly",
         "POST /api/v{version:apiVersion}/candidate/account/freeze -> CandidateOnly",
         "POST /api/v{version:apiVersion}/candidate/account/reactivate -> CandidateOnly",
         "POST /api/v{version:apiVersion}/candidate/applications/{id:guid}/withdraw -> CandidateOnly",
@@ -127,8 +128,6 @@ public sealed class EndpointAuthorizationTests
         "PUT /api/v{version:apiVersion}/tenant/profile -> CanManageTenant",
         "PUT /api/v{version:apiVersion}/users/{id:guid}/role -> CanManageUsers"
     ];
-
-    private static int _nextClientIp;
 
     private readonly AtsApiFactory _factory;
 
@@ -180,9 +179,42 @@ public sealed class EndpointAuthorizationTests
     }
 
     [Fact]
+    public async Task a_candidate_token_from_before_a_password_change_should_get_401_everywhere()
+    {
+        var (client, accountId) = await _factory.CreateCandidateClientAsync();
+        await _factory.ChangeCandidatePasswordAsync(accountId);
+        var wrong = new List<string>();
+
+        foreach (var endpoint in ControllerEndpoints().Where(e => !IsPublic(e)))
+        {
+            var status = await SendAsync(client, endpoint);
+            if (status != HttpStatusCode.Unauthorized)
+                wrong.Add($"{Describe(endpoint)} -> {(int)status}");
+        }
+
+        AssertNone(wrong);
+    }
+
+    [Fact]
+    public async Task a_current_candidate_token_should_get_past_auth_on_every_candidate_endpoint()
+    {
+        var (client, _) = await _factory.CreateCandidateClientAsync();
+        var wrong = new List<string>();
+
+        foreach (var endpoint in ControllerEndpoints().Where(e => PoliciesOf(e).Contains(Policies.CandidateOnly)))
+        {
+            var status = await SendAsync(client, endpoint);
+            if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                wrong.Add($"{Describe(endpoint)} -> {(int)status}");
+        }
+
+        AssertNone(wrong);
+    }
+
+    [Fact]
     public async Task a_candidate_token_should_be_refused_by_every_company_policy()
     {
-        var client = _factory.CreateCandidateClient();
+        var (client, _) = await _factory.CreateCandidateClientAsync();
         var wrong = new List<string>();
 
         foreach (var endpoint in ControllerEndpoints()
@@ -238,7 +270,7 @@ public sealed class EndpointAuthorizationTests
     {
         var method = new HttpMethod(MethodOf(endpoint));
         using var request = new HttpRequestMessage(method, UrlFor(endpoint.RoutePattern));
-        request.Headers.Add(ExternalClientIpStartupFilter.ClientIpHeader, NextClientIp());
+        request.Headers.Add(ExternalClientIpStartupFilter.ClientIpHeader, ExternalClientIpStartupFilter.NextClientIp());
         if (method != HttpMethod.Get && method != HttpMethod.Delete)
             request.Content = AcceptsForm(endpoint) ? new MultipartFormDataContent() : JsonContent.Create(new { });
 
@@ -249,12 +281,6 @@ public sealed class EndpointAuthorizationTests
     // Routing answers 415 before authorization runs if the body type doesn't match.
     private static bool AcceptsForm(RouteEndpoint endpoint) =>
         endpoint.Metadata.GetMetadata<IAcceptsMetadata>()?.ContentTypes.Any(t => t.StartsWith("multipart/")) == true;
-
-    private static string NextClientIp()
-    {
-        var n = Interlocked.Increment(ref _nextClientIp);
-        return $"10.{(n >> 16) & 255}.{(n >> 8) & 255}.{n & 255}";
-    }
 
     // Fills route parameters with values their constraints accept, so routing reaches the endpoint.
     private static string UrlFor(RoutePattern pattern) =>

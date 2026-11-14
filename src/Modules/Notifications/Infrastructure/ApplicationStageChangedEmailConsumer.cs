@@ -49,8 +49,7 @@ public sealed class ApplicationStageChangedEmailConsumer
         }
 
         _logger.LogInformation(
-            "Sent stage-changed email to {CandidateEmail} for application {ApplicationId}",
-            message.CandidateEmail,
+            "Sent stage-changed email for application {ApplicationId}",
             message.ApplicationId);
     }
 

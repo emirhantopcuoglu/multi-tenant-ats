@@ -1,5 +1,6 @@
 using System.Reflection;
 using Ats.Modules.Tenants.Domain;
+using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
@@ -33,6 +34,7 @@ public sealed class TenantsDbContext
         base.OnModelCreating(builder);
 
         builder.HasDefaultSchema("tenants");
+        builder.ApplyConfiguration(new AuditLogEntryConfiguration());
 
         builder.Entity<Tenant>(entity =>
         {
@@ -60,6 +62,8 @@ public sealed class TenantsDbContext
             entity.HasKey(t => t.Id);
             entity.Property(t => t.TokenHash).IsRequired();
             entity.HasIndex(t => t.TokenHash);
+            entity.HasIndex(t => t.FamilyId);
+            entity.Property<uint>("xmin").IsRowVersion();
         });
 
         builder.Entity<Invitation>(entity =>

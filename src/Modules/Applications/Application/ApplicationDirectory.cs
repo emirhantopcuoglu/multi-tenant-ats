@@ -121,6 +121,17 @@ public sealed class ApplicationDirectory : IApplicationDirectory
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Guid>> GetApplicationIdsForCandidateAccountAsync(
+        Guid candidateAccountId, CancellationToken cancellationToken = default)
+    {
+        return await _db.Applications
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(a => a.CandidateAccountId == candidateAccountId)
+            .Select(a => a.Id)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<int> CountApplicationsSinceAsync(
         DateTime sinceUtc, CancellationToken cancellationToken = default)
     {

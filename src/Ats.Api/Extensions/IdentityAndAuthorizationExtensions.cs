@@ -121,6 +121,22 @@ public static class IdentityAndAuthorizationExtensions
                     ValidAudience = jwtOptions.Audience,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Secret))
                 };
+
+                // At authentication rather than in a policy, so no endpoint can skip it, the way the
+                // "signed-in" ones did. Identity's SecurityStampValidator does the same for cookies.
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = async context =>
+                    {
+                        if (!context.Principal!.HasClaim(TokenTypes.ClaimName, TokenTypes.Candidate))
+                            return;
+
+                        var stamps = context.HttpContext.RequestServices
+                            .GetRequiredService<CandidateSecurityStampValidator>();
+                        if (!await stamps.IsCurrentAsync(context.Principal))
+                            context.Fail("The candidate session has ended.");
+                    }
+                };
             });
 
         // Controllers only know policy names; this is the one place that maps them to roles.
@@ -156,16 +172,15 @@ public static class IdentityAndAuthorizationExtensions
                 policy.AddRequirements(new InterviewerRequirement()));
 
             // Company tokens pass JWT validation but have no token_type=candidate claim, so they fail here.
-            // The stamp requirement rejects tokens issued before the last password or email change.
+            // Stale candidate tokens never get this far: authentication checks their stamp.
             options.AddPolicy(Policies.CandidateOnly, policy =>
-                policy.RequireClaim(TokenTypes.ClaimName, TokenTypes.Candidate)
-                    .AddRequirements(new CandidateSecurityStampRequirement()));
+                policy.RequireClaim(TokenTypes.ClaimName, TokenTypes.Candidate));
         });
 
         builder.Services.AddSingleton<IAuthorizationHandler, InterviewerAuthorizationHandler>();
 
         // Scoped: it reads the stamp through the scoped DbContext.
-        builder.Services.AddScoped<IAuthorizationHandler, CandidateSecurityStampHandler>();
+        builder.Services.AddScoped<CandidateSecurityStampValidator>();
 
         return builder;
     }

@@ -5,6 +5,7 @@ using Ats.Modules.CandidateAccounts.Infrastructure;
 using Ats.Shared.Kernel;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace Ats.IntegrationTests.CandidateAccounts;
@@ -231,7 +232,8 @@ public sealed class CandidateLoginLockoutTests
             CreateHasher(),
             new CandidateSessionIssuer(db, new CandidateTokenService(JwtOptions), JwtOptions),
             CandidateServiceFactory.EmailVerification(db),
-            CandidateServiceFactory.Lockout(maxFailedAttempts: MaxAttempts, lockoutMinutes: 15));
+            CandidateServiceFactory.Lockout(maxFailedAttempts: MaxAttempts, lockoutMinutes: 15),
+            NullLogger<CandidateAuthService>.Instance);
 
         return await service.LoginAsync(email, password);
     }

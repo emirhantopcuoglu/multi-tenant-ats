@@ -24,6 +24,10 @@ public interface IApplicationDirectory
     Task<IReadOnlyList<Guid>> GetApplicationIdsForCandidateAsync(
         Guid candidateId, CancellationToken cancellationToken = default);
 
+    // Every company's, deleted ones included. Only for erasing a deleted account's data.
+    Task<IReadOnlyList<Guid>> GetApplicationIdsForCandidateAccountAsync(
+        Guid candidateAccountId, CancellationToken cancellationToken = default);
+
     // The caller passes the window start.
     Task<int> CountApplicationsSinceAsync(
         DateTime sinceUtc, CancellationToken cancellationToken = default);

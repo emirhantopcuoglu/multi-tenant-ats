@@ -1,7 +1,7 @@
 namespace Ats.Shared.Infrastructure;
 
-// Any OpenAI-compatible chat API (GitHub Models, Groq, OpenRouter). Switching is a config change.
-// Only ApiKey is secret.
+// Any OpenAI-compatible chat API. Groq is the default because its free tier doesn't train on what
+// it is sent, and a CV is personal data. Switching is a config change. Only ApiKey is secret.
 public sealed class LlmOptions
 {
     public const string SectionName = "Llm";
@@ -10,14 +10,18 @@ public sealed class LlmOptions
     public string ApiKey { get; init; } = "";
 
     // "/chat/completions" is appended.
-    public string BaseUrl { get; init; } = "https://models.github.ai/inference";
+    public string BaseUrl { get; init; } = "https://api.groq.com/openai/v1";
 
-    public string Model { get; init; } = "openai/gpt-4o-mini";
+    public string Model { get; init; } = "openai/gpt-oss-120b";
 
     public int MaxOutputTokens { get; init; } = 2048;
 
+    // About four dense pages, longer than almost any CV. With the job description and the system
+    // prompt that is roughly 6,500 tokens even for Turkish, which takes more tokens per character.
+    public int MaxCvCharacters { get; init; } = 12_000;
+
+    public int MaxJobDescriptionCharacters { get; init; } = 6_000;
+
     // Per attempt.
     public int TimeoutSeconds { get; init; } = 30;
-
-    public int RetryLimit { get; init; } = 3;
 }

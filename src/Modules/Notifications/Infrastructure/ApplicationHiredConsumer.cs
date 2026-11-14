@@ -47,8 +47,7 @@ public sealed class ApplicationHiredConsumer : IConsumer<ApplicationHiredIntegra
         }
 
         _logger.LogInformation(
-            "Sent application-hired email to {CandidateEmail} for application {ApplicationId}",
-            message.CandidateEmail,
+            "Sent application-hired email for application {ApplicationId}",
             message.ApplicationId);
     }
 

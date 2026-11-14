@@ -26,7 +26,8 @@ public sealed class AuthController : ControllerBase
         string CompanyName, string Slug, string Email, string Password, string FirstName, string LastName,
         string? PreferredLanguage);
     public sealed record LoginRequest(string Email, string Password);
-    public sealed record RefreshRequest(string RefreshToken);
+    // The refresh token is never in a body; it goes out and comes back in CompanySessionCookie.
+    public sealed record SessionResponse(string AccessToken);
     public sealed record ForgotPasswordRequest(string Email);
     public sealed record ResetPasswordRequest(Guid UserId, string Token, string NewPassword);
     public sealed record ConfirmEmailRequest(Guid UserId, string Token);
@@ -77,24 +78,31 @@ public sealed class AuthController : ControllerBase
         var result = await _authService.LoginAsync(request.Email, request.Password);
 
         return result.IsSuccess
-            ? Ok(result.Value)
+            ? StartSession(result.Value)
             : Unauthorized(new { result.Error.Code, result.Error.Message });
     }
 
     [HttpPost("refresh")]
-    public async Task<IActionResult> Refresh(RefreshRequest request)
+    public async Task<IActionResult> Refresh()
     {
-        var result = await _authService.RefreshAsync(request.RefreshToken);
+        var result = CompanySessionCookie.Read(Request) is { } refreshToken
+            ? await _authService.RefreshAsync(refreshToken)
+            : Result.Failure<AuthResult>(AuthErrors.InvalidRefreshToken);
 
-        return result.IsSuccess
-            ? Ok(result.Value)
-            : Unauthorized(new { result.Error.Code, result.Error.Message });
+        if (result.IsSuccess)
+            return StartSession(result.Value);
+
+        CompanySessionCookie.Delete(Response);
+        return Unauthorized(new { result.Error.Code, result.Error.Message });
     }
 
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout(RefreshRequest request)
+    public async Task<IActionResult> Logout()
     {
-        await _authService.LogoutAsync(request.RefreshToken);
+        if (CompanySessionCookie.Read(Request) is { } refreshToken)
+            await _authService.LogoutAsync(refreshToken);
+
+        CompanySessionCookie.Delete(Response);
         return NoContent();
     }
 
@@ -151,5 +159,11 @@ public sealed class AuthController : ControllerBase
         return result.Error == AuthErrors.UserNotFound
             ? NotFound(new { result.Error.Code, result.Error.Message })
             : BadRequest(new { result.Error.Code, result.Error.Message });
+    }
+
+    private OkObjectResult StartSession(AuthResult session)
+    {
+        CompanySessionCookie.Write(Response, session.RefreshToken, session.RefreshTokenExpiresAtUtc);
+        return Ok(new SessionResponse(session.AccessToken));
     }
 }

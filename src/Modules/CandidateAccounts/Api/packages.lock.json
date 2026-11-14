@@ -40,7 +40,10 @@
         }
       },
       "ats.modules.candidateaccounts.domain": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "Ats.Shared.Kernel": "[1.0.0, )"
+        }
       },
       "ats.shared.kernel": {
         "type": "Project"

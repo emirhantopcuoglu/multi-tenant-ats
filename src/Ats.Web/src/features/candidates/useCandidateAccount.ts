@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
+  cancelCandidateAccountDeletion,
   deleteCandidateAccount,
   freezeCandidateAccount,
   reactivateCandidateAccount,
@@ -10,12 +11,12 @@ import { tokenStore } from '@/lib/tokenStore';
 import type { CandidateUser } from '@/types/auth';
 
 /* Writes the status straight into the cached "me" entry, because RequireActiveCandidate routes on it
-   and must see the change immediately. */
+   and must see the change immediately. None of the statuses set here has a deletion date. */
 function useSetCandidateStatus() {
   const queryClient = useQueryClient();
-  return (status: CandidateUser['status']) => {
+  return (status: Exclude<CandidateUser['status'], 'PendingDeletion'>) => {
     queryClient.setQueryData<CandidateUser>(candidateUserQueryKey, (user) =>
-      user ? { ...user, status } : user,
+      user ? { ...user, status, deletionDueAtUtc: null } : user,
     );
   };
 }
@@ -36,7 +37,15 @@ export function useReactivateCandidateAccount() {
   });
 }
 
-/* Deletion ends the session, so this reuses the forced-logout event that AuthProvider listens for. */
+export function useCancelCandidateAccountDeletion() {
+  const setStatus = useSetCandidateStatus();
+  return useMutation({
+    mutationFn: cancelCandidateAccountDeletion,
+    onSuccess: () => setStatus('Active'),
+  });
+}
+
+/* The deletion request ends the session, so this reuses the forced-logout event that AuthProvider listens for. */
 export function useDeleteCandidateAccount() {
   return useMutation({
     mutationFn: deleteCandidateAccount,

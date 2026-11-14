@@ -2,7 +2,8 @@ using Ats.Shared.Kernel;
 
 namespace Ats.Modules.Interviews.Domain;
 
-// Never deleted or edited. One per interviewer per interview, enforced by a unique index.
+// Never deleted, and only edited to erase a deleted candidate's comments. One per interviewer per
+// interview, enforced by a unique index.
 public sealed class InterviewFeedback : ITenantScoped, IAuditable
 {
     public Guid Id { get; private set; }

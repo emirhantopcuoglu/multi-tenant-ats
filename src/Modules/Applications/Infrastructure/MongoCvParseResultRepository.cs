@@ -54,6 +54,15 @@ public sealed class MongoCvParseResultRepository : ICvParseResultRepository
             filter, document, new ReplaceOptions { IsUpsert = true }, cancellationToken);
     }
 
+    public async Task DeleteAsync(
+        Guid tenantId, IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<CvParseResultDocument>.Filter.Eq(d => d.TenantId, tenantId)
+            & Builders<CvParseResultDocument>.Filter.In(d => d.ApplicationId, applicationIds);
+
+        await _collection.DeleteManyAsync(filter, cancellationToken);
+    }
+
     public async Task<StoredCvParseResult?> GetByApplicationAsync(
         Guid applicationId, CancellationToken cancellationToken = default)
     {

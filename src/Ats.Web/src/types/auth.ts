@@ -1,9 +1,8 @@
 import type { Role } from './enums';
 
-/* Same shape for company and candidate endpoints. */
+/* Same shape for company and candidate endpoints. The refresh token comes as an HttpOnly cookie. */
 export interface AuthResult {
   accessToken: string;
-  refreshToken: string;
 }
 
 export type CandidateAuthResult = AuthResult;
@@ -20,7 +19,7 @@ export interface CompanyUser {
 }
 
 /* Never 'Deleted': a deleted account has no live session. */
-export type CandidateAccountStatus = 'Active' | 'Frozen';
+export type CandidateAccountStatus = 'Active' | 'Frozen' | 'PendingDeletion';
 
 export interface CandidateUser {
   kind: 'candidate';
@@ -29,6 +28,8 @@ export interface CandidateUser {
   lastName: string;
   email: string;
   status: CandidateAccountStatus;
+  /* ISO date, set only while the status is PendingDeletion. */
+  deletionDueAtUtc: string | null;
   /* Separate from `status`: unverified accounts can do everything except apply. */
   isEmailVerified: boolean;
 }

@@ -11,11 +11,15 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
     public Guid CandidateId { get; private set; }
     public Guid? CandidateAccountId { get; private set; }
     public Guid CurrentStageId { get; private set; }
-    public string CvFileKey { get; private set; } = null!;
+    public string? CvFileKey { get; private set; }
     public string? CoverLetter { get; private set; }
     public ApplicationStatus Status { get; private set; }
     public string? RejectionReason { get; private set; }
     public DateTime AppliedAtUtc { get; private set; }
+
+    // When it was withdrawn, rejected or hired. Its personal data is erased a retention period later.
+    public DateTime? ClosedAtUtc { get; private set; }
+
     // When someone at the company first opened it. Later views don't change it.
     public DateTime? FirstViewedAtUtc { get; private set; }
 
@@ -85,6 +89,7 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
 
         EnsureActive("rejected");
         Status = ApplicationStatus.Rejected;
+        ClosedAtUtc = DateTime.UtcNow;
         RejectionReason = reason.Trim();
         CurrentStageId = rejectedStageId;
     }
@@ -96,6 +101,7 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
 
         EnsureActive("hired");
         Status = ApplicationStatus.Hired;
+        ClosedAtUtc = DateTime.UtcNow;
         CurrentStageId = hiredStageId;
     }
 
@@ -103,6 +109,7 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
     {
         EnsureActive("withdrawn");
         Status = ApplicationStatus.Withdrawn;
+        ClosedAtUtc = DateTime.UtcNow;
     }
 
     // True only on the first call. Allowed in any status: a closed application can still be opened.
@@ -122,6 +129,20 @@ public sealed class Application : ITenantScoped, IAuditable, ISoftDeletable
 
         FirstCvDownloadedAtUtc = DateTime.UtcNow;
         return true;
+    }
+
+    // Returns the CV key so the caller can delete the file. Status and stage stay for the company's
+    // numbers. An active application has to be closed first.
+    public string? ErasePersonalData()
+    {
+        if (Status == ApplicationStatus.Active)
+            throw new InvalidOperationException("An active application cannot be erased.");
+
+        var cvFileKey = CvFileKey;
+        CvFileKey = null;
+        CoverLetter = null;
+        RejectionReason = null;
+        return cvFileKey;
     }
 
     private void EnsureActive(string action)

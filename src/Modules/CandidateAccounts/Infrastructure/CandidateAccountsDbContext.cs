@@ -72,6 +72,8 @@ public sealed class CandidateAccountsDbContext : DbContext
             entity.Property(t => t.TokenHash).IsRequired().HasMaxLength(44);
             entity.HasIndex(t => t.TokenHash).IsUnique();
             entity.HasIndex(t => t.CandidateAccountId);
+            entity.HasIndex(t => t.FamilyId);
+            entity.Property<uint>("xmin").IsRowVersion();
             entity.HasOne<CandidateAccount>()
                 .WithMany()
                 .HasForeignKey(t => t.CandidateAccountId)

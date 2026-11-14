@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Ats.Shared.Kernel;
 
 namespace Ats.Modules.CandidateAccounts.Domain;
 
@@ -41,6 +42,7 @@ public sealed class CandidateAccount
     public CandidateAccountStatus Status { get; private set; }
     public bool IsActive => Status == CandidateAccountStatus.Active;
     public DateTime? FrozenAtUtc { get; private set; }
+    public DateTime? DeletionDueAtUtc { get; private set; }
     public DateTime? DeletedAtUtc { get; private set; }
 
     // Consecutive failures. A successful login resets it.
@@ -224,10 +226,6 @@ public sealed class CandidateAccount
     public const string AnonymizedFirstName = "Deleted";
     public const string AnonymizedLastName = "user";
 
-    // .invalid never resolves (RFC 2606). The id keeps it unique under the email index.
-    public static string BuildAnonymizedEmail(Guid accountId) =>
-        $"deleted-{accountId:N}@account.invalid";
-
     // The stamp is not rotated: a frozen account stays signed in so it can reactivate itself.
     public void Freeze()
     {
@@ -247,19 +245,52 @@ public sealed class CandidateAccount
         FrozenAtUtc = null;
     }
 
+    // Time to undo a mistaken or hostile request. KVKK wants an erasure request settled within 30 days.
+    public static readonly TimeSpan DeletionGracePeriod = TimeSpan.FromDays(14);
+
+    // The stamp is rotated: the request may come from a stolen session, and cancelling needs a login.
+    public void RequestDeletion(DateTime nowUtc)
+    {
+        if (Status is CandidateAccountStatus.PendingDeletion or CandidateAccountStatus.Deleted)
+            throw new InvalidOperationException("The account is already being deleted.");
+
+        // Whole seconds: Postgres keeps microseconds, and the date shown now must match the one read later.
+        var dueAtUtc = nowUtc + DeletionGracePeriod;
+        Status = CandidateAccountStatus.PendingDeletion;
+        DeletionDueAtUtc = dueAtUtc.AddTicks(-(dueAtUtc.Ticks % TimeSpan.TicksPerSecond));
+        FrozenAtUtc = null;
+        SecurityStamp = Guid.NewGuid();
+    }
+
+    // Once due, the erasure may already have reached other modules, and cancelling would leave the
+    // account half-erased.
+    public void CancelDeletion(DateTime nowUtc)
+    {
+        if (Status != CandidateAccountStatus.PendingDeletion)
+            throw new InvalidOperationException("The account has no deletion request to cancel.");
+        if (IsDeletionDue(nowUtc))
+            throw new InvalidOperationException("The grace period has ended and the account is being deleted.");
+
+        Status = CandidateAccountStatus.Active;
+        DeletionDueAtUtc = null;
+    }
+
+    public bool IsDeletionDue(DateTime nowUtc) =>
+        Status == CandidateAccountStatus.PendingDeletion && DeletionDueAtUtc <= nowUtc;
+
     // The row stays because applications reference it; personal data is anonymized in place.
     // The placeholder email frees the real address for a new registration.
-    public void Delete()
+    public void Erase(DateTime nowUtc)
     {
-        if (Status == CandidateAccountStatus.Deleted)
-            throw new InvalidOperationException("The account is already deleted.");
+        if (!IsDeletionDue(nowUtc))
+            throw new InvalidOperationException("The account has no deletion request whose grace period has ended.");
 
         Status = CandidateAccountStatus.Deleted;
-        DeletedAtUtc = DateTime.UtcNow;
-        FrozenAtUtc = null;
+        DeletedAtUtc = nowUtc;
+        DeletionDueAtUtc = null;
 
         // PasswordHash is kept: overwriting it with a non-hash would make Verify() throw.
-        Email = BuildAnonymizedEmail(Id);
+        Email = AnonymizedEmail.For(Id);
         FirstName = AnonymizedFirstName;
         LastName = AnonymizedLastName;
         PhoneNumber = null;

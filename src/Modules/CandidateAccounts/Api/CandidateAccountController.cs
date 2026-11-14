@@ -46,7 +46,10 @@ public sealed class CandidateAccountController : ControllerBase
 
     public sealed record DeleteCandidateAccountRequest(string CurrentPassword);
 
-    // Rate limited: with a stolen token this could be used to guess the current password.
+    public sealed record DeletionRequestedResponse(DateTime DeletionDueAtUtc);
+
+    // Only schedules the deletion and ends every session. Rate limited: with a stolen token this
+    // could be used to guess the current password.
     [HttpDelete]
     [EnableRateLimiting(RateLimitPolicies.PerIp)]
     public async Task<IActionResult> Delete(DeleteCandidateAccountRequest request)
@@ -54,8 +57,19 @@ public sealed class CandidateAccountController : ControllerBase
         if (_currentUser.UserId is not { } candidateAccountId)
             return Unauthorized();
 
-        var command = new DeleteCandidateAccountCommand(request.CurrentPassword);
-        var result = await _lifecycleService.DeleteAsync(candidateAccountId, command);
+        var command = new RequestCandidateAccountDeletionCommand(request.CurrentPassword);
+        var result = await _lifecycleService.RequestDeletionAsync(candidateAccountId, command);
+        return result.IsSuccess ? Ok(new DeletionRequestedResponse(result.Value)) : ToResponse(result);
+    }
+
+    // Signing in during the grace period gives a fresh session, which is all this needs.
+    [HttpPost("cancel-deletion")]
+    public async Task<IActionResult> CancelDeletion()
+    {
+        if (_currentUser.UserId is not { } candidateAccountId)
+            return Unauthorized();
+
+        var result = await _lifecycleService.CancelDeletionAsync(candidateAccountId);
         return ToResponse(result);
     }
 

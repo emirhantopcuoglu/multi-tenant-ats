@@ -21,13 +21,11 @@ export async function candidateRegister(request: CandidateRegisterRequest): Prom
   return data;
 }
 
-/* Best-effort; callers drop the local session either way. */
+/* The API revokes the token in the cookie and deletes the cookie. Best-effort; callers drop the
+   local session either way. */
 export async function candidateLogout(): Promise<void> {
-  const refreshToken = tokenStore.getCandidateRefreshToken();
-  if (!refreshToken) return;
-
   try {
-    await apiClient.post(`${CANDIDATE_AUTH_BASE}/logout`, { refreshToken });
+    await apiClient.post(`${CANDIDATE_AUTH_BASE}/logout`);
   } catch {
     // The local session ends either way.
   }

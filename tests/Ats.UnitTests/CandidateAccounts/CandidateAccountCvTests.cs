@@ -107,8 +107,9 @@ public class CandidateAccountCvTests
         // otherwise survive the deletion in a column nobody thinks to look at.
         var account = CreateAccount();
         account.AttachCv(FirstKey, "jane-doe-cv.pdf");
+        account.RequestDeletion(DateTime.UtcNow - CandidateAccount.DeletionGracePeriod);
 
-        account.Delete();
+        account.Erase(DateTime.UtcNow);
 
         Assert.Null(account.CvFileKey);
         Assert.Null(account.CvFileName);

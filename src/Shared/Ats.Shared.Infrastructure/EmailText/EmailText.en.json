@@ -17,6 +17,9 @@
   "candidate.emailChanged.subject": "Your login email was changed",
   "candidate.emailChanged.body": "<p>The login email of your candidate account was just changed to a new address.</p>\n<p>If you made this change, no action is needed.</p>\n<p>If you did not, someone else may have access to your account — please contact us immediately.</p>",
 
+  "candidate.deletionRequested.subject": "Your account will be deleted",
+  "candidate.deletionRequested.body": "<p>Hi {0},</p>\n<p>We received a request to delete your candidate account. It will be deleted for good after {1}.</p>\n<p>If you change your mind, sign in before then and cancel the deletion.</p>\n<p>If you did not make this request, sign in now, cancel the deletion and change your password.</p>",
+
   "company.confirmEmail.subject": "Confirm your email address",
   "company.confirmEmail.body": "<p>Hi {0},</p>\n<p>Confirm this address to finish setting up your Ats workspace. You need to do this once before you can sign in.</p>\n<p><a href=\"{1}\">Confirm my email address</a></p>\n<p>This link expires in {2} hours. If you did not create an account, ignore this email.</p>",
 

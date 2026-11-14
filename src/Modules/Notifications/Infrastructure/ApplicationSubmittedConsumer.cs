@@ -49,8 +49,7 @@ public sealed class ApplicationSubmittedConsumer : IConsumer<ApplicationSubmitte
 
         AppMetrics.ApplicationsSubmittedTotal.Inc();
         _logger.LogInformation(
-            "Sent application-received email to {CandidateEmail} for application {ApplicationId}",
-            message.CandidateEmail,
+            "Sent application-received email for application {ApplicationId}",
             message.ApplicationId);
     }
 

@@ -1,11 +1,13 @@
 namespace Ats.Modules.CandidateAccounts.Domain;
 
 // Stored hashed. Keeps the account's stamp from issue time, so a stamp rotation (password change,
-// email change, delete) also ends refresh tokens, not just access tokens.
+// email change, delete) also ends refresh tokens, not just access tokens. A login starts a family
+// and each refresh continues it, so a replayed token can end the whole chain.
 public sealed class CandidateRefreshToken
 {
     public Guid Id { get; private set; }
     public Guid CandidateAccountId { get; private set; }
+    public Guid FamilyId { get; private set; }
     public string TokenHash { get; private set; }
 
     public Guid SecurityStamp { get; private set; }
@@ -14,10 +16,12 @@ public sealed class CandidateRefreshToken
     public DateTime? RevokedAtUtc { get; private set; }
 
     private CandidateRefreshToken(
-        Guid id, Guid candidateAccountId, string tokenHash, Guid securityStamp, DateTime expiresAtUtc)
+        Guid id, Guid candidateAccountId, Guid familyId, string tokenHash, Guid securityStamp,
+        DateTime expiresAtUtc)
     {
         Id = id;
         CandidateAccountId = candidateAccountId;
+        FamilyId = familyId;
         TokenHash = tokenHash;
         SecurityStamp = securityStamp;
         ExpiresAtUtc = expiresAtUtc;
@@ -27,12 +31,23 @@ public sealed class CandidateRefreshToken
 
     public static CandidateRefreshToken Issue(
         Guid candidateAccountId, string tokenHash, Guid securityStamp, DateTime expiresAtUtc)
-        => new(Guid.NewGuid(), candidateAccountId, tokenHash, securityStamp, expiresAtUtc);
+    {
+        var id = Guid.NewGuid();
+        return new(id, candidateAccountId, id, tokenHash, securityStamp, expiresAtUtc);
+    }
 
-    public bool IsActive => RevokedAtUtc is null && ExpiresAtUtc > DateTime.UtcNow;
+    public bool IsRevoked => RevokedAtUtc is not null;
+
+    public bool IsActive => !IsRevoked && ExpiresAtUtc > DateTime.UtcNow;
 
     public bool CanBeRedeemedWith(Guid currentSecurityStamp) =>
         IsActive && SecurityStamp == currentSecurityStamp;
 
     public void Revoke() => RevokedAtUtc = DateTime.UtcNow;
+
+    public CandidateRefreshToken Rotate(string tokenHash, Guid securityStamp, DateTime expiresAtUtc)
+    {
+        Revoke();
+        return new(Guid.NewGuid(), CandidateAccountId, FamilyId, tokenHash, securityStamp, expiresAtUtc);
+    }
 }

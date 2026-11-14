@@ -42,11 +42,9 @@ export async function acceptInvitation(request: AcceptInvitationRequest): Promis
   await apiClient.post(`${API_V1}/invitations/accept`, request);
 }
 
+/* The API revokes the token in the cookie and deletes the cookie. Best-effort; the local session
+   is cleared either way. */
 export async function logout(): Promise<void> {
-  const refreshToken = tokenStore.getRefreshToken();
-  if (refreshToken) {
-    // Best-effort; local credentials are cleared either way.
-    await apiClient.post(`${AUTH_BASE}/logout`, { refreshToken }).catch(() => undefined);
-  }
+  await apiClient.post(`${AUTH_BASE}/logout`).catch(() => undefined);
   tokenStore.clear();
 }

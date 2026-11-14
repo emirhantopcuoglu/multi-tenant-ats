@@ -1,6 +1,7 @@
 using Ats.Shared.Kernel;
 using MailKit.Net.Smtp;
 using MailKit.Security;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MimeKit;
 
@@ -9,14 +10,24 @@ namespace Ats.Shared.Infrastructure;
 public sealed class MailKitEmailSender : IEmailSender
 {
     private readonly EmailOptions _options;
+    private readonly ILogger<MailKitEmailSender> _logger;
 
-    public MailKitEmailSender(IOptions<EmailOptions> options)
+    public MailKitEmailSender(IOptions<EmailOptions> options, ILogger<MailKitEmailSender> logger)
     {
         _options = options.Value;
+        _logger = logger;
     }
 
     public async Task SendAsync(string toEmail, string subject, string htmlBody, CancellationToken cancellationToken = default)
     {
+        // A message queued before the erasure can still arrive after it. The server would reject the
+        // address and the message would be retried for nothing.
+        if (AnonymizedEmail.IsAnonymized(toEmail))
+        {
+            _logger.LogInformation("Skipped an email to an erased account");
+            return;
+        }
+
         var message = new MimeMessage();
         message.From.Add(new MailboxAddress(_options.FromName, _options.FromAddress));
         message.To.Add(MailboxAddress.Parse(toEmail));

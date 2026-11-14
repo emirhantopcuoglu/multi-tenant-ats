@@ -46,10 +46,10 @@ export interface ChangeCandidatePasswordRequest {
   newPassword: string;
 }
 
-/* The stamp rotation kills the current tokens; the caller must store the new pair right away. */
+/* The stamp rotation kills the current session; the caller must store the new access token right
+   away. The new refresh token comes as a cookie. */
 export interface ChangeCandidatePasswordResult {
   accessToken: string;
-  refreshToken: string;
 }
 
 export async function changeCandidatePassword(

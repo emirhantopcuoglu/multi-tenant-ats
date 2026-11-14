@@ -184,7 +184,7 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
         catch (Exception exception)
         {
             // Not part of the transaction, so delete the uploaded CV if the save fails.
-            await TryDeleteAsync(cvKey, ct);
+            await TryDeleteAsync(cvKey);
 
             // Ask the database the same question as the pre-check instead of decoding a driver error. Any
             // other failure (e.g. the candidate's own email index) is real and propagates.
@@ -243,15 +243,18 @@ public sealed class SubmitApplicationHandler : ICommandHandler<SubmitApplication
     private static string BuildCvKey(Guid tenantId, Guid candidateId, string fileName) =>
         $"{tenantId}/{candidateId}/{Guid.NewGuid()}-{StorageKey.SanitizeFileName(fileName)}";
 
-    private async Task TryDeleteAsync(string key, CancellationToken ct)
+    // Not with the request's token: a closed browser cancels the save, and the CV must still go.
+    private async Task TryDeleteAsync(string key)
     {
         try
         {
-            await _fileStorage.DeleteAsync(key, ct);
+            await _fileStorage.DeleteAsync(key, CancellationToken.None);
         }
-        catch
+        catch (Exception exception)
         {
-            // Best-effort; let the original failure surface.
+            // The original failure still surfaces. This file is personal data nothing points to, so it
+            // has to be found and removed by hand.
+            _logger.LogError(exception, "Failed to delete the CV object {CvFileKey} of an unsaved application", key);
         }
     }
 }

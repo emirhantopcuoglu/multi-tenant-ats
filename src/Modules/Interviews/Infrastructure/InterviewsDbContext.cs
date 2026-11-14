@@ -1,6 +1,7 @@
 using System.Reflection;
 using Ats.Modules.Interviews.Application;
 using Ats.Modules.Interviews.Domain;
+using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,6 +23,7 @@ public sealed class InterviewsDbContext : DbContext, IInterviewsDbContext
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.HasDefaultSchema("interviews");
+        builder.ApplyConfiguration(new AuditLogEntryConfiguration());
 
         builder.Entity<Interview>(entity =>
         {

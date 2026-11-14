@@ -4,5 +4,5 @@ public sealed class InterviewRoomOptions
 {
     public const string SectionName = "InterviewRoom";
 
-    public string BaseUrl { get; init; } = "http://localhost:5173/interview-room";
+    public string BaseUrl { get; init; } = string.Empty;
 }

@@ -27,6 +27,9 @@ using StackExchange.Redis;
 // sensitive properties.
 var builder = WebApplication.CreateBuilder(args);
 
+// Before anything below opens a connection with them.
+builder.Configuration.EnsureRequiredSettings();
+
 builder.Host.UseSerilog((ctx, services, config) => config
     .ReadFrom.Configuration(ctx.Configuration)
     .ReadFrom.Services(services)
@@ -34,6 +37,8 @@ builder.Host.UseSerilog((ctx, services, config) => config
     // Adds TraceId and SpanId so log lines can be matched to traces.
     .Enrich.WithOpenTelemetryTraceId()
     .Enrich.WithOpenTelemetrySpanId()
+    // After FromLogContext, so values pushed onto the context are masked too.
+    .Enrich.With<PersonalDataMaskingEnricher>()
     .Destructure.With(new SensitiveDataMaskingPolicy()));
 
 builder.Services
@@ -84,7 +89,7 @@ builder.AddPersistence();
 builder.Services.Configure<LlmOptions>(
     builder.Configuration.GetSection(LlmOptions.SectionName));
 builder.Services.AddHttpClient();
-builder.Services.AddSingleton<IPdfTextExtractor, PdfPigTextExtractor>();
+builder.Services.AddSingleton<IPdfTextExtractor, PdfWorkerTextExtractor>();
 builder.Services.AddSingleton<IDocxTextExtractor, DocxTextExtractor>();
 builder.Services.AddSingleton<ICvParser, OpenAiCompatibleCvParser>();
 
@@ -160,11 +165,12 @@ using (var scope = app.Services.CreateScope())
 
     var mongoDatabase = scope.ServiceProvider.GetRequiredService<IMongoDatabase>();
     await MongoActivityLogInitializer.EnsureIndexesAsync(mongoDatabase);
-    await MongoAuditLogInitializer.EnsureIndexesAsync(mongoDatabase);
 }
 
 // First, so logging, metrics and the rate limiter see the real client IP.
 app.UseForwardedHeaders();
+
+app.UseMiddleware<ApiSecurityHeadersMiddleware>();
 
 app.UseExceptionHandler();
 

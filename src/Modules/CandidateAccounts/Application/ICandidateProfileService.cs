@@ -36,7 +36,8 @@ public sealed record ChangeCandidatePasswordCommand(string CurrentPassword, stri
 public sealed record RequestCandidateEmailChangeCommand(string NewEmail, string CurrentPassword);
 
 // The stamp rotation ends every session, including the caller's, so the caller gets a new one.
-public sealed record CandidatePasswordChangeResult(string AccessToken, string RefreshToken);
+public sealed record CandidatePasswordChangeResult(
+    string AccessToken, string RefreshToken, DateTime RefreshTokenExpiresAtUtc);
 
 public interface ICandidateProfileService
 {

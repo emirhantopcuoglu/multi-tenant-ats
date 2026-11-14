@@ -5,5 +5,5 @@ public sealed class EmailConfirmationOptions
 {
     public const string SectionName = "EmailConfirmation";
 
-    public string ConfirmBaseUrl { get; init; } = "http://localhost:5173/confirm-email";
+    public string ConfirmBaseUrl { get; init; } = string.Empty;
 }

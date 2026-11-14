@@ -4,5 +4,5 @@ public sealed class CandidateEmailVerificationOptions
 {
     public const string SectionName = "CandidateEmailVerification";
 
-    public string ConfirmBaseUrl { get; init; } = "http://localhost:5173/candidate/verify-email";
+    public string ConfirmBaseUrl { get; init; } = string.Empty;
 }

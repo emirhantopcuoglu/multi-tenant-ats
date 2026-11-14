@@ -4,16 +4,16 @@ public sealed class RabbitMqOptions
 {
     public const string SectionName = "RabbitMq";
 
-    public string Host { get; init; } = "localhost";
+    public string Host { get; init; } = string.Empty;
 
     public ushort Port { get; init; } = 5672;
 
     public string VirtualHost { get; init; } = "/";
 
-    // Dev credentials from docker-compose. A shared broker overrides these with User Secrets.
-    public string Username { get; init; } = "ats";
+    // Secret outside development: User Secrets or environment variables.
+    public string Username { get; init; } = string.Empty;
 
-    public string Password { get; init; } = "ats_dev_password";
+    public string Password { get; init; } = string.Empty;
 
     // Exponential in-memory retry for consumers; after the last attempt the message goes to the
     // "_error" queue.

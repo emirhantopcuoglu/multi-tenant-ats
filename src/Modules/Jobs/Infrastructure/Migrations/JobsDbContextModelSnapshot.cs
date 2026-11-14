@@ -123,6 +123,63 @@ namespace Ats.Modules.Jobs.Infrastructure.Migrations
                     b.ToTable("Jobs", "jobs");
                 });
 
+            modelBuilder.Entity("Ats.Shared.Infrastructure.AuditLogEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("ActorEmail")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("After")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Before")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("IpAddress")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ResourceId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ResourceType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "OccurredAtUtc")
+                        .IsDescending(false, true);
+
+                    b.HasIndex("TenantId", "ResourceType", "ResourceId", "OccurredAtUtc")
+                        .IsDescending(false, false, false, true);
+
+                    b.ToTable("AuditLogs", "jobs");
+                });
+
             modelBuilder.Entity("Ats.Modules.Jobs.Domain.Job", b =>
                 {
                     b.OwnsOne("Ats.Modules.Jobs.Domain.SalaryRange", "SalaryRange", b1 =>

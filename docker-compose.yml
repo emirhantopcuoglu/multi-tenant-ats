@@ -10,6 +10,8 @@ x-api-environment: &api-environment
   RabbitMq__Username: ${RABBITMQ_USER:-ats}
   RabbitMq__Password: ${RABBITMQ_PASSWORD:-ats_dev_password}
   Email__Host: mailhog
+  Email__Port: "1025"
+  Email__FromAddress: noreply@ats.local
   FileStorage__Endpoint: minio:9000
   FileStorage__PublicEndpoint: localhost:9000
   FileStorage__AccessKey: ${MINIO_ROOT_USER:-minioadmin}

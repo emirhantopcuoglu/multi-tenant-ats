@@ -52,8 +52,7 @@ public sealed class InterviewScheduledEmailConsumer
         }
 
         _logger.LogInformation(
-            "Sent interview-scheduled email to {CandidateEmail} for interview {InterviewId}",
-            message.CandidateEmail,
+            "Sent interview-scheduled email for interview {InterviewId}",
             message.InterviewId);
     }
 

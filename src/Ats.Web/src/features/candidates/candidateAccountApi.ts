@@ -1,6 +1,6 @@
 import { apiClient, API_V1 } from '@/lib/apiClient';
 
-/* Deleting needs the current password. */
+/* Deleting needs the current password, and only schedules the erasure. */
 
 const CANDIDATE_ACCOUNT_BASE = `${API_V1}/candidate/account`;
 
@@ -16,9 +16,18 @@ export interface DeleteCandidateAccountRequest {
   currentPassword: string;
 }
 
+export interface DeletionRequested {
+  deletionDueAtUtc: string;
+}
+
 export async function deleteCandidateAccount(
   request: DeleteCandidateAccountRequest,
-): Promise<void> {
+): Promise<DeletionRequested> {
   /* axios puts a DELETE body under `data`. */
-  await apiClient.delete(CANDIDATE_ACCOUNT_BASE, { data: request });
+  const { data } = await apiClient.delete<DeletionRequested>(CANDIDATE_ACCOUNT_BASE, { data: request });
+  return data;
+}
+
+export async function cancelCandidateAccountDeletion(): Promise<void> {
+  await apiClient.post(`${CANDIDATE_ACCOUNT_BASE}/cancel-deletion`);
 }

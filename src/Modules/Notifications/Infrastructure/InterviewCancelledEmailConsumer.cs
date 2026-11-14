@@ -49,8 +49,7 @@ public sealed class InterviewCancelledEmailConsumer
         }
 
         _logger.LogInformation(
-            "Sent interview-cancelled email to {CandidateEmail} for interview {InterviewId}",
-            message.CandidateEmail,
+            "Sent interview-cancelled email for interview {InterviewId}",
             message.InterviewId);
     }
 

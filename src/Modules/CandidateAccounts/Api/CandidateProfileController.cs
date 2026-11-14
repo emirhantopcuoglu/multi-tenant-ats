@@ -95,8 +95,12 @@ public sealed class CandidateProfileController : ControllerBase
         var command = new ChangeCandidatePasswordCommand(request.CurrentPassword, request.NewPassword);
         var result = await _profileService.ChangePasswordAsync(candidateAccountId, command);
 
+        // The stamp change ended every session, this one included, so the caller gets a new one.
         if (result.IsSuccess)
-            return Ok(result.Value);
+        {
+            CandidateSessionCookie.Write(Response, result.Value.RefreshToken, result.Value.RefreshTokenExpiresAtUtc);
+            return Ok(new CandidateAuthController.SessionResponse(result.Value.AccessToken));
+        }
 
         return result.Error == CandidateProfileErrors.NotFound
             ? NotFound(new { result.Error.Code, result.Error.Message })

@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Ats.Shared.Kernel;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -77,6 +78,7 @@ internal sealed class RecordingFileStorage : IFileStorage
     public List<string> Uploaded { get; } = [];
     public List<(string Source, string Destination)> Copied { get; } = [];
     public List<string> Deleted { get; } = [];
+    public byte[] DownloadContent { get; init; } = [];
 
     public Task UploadAsync(
         string key, Stream content, long size, string contentType,
@@ -91,7 +93,7 @@ internal sealed class RecordingFileStorage : IFileStorage
         Task.FromResult($"https://storage.test/{key}");
 
     public Task<byte[]> DownloadAsync(string key, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Array.Empty<byte>());
+        Task.FromResult(DownloadContent);
 
     public Task CopyAsync(
         string sourceKey, string destinationKey, CancellationToken cancellationToken = default)
@@ -100,8 +102,26 @@ internal sealed class RecordingFileStorage : IFileStorage
         return Task.CompletedTask;
     }
 
+    public Exception? DeleteFailure { get; init; }
+
+    // What ListAsync returns; tests put files here with the age they need.
+    public List<StoredFile> Stored { get; } = [];
+
+    public async IAsyncEnumerable<StoredFile> ListAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await Task.Yield();
+        foreach (var file in Stored)
+            yield return file;
+    }
+
+    // Like the real client, a cancelled token stops the delete.
     public Task DeleteAsync(string key, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (DeleteFailure is not null)
+            throw DeleteFailure;
+
         Deleted.Add(key);
         return Task.CompletedTask;
     }

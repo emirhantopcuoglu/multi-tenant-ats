@@ -21,4 +21,10 @@ public interface IFileStorage
     Task CopyAsync(string sourceKey, string destinationKey, CancellationToken cancellationToken = default);
 
     Task DeleteAsync(string key, CancellationToken cancellationToken = default);
+
+    // Every stored file. A key no IStoredFileOwner claims is deleted by the nightly orphan cleanup,
+    // so a module that stores files must register an owner.
+    IAsyncEnumerable<StoredFile> ListAsync(CancellationToken cancellationToken = default);
 }
+
+public sealed record StoredFile(string Key, DateTime LastModifiedUtc);

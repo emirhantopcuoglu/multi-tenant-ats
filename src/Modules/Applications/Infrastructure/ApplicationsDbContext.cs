@@ -1,6 +1,7 @@
 using System.Reflection;
 using Ats.Modules.Applications.Application;
 using Ats.Modules.Applications.Domain;
+using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +30,7 @@ public sealed class ApplicationsDbContext : DbContext, IApplicationsDbContext
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.HasDefaultSchema("applications");
+        builder.ApplyConfiguration(new AuditLogEntryConfiguration());
 
         // Outbox tables, in this context so publishes commit with the business change. Not tenant-scoped.
         builder.AddTransactionalOutboxEntities();
@@ -55,7 +57,7 @@ public sealed class ApplicationsDbContext : DbContext, IApplicationsDbContext
         builder.Entity<ApplicationEntity>(entity =>
         {
             entity.HasKey(a => a.Id);
-            entity.Property(a => a.CvFileKey).IsRequired().HasMaxLength(512);
+            entity.Property(a => a.CvFileKey).HasMaxLength(512);
             entity.Property(a => a.CoverLetter).HasMaxLength(5000);
             entity.Property(a => a.RejectionReason).HasMaxLength(1000);
             entity.Property(a => a.Status).HasConversion<string>().HasMaxLength(20);
@@ -76,6 +78,9 @@ public sealed class ApplicationsDbContext : DbContext, IApplicationsDbContext
             // For the candidate portal's cross-tenant list.
             entity.HasIndex(a => a.CandidateAccountId)
                 .HasFilter("\"CandidateAccountId\" IS NOT NULL");
+            // For the retention job: closed applications that still hold personal data.
+            entity.HasIndex(a => a.ClosedAtUtc)
+                .HasFilter("\"ClosedAtUtc\" IS NOT NULL AND \"CvFileKey\" IS NOT NULL");
         });
 
         builder.Entity<Pipeline>(entity =>
