@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.14.1](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.14.0...v0.14.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* **api:** apply every module's migrations in one transaction ([#301](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/301)) ([198fe8f](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/198fe8f749fe68b4febf90382d7f468857f61921))
+* **api:** replace an oversized or odd correlation id from the client ([#298](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/298)) ([9b99bb9](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/9b99bb952118cc9685e209853766062d85eb463b))
+* **api:** start without waiting for MinIO and Mongo ([#297](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/297)) ([7efbfab](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/7efbfabd2db4ad1b77438db754bd9faa8a7b0750))
+* **applications:** page the activity log and the candidate's interviews ([#300](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/300)) ([8dd4152](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/8dd4152bbc65ceb06f59bc301aac60dfbaad7374))
+* **auth:** shut out a deactivated company user right away ([#296](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/296)) ([77ec886](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/77ec886aeb6384079eac104a4ff75d1fcd599979))
+* **auth:** stop company sign-up from revealing registered emails ([#295](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/295)) ([1d5d9cb](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/1d5d9cb19ebf167bd561e76cac42d4a7d1ff7b32))
+* **jobs:** index the public search and limit it per IP ([#299](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/299)) ([3c0ee8e](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/3c0ee8ec2a74b51bbec133b9cfc7b3616eb7eb6d))
+
 ## [0.14.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.13.0...v0.14.0) (2026-11-14)
 
 
