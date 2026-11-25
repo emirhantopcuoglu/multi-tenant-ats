@@ -21,7 +21,7 @@ public sealed class JobEditConflictTests
     [Fact]
     public async Task should_answer_409_to_a_save_from_a_form_loaded_before_someone_else_saved()
     {
-        var client = _factory.CreateCompanyClient(Roles.Admin, Guid.NewGuid());
+        var client = (await _factory.CreateCompanyClientAsync(Roles.Admin, Guid.NewGuid())).Client;
         var created = await client.PostAsJsonAsync(JobsUrl, JobBody("Backend Developer"));
         created.EnsureSuccessStatusCode();
         var jobUrl = created.Headers.Location!.PathAndQuery;
