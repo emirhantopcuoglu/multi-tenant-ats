@@ -111,7 +111,10 @@ jobs:
           echo "DATA_PROTECTION_CERT_PASSWORD=$DATA_PROTECTION_CERT_PASSWORD" >> "$GITHUB_ENV"
           bash scripts/new-dataprotection-cert.sh
 
+      # The end-to-end tests below sign in and out from one IP more often than the login limit allows.
       - name: Start the API, the web app and their dependencies
+        env:
+          PER_IP_PERMIT_LIMIT: 1000
         run: docker compose --profile app up -d --build api web
 
       - name: Wait for /health/ready
@@ -128,6 +131,30 @@ jobs:
           headers="$(curl -fsSI http://localhost:8080/)"
           echo "$headers"
           echo "$headers" | grep -i "^content-security-policy: default-src 'self'; script-src 'self';.*connect-src 'self' http://localhost:5236;"
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: src/Ats.Web/package-lock.json
+
+      # A real browser against the stack started above. MailHog runs with it, so the tests can open links
+      # from the mails the app sends.
+      - name: End-to-end tests
+        working-directory: src/Ats.Web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run e2e
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-traces
+          path: src/Ats.Web/test-results/
+          retention-days: 7
 
       - name: Show logs
         if: failure()

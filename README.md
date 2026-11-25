@@ -84,3 +84,10 @@ dotnet test tests/Ats.ArchitectureTests
 dotnet test tests/Ats.IntegrationTests   # needs Docker (Testcontainers)
 cd src/Ats.Web && npm test
 ```
+
+End-to-end tests drive a browser against the app running in Docker, with MailHog for the mail:
+
+```bash
+PER_IP_PERMIT_LIMIT=1000 docker compose --profile app up -d --build api web
+cd src/Ats.Web && npx playwright install chromium && npm run e2e
+```
