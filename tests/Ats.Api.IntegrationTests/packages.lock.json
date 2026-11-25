@@ -56,6 +56,15 @@
           "Testcontainers": "4.16.0"
         }
       },
+      "Testcontainers.RabbitMq": {
+        "type": "Direct",
+        "requested": "[4.16.0, )",
+        "resolved": "4.16.0",
+        "contentHash": "aKMDJmB1xXDcspTyohGhe/nSBV/TY0VYN/gsLJyGoGUQGirUDff+wHvEJt+C0w1WIWAwwkLd7GGIQjy3RnowRw==",
+        "dependencies": {
+          "Testcontainers": "4.16.0"
+        }
+      },
       "Testcontainers.Redis": {
         "type": "Direct",
         "requested": "[4.16.0, )",
