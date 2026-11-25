@@ -165,7 +165,7 @@ public sealed class EndpointAuthorizationTests
 
         foreach (var role in CompanyRoles)
         {
-            var client = _factory.CreateCompanyClient(role, Guid.NewGuid());
+            var client = (await _factory.CreateCompanyClientAsync(role, Guid.NewGuid())).Client;
             foreach (var endpoint in ControllerEndpoints().Where(e => !IsPublic(e) && PoliciesOf(e).Length > 0))
             {
                 var isAllowed = PoliciesOf(endpoint).All(p => RolesByPolicy[p].Contains(role));
@@ -173,6 +173,23 @@ public sealed class EndpointAuthorizationTests
                 if ((status == HttpStatusCode.Forbidden) == isAllowed)
                     wrong.Add($"{role}: {Describe(endpoint)} -> {(int)status}");
             }
+        }
+
+        AssertNone(wrong);
+    }
+
+    [Fact]
+    public async Task a_deactivated_company_user_should_get_401_everywhere()
+    {
+        var (client, userId) = await _factory.CreateCompanyClientAsync(Roles.Admin, Guid.NewGuid());
+        await _factory.DeactivateCompanyUserAsync(userId);
+        var wrong = new List<string>();
+
+        foreach (var endpoint in ControllerEndpoints().Where(e => !IsPublic(e)))
+        {
+            var status = await SendAsync(client, endpoint);
+            if (status != HttpStatusCode.Unauthorized)
+                wrong.Add($"{Describe(endpoint)} -> {(int)status}");
         }
 
         AssertNone(wrong);

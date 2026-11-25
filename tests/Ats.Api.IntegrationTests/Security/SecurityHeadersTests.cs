@@ -28,7 +28,7 @@ public sealed class SecurityHeadersTests
     [Fact]
     public async Task an_error_from_the_exception_handler_should_keep_them()
     {
-        var client = _factory.CreateCompanyClient(Roles.Admin, Guid.NewGuid());
+        var client = (await _factory.CreateCompanyClientAsync(Roles.Admin, Guid.NewGuid())).Client;
         var created = await client.PostAsJsonAsync("/api/v1/jobs", JobBody("Backend Developer", version: 0));
         created.EnsureSuccessStatusCode();
         var jobUrl = created.Headers.Location!.PathAndQuery;

@@ -11,6 +11,7 @@ using Ats.Modules.Tenants.Domain;
 using Ats.Shared.Kernel;
 using MassTransit;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -59,16 +60,31 @@ public sealed class AtsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
     }
 
     // The user isn't in the database; policies only read the token.
-    public HttpClient CreateCompanyClient(string role, Guid tenantId)
+    // A real user, so the active-user check passes and only policies decide.
+    public async Task<(HttpClient Client, Guid UserId)> CreateCompanyClientAsync(string role, Guid tenantId)
     {
         using var scope = Services.CreateScope();
-        var tokenService = scope.ServiceProvider.GetRequiredService<ITokenService>();
-        var user = new ApplicationUser { Id = Guid.NewGuid(), Email = $"{role.ToLowerInvariant()}@acme.test", TenantId = tenantId };
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var email = $"{role.ToLowerInvariant()}-{Guid.NewGuid():N}@acme.test";
+        var user = new ApplicationUser { UserName = email, Email = email, TenantId = tenantId };
+        var created = await userManager.CreateAsync(user);
+        if (!created.Succeeded)
+            throw new InvalidOperationException(string.Join("; ", created.Errors.Select(e => e.Description)));
 
+        var tokenService = scope.ServiceProvider.GetRequiredService<ITokenService>();
         var client = CreateClient();
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", tokenService.GenerateAccessToken(user, [role]));
-        return client;
+        return (client, user.Id);
+    }
+
+    public async Task DeactivateCompanyUserAsync(Guid userId)
+    {
+        using var scope = Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        user!.DeactivatedAtUtc = DateTime.UtcNow;
+        await userManager.UpdateAsync(user);
     }
 
     // A real account, so the token's stamp matches and only policies decide.

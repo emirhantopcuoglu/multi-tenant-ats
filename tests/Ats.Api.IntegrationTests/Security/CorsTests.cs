@@ -55,7 +55,7 @@ public sealed class CorsTests
         using var request = new HttpRequestMessage(HttpMethod.Get, ProtectedUrl);
         request.Headers.Add("Origin", AtsApiFactory.SpaOrigin);
 
-        using var response = await _factory.CreateCompanyClient(Roles.Admin, Guid.NewGuid()).SendAsync(request);
+        using var response = await (await _factory.CreateCompanyClientAsync(Roles.Admin, Guid.NewGuid())).Client.SendAsync(request);
 
         Assert.Contains("Retry-After", Header(response, "Access-Control-Expose-Headers") ?? "");
     }
