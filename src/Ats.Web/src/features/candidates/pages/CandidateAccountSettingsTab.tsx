@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, useToast } from '@/components/ui';
 import { toApiError } from '@/lib/problemDetails';
+import { downloadCandidateData } from '../candidateAccountApi';
 import { useDeleteCandidateAccount, useFreezeCandidateAccount } from '../useCandidateAccount';
 import { FreezeAccountDialog } from '../components/FreezeAccountDialog';
 import { DeleteAccountDialog } from '../components/DeleteAccountDialog';
@@ -18,6 +19,18 @@ export function CandidateAccountSettingsTab() {
   const [freezeDialogOpen, setFreezeDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletePasswordError, setDeletePasswordError] = useState<string | undefined>();
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      await downloadCandidateData();
+    } catch {
+      toast({ title: t('candidateSettings.account.downloadError'), tone: 'danger' });
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const handleFreeze = () => {
     freeze.mutate(undefined, {
@@ -55,6 +68,18 @@ export function CandidateAccountSettingsTab() {
         <h2 className="text-lg font-semibold tracking-tight">{t('candidateSettings.account.heading')}</h2>
         <p className="text-sm text-text-muted">{t('candidateSettings.account.subheading')}</p>
       </div>
+
+      <Card className="max-w-xl space-y-3">
+        <div className="space-y-1">
+          <h3 className="text-sm font-medium">{t('candidateSettings.account.downloadTitle')}</h3>
+          <p className="text-sm text-text-muted">{t('candidateSettings.account.downloadDescription')}</p>
+        </div>
+        <div className="flex justify-end">
+          <Button type="button" variant="secondary" disabled={downloading} onClick={() => void handleDownload()}>
+            {t('candidateSettings.account.downloadSubmit')}
+          </Button>
+        </div>
+      </Card>
 
       <Card className="max-w-xl space-y-3">
         <div className="space-y-1">

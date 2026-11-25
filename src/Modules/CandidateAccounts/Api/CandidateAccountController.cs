@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Asp.Versioning;
 using Ats.Modules.CandidateAccounts.Application;
 using Ats.Shared.Kernel;
@@ -21,6 +22,23 @@ public sealed class CandidateAccountController : ControllerBase
     {
         _lifecycleService = lifecycleService;
         _currentUser = currentUser;
+    }
+
+    private static readonly JsonSerializerOptions ExportJson = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+
+    // Everything kept about the candidate, one section per module (KVKK right of access).
+    [HttpGet("export")]
+    public async Task<IActionResult> Export(
+        [FromServices] IEnumerable<ICandidateDataExporter> exporters, CancellationToken cancellationToken)
+    {
+        if (_currentUser.UserId is not { } candidateAccountId)
+            return Unauthorized();
+
+        var export = new Dictionary<string, object> { ["exportedAtUtc"] = DateTime.UtcNow };
+        foreach (var exporter in exporters)
+            export[exporter.Section] = await exporter.ExportAsync(candidateAccountId, cancellationToken);
+
+        return File(JsonSerializer.SerializeToUtf8Bytes(export, ExportJson), "application/json", "ats-my-data.json");
     }
 
     [HttpPost("freeze")]
