@@ -6,7 +6,6 @@ using Ats.Api.Extensions;
 using Prometheus;
 using Serilog;
 using Serilog.Enrichers.OpenTelemetry;
-using Ats.Modules.Applications.Infrastructure;
 using Ats.Modules.Tenants.Application;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -19,7 +18,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using Minio;
-using MongoDB.Driver;
 using Scalar.AspNetCore;
 using StackExchange.Redis;
 
@@ -139,6 +137,7 @@ builder.Services.AddSingleton<IMinioClient>(sp =>
         .Build();
 });
 builder.Services.AddSingleton<IFileStorage, MinioFileStorage>();
+builder.Services.AddHostedService<StorageInitializer>();
 
 builder.AddIdentityAndAuthorization();
 builder.AddDataProtectionKeys();
@@ -157,14 +156,6 @@ using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
     await RoleSeeder.SeedAsync(roleManager);
-
-    // Startup needs MinIO, like migrations and role seeding above. Fine for dev.
-    var minioClient = scope.ServiceProvider.GetRequiredService<IMinioClient>();
-    var fileStorageOptions = scope.ServiceProvider.GetRequiredService<IOptions<FileStorageOptions>>();
-    await FileStorageInitializer.EnsureBucketAsync(minioClient, fileStorageOptions);
-
-    var mongoDatabase = scope.ServiceProvider.GetRequiredService<IMongoDatabase>();
-    await MongoActivityLogInitializer.EnsureIndexesAsync(mongoDatabase);
 }
 
 // First, so logging, metrics and the rate limiter see the real client IP.

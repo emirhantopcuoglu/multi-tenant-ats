@@ -8,6 +8,7 @@ using Ats.Modules.CandidateAccounts.Domain;
 using Ats.Modules.CandidateAccounts.Infrastructure;
 using Ats.Modules.Tenants.Application;
 using Ats.Modules.Tenants.Domain;
+using Ats.Shared.Infrastructure;
 using Ats.Shared.Kernel;
 using MassTransit;
 using Microsoft.AspNetCore.Hosting;
@@ -17,6 +18,8 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+using Minio;
 using Testcontainers.Minio;
 using Testcontainers.MongoDb;
 using Testcontainers.PostgreSql;
@@ -45,7 +48,18 @@ public sealed class AtsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
     {
         await Task.WhenAll(_postgres.StartAsync(), _mongo.StartAsync(), _redis.StartAsync(), _minio.StartAsync());
         await MigrateDatabaseAsync();
+        await CreateBucketAsync();
         WriteDataProtectionCertificate();
+    }
+
+    // The app creates it in the background; tests that upload right away shouldn't race that.
+    private async Task CreateBucketAsync()
+    {
+        var client = new MinioClient()
+            .WithEndpoint(_minio.Hostname, _minio.GetMappedPublicPort(MinioBuilder.MinioPort))
+            .WithCredentials(_minio.GetAccessKey(), _minio.GetSecretKey())
+            .Build();
+        await FileStorageInitializer.EnsureBucketAsync(client, Options.Create(new FileStorageOptions()));
     }
 
     async Task IAsyncLifetime.DisposeAsync()
