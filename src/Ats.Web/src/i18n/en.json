@@ -788,6 +788,10 @@
     "account": {
       "heading": "Account",
       "subheading": "Freeze your account temporarily, or delete it permanently.",
+      "downloadTitle": "Download your data",
+      "downloadDescription": "A file with everything we keep about you: your account, applications, interviews and notifications.",
+      "downloadSubmit": "Download",
+      "downloadError": "Couldn't prepare your data. Try again.",
       "freezeTitle": "Freeze account",
       "freezeDescription": "Pauses your account until you reactivate it. You can sign in at any time and undo this with one click.",
       "freezeSubmit": "Freeze account",

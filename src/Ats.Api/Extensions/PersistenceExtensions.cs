@@ -97,6 +97,12 @@ public static class PersistenceExtensions
         builder.Services.AddScoped<INotificationsDbContext>(sp => sp.GetRequiredService<NotificationsDbContext>());
         builder.Services.AddNotificationsApplication();
 
+        // A candidate's data export reads every module through these.
+        builder.Services.AddScoped<ICandidateDataExporter, CandidateAccountDataExporter>();
+        builder.Services.AddScoped<ICandidateDataExporter, ApplicationCandidateDataExporter>();
+        builder.Services.AddScoped<ICandidateDataExporter, InterviewCandidateDataExporter>();
+        builder.Services.AddScoped<ICandidateDataExporter, NotificationCandidateDataExporter>();
+
         // MongoClient is thread-safe and pooled, so it is a singleton. The repository is scoped because it
         // uses ICurrentTenant.
         builder.Services.Configure<MongoOptions>(

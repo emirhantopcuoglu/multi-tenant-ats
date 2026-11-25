@@ -788,6 +788,10 @@
     "account": {
       "heading": "Hesap",
       "subheading": "Hesabını geçici olarak durdur ya da kalıcı olarak sil.",
+      "downloadTitle": "Verilerini indir",
+      "downloadDescription": "Hakkında tuttuğumuz her şeyi içeren bir dosya: hesabın, başvuruların, mülakatların ve bildirimlerin.",
+      "downloadSubmit": "İndir",
+      "downloadError": "Verilerin hazırlanamadı. Tekrar dene.",
       "freezeTitle": "Hesabı dondur",
       "freezeDescription": "Hesabını sen yeniden aktifleştirene kadar duraklatır. İstediğin zaman giriş yapıp tek tıkla geri alabilirsin.",
       "freezeSubmit": "Hesabı dondur",
