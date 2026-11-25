@@ -82,12 +82,13 @@ public sealed class ListCandidateInterviewsTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Value.Count);
-        Assert.DoesNotContain(result.Value, i => i.ApplicationId == applicationOther.Id);
-        Assert.Contains(result.Value, i => i.ApplicationId == applicationA.Id && i.RoomToken == "token-a");
-        Assert.Contains(result.Value, i => i.ApplicationId == applicationB.Id && i.RoomToken == "token-b");
+        var items = result.Value.Items;
+        Assert.Equal(2, items.Count);
+        Assert.DoesNotContain(items, i => i.ApplicationId == applicationOther.Id);
+        Assert.Contains(items, i => i.ApplicationId == applicationA.Id && i.RoomToken == "token-a");
+        Assert.Contains(items, i => i.ApplicationId == applicationB.Id && i.RoomToken == "token-b");
         // Newest scheduled time first.
-        Assert.Equal(applicationB.Id, result.Value[0].ApplicationId);
+        Assert.Equal(applicationB.Id, items[0].ApplicationId);
     }
 
     [Fact]
@@ -101,7 +102,45 @@ public sealed class ListCandidateInterviewsTests
             new ListCandidateInterviewsQuery(Guid.NewGuid()), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Empty(result.Value);
+        Assert.Empty(result.Value.Items);
+    }
+
+    [Fact]
+    public async Task pages_should_cover_every_interview_once()
+    {
+        var candidateAccountId = Guid.NewGuid();
+        var tenant = new FixedTenant(Guid.NewGuid());
+        var jobId = Guid.NewGuid();
+        Application application;
+        await using (var db = NewDb(tenant))
+        {
+            var pipeline = Pipeline.CreateDefault(jobId);
+            db.Pipelines.Add(pipeline);
+            var candidate = Candidate.Create("ece.tan@acme.test", "Ece", "Tan");
+            db.Candidates.Add(candidate);
+            application = Application.Create(jobId, candidate.Id, candidateAccountId, pipeline.InitialStage.Id, "cv/e.pdf");
+            db.Applications.Add(application);
+            await db.SaveChangesAsync();
+        }
+
+        // The same time for all, so only a tie-break keeps the pages apart.
+        var scheduledAt = DateTime.UtcNow.AddDays(3);
+        var interviews = Enumerable.Range(0, 25)
+            .Select(_ => new CandidateInterviewInfo(
+                Guid.NewGuid(), application.Id, "Technical", scheduledAt, 45, "Scheduled", null))
+            .ToList();
+        await using var readDb = NewDb(tenant);
+        var handler = new ListCandidateInterviewsHandler(
+            readDb, new FakeJobDirectory(null), new FakeTenantDirectory(null), new FakeInterviewDirectory(interviews));
+
+        var pages = new List<PagedResult<CandidateInterviewSummaryDto>>();
+        for (var page = 1; page <= 3; page++)
+            pages.Add((await handler.Handle(
+                new ListCandidateInterviewsQuery(candidateAccountId, page, PageSize: 10), CancellationToken.None)).Value);
+
+        Assert.All(pages, p => Assert.Equal(25, p.TotalCount));
+        Assert.Equal([10, 10, 5], pages.Select(p => p.Items.Count));
+        Assert.Equal(25, pages.SelectMany(p => p.Items).Select(i => i.Id).Distinct().Count());
     }
 
     private ApplicationsDbContext NewDb(FixedTenant tenant) =>
