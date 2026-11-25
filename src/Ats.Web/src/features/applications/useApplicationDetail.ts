@@ -17,8 +17,12 @@ export function useApplication(id: string) {
   return useQuery({ queryKey: applicationDetailKey(id), queryFn: () => getApplication(id) });
 }
 
-export function useApplicationActivities(id: string) {
-  return useQuery({ queryKey: activitiesKey(id), queryFn: () => getApplicationActivities(id) });
+export function useApplicationActivities(id: string, page: number, pageSize: number) {
+  return useQuery({
+    queryKey: [...activitiesKey(id), page, pageSize],
+    queryFn: () => getApplicationActivities(id, page, pageSize),
+    placeholderData: (prev) => prev,
+  });
 }
 
 /* retry: false because a 404 here is expected while parsing runs. */

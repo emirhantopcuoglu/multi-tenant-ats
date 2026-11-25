@@ -3,12 +3,14 @@ using Ats.Shared.Kernel;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Ats.Modules.Jobs.Api;
 
 // Public job board. The tenant comes from the path slug via TenantResolutionMiddleware.
 [ApiController]
 [AllowAnonymous]
+[EnableRateLimiting(RateLimitPolicies.PublicRead)]
 [Route("{slug}/jobs")]
 public sealed class PublicJobsController : ControllerBase
 {

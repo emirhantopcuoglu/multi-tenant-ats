@@ -11,8 +11,9 @@ public interface IActivityLogRepository
     Task AddAsync(
         ApplicationActivity activity, Guid tenantId, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<ActivityLogEntry>> GetByApplicationAsync(
-        Guid applicationId, CancellationToken cancellationToken = default);
+    // Newest first.
+    Task<ActivityLogPage> GetPageByApplicationAsync(
+        Guid applicationId, int page, int pageSize, CancellationToken cancellationToken = default);
 
     // For candidate requests, which have no tenant. Pass the tenant from a verified application row,
     // never one supplied by the caller.
@@ -23,6 +24,8 @@ public interface IActivityLogRepository
     Task ErasePersonalDataAsync(
         Guid tenantId, IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default);
 }
+
+public sealed record ActivityLogPage(IReadOnlyList<ActivityLogEntry> Items, int TotalCount);
 
 // Payload is raw JSON; the API turns it into a JSON object.
 public sealed record ActivityLogEntry(

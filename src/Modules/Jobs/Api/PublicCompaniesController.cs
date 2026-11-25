@@ -1,7 +1,9 @@
 using Ats.Modules.Jobs.Application.Jobs;
+using Ats.Shared.Kernel;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Ats.Modules.Jobs.Api;
 
@@ -9,6 +11,7 @@ namespace Ats.Modules.Jobs.Api;
 // list and counts come from job data; names come from the Tenants module through a port.
 [ApiController]
 [AllowAnonymous]
+[EnableRateLimiting(RateLimitPolicies.PublicRead)]
 [Route("public/companies")]
 public sealed class PublicCompaniesController : ControllerBase
 {

@@ -128,13 +128,18 @@ public static class IdentityAndAuthorizationExtensions
                 {
                     OnTokenValidated = async context =>
                     {
-                        if (!context.Principal!.HasClaim(TokenTypes.ClaimName, TokenTypes.Candidate))
+                        var services = context.HttpContext.RequestServices;
+                        if (context.Principal!.HasClaim(TokenTypes.ClaimName, TokenTypes.Candidate))
+                        {
+                            var stamps = services.GetRequiredService<CandidateSecurityStampValidator>();
+                            if (!await stamps.IsCurrentAsync(context.Principal))
+                                context.Fail("The candidate session has ended.");
                             return;
+                        }
 
-                        var stamps = context.HttpContext.RequestServices
-                            .GetRequiredService<CandidateSecurityStampValidator>();
-                        if (!await stamps.IsCurrentAsync(context.Principal))
-                            context.Fail("The candidate session has ended.");
+                        var users = services.GetRequiredService<CompanyUserStatusValidator>();
+                        if (!await users.IsActiveAsync(context.Principal))
+                            context.Fail("The user is deactivated.");
                     }
                 };
             });
@@ -181,6 +186,7 @@ public static class IdentityAndAuthorizationExtensions
 
         // Scoped: it reads the stamp through the scoped DbContext.
         builder.Services.AddScoped<CandidateSecurityStampValidator>();
+        builder.Services.AddScoped<CompanyUserStatusValidator>();
 
         return builder;
     }

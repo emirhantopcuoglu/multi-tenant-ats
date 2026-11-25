@@ -516,9 +516,12 @@ internal sealed class InMemoryActivityLog : IActivityLogRepository
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<ActivityLogEntry>> GetByApplicationAsync(
-        Guid applicationId, CancellationToken cancellationToken = default) =>
-        GetByApplicationAsync(applicationId, Guid.Empty, cancellationToken);
+    public Task<ActivityLogPage> GetPageByApplicationAsync(
+        Guid applicationId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var entries = _entries.Where(e => e.ApplicationId == applicationId).ToList();
+        return Task.FromResult(new ActivityLogPage(entries.Skip((page - 1) * pageSize).Take(pageSize).ToList(), entries.Count));
+    }
 
     public Task<IReadOnlyList<ActivityLogEntry>> GetByApplicationAsync(
         Guid applicationId, Guid tenantId, CancellationToken cancellationToken = default) =>

@@ -18,7 +18,7 @@ public sealed class ApplicationAuthorizationTests
     [Fact]
     public async Task should_forbid_hiring_manager_from_rejecting_an_application()
     {
-        var client = _factory.CreateCompanyClient(Roles.HiringManager, Guid.NewGuid());
+        var client = (await _factory.CreateCompanyClientAsync(Roles.HiringManager, Guid.NewGuid())).Client;
 
         var response = await client.PostAsJsonAsync(RejectUrl(Guid.NewGuid()), new { reason = "Not a fit." });
 
@@ -29,7 +29,7 @@ public sealed class ApplicationAuthorizationTests
     [Fact]
     public async Task should_let_recruiter_reach_the_reject_handler()
     {
-        var client = _factory.CreateCompanyClient(Roles.Recruiter, Guid.NewGuid());
+        var client = (await _factory.CreateCompanyClientAsync(Roles.Recruiter, Guid.NewGuid())).Client;
 
         var response = await client.PostAsJsonAsync(RejectUrl(Guid.NewGuid()), new { reason = "Not a fit." });
 
@@ -39,7 +39,7 @@ public sealed class ApplicationAuthorizationTests
     [Fact]
     public async Task should_forbid_read_only_user_from_rejecting_an_application()
     {
-        var client = _factory.CreateCompanyClient(Roles.ReadOnly, Guid.NewGuid());
+        var client = (await _factory.CreateCompanyClientAsync(Roles.ReadOnly, Guid.NewGuid())).Client;
 
         var response = await client.PostAsJsonAsync(RejectUrl(Guid.NewGuid()), new { reason = "Not a fit." });
 

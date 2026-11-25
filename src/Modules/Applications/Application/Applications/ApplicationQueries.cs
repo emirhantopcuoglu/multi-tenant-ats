@@ -133,11 +133,11 @@ public sealed class GetCvDownloadUrlHandler : IQueryHandler<GetCvDownloadUrlQuer
 public sealed record ApplicationActivityDto(
     Guid Id, string ActivityType, Guid? ActorUserId, JsonElement Payload, DateTime OccurredAtUtc);
 
-public sealed record GetApplicationActivityQuery(Guid ApplicationId)
-    : IQuery<IReadOnlyList<ApplicationActivityDto>>;
+public sealed record GetApplicationActivityQuery(Guid ApplicationId, int Page = 1, int PageSize = 20)
+    : IQuery<PagedResult<ApplicationActivityDto>>;
 
 public sealed class GetApplicationActivityHandler
-    : IQueryHandler<GetApplicationActivityQuery, IReadOnlyList<ApplicationActivityDto>>
+    : IQueryHandler<GetApplicationActivityQuery, PagedResult<ApplicationActivityDto>>
 {
     private readonly IApplicationsDbContext _db;
     private readonly IActivityLogRepository _activityLog;
@@ -148,23 +148,26 @@ public sealed class GetApplicationActivityHandler
         _activityLog = activityLog;
     }
 
-    public async Task<Result<IReadOnlyList<ApplicationActivityDto>>> Handle(
+    public async Task<Result<PagedResult<ApplicationActivityDto>>> Handle(
         GetApplicationActivityQuery query, CancellationToken ct)
     {
+        var page = query.Page < 1 ? 1 : query.Page;
+        var pageSize = query.PageSize is < 1 or > 100 ? 20 : query.PageSize;
+
         // Check the application exists in this tenant first, so an unknown id is a 404.
         var exists = await _db.Applications.AsNoTracking()
             .AnyAsync(a => a.Id == query.ApplicationId, ct);
         if (!exists)
-            return Result.Failure<IReadOnlyList<ApplicationActivityDto>>(ApplicationErrors.NotFound);
+            return Result.Failure<PagedResult<ApplicationActivityDto>>(ApplicationErrors.NotFound);
 
-        var entries = await _activityLog.GetByApplicationAsync(query.ApplicationId, ct);
+        var entries = await _activityLog.GetPageByApplicationAsync(query.ApplicationId, page, pageSize, ct);
 
-        var items = entries
+        var items = entries.Items
             .Select(e => new ApplicationActivityDto(
                 e.Id, e.ActivityType, e.ActorUserId,
                 JsonSerializer.Deserialize<JsonElement>(e.Payload), e.OccurredAtUtc))
             .ToList();
 
-        return Result.Success<IReadOnlyList<ApplicationActivityDto>>(items);
+        return Result.Success(new PagedResult<ApplicationActivityDto>(items, page, pageSize, entries.TotalCount));
     }
 }

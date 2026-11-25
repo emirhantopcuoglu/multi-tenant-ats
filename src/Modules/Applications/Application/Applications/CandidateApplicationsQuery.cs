@@ -317,10 +317,12 @@ public sealed record CandidateInterviewSummaryDto(
     string Status,
     string? RoomToken);
 
-public sealed record ListCandidateInterviewsQuery(Guid CandidateAccountId) : IQuery<IReadOnlyList<CandidateInterviewSummaryDto>>;
+public sealed record ListCandidateInterviewsQuery(Guid CandidateAccountId, int Page = 1, int PageSize = 20)
+    : IQuery<PagedResult<CandidateInterviewSummaryDto>>;
 
+// Paged after the merge: the interviews live in another module, and one candidate has few of them.
 public sealed class ListCandidateInterviewsHandler
-    : IQueryHandler<ListCandidateInterviewsQuery, IReadOnlyList<CandidateInterviewSummaryDto>>
+    : IQueryHandler<ListCandidateInterviewsQuery, PagedResult<CandidateInterviewSummaryDto>>
 {
     private readonly IApplicationsDbContext _db;
     private readonly IJobDirectory _jobs;
@@ -336,9 +338,13 @@ public sealed class ListCandidateInterviewsHandler
         _interviews = interviews;
     }
 
-    public async Task<Result<IReadOnlyList<CandidateInterviewSummaryDto>>> Handle(
+    public async Task<Result<PagedResult<CandidateInterviewSummaryDto>>> Handle(
         ListCandidateInterviewsQuery query, CancellationToken ct)
     {
+        var page = query.Page < 1 ? 1 : query.Page;
+        var pageSize = query.PageSize is < 1 or > 100 ? 20 : query.PageSize;
+        var empty = new PagedResult<CandidateInterviewSummaryDto>([], page, pageSize, 0);
+
         var applications = await _db.Applications
             .AsNoTracking()
             .IgnoreQueryFilters()
@@ -347,12 +353,12 @@ public sealed class ListCandidateInterviewsHandler
             .ToListAsync(ct);
 
         if (applications.Count == 0)
-            return Result.Success<IReadOnlyList<CandidateInterviewSummaryDto>>([]);
+            return Result.Success(empty);
 
         var applicationIds = applications.Select(a => a.Id).ToList();
         var interviews = await _interviews.GetForApplicationsAsync(applicationIds, ct);
         if (interviews.Count == 0)
-            return Result.Success<IReadOnlyList<CandidateInterviewSummaryDto>>([]);
+            return Result.Success(empty);
 
         var applicationsById = applications.ToDictionary(a => a.Id);
         var jobIds = applications.Select(a => a.JobId).Distinct().ToList();
@@ -372,8 +378,10 @@ public sealed class ListCandidateInterviewsHandler
                     i.Type, i.ScheduledAtUtc, i.DurationMinutes, i.Status, i.RoomToken);
             })
             .OrderByDescending(i => i.ScheduledAtUtc)
+            .ThenBy(i => i.Id)
             .ToList();
 
-        return Result.Success<IReadOnlyList<CandidateInterviewSummaryDto>>(items);
+        return Result.Success(new PagedResult<CandidateInterviewSummaryDto>(
+            items.Skip((page - 1) * pageSize).Take(pageSize).ToList(), page, pageSize, items.Count));
     }
 }

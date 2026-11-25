@@ -23,6 +23,9 @@
   "company.confirmEmail.subject": "E-posta adresinizi onaylayın",
   "company.confirmEmail.body": "<p>Merhaba {0},</p>\n<p>Ats çalışma alanınızı tamamlamak için bu adresi onaylayın. Giriş yapabilmeniz için bunu bir kez yapmanız gerekiyor.</p>\n<p><a href=\"{1}\">E-posta adresimi onayla</a></p>\n<p>Bu bağlantı {2} saat içinde geçerliliğini yitirir. Bir hesap oluşturmadıysanız bu e-postayı yok sayın.</p>",
 
+  "company.alreadyRegistered.subject": "E-posta adresinizle kayıt olunmaya çalışıldı",
+  "company.alreadyRegistered.body": "<p>Merhaba {0},</p>\n<p>Bu adresle yeni bir Ats çalışma alanı oluşturulmaya çalışıldı, ancak bu adresin zaten bir hesabı var.</p>\n<p>Siz denediyseniz giriş yapın ya da giriş sayfasındaki \"Şifremi unuttum\" bağlantısını kullanın. Siz değilseniz bu e-postayı yok sayabilirsiniz.</p>",
+
   "company.resetPassword.subject": "Şifrenizi sıfırlayın",
   "company.resetPassword.body": "<p>Ats hesabınızın şifresini sıfırlamak için bir talep alındı.</p>\n<p><a href=\"{0}\">Yeni bir şifre belirleyin</a></p>\n<p>Bu bağlantı {1} dakika içinde geçerliliğini yitirir ve yalnızca bir kez kullanılabilir. Bu talebi siz yapmadıysanız e-postayı yok sayın — mevcut şifreniz çalışmaya devam eder.</p>",
 
