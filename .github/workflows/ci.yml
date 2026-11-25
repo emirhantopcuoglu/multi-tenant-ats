@@ -33,27 +33,23 @@ jobs:
       - name: Unit tests
         run: |
           dotnet test tests/Ats.UnitTests/Ats.UnitTests.csproj \
-            --no-build --configuration Release \
-            --collect:"XPlat Code Coverage" \
-            --results-directory coverage/
+            --no-build --configuration Release
 
       - name: Architecture tests
         run: |
           dotnet test tests/Ats.ArchitectureTests/Ats.ArchitectureTests.csproj \
             --no-build --configuration Release
 
-      - name: Upload coverage
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 7
-
   # Integration tests require Docker (Testcontainers pulls the images).
   # ubuntu-latest runners have Docker pre-installed.
   integration:
     needs: unit-and-arch
     runs-on: ubuntu-latest
+    env:
+      # Coverage of all three suites together, a little under what it was when this was added. Raise it as
+      # coverage grows; lowering it needs a reason.
+      MIN_LINE_COVERAGE: 75
+      MIN_BRANCH_COVERAGE: 65
     steps:
       - uses: actions/checkout@v7
 
@@ -68,15 +64,37 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
-      - name: Integration tests
+      # The unit tests run again here (a few seconds) so the coverage counts all three suites.
+      - name: Tests with coverage
         run: |
-          dotnet test tests/Ats.IntegrationTests/Ats.IntegrationTests.csproj \
-            --no-build --configuration Release
+          for project in Ats.UnitTests Ats.IntegrationTests Ats.Api.IntegrationTests; do
+            dotnet test "tests/$project/$project.csproj" \
+              --no-build --configuration Release \
+              --collect:"XPlat Code Coverage" \
+              --results-directory "coverage/$project"
+          done
 
-      - name: API integration tests
+      # Migrations are generated code, so they stay out of the numbers.
+      - name: Check coverage
         run: |
-          dotnet test tests/Ats.Api.IntegrationTests/Ats.Api.IntegrationTests.csproj \
-            --no-build --configuration Release
+          dotnet tool restore
+          dotnet reportgenerator -reports:"coverage/**/coverage.cobertura.xml" -targetdir:coverage/report \
+            -reporttypes:"TextSummary;HtmlInline" -filefilters:"-**/Migrations/**"
+          cat coverage/report/Summary.txt
+          line=$(sed -n 's/^ *Line coverage: \([0-9.]*\)%.*/\1/p' coverage/report/Summary.txt)
+          branch=$(sed -n 's/^ *Branch coverage: \([0-9.]*\)%.*/\1/p' coverage/report/Summary.txt)
+          awk -v value="$line" -v min="$MIN_LINE_COVERAGE" 'BEGIN { exit !(value >= min) }' \
+            || { echo "Line coverage $line% is under $MIN_LINE_COVERAGE%"; exit 1; }
+          awk -v value="$branch" -v min="$MIN_BRANCH_COVERAGE" 'BEGIN { exit !(value >= min) }' \
+            || { echo "Branch coverage $branch% is under $MIN_BRANCH_COVERAGE%"; exit 1; }
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: coverage/report/
+          retention-days: 7
 
   # Builds the API image and boots it with its dependencies. Bus, DI and config errors only show up
   # at runtime, so no other job catches them.
@@ -93,7 +111,10 @@ jobs:
           echo "DATA_PROTECTION_CERT_PASSWORD=$DATA_PROTECTION_CERT_PASSWORD" >> "$GITHUB_ENV"
           bash scripts/new-dataprotection-cert.sh
 
+      # The end-to-end tests below sign in and out from one IP more often than the login limit allows.
       - name: Start the API, the web app and their dependencies
+        env:
+          PER_IP_PERMIT_LIMIT: 1000
         run: docker compose --profile app up -d --build api web
 
       - name: Wait for /health/ready
@@ -110,6 +131,30 @@ jobs:
           headers="$(curl -fsSI http://localhost:8080/)"
           echo "$headers"
           echo "$headers" | grep -i "^content-security-policy: default-src 'self'; script-src 'self';.*connect-src 'self' http://localhost:5236;"
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: src/Ats.Web/package-lock.json
+
+      # A real browser against the stack started above. MailHog runs with it, so the tests can open links
+      # from the mails the app sends.
+      - name: End-to-end tests
+        working-directory: src/Ats.Web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run e2e
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-traces
+          path: src/Ats.Web/test-results/
+          retention-days: 7
 
       - name: Show logs
         if: failure()

@@ -32,6 +32,10 @@ x-api-environment: &api-environment
   CandidateEmailVerification__ConfirmBaseUrl: ${WEB_URL:-http://localhost:8080}/candidate/verify-email
   EmailConfirmation__ConfirmBaseUrl: ${WEB_URL:-http://localhost:8080}/confirm-email
   InterviewRoom__BaseUrl: ${WEB_URL:-http://localhost:8080}/interview-room
+  # End-to-end and load tests send every request from one IP, so they raise these. The defaults are the
+  # app's own.
+  RateLimiting__PerIpPermitLimit: ${PER_IP_PERMIT_LIMIT:-5}
+  RateLimiting__PublicReadPermitLimit: ${PUBLIC_READ_PERMIT_LIMIT:-60}
 
 services:
   migrate:

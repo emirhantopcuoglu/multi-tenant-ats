@@ -4,6 +4,17 @@ import { apiClient, API_V1 } from '@/lib/apiClient';
 
 const CANDIDATE_ACCOUNT_BASE = `${API_V1}/candidate/account`;
 
+/* A JSON file of everything kept about the candidate, saved through a temporary link. */
+export async function downloadCandidateData(): Promise<void> {
+  const { data } = await apiClient.get<Blob>(`${CANDIDATE_ACCOUNT_BASE}/export`, { responseType: 'blob' });
+  const url = URL.createObjectURL(data);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'ats-my-data.json';
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function freezeCandidateAccount(): Promise<void> {
   await apiClient.post(`${CANDIDATE_ACCOUNT_BASE}/freeze`);
 }
