@@ -45,6 +45,14 @@ public static class RateLimitingExtensions
                     rateLimitingOptions.PerIpPermitLimit,
                     rateLimitWindow));
 
+            // A separate bucket, so browsing jobs doesn't use up the login attempts.
+            options.AddPolicy(RateLimitPolicies.PublicRead, httpContext =>
+                FailOpenRedisFixedWindow(
+                    httpContext,
+                    $"public:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}",
+                    rateLimitingOptions.PublicReadPermitLimit,
+                    rateLimitWindow));
+
             // Authenticated requests must fit both the tenant and the user budget. Anonymous ones get NoLimiter
             // here and rely on the per-IP policy.
             options.GlobalLimiter = PartitionedRateLimiter.CreateChained(

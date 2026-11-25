@@ -4,4 +4,6 @@ namespace Ats.Shared.Kernel;
 public static class RateLimitPolicies
 {
     public const string PerIp = "per-ip";
+
+    public const string PublicRead = "public-read";
 }
