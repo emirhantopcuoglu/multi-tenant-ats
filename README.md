@@ -91,3 +91,14 @@ End-to-end tests drive a browser against the app running in Docker, with MailHog
 PER_IP_PERMIT_LIMIT=1000 docker compose --profile app up -d --build api web
 cd src/Ats.Web && npx playwright install chromium && npm run e2e
 ```
+
+The load test runs k6 in Docker against the public pages. Raise the public limit first, since every request
+comes from one IP:
+
+```bash
+PUBLIC_READ_PERMIT_LIMIT=1000000 docker compose --profile app up -d --build api
+docker run --rm -i -e BASE_URL=http://host.docker.internal:5236 grafana/k6:2.3.0 run - < tests/load/public-feed.js
+```
+
+It fails if more than 1% of requests fail or the 95th percentile goes over 500 ms. On a laptop with the dev
+data (39 jobs, 70 companies), 50 users gave about 116 requests a second at a 28 ms 95th percentile.
