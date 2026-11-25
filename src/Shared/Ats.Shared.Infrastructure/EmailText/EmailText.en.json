@@ -23,6 +23,9 @@
   "company.confirmEmail.subject": "Confirm your email address",
   "company.confirmEmail.body": "<p>Hi {0},</p>\n<p>Confirm this address to finish setting up your Ats workspace. You need to do this once before you can sign in.</p>\n<p><a href=\"{1}\">Confirm my email address</a></p>\n<p>This link expires in {2} hours. If you did not create an account, ignore this email.</p>",
 
+  "company.alreadyRegistered.subject": "Someone tried to register with your email",
+  "company.alreadyRegistered.body": "<p>Hi {0},</p>\n<p>Someone tried to create a new Ats workspace with this address, but it already has an account.</p>\n<p>If it was you, sign in instead, or use \"Forgot password\" on the sign-in page. If not, you can ignore this email.</p>",
+
   "company.resetPassword.subject": "Reset your password",
   "company.resetPassword.body": "<p>A request was made to reset the password of your Ats account.</p>\n<p><a href=\"{0}\">Choose a new password</a></p>\n<p>This link expires in {1} minutes and can be used once. If you did not request this, ignore this email — your current password still works.</p>",
 
