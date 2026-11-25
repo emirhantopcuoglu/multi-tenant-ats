@@ -28,7 +28,7 @@ using Testcontainers.Redis;
 namespace Ats.Api.IntegrationTests.Infrastructure;
 
 // Real Program.cs on throwaway containers; RabbitMQ is replaced by the in-memory harness.
-public sealed class AtsApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
+public class AtsApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     // Same image as docker-compose.
     private const string MinioImage = "cgr.dev/chainguard/minio:latest";
@@ -44,7 +44,7 @@ public sealed class AtsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
     private readonly string _certificatePath =
         Path.Combine(Path.GetTempPath(), $"ats-dataprotection-{Guid.NewGuid():N}.pfx");
 
-    public async Task InitializeAsync()
+    public virtual async Task InitializeAsync()
     {
         await Task.WhenAll(_postgres.StartAsync(), _mongo.StartAsync(), _redis.StartAsync(), _minio.StartAsync());
         await MigrateDatabaseAsync();
@@ -62,7 +62,9 @@ public sealed class AtsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         await FileStorageInitializer.EnsureBucketAsync(client, Options.Create(new FileStorageOptions()));
     }
 
-    async Task IAsyncLifetime.DisposeAsync()
+    Task IAsyncLifetime.DisposeAsync() => DisposeContainersAsync();
+
+    protected virtual async Task DisposeContainersAsync()
     {
         await base.DisposeAsync();
         await Task.WhenAll(
@@ -73,7 +75,6 @@ public sealed class AtsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         File.Delete(_certificatePath);
     }
 
-    // The user isn't in the database; policies only read the token.
     // A real user, so the active-user check passes and only policies decide.
     public async Task<(HttpClient Client, Guid UserId)> CreateCompanyClientAsync(string role, Guid tenantId)
     {
@@ -142,12 +143,15 @@ public sealed class AtsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
 
         builder.ConfigureTestServices(services =>
         {
-            services.AddMassTransitTestHarness();
+            if (!UsesRealBroker)
+                services.AddMassTransitTestHarness();
             services.AddTransient<IStartupFilter, ExternalClientIpStartupFilter>();
         });
     }
 
-    private Dictionary<string, string> BuildSettings() => new()
+    protected virtual bool UsesRealBroker => false;
+
+    protected virtual Dictionary<string, string> BuildSettings() => new()
     {
         ["ConnectionStrings:Postgres"] = _postgres.GetConnectionString(),
         ["Mongo:ConnectionString"] = _mongo.GetConnectionString(),
