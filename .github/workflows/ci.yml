@@ -33,27 +33,23 @@ jobs:
       - name: Unit tests
         run: |
           dotnet test tests/Ats.UnitTests/Ats.UnitTests.csproj \
-            --no-build --configuration Release \
-            --collect:"XPlat Code Coverage" \
-            --results-directory coverage/
+            --no-build --configuration Release
 
       - name: Architecture tests
         run: |
           dotnet test tests/Ats.ArchitectureTests/Ats.ArchitectureTests.csproj \
             --no-build --configuration Release
 
-      - name: Upload coverage
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 7
-
   # Integration tests require Docker (Testcontainers pulls the images).
   # ubuntu-latest runners have Docker pre-installed.
   integration:
     needs: unit-and-arch
     runs-on: ubuntu-latest
+    env:
+      # Coverage of all three suites together, a little under what it was when this was added. Raise it as
+      # coverage grows; lowering it needs a reason.
+      MIN_LINE_COVERAGE: 75
+      MIN_BRANCH_COVERAGE: 65
     steps:
       - uses: actions/checkout@v7
 
@@ -68,15 +64,37 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
-      - name: Integration tests
+      # The unit tests run again here (a few seconds) so the coverage counts all three suites.
+      - name: Tests with coverage
         run: |
-          dotnet test tests/Ats.IntegrationTests/Ats.IntegrationTests.csproj \
-            --no-build --configuration Release
+          for project in Ats.UnitTests Ats.IntegrationTests Ats.Api.IntegrationTests; do
+            dotnet test "tests/$project/$project.csproj" \
+              --no-build --configuration Release \
+              --collect:"XPlat Code Coverage" \
+              --results-directory "coverage/$project"
+          done
 
-      - name: API integration tests
+      # Migrations are generated code, so they stay out of the numbers.
+      - name: Check coverage
         run: |
-          dotnet test tests/Ats.Api.IntegrationTests/Ats.Api.IntegrationTests.csproj \
-            --no-build --configuration Release
+          dotnet tool restore
+          dotnet reportgenerator -reports:"coverage/**/coverage.cobertura.xml" -targetdir:coverage/report \
+            -reporttypes:"TextSummary;HtmlInline" -filefilters:"-**/Migrations/**"
+          cat coverage/report/Summary.txt
+          line=$(sed -n 's/^ *Line coverage: \([0-9.]*\)%.*/\1/p' coverage/report/Summary.txt)
+          branch=$(sed -n 's/^ *Branch coverage: \([0-9.]*\)%.*/\1/p' coverage/report/Summary.txt)
+          awk -v value="$line" -v min="$MIN_LINE_COVERAGE" 'BEGIN { exit !(value >= min) }' \
+            || { echo "Line coverage $line% is under $MIN_LINE_COVERAGE%"; exit 1; }
+          awk -v value="$branch" -v min="$MIN_BRANCH_COVERAGE" 'BEGIN { exit !(value >= min) }' \
+            || { echo "Branch coverage $branch% is under $MIN_BRANCH_COVERAGE%"; exit 1; }
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: coverage/report/
+          retention-days: 7
 
   # Builds the API image and boots it with its dependencies. Bus, DI and config errors only show up
   # at runtime, so no other job catches them.
