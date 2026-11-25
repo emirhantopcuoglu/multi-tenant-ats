@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Button, Card, Skeleton, TabPanel, Tabs, useToast } from '@/components/ui';
+import { Button, Card, Pagination, Skeleton, TabPanel, Tabs, useToast } from '@/components/ui';
 import { useAuth } from '@/app/auth/auth-context';
 import { canManageInterviews } from '@/features/interviews/interviewPermissions';
 import { ScheduleInterviewModal } from '@/features/interviews/components/ScheduleInterviewModal';
@@ -17,6 +17,8 @@ import { RejectDialog } from './components/RejectDialog';
 import { CvAnalysisTab } from './components/CvAnalysisTab';
 import { ActivityTimeline } from './components/ActivityTimeline';
 import { ApplicationInterviewsTab } from './components/ApplicationInterviewsTab';
+
+const ACTIVITY_PAGE_SIZE = 20;
 
 /* Wrapper so the inner view always gets an id and its hooks stay unconditional. */
 export function ApplicationDetailPage() {
@@ -34,7 +36,8 @@ function ApplicationDetailView({ id }: { id: string }) {
   const canScheduleInterview = canManageInterviews(role);
 
   const { data: application, isLoading, isError } = useApplication(id);
-  const activitiesQuery = useApplicationActivities(id);
+  const [activityPage, setActivityPage] = useState(1);
+  const activitiesQuery = useApplicationActivities(id, activityPage, ACTIVITY_PAGE_SIZE);
   const stagesQuery = useJobStages(application?.jobId);
   const { move, correctStage, reject, hire } = useApplicationActions(id);
 
@@ -207,10 +210,19 @@ function ApplicationDetailView({ id }: { id: string }) {
               <Skeleton className="h-32 w-full" />
             ) : activitiesQuery.isError ? (
               <p className="text-sm text-text-muted">{t('applicationDetail.activity.error')}</p>
-            ) : (activitiesQuery.data?.length ?? 0) === 0 ? (
+            ) : (activitiesQuery.data?.items.length ?? 0) === 0 ? (
               <p className="text-sm text-text-muted">{t('applicationDetail.activity.empty')}</p>
             ) : (
-              <ActivityTimeline activities={activitiesQuery.data ?? []} stages={stagesQuery.data ?? []} />
+              <div className="space-y-4">
+                <ActivityTimeline activities={activitiesQuery.data?.items ?? []} stages={stagesQuery.data ?? []} />
+                <div className="flex justify-center">
+                  <Pagination
+                    page={activityPage}
+                    pageCount={activitiesQuery.data?.totalPages ?? 1}
+                    onPageChange={setActivityPage}
+                  />
+                </div>
+              </div>
             )}
           </TabPanel>
         </Tabs>

@@ -48,8 +48,14 @@ export async function getApplication(id: string): Promise<ApplicationDetail> {
   return data;
 }
 
-export async function getApplicationActivities(id: string): Promise<ApplicationActivity[]> {
-  const { data } = await apiClient.get<ApplicationActivity[]>(`${APPLICATIONS_BASE}/${id}/activities`);
+export async function getApplicationActivities(
+  id: string,
+  page: number,
+  pageSize: number,
+): Promise<PagedResult<ApplicationActivity>> {
+  const { data } = await apiClient.get<PagedResult<ApplicationActivity>>(`${APPLICATIONS_BASE}/${id}/activities`, {
+    params: { page, pageSize },
+  });
   return data;
 }
 

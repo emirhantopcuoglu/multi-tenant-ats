@@ -58,37 +58,40 @@ public sealed class MongoActivityLogRepository : IActivityLogRepository
         await _collection.InsertOneAsync(document, options: null, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<ActivityLogEntry>> GetByApplicationAsync(
-        Guid applicationId, CancellationToken cancellationToken = default)
+    public async Task<ActivityLogPage> GetPageByApplicationAsync(
+        Guid applicationId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         // No tenant, no results.
         if (_currentTenant.TenantId is not { } tenantId)
-            return [];
+            return new ActivityLogPage([], 0);
 
-        return await GetByApplicationAsync(applicationId, tenantId, cancellationToken);
+        var filter = ByApplication(applicationId, tenantId);
+        var totalCount = await _collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
+        var documents = await Newest(filter)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new ActivityLogPage(documents.Select(ToEntry).ToList(), (int)totalCount);
     }
 
     public async Task<IReadOnlyList<ActivityLogEntry>> GetByApplicationAsync(
         Guid applicationId, Guid tenantId, CancellationToken cancellationToken = default)
     {
-        var filter = Builders<ActivityDocument>.Filter.Eq(d => d.TenantId, tenantId)
-            & Builders<ActivityDocument>.Filter.Eq(d => d.ApplicationId, applicationId);
-
-        var documents = await _collection
-            .Find(filter)
-            .SortByDescending(d => d.OccurredAtUtc)
-            .ToListAsync(cancellationToken);
-
-        return documents
-            .Select(d => new ActivityLogEntry(
-                d.Id,
-                d.ApplicationId,
-                d.ActivityType,
-                d.ActorUserId,
-                d.Payload.ToJson(),
-                d.OccurredAtUtc))
-            .ToList();
+        var documents = await Newest(ByApplication(applicationId, tenantId)).ToListAsync(cancellationToken);
+        return documents.Select(ToEntry).ToList();
     }
+
+    private static FilterDefinition<ActivityDocument> ByApplication(Guid applicationId, Guid tenantId) =>
+        Builders<ActivityDocument>.Filter.Eq(d => d.TenantId, tenantId)
+        & Builders<ActivityDocument>.Filter.Eq(d => d.ApplicationId, applicationId);
+
+    // Mongo doesn't promise an order for equal timestamps, so the id breaks ties and pages stay apart.
+    private IFindFluent<ActivityDocument, ActivityDocument> Newest(FilterDefinition<ActivityDocument> filter) =>
+        _collection.Find(filter).SortByDescending(d => d.OccurredAtUtc).ThenByDescending(d => d.Id);
+
+    private static ActivityLogEntry ToEntry(ActivityDocument d) =>
+        new(d.Id, d.ApplicationId, d.ActivityType, d.ActorUserId, d.Payload.ToJson(), d.OccurredAtUtc);
 
     public async Task ErasePersonalDataAsync(
         Guid tenantId, IReadOnlyCollection<Guid> applicationIds, CancellationToken cancellationToken = default)

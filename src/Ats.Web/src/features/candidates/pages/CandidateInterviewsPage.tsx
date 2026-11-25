@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Badge, Card, EmptyState, Skeleton } from '@/components/ui';
+import { Badge, Card, EmptyState, Pagination, Skeleton } from '@/components/ui';
 import { interviewStatusTone } from '@/lib/statusColors';
 import { PublicLayout } from '@/features/public/components/PublicLayout';
 import { InterviewRoomLink } from '../components/InterviewRoomLink';
 import { useCandidateInterviews } from '../useCandidateInterviews';
+
+const PAGE_SIZE = 10;
 
 function CalendarIcon() {
   return (
@@ -17,10 +20,12 @@ function CalendarIcon() {
 /* The room page decides whether the room is open, so this list doesn't need the clock. */
 export function CandidateInterviewsPage() {
   const { t, i18n } = useTranslation();
-  const query = useCandidateInterviews();
+  const [page, setPage] = useState(1);
+  const query = useCandidateInterviews(page, PAGE_SIZE);
   const dateFormatter = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'long', timeStyle: 'short' });
 
-  const interviews = query.data ?? [];
+  const interviews = query.data?.items ?? [];
+  const totalPages = query.data?.totalPages ?? 1;
 
   return (
     <PublicLayout>
@@ -51,39 +56,54 @@ export function CandidateInterviewsPage() {
         ) : interviews.length === 0 ? (
           <EmptyState title={t('candidatePortal.interviews.empty')} />
         ) : (
-          <ul className="space-y-3">
-            {interviews.map((interview) => (
-              <li key={interview.id}>
-                <Card className="flex flex-wrap items-center justify-between gap-4 py-4">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-subtle text-accent">
-                      <CalendarIcon />
-                    </span>
-                    <div className="space-y-0.5">
-                      <p className="text-sm font-medium text-text">
-                        {t(`interviewType.${interview.type}`)} · {interview.jobTitle}
-                      </p>
-                      <p className="text-xs text-text-muted">
-                        {interview.companyName} · {dateFormatter.format(new Date(interview.scheduledAtUtc))}
-                        {' · '}
-                        {t('interviews.minutesShort', { count: interview.durationMinutes })}
-                      </p>
+          <>
+            <ul className="space-y-3">
+              {interviews.map((interview) => (
+                <li key={interview.id}>
+                  <Card className="flex flex-wrap items-center justify-between gap-4 py-4">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-subtle text-accent">
+                        <CalendarIcon />
+                      </span>
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-medium text-text">
+                          {t(`interviewType.${interview.type}`)} · {interview.jobTitle}
+                        </p>
+                        <p className="text-xs text-text-muted">
+                          {interview.companyName} · {dateFormatter.format(new Date(interview.scheduledAtUtc))}
+                          {' · '}
+                          {t('interviews.minutesShort', { count: interview.durationMinutes })}
+                        </p>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex shrink-0 items-center gap-3">
-                    <Badge tone={interviewStatusTone[interview.status]} dot>
-                      {t(`status.${interview.status}`)}
-                    </Badge>
-                    <InterviewRoomLink
-                      roomToken={interview.roomToken}
-                      status={interview.status}
-                    />
-                  </div>
-                </Card>
-              </li>
-            ))}
-          </ul>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <Badge tone={interviewStatusTone[interview.status]} dot>
+                        {t(`status.${interview.status}`)}
+                      </Badge>
+                      <InterviewRoomLink
+                        roomToken={interview.roomToken}
+                        status={interview.status}
+                      />
+                    </div>
+                  </Card>
+                </li>
+              ))}
+            </ul>
+
+            {totalPages > 1 && (
+              <div className="flex justify-center pt-2">
+                <Pagination
+                  page={page}
+                  pageCount={totalPages}
+                  onPageChange={(p) => {
+                    setPage(p);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
       </div>
     </PublicLayout>

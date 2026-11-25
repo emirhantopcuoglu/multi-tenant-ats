@@ -24,11 +24,11 @@ public sealed class CandidateInterviewsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> List()
+    public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         var candidateAccountId = _currentUser.UserId!.Value;
 
-        var result = await _sender.Send(new ListCandidateInterviewsQuery(candidateAccountId));
+        var result = await _sender.Send(new ListCandidateInterviewsQuery(candidateAccountId, page, pageSize));
 
         return Ok(result.Value);
     }

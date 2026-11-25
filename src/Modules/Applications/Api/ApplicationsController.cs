@@ -62,9 +62,9 @@ public sealed class ApplicationsController : ControllerBase
 
     [HttpGet("{id:guid}/activities")]
     [Authorize(Policy = Policies.CanViewApplications)]
-    public async Task<IActionResult> GetActivities(Guid id)
+    public async Task<IActionResult> GetActivities(Guid id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var result = await _sender.Send(new GetApplicationActivityQuery(id));
+        var result = await _sender.Send(new GetApplicationActivityQuery(id, page, pageSize));
         return result.IsSuccess
             ? Ok(result.Value)
             : NotFound(new { result.Error.Code, result.Error.Message });
