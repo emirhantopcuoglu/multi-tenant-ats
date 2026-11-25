@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.14.1...v0.15.0) (2026-11-25)
+
+
+### Features
+
+* **candidate-accounts:** let a candidate download their data ([#310](https://github.com/emirhantopcuoglu/multi-tenant-ats/issues/310)) ([7e1a7c4](https://github.com/emirhantopcuoglu/multi-tenant-ats/commit/7e1a7c4d6d59dc3790222c7ee022a54281877025))
+
 ## [0.14.1](https://github.com/emirhantopcuoglu/multi-tenant-ats/compare/v0.14.0...v0.14.1) (2026-11-25)
 
 
