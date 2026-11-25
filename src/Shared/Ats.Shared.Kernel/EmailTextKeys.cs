@@ -43,6 +43,11 @@ public static class EmailTextKeys
         // {0} first name, {1} confirmation link, {2} hours the link stays valid.
         public const string ConfirmEmailBody = "company.confirmEmail.body";
 
+        public const string AlreadyRegisteredSubject = "company.alreadyRegistered.subject";
+
+        // {0} first name.
+        public const string AlreadyRegisteredBody = "company.alreadyRegistered.body";
+
         public const string ResetPasswordSubject = "company.resetPassword.subject";
 
         // {0} reset link, {1} minutes the link stays valid.

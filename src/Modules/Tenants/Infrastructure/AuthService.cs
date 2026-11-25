@@ -64,9 +64,21 @@ public sealed class AuthService : IAuthService
         if (slugTaken)
             return Result.Failure(AuthErrors.RegistrationFailed($"Slug '{normalizedSlug}' is already taken."));
 
-        var emailTaken = await _userManager.FindByEmailAsync(email) is not null;
-        if (emailTaken)
-            return Result.Failure(AuthErrors.RegistrationFailed($"Email '{email}' is already registered."));
+        // Before the email check, so a weak password gets the same answer whether or not the email is taken.
+        var passwordCheck = await ValidatePasswordAsync(password);
+        if (passwordCheck.IsFailure)
+            return passwordCheck;
+
+        // Same answer as a new registration, so the form doesn't reveal who has an account.
+        var existing = await _userManager.FindByEmailAsync(email);
+        if (existing is not null)
+        {
+            if (existing.EmailConfirmed)
+                await SendAlreadyRegisteredNoticeAsync(existing);
+            else
+                await SendEmailConfirmationLinkAsync(existing);
+            return Result.Success();
+        }
 
         // Staged, not saved, so a failed user creation doesn't leave a tenant holding the slug.
         var tenant = Tenant.Create(companyName, normalizedSlug);
@@ -414,6 +426,36 @@ public sealed class AuthService : IAuthService
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
         return Convert.ToBase64String(bytes);
+    }
+
+    private async Task<Result> ValidatePasswordAsync(string password)
+    {
+        var errors = new List<IdentityError>();
+        foreach (var validator in _userManager.PasswordValidators)
+        {
+            var result = await validator.ValidateAsync(_userManager, new ApplicationUser(), password);
+            errors.AddRange(result.Errors);
+        }
+
+        return errors.Count == 0
+            ? Result.Success()
+            : Result.Failure(AuthErrors.RegistrationFailed(string.Join("; ", errors.Select(e => e.Description))));
+    }
+
+    private async Task SendAlreadyRegisteredNoticeAsync(ApplicationUser user)
+    {
+        var language = user.PreferredLanguage;
+        try
+        {
+            await _emailSender.SendAsync(
+                user.Email!,
+                _emailText.Get(EmailTextKeys.Company.AlreadyRegisteredSubject, language),
+                _emailText.Get(EmailTextKeys.Company.AlreadyRegisteredBody, language, WebUtility.HtmlEncode(user.FirstName)));
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Failed to send the already-registered notice");
+        }
     }
 
     // Best-effort: the user can resend from the login screen.

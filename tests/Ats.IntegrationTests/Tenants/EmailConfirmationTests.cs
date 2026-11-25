@@ -229,6 +229,60 @@ public sealed class EmailConfirmationTests
         Assert.Equal(1, await db.Tenants.IgnoreQueryFilters().CountAsync(t => t.Slug == slug));
     }
 
+    // A different answer for a taken address would let anyone check who has a workspace.
+    [Fact]
+    public async Task registering_a_taken_email_should_look_like_success_and_mail_the_owner()
+    {
+        await using var provider = BuildProvider();
+        var mail = new RecordingEmailSender();
+        var email = NewEmail();
+        await RegisterAsync(provider, mail, email, NewSlug());
+        Assert.True((await ConfirmFromMailAsync(provider, mail)).IsSuccess);
+        var secondSlug = NewSlug();
+
+        var again = await RegisterAsync(provider, mail, email, secondSlug);
+
+        Assert.True(again.IsSuccess, again.IsFailure ? again.Error.Code + ": " + again.Error.Message : "");
+        var notice = mail.Sent[^1];
+        Assert.Equal(email, notice.ToEmail);
+        Assert.Null(TokenFrom(notice.Body));
+        await using var db = NewDb();
+        Assert.False(await db.Tenants.IgnoreQueryFilters().AnyAsync(t => t.Slug == secondSlug));
+    }
+
+    // The likely reason to register twice is a lost confirmation mail.
+    [Fact]
+    public async Task registering_again_before_confirming_should_mail_a_new_confirmation_link()
+    {
+        await using var provider = BuildProvider();
+        var mail = new RecordingEmailSender();
+        var email = NewEmail();
+        await RegisterAsync(provider, mail, email, NewSlug());
+
+        var again = await RegisterAsync(provider, mail, email, NewSlug());
+
+        Assert.True(again.IsSuccess);
+        Assert.Equal(2, mail.Sent.Count);
+        Assert.True((await ConfirmFromMailAsync(provider, mail)).IsSuccess);
+    }
+
+    // Refusing a weak password only for free addresses would give the taken ones away.
+    [Fact]
+    public async Task a_weak_password_should_be_refused_for_a_taken_email_too()
+    {
+        await using var provider = BuildProvider();
+        var mail = new RecordingEmailSender();
+        var email = NewEmail();
+        await RegisterAsync(provider, mail, email, NewSlug());
+
+        var taken = await RegisterAsync(provider, mail, email, NewSlug(), password: "short");
+        var free = await RegisterAsync(provider, mail, NewEmail(), NewSlug(), password: "short");
+
+        Assert.True(taken.IsFailure);
+        Assert.Equal(free.Error, taken.Error);
+        Assert.Single(mail.Sent);
+    }
+
     // Pulls the token straight out of the ?token= query parameter of the mailed link.
     private static string? TokenFrom(string body)
     {
